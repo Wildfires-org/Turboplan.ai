@@ -1,0 +1,43 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "turboplan-map",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [
+    {
+      "class_name": "MapContainer",
+      "image": "./Dockerfile",
+      "max_instances": 5,
+      "instance_type": {
+        "vcpu": 1,
+        "memory_mib": 3072,
+        "disk_mb": 2048
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MAP_CONTAINER",
+        "class_name": "MapContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MapContainer"]
+    }
+  ],
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false
+    }
+  }
+}

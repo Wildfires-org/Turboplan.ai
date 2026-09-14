@@ -1,0 +1,41 @@
+# Fly.io configuration for turboplan-research-agent
+# Deploy with: pnpm --filter @wildfires-org/research-agent deploy
+#
+# Set secrets before deploy:
+#   fly secrets set AGENT_API_KEY=...
+#   fly secrets set MODAL_TOKEN_ID=...
+#   fly secrets set MODAL_TOKEN_SECRET=...
+#   fly secrets set ANTHROPIC_API_KEY=...
+#   # Optional: route model traffic through OpenRouter for cost tracking.
+#   # When set, it takes precedence over ANTHROPIC_API_KEY.
+#   fly secrets set OPENROUTER_API_KEY=...
+
+app = "turboplan-research-agent"
+
+[build]
+
+[env]
+  PORT = "8080"
+  # Origin allowlist for /api/agent/* — REPLACE with your own hosts before
+  # deploying. Comma-separated, wildcards allowed.
+  # Must be non-empty: an empty or unset value falls back to "*", which
+  # disables the origin guard entirely (see getResearchAgentEnv).
+  ALLOWED_ORIGINS = "*.example.com,*.<account>.workers.dev"
+  TARGET_API_ROOT_PATH = "/api/webhooks/research-agent"
+  TARGET_API_HEALTH_PATH = "/health"
+  CLAUDE_MODEL = "claude-sonnet-4-6"
+  CLAUDE_FAST_MODEL = "claude-haiku-4-5-20251001"
+  RUN_TIMEOUT_MS = "900000"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

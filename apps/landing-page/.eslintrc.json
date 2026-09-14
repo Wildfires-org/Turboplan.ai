@@ -1,0 +1,16 @@
+{
+  "extends": ["next/core-web-vitals", "prettier"],
+  "rules": {
+    "@next/next/no-sync-scripts": "off",
+    "react/no-unescaped-entities": "warn",
+    "@next/next/no-assign-module-variable": "warn",
+    "react/display-name": "warn",
+    "react-hooks/rules-of-hooks": "warn",
+    "@next/next/no-img-element": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/tests/**/*.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"]
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "name": "@wildfires-org/turboplan-map",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Map package for TurboPlan",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    }
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.8.0",
+    "@wildfires-org/turboplan-api-client": "workspace:*",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-rbac": "workspace:*",
+    "@wildfires-org/turboplan-timeline-records": "workspace:*",
+    "@wildfires-org/turboplan-upload": "workspace:*",
+    "@wildfires-org/turboplan-utils": "workspace:*",
+    "ai": "^6.0.191",
+    "drizzle-orm": "^0.42.0",
+    "eslint": "^9.25.1",
+    "hono": "^4.7.5",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.446.0",
+    "postgres": "^3.4.5",
+    "react-dropzone": "^14.3.8",
+    "react-leaflet": "^5.0.0",
+    "swr": "^2.2.5",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "next": ">=15.5.16",
+    "react": "^19.1.1",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.1.4",
+    "@types/leaflet": "^1.9.12",
+    "@types/node": "^20.10.5",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "next": "15.5.16",
+    "react": "19.1.7",
+    "react-dom": "19.1.7",
+    "rollup-plugin-preserve-use-client": "^3.0.1",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "name": "@wildfires-org/turboplan-auth",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared authentication utilities for TurboPlan monorepo",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./session": {
+      "types": "./dist/session.d.ts",
+      "import": "./dist/session.js",
+      "default": "./dist/session.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    },
+    "./hono": {
+      "types": "./dist/hono.d.ts",
+      "import": "./dist/hono.js",
+      "default": "./dist/hono.js"
+    },
+    "./secrets": {
+      "types": "./dist/secrets.d.ts",
+      "import": "./dist/secrets.js",
+      "default": "./dist/secrets.js"
+    },
+    "./email-identity": {
+      "types": "./dist/email-identity.d.ts",
+      "import": "./dist/email-identity.js",
+      "default": "./dist/email-identity.js"
+    }
+  },
+  "dependencies": {
+    "@auth/core": "^0.37.4",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*"
+  },
+  "peerDependencies": {
+    "next": ">=15.0.0",
+    "next-auth": "^5.0.0-beta.25",
+    "react": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/react": "^19.1.1",
+    "rollup-plugin-preserve-use-client": "^3.0.1",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.3.3"
+  }
+}

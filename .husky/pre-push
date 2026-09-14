@@ -1,0 +1,3 @@
+pnpm typecheck
+pnpm test
+bash scripts/check-changeset.sh

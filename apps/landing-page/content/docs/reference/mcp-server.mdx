@@ -1,0 +1,167 @@
+---
+title: MCP server
+description: Connect AI agents to your TurboPlan workspace over the Model Context Protocol — create a Personal Access Token, point a client at the server, and start calling tools scoped to your own permissions.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+import { routing } from "@/utils/routing";
+
+TurboPlan runs an [Model Context Protocol](https://modelcontextprotocol.io)
+server (`turboplan-catalog`) that exposes your workspace data — organizations,
+offices, projects, fields, context, milestones, tasks, timeline, documents,
+members, and comments — as tools that AI agents can call. If you use Claude
+Desktop, Claude Code, Cursor, or any other MCP-capable client, you can wire it
+up to your TurboPlan workspace and let the agent read and change project data on
+your behalf.
+
+The server runs on Cloudflare Workers and is stateless: every request spins up a
+fresh server instance bound to the authenticated user, so every tool call runs
+with **your** TurboPlan roles and can only touch data you already have access
+to. There is no ambient admin identity.
+
+## Production endpoint
+
+Each deployment hosts the server on its own domain. The examples below use
+`mcp.example.com` as a placeholder — substitute the endpoint for your
+deployment:
+
+```
+https://mcp.example.com/mcp
+```
+
+You can smoke-test that it's up without any credentials by hitting the health
+check:
+
+```bash
+curl https://mcp.example.com/health
+# {"status":"ok","name":"turboplan-catalog","version":"0.1.0"}
+```
+
+## Create a Personal Access Token
+
+Requests to the server are authenticated with a Personal Access Token (PAT)
+passed as a Bearer token. Create one in the TurboPlan web app under <a
+href={routing.profile()}>**Profile → Access Tokens**</a>.
+
+The **Create Token** dialog asks for:
+
+- **Name** — a label so you can recognize the token later.
+- **Actor** — a free-text label for the agent using the token (for example
+  `hermes-slack` or `claude-code`). This shows up on the timeline records the
+  agent creates.
+- **Expiration** — 30 days, 90 days, 1 year, or Never. The default is 90 days.
+
+There is no scope picker. A PAT acts as **you** — it inherits your own TurboPlan
+roles and nothing more — so there is no per-token permission selection to make.
+The plaintext token (prefixed `tc_pat_`) is shown **once** at creation, with a
+copy button. It is never stored or displayed again, so copy it right away.
+Treat it like a password.
+
+## Connect a client
+
+Point your MCP client at `https://mcp.example.com/mcp` with the token in an
+`Authorization: Bearer` header. Pick the option that matches your client.
+
+### Claude Code
+
+Claude Code speaks remote MCP natively — add the server with one command:
+
+```bash
+claude mcp add --transport http turboplan https://mcp.example.com/mcp --header "Authorization: Bearer tc_pat_xxxxxxxx"
+```
+
+### Any client that accepts a remote URL
+
+Many clients take a config block with a URL and headers. Add TurboPlan like
+this:
+
+```json
+{
+  "mcpServers": {
+    "turboplan-catalog": {
+      "url": "https://mcp.example.com/mcp",
+      "headers": { "Authorization": "Bearer tc_pat_xxxxxxxx" }
+    }
+  }
+}
+```
+
+### stdio-only clients (e.g. Claude Desktop)
+
+Some clients — Claude Desktop today, for example — only speak stdio and can't
+reach a remote MCP URL directly. Bridge to the server with the
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) helper:
+
+```json
+{
+  "mcpServers": {
+    "turboplan": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://mcp.example.com/mcp",
+        "--header",
+        "Authorization: Bearer tc_pat_xxxxxxxx"
+      ]
+    }
+  }
+}
+```
+
+Once the client connects, ask it to list the available tools to confirm the
+connection is live.
+
+## Rate limits
+
+The server applies three rate limits:
+
+- **200 requests/min per IP**, before authentication.
+- **60 requests/min per user** for read tools.
+- **30 requests/min per user** for write tools.
+
+A tool counts as a **write** when its name starts with `create_`, `update_`,
+`delete_`, `upload_`, `add_`, `move_`, or `remove_`. Everything else is a read.
+
+## Errors
+
+If a request is rejected before it reaches a tool, the server responds with a
+standard HTTP status:
+
+- **401** — the `Authorization` header is missing, malformed, or the token is
+  unknown.
+- **405** — the request used a method other than `POST`.
+- **415** — the `Content-Type` wasn't `application/json`.
+- **413** — the request body was larger than 1 MiB.
+
+## Security model
+
+The server is designed to be safe to hand to an autonomous agent:
+
+- **Per-user isolation** — every request is bound to the token's user; there is
+  no shared admin identity.
+- **RBAC on every tool** — reads require `READ`, mutations require `UPDATE`, and
+  member or role changes require `MANAGE_MEMBERS`.
+- **Uniform errors** — a missing entity and a denied permission both return the
+  same `Access denied.` message, so an agent can't probe which IDs exist.
+- **Cross-entity checks** — when a tool links two entities, it confirms the
+  target belongs to the same project before writing.
+- **Last-owner protection** — removing or demoting the final owner of an entity
+  is rejected.
+
+Every mutation also writes a timeline record, so an agent's changes are
+auditable alongside everything else that happens in a project.
+
+## Choose your next step
+
+<Cards>
+  <Card
+    title="Tool catalog"
+    href="/docs/reference/mcp-tools"
+    description="The full list of MCP tools grouped by domain — organizations, projects, tasks, documents, and more."
+  />
+  <Card
+    title="Open your access tokens"
+    href={routing.profile()}
+    description="Create or manage a Personal Access Token under Profile → Access Tokens in the TurboPlan app."
+  />
+</Cards>

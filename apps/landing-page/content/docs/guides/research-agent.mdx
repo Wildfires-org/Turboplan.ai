@@ -1,0 +1,52 @@
+---
+title: Research agent
+description: How the AI research agent bootstraps a new project with proposed documents, tasks, fields, and context that you review before saving.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+
+The research agent is a standalone AI service that gives a new project a running
+start. Instead of building everything by hand, you let the agent propose a
+starting structure, then review its proposals and decide what to keep.
+
+## Bootstrapping a project
+
+In its **bootstrap** mode, the agent sets up a new project by proposing a
+coherent starting set:
+
+- **Documents** — suggested files to include.
+- **Milestones and tasks** — a first cut of the work plan.
+- **Fields** — structured details to record on the project.
+- **Context entries** — background notes fed into the project's AI context.
+
+Nothing is applied automatically. Each proposal is something **you review and
+choose to save or discard**, so you stay in control of what actually lands in
+the project. Save the pieces that fit, adjust or drop the rest — the same
+review-before-save flow you'll see whenever the agent suggests changes.
+
+## Cataloger mode
+
+The agent also has a second, **cataloger** mode, geared toward
+catalog- and template-related cataloging work rather than bootstrapping a fresh
+project. If you're getting started, the bootstrap flow above is the one you'll
+use most; cataloger mode supports the catalog side of the system.
+
+## Choose your next step
+
+<Cards>
+  <Card
+    title="Chat and project setup"
+    href="/docs/guides/chat-and-setup"
+    description="The chat-first setup flow the research agent plugs into."
+  />
+  <Card
+    title="Using the catalog"
+    href="/docs/guides/using-the-catalog"
+    description="Browse the public catalog of projects and templates."
+  />
+  <Card
+    title="Tasks and milestones"
+    href="/docs/guides/tasks-and-milestones"
+    description="Refine the work plan the agent proposes."
+  />
+</Cards>

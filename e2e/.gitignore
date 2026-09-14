@@ -1,0 +1,17 @@
+# Test artifacts
+storage/
+reports/
+playwright-report/
+test-results/
+logs/
+*.log
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Playwright
+.auth/

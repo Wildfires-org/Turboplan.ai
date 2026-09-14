@@ -1,0 +1,12 @@
+*.py[cod]
+__pycache__
+
+.DS_Store
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+.vercel
+
+.pytest_cache
+htmlcov
+.coverage

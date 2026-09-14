@@ -1,0 +1,62 @@
+{
+  "name": "@wildfires-org/turboplan-rbac",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RBAC related utilities for TurboPlan",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --experimental-test-module-mocks --test $(find tests -name '*.test.ts')"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks.d.ts",
+      "import": "./dist/hooks.js",
+      "default": "./dist/hooks.js"
+    },
+    "./nextjs": {
+      "types": "./dist/nextjs.d.ts",
+      "import": "./dist/nextjs.js",
+      "default": "./dist/nextjs.js"
+    },
+    "./hono": {
+      "types": "./dist/hono.d.ts",
+      "import": "./dist/hono.js",
+      "default": "./dist/hono.js"
+    }
+  },
+  "dependencies": {
+    "@wildfires-org/turboplan-api-client": "workspace:*",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "drizzle-orm": "^0.42.0",
+    "hono": "^4.6.3",
+    "postgres": "^3.4.4",
+    "swr": "^2.2.5"
+  },
+  "peerDependencies": {
+    "next": ">=15.5.16",
+    "react": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/react": "^19.1.1",
+    "rollup-plugin-preserve-use-client": "^3.0.1",
+    "tsdown": "^0.15.9",
+    "tsx": "^4.19.1",
+    "typescript": "^5.3.3"
+  }
+}

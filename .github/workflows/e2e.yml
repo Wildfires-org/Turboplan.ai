@@ -1,0 +1,239 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "e2e/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/e2e.yml"
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "e2e/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/e2e.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-tests:
+    name: E2E Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: e2e-ci
+
+    env:
+      NODE_ENV: test
+      TURBO_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      TURBO_TEAM: ${{ vars.VERCEL_SCOPE }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+      ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+      JWT_SIGNING_SECRET: ${{ secrets.JWT_SIGNING_SECRET }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_MODEL_PRIMARY: ${{ vars.OPENROUTER_MODEL_PRIMARY }}
+      OPENROUTER_MODEL_LITE: ${{ vars.OPENROUTER_MODEL_LITE }}
+      OPENROUTER_MODEL_IMAGE_PRIMARY: ${{ vars.OPENROUTER_MODEL_IMAGE_PRIMARY }}
+      OPENROUTER_MODEL_IMAGE_LITE: ${{ vars.OPENROUTER_MODEL_IMAGE_LITE }}
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002
+      MAP_SERVICE_API_KEY: ${{ secrets.MAP_SERVICE_API_KEY }}
+      MAP_SERVICE_URL: http://localhost:9000
+      NEXT_PUBLIC_SERVER_URL: http://localhost:3001
+      NEXT_PUBLIC_TURBOPLAN_URL: http://localhost:3000
+      NEXT_PUBLIC_LANDING_URL: http://localhost:3002
+      NEXT_PUBLIC_LINKEDIN_URL: https://www.linkedin.com
+      SERVER_URL: http://localhost:3001
+      TURBOPLAN_URL: http://localhost:3000
+      LINKEDIN_URL: http://localhost:3002
+      NEXT_PUBLIC_IS_TASKS_PACKAGE_ENABLED: ${{ vars.FF_IS_TASKS_PACKAGE_ENABLED }}
+      NEXT_PUBLIC_IS_FIELDS_PACKAGE_ENABLED: ${{ vars.FF_IS_FIELDS_PACKAGE_ENABLED }}
+      NEXT_PUBLIC_IS_MAPS_PACKAGE_ENABLED: ${{ vars.FF_IS_MAPS_PACKAGE_ENABLED }}
+      NEXT_PUBLIC_IS_DOCUMENTS_PACKAGE_ENABLED: ${{ vars.FF_IS_DOCUMENTS_PACKAGE_ENABLED }}
+      NEXT_PUBLIC_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED: ${{ vars.FF_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED }}
+      NEXT_PUBLIC_IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
+      NEXT_PUBLIC_IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
+      # Billing: the flag lights up the billing gates + suites; the Stripe key
+      # MUST be a TEST-mode key (sk_test_/rk_test_) — the billing e2e helpers
+      # skip the Stripe-backed suites for any other key and refuse live keys.
+      IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+      NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
+      APP_NAME: ${{ vars.APP_NAME }}
+      NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
+      IS_TASKS_PACKAGE_ENABLED: ${{ vars.FF_IS_TASKS_PACKAGE_ENABLED }}
+      IS_FIELDS_PACKAGE_ENABLED: ${{ vars.FF_IS_FIELDS_PACKAGE_ENABLED }}
+      IS_MAPS_PACKAGE_ENABLED: ${{ vars.FF_IS_MAPS_PACKAGE_ENABLED }}
+      IS_DOCUMENTS_PACKAGE_ENABLED: ${{ vars.FF_IS_DOCUMENTS_PACKAGE_ENABLED }}
+      IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED: ${{ vars.FF_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED }}
+      IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
+      IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
+      SERVER_API_KEY: ${{ secrets.SERVER_API_KEY }}
+      RESEARCH_AGENT_SERVICE_URL: ${{ vars.RESEARCH_AGENT_SERVICE_URL }}
+      RESEARCH_AGENT_SERVICE_API_KEY: ${{ secrets.RESEARCH_AGENT_SERVICE_API_KEY }}
+      DISABLE_AUTO_PROJECT_IMAGE_GENERATION: true
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+      R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+      R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+      ETHEREAL_USER: ${{ vars.ETHEREAL_USER }}
+      ETHEREAL_PASS: ${{ secrets.ETHEREAL_PASS }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Restore Turbo cache
+        id: turbo-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('e2e/package.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @wildfires-org/e2e-tests exec playwright install chromium --with-deps
+
+      - name: Install Neon CLI
+        run: npm i -g neonctl@2.21.2
+
+      - name: Create Neon E2E Database Branch
+        id: neon-e2e-branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          BRANCH_NAME: e2e-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          MAX_RETRIES=3
+          RETRY_DELAY=5
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i of $MAX_RETRIES: Creating Neon branch '$BRANCH_NAME'..."
+            if OUTPUT=$(neonctl branches create \
+              --project-id "$NEON_PROJECT_ID" \
+              --name "$BRANCH_NAME" \
+              --output json 2>&1); then
+              echo "Branch created successfully."
+              DB_URL=$(neonctl connection-string \
+                --project-id "$NEON_PROJECT_ID" \
+                --branch "$BRANCH_NAME" \
+                --role-name neondb_owner)
+              echo "db_url=$DB_URL" >> "$GITHUB_OUTPUT"
+              echo "branch_created=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Attempt $i failed: $OUTPUT"
+            if [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+          echo "::error::Failed to create Neon branch after $MAX_RETRIES attempts"
+          exit 1
+
+      - name: Set database URL from Neon branch
+        if: steps.neon-e2e-branch.outputs.branch_created == 'true'
+        run: |
+          echo "TEST_POSTGRES_URL=${{ steps.neon-e2e-branch.outputs.db_url }}" >> $GITHUB_ENV
+          echo "POSTGRES_URL=${{ steps.neon-e2e-branch.outputs.db_url }}" >> $GITHUB_ENV
+
+      # The server hard-requires STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET at
+      # boot when the billing flag is on. Without a test key configured we
+      # disable billing for the run so the server still boots and the billing
+      # suites skip cleanly (isBillingE2EConfigured). The webhook secret gets a
+      # placeholder when only it is missing — e2e has no Stripe webhook
+      # delivery, the value just has to be non-empty.
+      - name: Configure billing env
+        run: |
+          if [ -z "$STRIPE_SECRET_KEY" ]; then
+            echo "IS_BILLING_PACKAGE_ENABLED=false" >> "$GITHUB_ENV"
+            echo "NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED=false" >> "$GITHUB_ENV"
+            echo "::warning::STRIPE_TEST_SECRET_KEY secret not set — billing disabled for this run, billing e2e suites will skip"
+          elif [ -z "$STRIPE_WEBHOOK_SECRET" ]; then
+            echo "STRIPE_WEBHOOK_SECRET=whsec_e2e_placeholder" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check environment variables
+        run: bash e2e/check-env.sh
+
+      - name: Start servers
+        run: bash e2e/start-servers.sh
+
+      - name: Run E2E tests
+        run: pnpm e2e:test
+        env:
+          CI: true
+
+      - name: Save Turbo cache
+        if: steps.turbo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .turbo
+          key: ${{ steps.turbo-cache.outputs.cache-primary-key }}
+
+      - name: Stop servers
+        if: always()
+        run: bash e2e/stop-servers.sh
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/reports/
+          retention-days: 7
+
+      - name: Upload server logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: e2e/logs/*.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: e2e/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Delete Neon E2E Database Branch
+        if: always() && steps.neon-e2e-branch.outputs.branch_created == 'true'
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          BRANCH_NAME: e2e-${{ github.run_id }}-${{ github.run_attempt }}
+        run: printf 'y\n' | neonctl branches delete "$BRANCH_NAME" --project-id "$NEON_PROJECT_ID"

@@ -1,0 +1,46 @@
+{
+  "name": "@wildfires-org/research-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "files": [
+    "dist/**",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "tsx watch --env-file=.env.local src/app/server.ts",
+    "build": "node esbuild.config.mjs app",
+    "build:agent": "node esbuild.config.mjs agent",
+    "start": "node dist/app/server.js",
+    "deploy:agent": "pnpm build:agent && tsx --env-file=.env.deploy scripts/deploy-agent.ts",
+    "deploy:fly": "pnpm build && cd ../.. && flyctl deploy --config apps/research-agent/fly.toml --dockerfile apps/research-agent/Dockerfile --build-arg GITHUB_TOKEN=$GITHUB_TOKEN",
+    "deploy": "pnpm deploy:agent && pnpm deploy:fly",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config tests/vitest.config.ts",
+    "test:watch": "vitest --watch --config tests/vitest.config.ts",
+    "test:unit": "vitest run --config tests/vitest.unit.config.ts",
+    "test:e2e": "vitest run --config tests/vitest.e2e.config.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
+    "@hono/node-server": "^1.19.9",
+    "@sentry/node": "^10.70.0",
+    "@wildfires-org/turboplan-auth": "workspace:*",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-utils": "workspace:*",
+    "drizzle-orm": "^0.42.0",
+    "hono": "^4.11.7",
+    "modal": "^0.6.2",
+    "posthog-node": "^5.24.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.79",
+    "@types/node": "^24.10.13",
+    "esbuild": "^0.25.11",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

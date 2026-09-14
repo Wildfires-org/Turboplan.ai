@@ -1,0 +1,27 @@
+/**
+ * Styles for map container components
+ * Moved from dynamic injection to prevent memory leaks in HMR
+ */
+
+/* Grayscale filter for map tiles */
+.map-grayscale [class~='leaflet-tile-pane'] {
+  filter: grayscale(1) brightness(0.8) contrast(1.5);
+}
+
+/* Feature labels on map */
+.map-feature-label {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  color: #333 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  pointer-events: none !important;
+}
+
+.map-feature-label::before {
+  content: none !important;
+}
+

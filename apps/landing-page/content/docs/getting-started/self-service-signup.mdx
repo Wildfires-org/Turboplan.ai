@@ -1,0 +1,44 @@
+---
+title: Self-service signup
+description: No invite? Sign up on your own and go straight into creating your first project.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+import { routing } from "@/utils/routing";
+
+If you don't have an invite to an existing organization yet, you don't need one.
+TurboPlan has a **self-service** path that lets a new visitor sign up and start
+creating a project on their own.
+
+## Signing up on your own
+
+The self-service flow is a distinct starting point from being invited into an
+existing organization. You sign up and go **straight into creating your first
+project** — there's no waiting to be added to a government organization first.
+
+As part of this flow, the app **automatically creates your personal
+organization and workspace**, so your new project has a home from the moment you
+start. It's the same personal-workspace mechanism every account gets; you're
+simply entering it from the self-service door rather than from an invite.
+
+From there, you land in the project's chat and set it up like any other project.
+
+## Choose your next step
+
+<Cards>
+  <Card
+    title="Quickstart"
+    href="/docs/getting-started/quickstart"
+    description="Sign in and create your first project step by step."
+  />
+  <Card
+    title="Projects and workspaces"
+    href="/docs/guides/projects-and-workspaces"
+    description="How your personal workspace fits into the hierarchy."
+  />
+  <Card
+    title="Open TurboPlan"
+    href={routing.signIn()}
+    description="Head to the app to sign up and get started."
+  />
+</Cards>

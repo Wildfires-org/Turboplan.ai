@@ -1,0 +1,41 @@
+---
+title: TurboPlan Documentation
+description: Product documentation for running environmental planning projects in TurboPlan — chat-driven setup, tasks, documents, signing, and more.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+import { routing } from "@/utils/routing";
+
+TurboPlan is an AI environmental planning application. You work on projects
+inside a signed-in workspace: create a project, set it up through an AI chat,
+then manage its tasks, maps, documents, signatures, and members from a single
+place.
+
+This documentation covers how to use the application — from signing in and
+creating your first project to working with each feature module. Pick the path
+that matches where you are.
+
+## Choose your next step
+
+<Cards>
+  <Card
+    title="What is TurboPlan?"
+    href="/docs/getting-started/what-is-turboplan"
+    description="Understand what the application does and how projects are organized once you sign in."
+  />
+  <Card
+    title="Quickstart"
+    href="/docs/getting-started/quickstart"
+    description="Sign in, create your first project, and land in the chat where setup happens."
+  />
+  <Card
+    title="Guides"
+    href="/docs/guides/projects-and-workspaces"
+    description="Deeper walkthroughs of workspaces, chat setup, tasks, documents, and signing."
+  />
+  <Card
+    title="Browse public projects"
+    href={routing.catalog()}
+    description="Explore the public catalog of government organizations, offices, projects, and templates — no account required."
+  />
+</Cards>

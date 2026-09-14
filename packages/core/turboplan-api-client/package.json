@@ -1,0 +1,40 @@
+{
+  "name": "@wildfires-org/turboplan-api-client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Authenticated API client and utilities for TurboPlan server communication",
+  "type": "module",
+  "dependencies": {
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "jose": "^5.2.0"
+  },
+  "peerDependencies": {
+    "hono": "^4.6.3",
+    "react": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/react": "^19.1.1",
+    "react": "19.1.7",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.3.3"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    }
+  }
+}

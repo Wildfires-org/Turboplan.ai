@@ -1,0 +1,15 @@
+# Stripe identity for this deployment's billing catalog.
+#
+# These two values name every Stripe object the sync script creates:
+#   product          -> price lookup keys (<product>_pro_monthly, ...), product
+#                       metadata catalog keys, coupon id prefixes
+#   meter_event_name -> the billing meter that runtime usage events report to
+#
+# Both are effectively IMMUTABLE once synced against a Stripe account — a
+# rename orphans the live prices and meter (see the package README, "Renaming
+# product or meter"). That is why they live apart from pricing.yaml: a fork
+# owns this file (`merge=ours` in the repo-root .gitattributes), so upstream
+# pricing changes merge cleanly without ever touching the fork's Stripe
+# identity.
+product: turboplan
+meter_event_name: turboplan_credits

@@ -1,0 +1,71 @@
+name: CI
+
+# Secret-free validation, so pull requests from forks are checked too.
+# Anything needing credentials or a database lives in e2e.yml / cloudflare-deploy.yml,
+# which do not run for forks.
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format
+
+      - name: Unit tests
+        run: pnpm test
+
+  changeset:
+    name: Changeset present
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # check-changeset.sh diffs against the merge base, which needs history.
+          fetch-depth: 0
+
+      - name: Check for a changeset
+        # Advisory on forks: external contributors should not be blocked on our
+        # release mechanics, and a maintainer can add the changeset on merge.
+        continue-on-error: ${{ github.event.pull_request.head.repo.fork }}
+        env:
+          CHANGESET_BASE_BRANCH: ${{ github.base_ref }}
+        run: bash scripts/check-changeset.sh

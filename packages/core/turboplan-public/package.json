@@ -1,0 +1,49 @@
+{
+  "name": "@wildfires-org/turboplan-public",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Public API routes for TurboPlan - no authentication required",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test $(find tests -name '*.test.ts')"
+  },
+  "exports": {
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./queries": {
+      "types": "./dist/queries.d.ts",
+      "import": "./dist/queries.js",
+      "default": "./dist/queries.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    }
+  },
+  "dependencies": {
+    "@wildfires-org/turboplan-ai": "workspace:*",
+    "@wildfires-org/turboplan-api-client": "workspace:*",
+    "@wildfires-org/turboplan-billing": "workspace:*",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-map": "workspace:*",
+    "@wildfires-org/turboplan-utils": "workspace:*",
+    "ai": "^6.0.191",
+    "drizzle-orm": "^0.42.0",
+    "hono": "^4.6.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "tsdown": "^0.15.9",
+    "tsx": "^4.19.1",
+    "typescript": "^5.3.3"
+  }
+}

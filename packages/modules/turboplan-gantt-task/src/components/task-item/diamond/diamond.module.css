@@ -1,0 +1,8 @@
+.diamondWrapper {
+  cursor: pointer;
+  outline: none;
+}
+
+.diamondBackground {
+  user-select: none;
+}

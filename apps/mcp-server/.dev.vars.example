@@ -1,0 +1,134 @@
+# =============================================================================
+# TurboPlan MCP Server — local development variables
+# =============================================================================
+# Copy this file to `.dev.vars` (NOT `.env`) and fill in your values:
+#
+#   cp apps/mcp-server/.dev.vars.example apps/mcp-server/.dev.vars
+#
+# Why `.dev.vars` and not `.env`: this app runs on Cloudflare Workers, and
+# `wrangler dev` reads local variables from `.dev.vars` only. Workers have no
+# ambient `process.env` — `src/index.ts` bridges Worker vars and secrets onto
+# `process.env` per request (see ENV_BRIDGE_KEYS). `wrangler.toml` declares no
+# `[vars]` block, so every value below has to come from this file locally.
+#
+# In production these are Worker vars and secrets, set by scripts/deploy-mcp.sh.
+#
+# Run it with:
+#   pnpm build:packages
+#   pnpm --filter @wildfires-org/turboplan-mcp-server dev
+#
+# Authenticating against it: this server accepts Personal Access Tokens
+# (`tc_pat_...`), not session cookies or API JWTs. Mint one from the running web
+# app (Settings → Access Tokens) against the SAME database as POSTGRES_URL below,
+# then send it as `Authorization: Bearer tc_pat_...`.
+#
+# Full reference for every variable: ../../CONFIGURATION.md
+# =============================================================================
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+
+# PostgreSQL connection string. REQUIRED.
+# Must be the same database the web app uses, or the PAT you mint there will not
+# be found here (tokens are validated by hash lookup against this DB).
+# If unset: every request fails — getCommonEnv() throws
+# "Missing database URL: set `POSTGRES_URL` or `TEST_POSTGRES_URL`".
+POSTGRES_URL=postgresql://user:password@localhost:5432/turboplan
+
+# =============================================================================
+# AUTH
+# =============================================================================
+
+# Session/auth secret. REQUIRED. Must match the web app and API server byte for
+# byte — the MCP server shares their user records.
+# This server does NOT use JWT_SIGNING_SECRET or INTERNAL_API_SECRET: it
+# authenticates with Personal Access Tokens, which are hashed in the database.
+# If unset: getCommonEnv() throws "Missing `AUTH_SECRET` env variable".
+# Generate with: openssl rand -base64 32
+AUTH_SECRET=
+
+# Pipe-separated (`|`) list of super-admin emails. OPTIONAL.
+# NOTE: the separator is `|`, not a comma — a comma-separated value silently
+# grants admin to nobody.
+# If unset: no user is treated as a super admin.
+ADMIN_EMAILS=
+
+# =============================================================================
+# URLS
+# =============================================================================
+
+# Base URL of the web app. REQUIRED.
+# Used to build the entity links the tools return (projects, tasks, documents).
+# If unset: getCommonEnv() throws "Missing `TURBOPLAN_URL` ...".
+TURBOPLAN_URL=http://localhost:3000
+
+# Base URL of the landing page. OPTIONAL.
+# Used for public catalog links in tool responses.
+# If unset: falls back to an empty string and public links are omitted.
+LANDING_URL=http://localhost:3002
+
+# Marks the process as running on Workers. REQUIRED — must be the literal
+# string "true" (the check is `=== "true"`, so "1" and "yes" do NOT work).
+# `wrangler dev` IS workerd, so this must be set locally too.
+# If unset: turboplan-db falls back to its Node strategy and caches one
+# postgres client at module scope. The socket is created inside the first
+# request's context, and workerd refuses to let a later request touch it —
+# the first DB-backed tool call succeeds, every one after it fails the whole
+# worker with 500 "Cannot perform I/O on behalf of a different request".
+WORKER_RUNTIME=true
+
+# =============================================================================
+# FEATURE FLAGS — all four REQUIRED (getCommonEnv throws when any is missing)
+# =============================================================================
+# These four are validated unconditionally, so the server will not start without
+# them even if you never call the matching tools — they must be PRESENT, but may
+# be `false`.
+# Only the literal string "true" (case-insensitive) enables a module; anything
+# else, including an empty value, disables it.
+# MAPS and RESEARCH_AGENT_INTEGRATION are left `false` on purpose: enabling
+# either one makes the API server require its service URL and API key, and it
+# throws at startup without them.
+
+IS_TASKS_PACKAGE_ENABLED=true
+IS_MAPS_PACKAGE_ENABLED=false
+IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED=false
+IS_PROJECT_CONTEXT_PACKAGE_ENABLED=true
+
+# Bridged to the tools but not validated at startup. OPTIONAL.
+# If unset: the matching tools are simply unavailable.
+IS_FIELDS_PACKAGE_ENABLED=true
+IS_DOCUMENTS_PACKAGE_ENABLED=true
+IS_TIMELINE_RECORDS_PACKAGE_ENABLED=true
+
+# =============================================================================
+# STORAGE (Cloudflare R2) — needed only for document upload tools
+# =============================================================================
+# REQUIRED when you use upload_document_from_url / upload_document_from_content.
+# If unset: those tools fail at call time; every other tool works fine.
+# Get these from the Cloudflare dashboard → R2 → Manage API tokens.
+
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_ACCOUNT_ID=
+R2_BUCKET_NAME=
+R2_PUBLIC_URL=
+
+# =============================================================================
+# AI (OpenRouter) — needed only for cover-image generation
+# =============================================================================
+# REQUIRED when you use create_*_cover_image or upload_organization_logo_from_url.
+# If unset: those tools fail at call time; every other tool works fine.
+# Get a key at https://openrouter.ai/keys
+
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL_IMAGE_PRIMARY=
+OPENROUTER_MODEL_IMAGE_LITE=
+
+# =============================================================================
+# ERROR MONITORING (Sentry) — OPTIONAL
+# =============================================================================
+
+# Sentry DSN for this worker.
+# If unset: Sentry is disabled entirely and the server runs unchanged.
+SENTRY_DSN=

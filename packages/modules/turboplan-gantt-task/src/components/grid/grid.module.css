@@ -1,0 +1,19 @@
+.gridRow {
+  fill: #fff;
+}
+
+.gridTicks {
+  display: none
+}
+
+.rowLines line {
+  stroke: #EAEBEE,
+}
+
+.gridRowLine {
+  stroke: #EAEBEE;
+}
+
+.gridTick {
+  stroke: #EAEBEE;
+}

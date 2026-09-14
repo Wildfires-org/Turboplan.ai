@@ -1,0 +1,14 @@
+/* Gantt Task React CSS Imports */
+@import './components/calendar/calendar.module.css';
+@import './components/gantt/gantt.module.css';
+@import './components/grid/grid.module.css';
+@import './components/other/horizontal-scroll.module.css';
+@import './components/other/tooltip.module.css';
+@import './components/other/vertical-scroll.module.css';
+@import './components/task-item/bar/bar.module.css';
+@import './components/task-item/diamond/diamond.module.css';
+@import './components/task-item/milestone/milestone.module.css';
+@import './components/task-item/project/project.module.css';
+@import './components/task-item/task-list.module.css';
+@import './components/task-list/task-list-header.module.css';
+@import './components/task-list/task-list-table.module.css';

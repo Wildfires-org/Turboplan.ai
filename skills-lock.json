@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "implement-design": {
+      "source": "figma/mcp-server-guide",
+      "sourceType": "github",
+      "computedHash": "aebdbdb64e8457825736d85ece85213abe82d43bc6a7193b4a85be079147bdab"
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "@wildfires-org/turboplan-billing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stripe billing and subscription management for TurboPlan",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm generate:catalog && tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "generate:catalog": "tsx scripts/generate-catalog.ts",
+    "generate:catalog:check": "tsx scripts/generate-catalog.ts --check",
+    "typecheck": "pnpm generate:catalog:check && tsc --noEmit",
+    "test": "node --import tsx --test $(find tests -name '*.test.ts')",
+    "sync:stripe": "dotenv -e ../../../apps/server/.env -- tsx scripts/sync-stripe-catalog.ts"
+  },
+  "exports": {
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js",
+      "default": "./dist/types/index.js"
+    }
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.8.0",
+    "@wildfires-org/turboplan-api-client": "workspace:*",
+    "@wildfires-org/turboplan-auth": "workspace:*",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-feature-flags": "workspace:*",
+    "@wildfires-org/turboplan-mail": "workspace:*",
+    "@wildfires-org/turboplan-rbac": "workspace:*",
+    "@wildfires-org/turboplan-utils": "workspace:*",
+    "drizzle-orm": "^0.42.0",
+    "hono": "^4.7.5",
+    "lucide-react": "^0.446.0",
+    "stripe": "^22.2.1",
+    "swr": "^2.2.5",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "next": ">=15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.1.4",
+    "@types/node": "^20.10.5",
+    "@types/react": "^19.1.2",
+    "dotenv-cli": "^10.0.0",
+    "next": "15.5.16",
+    "react": "19.1.7",
+    "react-dom": "19.1.7",
+    "rollup-plugin-preserve-use-client": "^3.0.1",
+    "tsdown": "^0.15.9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.3.3",
+    "yaml": "^2.8.0"
+  }
+}

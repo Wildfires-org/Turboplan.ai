@@ -1,0 +1,63 @@
+{
+  "name": "TurboPlan",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "prepare": "husky",
+    "test": "turbo run test --filter='./apps/*' --filter='./packages/**/*'",
+    "dev": "pnpm dev:apps",
+    "dev:apps": "turbo run dev --filter='./apps/*' --filter='!@wildfires-org/research-agent'",
+    "dev:packages": "turbo run dev --filter='./packages/**/*'",
+    "build": "turbo run build --filter='./apps/*' --filter='./packages/**/*'",
+    "build:apps": "turbo run build --filter='./apps/*'",
+    "build:packages": "turbo run build --filter='./packages/**/*'",
+    "format": "biome check --linter-enabled=false",
+    "format:write": "biome check --write --linter-enabled=false",
+    "lint": "biome lint --unsafe",
+    "lint:fix": "biome lint --unsafe --fix",
+    "typecheck": "NODE_OPTIONS='--max-old-space-size=12288' turbo run typecheck --filter='./apps/*' --filter='./packages/**/*' --concurrency=1",
+    "clean": "turbo run clean",
+    "clean:cache": "find . \\( -name '.next' -o -name '.turbo' -o -name 'node_modules/.cache' -o -name '.cache' \\) -type d -prune -exec rm -rf '{}' +",
+    "clean:full": "pnpm clean && pnpm clean:cache",
+    "changeset": "changeset",
+    "release:version": "changeset version && pnpm install --lockfile-only",
+    "e2e:setup": "bash e2e/start-servers.sh",
+    "e2e:teardown": "bash e2e/stop-servers.sh",
+    "e2e:test": "turbo run test --filter='./e2e'",
+    "e2e": "pnpm e2e:setup && pnpm e2e:test && pnpm e2e:teardown",
+    "e2e:debug": "pnpm e2e:setup && pnpm --filter @wildfires-org/e2e-tests test:debug && pnpm e2e:teardown",
+    "e2e:ui": "pnpm e2e:setup && pnpm --filter @wildfires-org/e2e-tests test:ui",
+    "e2e:headed": "pnpm e2e:setup && pnpm --filter @wildfires-org/e2e-tests test:headed && pnpm e2e:teardown",
+    "seed": "pnpm seed:organizations && pnpm seed:prompts",
+    "seed:prompts": "pnpm --filter @wildfires-org/turboplan-ai seed:prompts",
+    "seed:organizations": "pnpm --filter @wildfires-org/turboplan-workspace seed:organizations"
+  },
+  "packageManager": "pnpm@10.25.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.1.4",
+    "@changesets/cli": "^3.0.2",
+    "@opennextjs/cloudflare": "^1.18.0",
+    "husky": "^9.1.7",
+    "turbo": "^2.5.0",
+    "wrangler": "^4.79.0"
+  },
+  "workspaces": [
+    "packages/core/*",
+    "packages/modules/*",
+    "apps/*",
+    "e2e"
+  ],
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "^0.42.0",
+      "hono": "^4.12.23",
+      "react": "19.1.7",
+      "react-dom": "19.1.7"
+    }
+  }
+}

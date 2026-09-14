@@ -1,0 +1,44 @@
+{
+  "name": "@wildfires-org/turboplan-chat-actions",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TurboPlan package that adds customizable quick action buttons below the chat input",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    }
+  },
+  "dependencies": {
+    "@ai-sdk/react": "^3.0.193",
+    "ai": "^6.0.191",
+    "usehooks-ts": "^3.1.0",
+    "@wildfires-org/turboplan-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.1.4",
+    "@types/react": "^19",
+    "react": "19.1.7",
+    "rollup-plugin-preserve-use-client": "^3.0.1",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.5.4"
+  },
+  "peerDependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "license": "MIT"
+}

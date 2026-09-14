@@ -1,0 +1,175 @@
+"use client";
+
+import React from "react";
+
+import { ArrowLeftIcon } from "lucide-react";
+import Link from "next/link";
+import useSWR from "swr";
+
+import { fetcher } from "@wildfires-org/turboplan-api-client";
+import { Button } from "@wildfires-org/turboplan-utils";
+
+import { getDefaultVisibleLayers } from "../client";
+import { useLayerVisibility } from "../hooks/use-layer-visibility";
+import { useMapLayers } from "../hooks/use-map-layers";
+import { useMapType } from "../hooks/use-map-type";
+import type { GeospatialLayer } from "../types";
+import { SimpleMap } from "./simple-map";
+
+interface ProjectMapViewerProps {
+  className?: string;
+  projectId: string;
+  organizationId: string;
+  officeId: string;
+}
+
+export function ProjectMapViewer({
+  className,
+  projectId,
+  organizationId,
+  officeId,
+}: ProjectMapViewerProps) {
+  const layersKey = `/api/maps/layers/project/${projectId}`;
+
+  // Fetch layers for the project
+  const {
+    data: fetchedLayers,
+    error,
+    isLoading,
+  } = useSWR<GeospatialLayer[]>(layersKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  const { layers, setLayers, validLayers } = useMapLayers();
+
+  // Use layer visibility hook for multi-layer support
+  const { visibleLayerIds, toggleLayerVisibility, showLayer } =
+    useLayerVisibility();
+
+  // Update local state when data is fetched
+  React.useEffect(() => {
+    if (fetchedLayers && fetchedLayers.length > 0) {
+      setLayers(fetchedLayers);
+      // Use smart default: show only unit layers if available
+      if (visibleLayerIds.size === 0) {
+        const defaultVisible = getDefaultVisibleLayers(fetchedLayers);
+        defaultVisible.forEach((id) => showLayer(id));
+      }
+    }
+  }, [fetchedLayers, setLayers, showLayer, visibleLayerIds.size]);
+
+  const { selectedMapType, handleMapTypeChange } = useMapType("openstreetmap");
+
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <div className={`${className || "w-full h-full"}`}>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-4">
+            <div className="size-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+              <div className="animate-spin rounded-full size-8 border-b-2 border-blue-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Loading Map Data
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Fetching geospatial layers...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className={`${className || "w-full h-full"}`}>
+        <div className="flex items-center justify-center h-full bg-red-50 dark:bg-gray-900 rounded-lg">
+          <div className="text-center space-y-4">
+            <div className="size-16 mx-auto mb-4 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+              <svg
+                className="size-8 text-red-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Error Loading Map Data
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {error.message || "Failed to fetch map layers"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${className || "w-full h-full"}`}>
+      {layers.length === 0 ? (
+        <>
+          <div className="flex justify-end absolute top-20 left-4 z-20 gap-4">
+            <Button variant="outline">
+              <Link href={`/${organizationId}/${officeId}/${projectId}`}>
+                <div className="flex items-center gap-2">
+                  <ArrowLeftIcon /> Back to project
+                </div>
+              </Link>
+            </Button>
+          </div>
+          <SimpleMap grayscale={true} className="w-full h-full" />
+          {/* Skip for now - uncomment if needed
+           <div className="flex flex-col p-8 bg-white max-w-md rounded-lg justify-end absolute bottom-20 left-4 z-20 gap-4">
+            <h1 className="text-2xl font-bold">Define project boundaries</h1>
+            <p>
+              Upload your custom map to define project boundaries and locations.
+            </p>
+            <Button>Upload project map</Button>
+          </div> */}
+        </>
+      ) : (
+        <div className="flex flex-col h-full space-y-4">
+          {/* Map display */}
+          <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+            {validLayers.length > 0 ? (
+              <SimpleMap
+                layers={validLayers}
+                visibleLayerIds={visibleLayerIds}
+                mapType={
+                  typeof selectedMapType === "string"
+                    ? selectedMapType
+                    : selectedMapType.id
+                }
+                onMapTypeChange={handleMapTypeChange}
+                showMapTypeSelector={true}
+                showLayerSelector={true}
+                onToggleLayer={toggleLayerVisibility}
+                zoomControl={true}
+                className="w-full h-full"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                No valid layers available
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

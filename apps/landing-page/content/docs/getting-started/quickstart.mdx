@@ -1,0 +1,49 @@
+---
+title: Quickstart
+description: Sign in, create your first project, and land in the chat where setup happens.
+---
+
+import { routing } from "@/utils/routing";
+
+This quickstart gets you from signing in to a working project in a few minutes.
+
+## 1. Sign in
+
+<a href={routing.signIn()}>Sign in to TurboPlan</a>. Sign-in happens on the
+main TurboPlan app. New users can sign up from the same page. Once you're in,
+you land on your dashboard.
+
+Signing in also creates your **personal workspace** automatically — your own
+organization and office, where your projects live.
+
+## 2. Create a project
+
+From the dashboard, create a new project. The project is created as a draft in
+your personal workspace, and you're taken straight into its **Chat** view.
+
+## 3. Set the project up through chat
+
+Chat is where setup happens. You describe what you're working on, and the AI
+helps you get the project going. An optional research agent can propose a
+starting point — suggested documents, milestones, tasks, and fields — which you
+review and save (or adjust) rather than accepting blindly.
+
+From there you can move to the other feature modules in the sidebar — tasks,
+map, documents, signing, and so on — to fill in the rest of the project.
+
+## Alternative: start from a catalog template
+
+Instead of starting from scratch, you can begin from the
+<a href={routing.catalog()}>public catalog</a> (the **Projects** entry in the
+site menu). The catalog is a read-only browse of government organizations,
+offices, projects, and templates — no account required to look.
+
+If you're signed in, a **Create from template** action appears on templates.
+Using it creates a project from that template and drops you into it inside the
+main app. If you're logged out, you'll be asked to sign in or sign up first.
+
+## Choose your next step
+
+- [Projects and workspaces](/docs/guides/projects-and-workspaces) — how organizations, offices, and projects fit together.
+- [Chat and project setup](/docs/guides/chat-and-setup) — the chat-first flow in detail.
+- <a href={routing.catalog()}>Browse public projects</a> — see public projects and templates.

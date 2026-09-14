@@ -1,0 +1,51 @@
+name: documenso
+
+services:
+  database:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - database:/var/lib/postgresql/data
+
+  documenso:
+    image: documenso/documenso:latest
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - PORT=3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXT_PRIVATE_ENCRYPTION_KEY=${NEXT_PRIVATE_ENCRYPTION_KEY}
+      - NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=${NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY}
+      - NEXT_PUBLIC_WEBAPP_URL=${NEXT_PUBLIC_WEBAPP_URL}
+      # Internal URL the background-job runner uses to call itself. Must point at
+      # the in-container port (3000), not the host mapping (3004) — otherwise
+      # seal-document/execute-webhook jobs POST to a dead port and silently fail.
+      - NEXT_PRIVATE_INTERNAL_WEBAPP_URL=http://localhost:3000
+      - NEXT_PRIVATE_DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+      - NEXT_PRIVATE_DIRECT_DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+      - NEXT_PUBLIC_UPLOAD_TRANSPORT=database
+      - NEXT_PRIVATE_SMTP_TRANSPORT=${NEXT_PRIVATE_SMTP_TRANSPORT}
+      - NEXT_PRIVATE_SMTP_HOST=${NEXT_PRIVATE_SMTP_HOST}
+      - NEXT_PRIVATE_SMTP_PORT=${NEXT_PRIVATE_SMTP_PORT}
+      - NEXT_PRIVATE_SMTP_USERNAME=${NEXT_PRIVATE_SMTP_USERNAME}
+      - NEXT_PRIVATE_SMTP_PASSWORD=${NEXT_PRIVATE_SMTP_PASSWORD}
+      - NEXT_PRIVATE_SMTP_FROM_NAME=${NEXT_PRIVATE_SMTP_FROM_NAME}
+      - NEXT_PRIVATE_SMTP_FROM_ADDRESS=${NEXT_PRIVATE_SMTP_FROM_ADDRESS}
+      - NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH=/opt/documenso/cert.p12
+      - NEXT_PRIVATE_SIGNING_PASSPHRASE=${NEXT_PRIVATE_SIGNING_PASSPHRASE}
+    ports:
+      - "${DOCUMENSO_PORT:-3004}:3000"
+    volumes:
+      - ./cert.p12:/opt/documenso/cert.p12:ro
+
+volumes:
+  database:

@@ -1,0 +1,673 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Fumadocs UI (Tailwind v4 preset). Scopes all styling under the fd- token
+   namespace, so it composes with the app's design tokens without collision.
+   preset.css also declares its own @source for the fumadocs-ui dist folder,
+   letting Tailwind scan the compiled Fumadocs components for the /docs route. */
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+/* Hybrid mode: static design tokens live in the `@theme` block below; the
+   handful of values that can't be expressed as static CSS (content globs, the
+   JS-computed brand gradient, LAYOUT-derived spacing, dotted fontSize keys)
+   stay in the JS config, loaded here. */
+@config "../tailwind.config.ts";
+
+/* Preserve the old `darkMode: ["class"]` behaviour (v4 defaults to
+   prefers-color-scheme). */
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* ---- Breakpoints (was theme.extend.screens). The sm–xl defaults are
+     restated in px: v4 sorts breakpoints per-unit, so mixing the custom px
+     values with the default rem ones would emit the px group first and
+     invert the responsive cascade (lg: winning over 3xl: at >=1540px).
+     One shared unit keeps v3's numeric ordering. Mirror any change in
+     src/hooks/useBreakpoint.ts. ---- */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1224px;
+  --breakpoint-3xl: 1540px;
+  --breakpoint-ultrawide: 1920px;
+
+  /* ---- Container / width / max-width sizes (was width + maxWidth 2xl/3xl).
+     In v4 the `w-*`, `min-w-*` and `max-w-*` utilities share the
+     `--container-*` namespace. ---- */
+  --container-2xl: 1200px;
+  --container-3xl: 1440px;
+
+  /* ---- Font sizes (was fontSize). Overrides of the v4 defaults plus the
+     custom scale. The dotted keys (1.5xl, 3.5xl, 3.75xl) can't be valid CSS
+     custom-property names, so they remain in the JS config. ---- */
+  --text-xxs: 0.5rem;
+  /* v3's string-form size overrides emitted no line-height (inherited);
+     v4 defaults these to 1 — restore the inherited behaviour. */
+  --text-6xl: 3.5rem;
+  --text-6xl--line-height: initial;
+  --text-7xl: 5rem;
+  --text-7xl--line-height: initial;
+
+  --text-display: 60px;
+  --text-display--line-height: normal;
+  --text-display--letter-spacing: -3.6px;
+
+  --text-heading-xl: 60px;
+  --text-heading-xl--line-height: normal;
+  --text-heading-xl--letter-spacing: -1px;
+
+  --text-heading-lg: 48px;
+  --text-heading-lg--line-height: 56px;
+  --text-heading-lg--letter-spacing: -1px;
+
+  --text-heading-md: 24px;
+  --text-heading-md--line-height: 32px;
+  --text-heading-md--letter-spacing: -0.24px;
+
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 28px;
+  --text-body-lg--letter-spacing: 0;
+
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+  --text-body-md--letter-spacing: 0.16px;
+
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-body-sm--letter-spacing: 0;
+
+  --text-overline: 12px;
+  --text-overline--line-height: 16px;
+  --text-overline--letter-spacing: 0.24px;
+
+  --text-search: 15px;
+  --text-search--line-height: normal;
+  --text-search--letter-spacing: 0;
+
+  /* ---- Letter spacing (was letterSpacing) ---- */
+  --tracking-small: 0.13px;
+
+  /* ---- Easing (was transitionTimingFunction) ---- */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---- Border radius (was borderRadius). `--radius` is defined per theme in
+     the :root/.dark blocks below. ---- */
+  --radius-6xl: calc(var(--radius) * 7);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  /* ---- Box shadows (was boxShadow) ---- */
+  --shadow-dropdown: 0px 4px 18px 0px #1616160d;
+  --shadow-video: 0px 0px 7px 0px #0000000f;
+  --shadow-projectTracking: 0px 0px 30px 3px rgba(27, 132, 92, 1);
+  --shadow-ecard:
+    0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.04),
+    0 16px 32px rgba(0, 0, 0, 0.06);
+  --shadow-ecard-hover:
+    0 2px 4px rgba(0, 0, 0, 0.04), 0 8px 16px rgba(0, 0, 0, 0.06),
+    0 24px 48px rgba(0, 0, 0, 0.08);
+  --shadow-ebutton:
+    0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* Compat: v4 renamed v3's `shadow-sm` to `shadow-xs` and reassigned
+     `shadow-sm` to a larger shadow. Restore v3's value so existing
+     `shadow-sm` usages (Card, inputs, suggestion pills) render unchanged. */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+
+  /* ---- Colors (was colors). shadcn CSS-var tokens are mapped separately in
+     the `@theme inline` block below. ---- */
+  --color-success-700: #00682b;
+
+  --color-orange-10: #fef4ef;
+  --color-orange-20: #fceade;
+  --color-orange-30: #f8ceb4;
+  --color-orange-40: #f4ae83;
+  --color-orange-50: #f09359;
+  --color-orange-60: #ec782f;
+  --color-orange-70: #bd6026;
+  --color-orange-80: #8d471c;
+  --color-orange-90: #713916;
+  --color-orange-100: #552b11;
+  --color-orange-550: #ff6b00;
+  --color-orange-650: #db4f00;
+
+  --color-gray-10: #f4f4f4;
+  --color-gray-15: #e8e8e8;
+  --color-gray-30: #c6c6c6;
+  --color-gray-40: #a8a8a8;
+  --color-gray-45: #8f8f8f;
+  --color-gray-70: #525252;
+  --color-gray-150: #f8f9f9;
+  --color-gray-160: #f1f2f3;
+  --color-gray-165: #eae3e1;
+  --color-gray-175: #ede3f7;
+  --color-gray-250: #dadbe0;
+  --color-gray-265: #cecece;
+  --color-gray-325: #c2c5cb;
+  --color-gray-350: #72767d;
+  --color-gray-550: #505358;
+  --color-gray-750: #3c3c3c;
+  --color-gray-800: #2e3033;
+  --color-gray-850: #2e3033;
+  --color-gray-950: #0c0d0e;
+
+  --color-purple-550: #5a11a1;
+
+  --color-red-20: #fff6e5;
+  --color-red-25: #ffedcc;
+  --color-red-60: #da392e;
+  --color-red-550: #bd3328;
+
+  --color-blue-10: #eaf0fc;
+  --color-blue-20: #b7cefd;
+  --color-blue-30: #87acfb;
+  --color-blue-40: #578af9;
+  --color-blue-50: #2768f7;
+  --color-blue-60: #1f50c1;
+  --color-blue-70: #153889;
+  --color-blue-80: #0b2051;
+  --color-blue-90: #010819;
+  --color-blue-140: #e6eefe;
+  --color-blue-150: #e1e6f9;
+  --color-blue-550: #3049bd;
+  --color-blue-750: #097079;
+
+  --color-brand-50: rgba(238, 252, 246, 1);
+  --color-brand-100: rgba(202, 244, 228, 1);
+  --color-brand-200: rgba(167, 237, 210, 1);
+  --color-brand-300: rgba(131, 230, 192, 1);
+  --color-brand-400: rgba(96, 222, 174, 1);
+  --color-brand-500: rgba(60, 215, 156, 1);
+  --color-brand-600: rgba(39, 193, 135, 1);
+  --color-brand-700: rgba(32, 158, 110, 1);
+  --color-brand-800: rgba(27, 132, 92, 1);
+  --color-brand-900: rgba(18, 86, 60, 1);
+  --color-brand-950: rgba(10, 51, 35, 1);
+  /* Decorative accent: CTA hover-fill circles and the showcase hint icon. */
+  --color-brand-deco: #05b871;
+
+  --color-brandAlt-100: rgba(244, 249, 247, 1);
+  --color-brandAlt-200: rgba(209, 230, 222, 1);
+  --color-brandAlt-300: rgba(164, 206, 190, 1);
+  --color-brandAlt-400: rgba(95, 169, 141, 1);
+  --color-brandAlt-500: rgba(27, 132, 92, 1);
+  --color-brandAlt-600: rgba(21, 102, 71, 1);
+  --color-brandAlt-700: rgba(15, 72, 50, 1);
+
+  --color-error-50: rgba(254, 242, 242, 1);
+  --color-error-100: rgba(254, 226, 226, 1);
+  --color-error-200: rgba(254, 202, 202, 1);
+  --color-error-300: rgba(252, 165, 165, 1);
+  --color-error-400: rgba(248, 113, 113, 1);
+  --color-error-500: rgba(239, 68, 68, 1);
+  --color-error-600: rgba(220, 38, 38, 1);
+  --color-error-700: rgba(185, 28, 28, 1);
+  --color-error-800: rgba(153, 27, 27, 1);
+  --color-error-900: rgba(127, 29, 29, 1);
+
+  --color-brown-550: #6a4332;
+
+  --color-green-5: #1b845c0d;
+  --color-green-10: #1b845c14;
+  --color-green-30: #3ddba0;
+  --color-green-60: #1b845c;
+  --color-green-70: #136e4b;
+  --color-green-80: #0b5237;
+  --color-green-550: #e0ece2;
+
+  --color-neutral-white: #ffffff;
+  --color-neutral-black: #161616;
+  --color-neutral-light: #f8f8f8;
+  --color-neutral-grey: #e8e8e8;
+  --color-neutral-grey2: #dddddd;
+  --color-neutral-grey3: #74777c;
+  --color-neutral-grey4: #505358;
+  --color-neutral-greyDark: #a4a4a4;
+
+  --color-greenForest-10: #eef7f1;
+  --color-greenForest-20: #dff1e3;
+  --color-greenForest-30: #79c38d;
+  --color-greenForest-40: #3b9f55;
+  --color-greenForest-50: #2d673c;
+  --color-greenForest-60: #1a3b21;
+  --color-greenForest-70: #152f1a;
+  --color-greenForest-90: #0c1c10;
+
+  --color-coolGray-60: #697077;
+
+  --color-egray-0: #ffffff;
+  --color-egray-50: #f8f9f9;
+  --color-egray-75: #f1f2f3;
+  --color-egray-100: #eaebee;
+  --color-egray-200: #dadbe0;
+  --color-egray-300: #c2c5cb;
+  --color-egray-400: #aaafb6;
+  --color-egray-500: #9299a1;
+  --color-egray-600: #72767d;
+  --color-egray-700: #505358;
+  --color-egray-800: #2e3033;
+  --color-egray-900: #0c0d0e;
+
+  --color-bgLine: #e0e0e0;
+  --color-darkGray: #505358;
+  --color-darkGreen: #152f1a;
+  --color-lightGreen: #33643e;
+  --color-defaultGray: #9299a1;
+  --color-footerLine: #48624d;
+  --color-light: #fbfaf8;
+  --color-lightGray: #eaebee;
+  --color-link: #2768f7;
+  --color-placeholder: #aaafb6;
+  --color-primaryGreen: #1a3b21;
+
+  /* ---- Keyframes + animations (was keyframes + animation) ---- */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-collapse: collapse 0.3s ease-out;
+  --animate-expand: expand 0.3s ease-out;
+  --animate-fade: fade 4s ease-in-out;
+  --animate-scale-pulse: scale-pulse 1s ease-in-out infinite;
+  --animate-btn-deco-float:
+    btn-deco-float 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes collapse {
+    from {
+      height: var(--radix-collapsible-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes expand {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes scale-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+  }
+  @keyframes btn-deco-float {
+    0% {
+      transform: translateX(-60%);
+    }
+    100% {
+      transform: translateX(60%);
+    }
+  }
+}
+
+/* shadcn tokens: map the HSL CSS custom properties (defined in :root/.dark
+   below) to color utilities. `@theme inline` emits the utilities referencing
+   `hsl(var(--x))` directly, so the runtime :root/.dark values drive them. */
+@theme inline {
+  /* Fonts (was fontFamily). These reference next/font's runtime variables
+     (--font-geist/--font-inter, declared by the font classNames on <body>),
+     so they must be `inline` — a plain @theme declaration like
+     `--font-geist: var(--font-geist)` would be a self-referential var cycle
+     on :root. */
+  --font-geist: var(--font-geist);
+  --font-heading: var(--font-geist), system-ui, sans-serif;
+  --font-inter: var(--font-inter), Inter, system-ui, sans-serif;
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+}
+
+/* Replicate the v3 `theme.container` config (center + 2rem inline padding, and
+   max-width caps only at the 2xl/3xl breakpoints). v4's built-in container
+   dropped the center/padding options and caps at every breakpoint, so we
+   define it explicitly to avoid layout shifts on catalog pages. */
+@utility container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= 1224px) {
+    max-width: 1224px;
+  }
+  @media (width >= 1540px) {
+    max-width: 1540px;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 20 14.3% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14.3% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14.3% 4.1%;
+    --primary: 24 9.8% 10%;
+    --primary-foreground: 60 9.1% 97.8%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 0 0% 91%;
+    --input: 20 5.9% 90%;
+    --ring: 20 14.3% 4.1%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 20 14.3% 4.1%;
+    --foreground: 60 9.1% 97.8%;
+    --card: 20 14.3% 4.1%;
+    --card-foreground: 60 9.1% 97.8%;
+    --popover: 20 14.3% 4.1%;
+    --popover-foreground: 60 9.1% 97.8%;
+    --primary: 60 9.1% 97.8%;
+    --primary-foreground: 24 9.8% 10%;
+    --secondary: 12 6.5% 15.1%;
+    --secondary-foreground: 60 9.1% 97.8%;
+    --muted: 12 6.5% 15.1%;
+    --muted-foreground: 24 5.4% 63.9%;
+    --accent: 12 6.5% 15.1%;
+    --accent-foreground: 60 9.1% 97.8%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 12 6.5% 15.1%;
+    --input: 12 6.5% 15.1%;
+    --ring: 24 5.7% 82.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* classes on purpose, I don't want to affect too much catalog for now. */
+  .h1,
+  .h2,
+  .h3,
+  .h4,
+  .h5 {
+    @apply text-neutral-black font-normal;
+  }
+
+  .h1 {
+    @apply text-6xl leading-[4rem] max-lg:text-[2.5rem] max-lg:leading-[3rem];
+  }
+
+  .h2 {
+    @apply text-5xl leading-[3.5rem] max-lg:text-[2rem] max-lg:leading-10;
+  }
+
+  .h3 {
+    @apply text-[2.5rem] leading-[3rem] max-lg:text-2xl max-lg:leading-9;
+  }
+
+  .h4 {
+    @apply text-[2rem] leading-10 max-lg:text-[1.375rem] max-lg:leading-7;
+  }
+
+  .h5 {
+    @apply text-2xl leading-9 max-lg:text-xl max-lg:leading-7;
+  }
+}
+
+@layer components {
+  .section-header h1,
+  .section-header h2,
+  .section-header h3,
+  .section-header h4 {
+    @apply font-semibold text-[#0c0d0e] normal-case m-0 py-3 sm:py-6 max-sm:text-xs;
+  }
+
+  .statement-content {
+    p {
+      @apply inline text-gray-900;
+    }
+    table {
+      @apply border-collapse border-spacing-0 text-xxs sm:text-sm leading-5;
+    }
+    ul {
+      @apply pl-5;
+    }
+    th {
+      @apply text-left;
+    }
+    tr,
+    td,
+    th {
+      @apply border border-[#eaebee];
+    }
+    td,
+    th {
+      @apply relative min-w-[217px] p-2 sm:p-4;
+    }
+    img {
+      @apply max-w-full h-auto;
+    }
+    mark {
+      @apply bg-transparent inline text-blue-70 underline decoration-gray-250 underline-offset-8;
+    }
+  }
+
+  .label {
+    @apply text-xs leading-5;
+  }
+
+  .caption {
+    @apply text-[13px] leading-5 font-mono text-neutral-black font-normal;
+  }
+
+  .testimonial {
+    @apply text-[1.75rem] leading-10 text-neutral-black font-normal max-lg:text-lg;
+  }
+
+  .text-body-small {
+    @apply text-sm leading-[18px] text-neutral-black;
+  }
+
+  .text-body-regular {
+    @apply text-base text-neutral-black;
+  }
+
+  .text-body-large {
+    @apply text-lg text-neutral-black;
+  }
+
+  /*.text-btn-small {*/
+  /*  @apply text-[15px] leading-5 text-neutral-black;*/
+  /*}*/
+
+  /*.text-btn-regular {*/
+  /*  @apply text-base text-neutral-black;*/
+  /*}*/
+
+  .textarea-nowrap::placeholder {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .no-hover:hover {
+    background-color: inherit !important;
+  }
+
+  .autofill-custom-style {
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+      border: 1px solid white;
+      -webkit-text-fill-color: white;
+      -webkit-box-shadow: 0 0 0px 1000px #33643e1a inset;
+      transition: background-color 5000s ease-in-out 0s;
+    }
+  }
+}
+
+.section-content {
+  transition: color 1s ease;
+}
+.section-image {
+  transition: opacity 1s ease;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.embla {
+  overflow: hidden;
+  height: 100%;
+}
+
+.embla__container {
+  display: flex;
+  height: 100%;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.embla__slide {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  flex: 0 0 100%;
+}
+
+/* ---- Feature showcase (Moab-style tabbed product tour) ----
+   These keyframes are consumed imperatively by feature-showcase.tsx. The tab
+   fill doubles as the 6s auto-advance timer; reveal + progress replay on each
+   slide activation via a React key remount. */
+@keyframes showcase-tab-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes showcase-tab-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+@keyframes showcase-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes showcase-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Also neutralize the inline pre-animation state (opacity: 0 / scaleX(0))
+     set during SSR before the useReducedMotion hook resolves — otherwise
+     content stays invisible for reduced-motion users until hydration. */
+  .showcase-tab-fill,
+  .showcase-reveal-row,
+  .showcase-progress-fill {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

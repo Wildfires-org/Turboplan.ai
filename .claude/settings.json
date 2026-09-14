@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pnpm format:write"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/check-changeset.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": ["Edit(apps/research-agent/workspace/**)"]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@wildfires-org/turboplan-feature-flags",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Feature flags configuration for TurboPlan",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@wildfires-org/turboplan-env": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/react": "^19.1.1",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.3.3"
+  }
+}

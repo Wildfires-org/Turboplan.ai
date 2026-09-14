@@ -1,0 +1,39 @@
+name = "turboplan-mcp-server"
+main = "dist/index.js"
+# ≥ 2025-09-01 required: enables workerd's real node:fs so @aws-sdk config-file
+# probing gets ENOENT (swallowed) instead of unenv's synchronous throw.
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Custom build: aliases bare "zod" → "zod/v3" so zod v4's class-based internals
+# don't enter the bundle (they crash in workerd: "Class2 is not a constructor")
+[build]
+command = "node build.mjs"
+
+
+[observability]
+enabled = true
+
+[[ratelimits]]
+name = "RATE_LIMITER_READ"
+namespace_id = "1001"
+
+[ratelimits.simple]
+limit = 60
+period = 60
+
+[[ratelimits]]
+name = "RATE_LIMITER_GLOBAL"
+namespace_id = "1002"
+
+[ratelimits.simple]
+limit = 200
+period = 60
+
+[[ratelimits]]
+name = "RATE_LIMITER_WRITE"
+namespace_id = "1003"
+
+[ratelimits.simple]
+limit = 30
+period = 60

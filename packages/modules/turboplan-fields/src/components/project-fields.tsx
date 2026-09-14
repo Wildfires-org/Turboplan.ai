@@ -1,0 +1,145 @@
+"use client";
+
+import { useState } from "react";
+
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { toast } from "sonner";
+
+import { Skeleton } from "@wildfires-org/turboplan-utils";
+
+import { useProjectFields } from "../hooks";
+import { FieldRow } from "./field-row";
+import { FieldsFieldItem, FieldsListLayout } from "./fields-list-layout";
+
+/** Number of fields to show before collapsing (even, so the two columns balance) */
+const INITIAL_FIELDS_DISPLAY_COUNT = 6;
+
+interface ProjectFieldsProps {
+  projectId: string;
+  readOnly?: boolean;
+}
+
+export function ProjectFields({
+  projectId,
+  readOnly = false,
+}: ProjectFieldsProps) {
+  const [showAll, setShowAll] = useState(false);
+
+  const { fields, updateField, deleteField, isLoading, isMutating, error } =
+    useProjectFields({ projectId });
+
+  // Sort fields by order
+  const sortedFields = [...fields].sort((a, b) => a.order - b.order);
+
+  const displayFields = showAll
+    ? sortedFields
+    : sortedFields.slice(0, INITIAL_FIELDS_DISPLAY_COUNT);
+  const hasMoreFields = sortedFields.length > INITIAL_FIELDS_DISPLAY_COUNT;
+
+  const handleUpdateField = async (
+    fieldId: string,
+    data: {
+      name?: string;
+      type?: "text" | "list";
+      isRequired?: boolean;
+      tooltip?: string | null;
+      values?: string[];
+    },
+  ) => {
+    try {
+      await updateField(fieldId, data);
+      toast.success("Field updated");
+    } catch {
+      toast.error("Failed to update field");
+    }
+  };
+
+  const handleDeleteField = async (fieldId: string) => {
+    try {
+      await deleteField(fieldId);
+      toast.success("Field deleted");
+    } catch {
+      toast.error("Failed to delete field");
+    }
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <FieldsListLayout>
+        {[1, 2, 3].map((i) => (
+          <FieldsFieldItem key={i} withActions>
+            <Skeleton className="h-4 w-44 shrink-0" />
+            <Skeleton className="h-4 min-w-0 flex-1" />
+          </FieldsFieldItem>
+        ))}
+      </FieldsListLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="border border-border rounded-lg py-8 text-center text-destructive">
+        <p>Failed to load fields</p>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (fields.length === 0 && !isLoading) {
+    return (
+      <div className="group relative flex min-h-[220px] items-center justify-center overflow-hidden py-8">
+        <div className="flex flex-col items-center gap-1.5 text-center">
+          <h3 className="text-lg font-medium text-foreground">No fields yet</h3>
+          <p className="text-xs text-muted-foreground max-w-xs leading-5">
+            Add custom fields to capture project metadata.
+          </p>
+        </div>
+        <div className="pointer-events-none absolute bottom-0 right-6 translate-y-full transition-transform duration-300 ease-out group-hover:translate-y-[10%]">
+          <img
+            src="/images/shocked-beaver.png"
+            alt=""
+            width={118}
+            height={129}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const footer = hasMoreFields ? (
+    <button
+      type="button"
+      onClick={() => setShowAll(!showAll)}
+      className="flex w-full items-center justify-center gap-1 rounded-md border border-border bg-muted px-5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+    >
+      {showAll ? (
+        <>
+          Show less
+          <ChevronUp className="size-4" />
+        </>
+      ) : (
+        <>
+          Load {sortedFields.length - INITIAL_FIELDS_DISPLAY_COUNT} more fields
+          <ChevronDown className="size-4" />
+        </>
+      )}
+    </button>
+  ) : undefined;
+
+  return (
+    <FieldsListLayout variant="bordered" footer={footer}>
+      {displayFields.map((field) => (
+        <FieldRow
+          key={field.id}
+          field={field}
+          onUpdate={(data) => handleUpdateField(field.id, data)}
+          onDelete={() => handleDeleteField(field.id)}
+          isUpdating={isMutating}
+          readOnly={readOnly}
+        />
+      ))}
+    </FieldsListLayout>
+  );
+}

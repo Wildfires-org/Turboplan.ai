@@ -1,0 +1,110 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.1.4/schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.json",
+      "**/*.jsonc",
+      "!**/node_modules/**/*",
+      "!**/dist/**/*",
+      "!**/build/**/*",
+      "!**/.turbo/**/*",
+      "!**/.next/**/*",
+      "!**/.open-next/**/*",
+      "!**/.source/**/*",
+      "!**/worker-configuration.d.ts",
+      "!**/src/generated/**/*",
+      "!**/.wrangler/**/*",
+      "!**/playwright/.auth/**/*",
+      "!**/e2e/storage/**/*",
+      "!**/test-results/**/*",
+      "!**/e2e/test-results/**/*",
+      "!**/e2e/reports/**/*"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 80,
+    "attributePosition": "auto",
+    "bracketSpacing": true
+  },
+
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              "react",
+              ":BLANK_LINE:",
+              [
+                ":URL:",
+                ":NODE:",
+                ":PACKAGE:",
+                ":PACKAGE_WITH_PROTOCOL:",
+                "!@wildfires-org/**"
+              ],
+              ":BLANK_LINE:",
+              ["@wildfires-org/**"],
+              ":BLANK_LINE:",
+              [":ALIAS:", ":PATH:"]
+            ]
+          }
+        }
+      }
+    }
+  },
+
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false,
+      "complexity": {
+        "noUselessTypeConstraint": "error"
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noInvalidUseBeforeDeclaration": "error"
+      },
+      "style": {
+        "noNamespace": "error",
+        "useAsConstAssertion": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noExtraNonNullAssertion": "error",
+        "noMisleadingInstantiator": "error",
+        "noUnsafeDeclarationMerging": "error",
+        "useNamespaceKeyword": "error"
+      }
+    }
+  },
+
+  "javascript": {
+    "formatter": {
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSameLine": false,
+      "quoteStyle": "double",
+      "attributePosition": "auto",
+      "bracketSpacing": true
+    }
+  }
+}

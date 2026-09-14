@@ -1,0 +1,1100 @@
+name: Cloudflare Deploy
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      landing_changed: ${{ steps.changes.outputs.landing_changed }}
+      server_changed: ${{ steps.changes.outputs.server_changed }}
+      web_changed: ${{ steps.changes.outputs.web_changed }}
+      map_changed: ${{ steps.changes.outputs.map_changed }}
+      mcp_changed: ${{ steps.changes.outputs.mcp_changed }}
+      any_changed: ${{ steps.changes.outputs.any_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changes for push events
+        if: github.event_name == 'push'
+        id: push-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            infra:
+              - '.github/workflows/cloudflare-deploy.yml'
+              - 'scripts/deploy-*.sh'
+            shared:
+              - 'packages/core/**'
+              - 'packages/modules/**'
+            landing_only:
+              - 'apps/landing-page/**'
+            server_only:
+              - 'apps/server/**'
+            web_only:
+              - 'apps/turboplan/**'
+            map_only:
+              - 'packages/services/turboplan-map-server/**'
+            mcp_only:
+              - 'apps/mcp-server/**'
+
+      - name: Set change outputs
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "landing_changed=true" >> "$GITHUB_OUTPUT"
+            echo "server_changed=true" >> "$GITHUB_OUTPUT"
+            echo "web_changed=true" >> "$GITHUB_OUTPUT"
+            echo "map_changed=true" >> "$GITHUB_OUTPUT"
+            echo "mcp_changed=true" >> "$GITHUB_OUTPUT"
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            INFRA="${{ steps.push-changes.outputs.infra }}"
+            SHARED="${{ steps.push-changes.outputs.shared }}"
+            LANDING="${{ steps.push-changes.outputs.landing_only }}"
+            SERVER="${{ steps.push-changes.outputs.server_only }}"
+            WEB="${{ steps.push-changes.outputs.web_only }}"
+            MAP="${{ steps.push-changes.outputs.map_only }}"
+            MCP="${{ steps.push-changes.outputs.mcp_only }}"
+
+            if [ "$INFRA" = "true" ] || [ "$SHARED" = "true" ] || [ "$LANDING" = "true" ]; then
+              LANDING_CHANGED=true
+            else
+              LANDING_CHANGED=false
+            fi
+
+            if [ "$INFRA" = "true" ] || [ "$SHARED" = "true" ] || [ "$SERVER" = "true" ]; then
+              SERVER_CHANGED=true
+            else
+              SERVER_CHANGED=false
+            fi
+
+            if [ "$INFRA" = "true" ] || [ "$SHARED" = "true" ] || [ "$WEB" = "true" ]; then
+              WEB_CHANGED=true
+            else
+              WEB_CHANGED=false
+            fi
+
+            if [ "$INFRA" = "true" ] || [ "$MAP" = "true" ]; then
+              MAP_CHANGED=true
+            else
+              MAP_CHANGED=false
+            fi
+
+            if [ "$INFRA" = "true" ] || [ "$SHARED" = "true" ] || [ "$MCP" = "true" ]; then
+              MCP_CHANGED=true
+            else
+              MCP_CHANGED=false
+            fi
+
+            echo "landing_changed=$LANDING_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "server_changed=$SERVER_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "web_changed=$WEB_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "map_changed=$MAP_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "mcp_changed=$MCP_CHANGED" >> "$GITHUB_OUTPUT"
+
+            if [ "$LANDING_CHANGED" = "true" ] || [ "$SERVER_CHANGED" = "true" ] || [ "$WEB_CHANGED" = "true" ] || [ "$MAP_CHANGED" = "true" ] || [ "$MCP_CHANGED" = "true" ]; then
+              echo "any_changed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "any_changed=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_changed == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+  db-setup:
+    name: Setup Database Branch (PR Preview)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ github.event_name == 'pull_request' }}
+    environment: pr_preview
+
+    steps:
+      - name: Delete existing Neon branch (reset stale endpoint)
+        uses: neondatabase/delete-branch-action@v3
+        continue-on-error: true
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch: pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Create fresh Neon branch
+        uses: neondatabase/create-branch-action@v6
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+  database-migrate:
+    name: Database Migration
+    runs-on: ubuntu-latest
+    needs: [detect-changes, db-setup]
+    if: ${{ !cancelled() && !failure() }}
+    environment: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'develop' && 'develop' || 'pr_preview' }}
+
+    steps:
+      - name: Get Neon Branch Connection
+        if: github.event_name == 'pull_request'
+        uses: neondatabase/create-branch-action@v6
+        id: neon-branch
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Resolve POSTGRES_URL
+        id: db
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "url=${{ steps.neon-branch.outputs.db_url }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=${{ secrets.POSTGRES_URL }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve TURBOPLAN_URL
+        id: service-urls
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          SUFFIX="$WORKERS_SUBDOMAIN"
+          if [ "$REF_NAME" = "main" ]; then
+            echo "turboplan_url=https://${APP_DOMAIN:-turboplan-web-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+          elif [ "$REF_NAME" = "develop" ]; then
+            echo "turboplan_url=https://turboplan-web-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          else
+            echo "turboplan_url=https://turboplan-web-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+        env:
+          TURBO_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          TURBO_TEAM: ${{ vars.VERCEL_SCOPE }}
+
+      - name: Run database migrations
+        run: pnpm db:migrate
+        working-directory: apps/turboplan
+        env:
+          POSTGRES_URL: ${{ steps.db.outputs.url }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          IS_TASKS_PACKAGE_ENABLED: ${{ vars.FF_IS_TASKS_PACKAGE_ENABLED }}
+          IS_FIELDS_PACKAGE_ENABLED: ${{ vars.FF_IS_FIELDS_PACKAGE_ENABLED }}
+          IS_MAPS_PACKAGE_ENABLED: ${{ vars.FF_IS_MAPS_PACKAGE_ENABLED }}
+          IS_DOCUMENTS_PACKAGE_ENABLED: ${{ vars.FF_IS_DOCUMENTS_PACKAGE_ENABLED }}
+          IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED: ${{ vars.FF_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED }}
+          IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
+          IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
+
+      - name: Seed database
+        run: pnpm seed
+        env:
+          POSTGRES_URL: ${{ steps.db.outputs.url }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          SYSTEM_USER_EMAIL: ${{ vars.SYSTEM_USER_EMAIL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          IS_TASKS_PACKAGE_ENABLED: ${{ vars.FF_IS_TASKS_PACKAGE_ENABLED }}
+          IS_FIELDS_PACKAGE_ENABLED: ${{ vars.FF_IS_FIELDS_PACKAGE_ENABLED }}
+          IS_MAPS_PACKAGE_ENABLED: ${{ vars.FF_IS_MAPS_PACKAGE_ENABLED }}
+          IS_DOCUMENTS_PACKAGE_ENABLED: ${{ vars.FF_IS_DOCUMENTS_PACKAGE_ENABLED }}
+          IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED: ${{ vars.FF_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED }}
+          IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
+          IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
+
+  deploy-landing:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, code-quality]
+    if: ${{ !cancelled() && !failure() && needs.detect-changes.outputs.landing_changed == 'true' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'develop' && 'develop' || 'pr_preview' }}
+    outputs:
+      deployed: ${{ steps.deploy.outputs.deployed }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Cache turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-landing-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-landing-
+
+      - name: Resolve service URLs
+        id: service-urls
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          API_DOMAIN: ${{ vars.PRODUCTION_API_DOMAIN }}
+          APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
+          COOKIE_DOMAIN: ${{ vars.PRODUCTION_COOKIE_DOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          SUFFIX="$WORKERS_SUBDOMAIN"
+          if [ "$REF_NAME" = "main" ]; then
+            # The auth cookie's Domain must be a parent of the app host or the
+            # browser drops every Set-Cookie and login silently breaks. Both
+            # vars come as a pair; catch a half-configured deployment here.
+            if { [ -n "$APP_DOMAIN" ] && [ -z "$COOKIE_DOMAIN" ]; } || { [ -z "$APP_DOMAIN" ] && [ -n "$COOKIE_DOMAIN" ]; }; then
+              echo "::error::PRODUCTION_APP_DOMAIN and PRODUCTION_COOKIE_DOMAIN must be set together" >&2
+              exit 1
+            fi
+            if [ -n "$APP_DOMAIN" ]; then
+              case ".${APP_DOMAIN}" in
+                *".${COOKIE_DOMAIN#.}") ;;
+                *)
+                  echo "::error::PRODUCTION_COOKIE_DOMAIN (${COOKIE_DOMAIN}) is not a parent domain of PRODUCTION_APP_DOMAIN (${APP_DOMAIN})" >&2
+                  exit 1
+                  ;;
+              esac
+            fi
+            echo "server_url=https://${API_DOMAIN:-turboplan-api-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://${APP_DOMAIN:-turboplan-web-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+          elif [ "$REF_NAME" = "develop" ]; then
+            echo "server_url=https://turboplan-api-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://turboplan-web-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          else
+            echo "server_url=https://turboplan-api-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://turboplan-web-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set release date
+        id: release-info
+        run: |
+          RELEASE_DATE=$(date -u +"%Y/%m/%d %H:%M")
+          echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_OUTPUT
+
+      - name: Build with turbo
+        run: pnpm turbo build --filter=turboplan-landing-page
+        env:
+          NEXT_PUBLIC_SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
+          NEXT_PUBLIC_TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          NEXT_PUBLIC_LINKEDIN_URL: https://linkedin.com
+          NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
+          NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          NEXT_PUBLIC_APP_ENV: ${{ vars.APP_ENV }}
+          NEXT_PUBLIC_RELEASE_VERSION: ${{ github.sha }}
+          NEXT_PUBLIC_RELEASE_DATE: ${{ steps.release-info.outputs.RELEASE_DATE }}
+          NEXT_PUBLIC_RELEASE_BRANCH: ${{ github.ref_name }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN_LANDING }}
+
+      - name: Deploy
+        id: deploy
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          # Optional apex custom domain — when unset, production stays on workers.dev
+          PRODUCTION_LANDING_DOMAIN: ${{ vars.PRODUCTION_LANDING_DOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          NEXT_PUBLIC_SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
+          NEXT_PUBLIC_TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          NEXT_PUBLIC_LINKEDIN_URL: https://linkedin.com
+          NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
+          NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          NEXT_PUBLIC_APP_ENV: ${{ vars.APP_ENV }}
+          NEXT_PUBLIC_RELEASE_VERSION: ${{ github.sha }}
+          NEXT_PUBLIC_RELEASE_DATE: ${{ steps.release-info.outputs.RELEASE_DATE }}
+          NEXT_PUBLIC_RELEASE_BRANCH: ${{ github.ref_name }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_COOKIE_DOMAIN: ${{ github.ref_name == 'main' && vars.PRODUCTION_COOKIE_DOMAIN || vars.WORKERS_SUBDOMAIN }}
+          POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          # Sentry (optional — monitoring/sourcemap upload disabled when unset)
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN_LANDING }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT_LANDING }}
+        run: |
+          if [ "$REF_NAME" = "main" ]; then
+            ./scripts/deploy-landing.sh production
+            WORKER_NAME="turboplan-landing-prod"
+          elif [ "$REF_NAME" = "develop" ]; then
+            ./scripts/deploy-landing.sh staging
+            WORKER_NAME="turboplan-landing-staging"
+          else
+            ./scripts/deploy-landing.sh preview "$PR_NUMBER"
+            WORKER_NAME="turboplan-landing-pr-${PR_NUMBER}"
+          fi
+          URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}"
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, code-quality, database-migrate]
+    # database-migrate is skipped on non-PR events (push to main/develop) — skipped != failed, so this still runs
+    if: ${{ !cancelled() && !failure() && needs.detect-changes.outputs.server_changed == 'true' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'develop' && 'develop' || 'pr_preview' }}
+    outputs:
+      deployed: ${{ steps.deploy.outputs.deployed }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Cache turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-server-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-server-
+
+      - name: Create Neon branch for PR preview
+        if: github.event_name == 'pull_request'
+        uses: neondatabase/create-branch-action@v6
+        id: neon-branch
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Resolve service URLs
+        id: service-urls
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          API_DOMAIN: ${{ vars.PRODUCTION_API_DOMAIN }}
+          APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
+          LANDING_DOMAIN: ${{ vars.PRODUCTION_LANDING_DOMAIN }}
+          MAP_DOMAIN: ${{ vars.PRODUCTION_MAP_DOMAIN }}
+          COOKIE_DOMAIN: ${{ vars.PRODUCTION_COOKIE_DOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          SUFFIX="$WORKERS_SUBDOMAIN"
+          if [ "$REF_NAME" = "main" ]; then
+            # The auth cookie's Domain must be a parent of the app host or the
+            # browser drops every Set-Cookie and login silently breaks. Both
+            # vars come as a pair; catch a half-configured deployment here.
+            if { [ -n "$APP_DOMAIN" ] && [ -z "$COOKIE_DOMAIN" ]; } || { [ -z "$APP_DOMAIN" ] && [ -n "$COOKIE_DOMAIN" ]; }; then
+              echo "::error::PRODUCTION_APP_DOMAIN and PRODUCTION_COOKIE_DOMAIN must be set together" >&2
+              exit 1
+            fi
+            if [ -n "$APP_DOMAIN" ]; then
+              case ".${APP_DOMAIN}" in
+                *".${COOKIE_DOMAIN#.}") ;;
+                *)
+                  echo "::error::PRODUCTION_COOKIE_DOMAIN (${COOKIE_DOMAIN}) is not a parent domain of PRODUCTION_APP_DOMAIN (${APP_DOMAIN})" >&2
+                  exit 1
+                  ;;
+              esac
+            fi
+            echo "server_url=https://${API_DOMAIN:-turboplan-api-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://${APP_DOMAIN:-turboplan-web-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://${LANDING_DOMAIN:-turboplan-landing-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "map_service_url=https://${MAP_DOMAIN:-turboplan-map-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+          elif [ "$REF_NAME" = "develop" ]; then
+            echo "server_url=https://turboplan-api-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://turboplan-web-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "map_service_url=https://turboplan-map-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          else
+            echo "server_url=https://turboplan-api-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://turboplan-web-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "map_service_url=https://turboplan-map-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Hyperdrive
+        id: hyperdrive
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DB_URL_SECRET: ${{ secrets.POSTGRES_URL }}
+          DB_URL_NEON: ${{ steps.neon-branch.outputs.db_url }}
+        run: |
+          set -euo pipefail
+
+          if [ "$REF_NAME" = "main" ]; then
+            CONFIG_NAME="turboplan-db-prod"
+            DB_URL="$DB_URL_SECRET"
+          elif [ "$REF_NAME" = "develop" ]; then
+            CONFIG_NAME="turboplan-db-staging"
+            DB_URL="$DB_URL_SECRET"
+          else
+            CONFIG_NAME="turboplan-db-pr-${PR_NUMBER}"
+            DB_URL="$DB_URL_NEON"
+          fi
+
+          if [ -z "$DB_URL" ]; then
+            echo "::error::No DB connection string resolved for ${CONFIG_NAME}"
+            exit 1
+          fi
+
+          echo "Looking for existing Hyperdrive config: $CONFIG_NAME"
+          LIST_OUTPUT=$(npx wrangler hyperdrive list)
+          echo "$LIST_OUTPUT"
+
+          # Match the config name as a whole field (avoid pr-28 matching pr-280),
+          # then take the 32-char hex id from that row only.
+          EXISTING_ID=$(echo "$LIST_OUTPUT" \
+            | grep -E "(^|[^0-9A-Za-z-])${CONFIG_NAME}([^0-9A-Za-z-]|$)" \
+            | grep -oE '[0-9a-f]{32}' | head -1 || true)
+
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Updating existing Hyperdrive config: $EXISTING_ID"
+            npx wrangler hyperdrive update "$EXISTING_ID" --connection-string="$DB_URL"
+            HID="$EXISTING_ID"
+          else
+            echo "Creating new Hyperdrive config: $CONFIG_NAME"
+            CREATE_OUTPUT=$(npx wrangler hyperdrive create "$CONFIG_NAME" --connection-string="$DB_URL")
+            echo "$CREATE_OUTPUT"
+            # Anchor on the JSON `"id": "<hex>"` field so we never capture the
+            # account id from an API error URL (/accounts/<hex>/...).
+            HID=$(echo "$CREATE_OUTPUT" \
+              | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f]{32}"' \
+              | grep -oE '[0-9a-f]{32}' | head -1 || true)
+          fi
+
+          if [ -z "$HID" ]; then
+            echo "::error::Could not resolve a Hyperdrive id for ${CONFIG_NAME}"
+            exit 1
+          fi
+
+          # Validate the id exists before deploy injects it into wrangler.jsonc.
+          if ! npx wrangler hyperdrive get "$HID" >/dev/null 2>&1; then
+            echo "::error::Hyperdrive id ${HID} not found in account"
+            exit 1
+          fi
+
+          echo "hyperdrive_id=$HID" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set release date
+        id: release-info
+        run: |
+          RELEASE_DATE=$(date -u +"%Y/%m/%d %H:%M")
+          echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_OUTPUT
+
+      - name: Build dependencies with turbo
+        run: pnpm turbo build --filter=turboplan-server
+
+      - name: Deploy
+        id: deploy
+        env:
+          # Optional custom domain — when unset, production stays on workers.dev
+          PRODUCTION_API_DOMAIN: ${{ vars.PRODUCTION_API_DOMAIN }}
+          # Secrets (set via wrangler secret put in deploy script)
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          JWT_SIGNING_SECRET: ${{ secrets.JWT_SIGNING_SECRET }}
+          AUTH_COOKIE_DOMAIN: ${{ github.ref_name == 'main' && vars.PRODUCTION_COOKIE_DOMAIN || vars.WORKERS_SUBDOMAIN }}
+          POSTGRES_URL: ${{ github.event_name == 'pull_request' && steps.neon-branch.outputs.db_url || secrets.POSTGRES_URL }}
+          HYPERDRIVE_ID: ${{ steps.hyperdrive.outputs.hyperdrive_id }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          SERVER_API_KEY: ${{ secrets.SERVER_API_KEY }}
+          MAP_SERVICE_API_KEY: ${{ secrets.MAP_SERVICE_API_KEY }}
+          RESEARCH_AGENT_SERVICE_API_KEY: ${{ secrets.RESEARCH_AGENT_SERVICE_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          # Stripe billing — secret key + signing secret are encrypted secrets;
+          # for previews the signing secret is provisioned at deploy time instead.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          # Vars (set via --var in deploy script)
+          TC_APP_NAME: ${{ vars.APP_NAME }}
+          TC_APP_ENV: ${{ vars.APP_ENV }}
+          TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
+          LANDING_URL: ${{ steps.service-urls.outputs.landing_url }}
+          MAP_SERVICE_URL: ${{ steps.service-urls.outputs.map_service_url }}
+          ALLOWED_ORIGINS: ${{ steps.service-urls.outputs.turboplan_url }}|${{ steps.service-urls.outputs.landing_url }}
+          POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
+          SENTRY_DSN: ${{ vars.SENTRY_DSN_API }}
+          RELEASE_VERSION: ${{ github.sha }}
+          RELEASE_DATE: ${{ steps.release-info.outputs.RELEASE_DATE }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
+          # Feature flags
+          IS_TASKS_PACKAGE_ENABLED: ${{ vars.FF_IS_TASKS_PACKAGE_ENABLED }}
+          IS_FIELDS_PACKAGE_ENABLED: ${{ vars.FF_IS_FIELDS_PACKAGE_ENABLED }}
+          IS_MAPS_PACKAGE_ENABLED: ${{ vars.FF_IS_MAPS_PACKAGE_ENABLED }}
+          IS_DOCUMENTS_PACKAGE_ENABLED: ${{ vars.FF_IS_DOCUMENTS_PACKAGE_ENABLED }}
+          IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED: ${{ vars.FF_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED }}
+          IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
+          IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
+          IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          IS_SIGNING_PACKAGE_ENABLED: ${{ vars.FF_IS_SIGNING_PACKAGE_ENABLED }}
+          # Documenso signing — all three are required once the flag above is set,
+          # or the worker throws on env validation at startup.
+          DOCUMENSO_API_URL: ${{ vars.DOCUMENSO_API_URL }}
+          DOCUMENSO_API_KEY: ${{ secrets.DOCUMENSO_API_KEY }}
+          DOCUMENSO_WEBHOOK_SECRET: ${{ secrets.DOCUMENSO_WEBHOOK_SECRET }}
+          # AI models
+          OPENROUTER_MODEL_PRIMARY: ${{ vars.OPENROUTER_MODEL_PRIMARY }}
+          OPENROUTER_MODEL_LITE: ${{ vars.OPENROUTER_MODEL_LITE }}
+          OPENROUTER_MODEL_IMAGE_PRIMARY: ${{ vars.OPENROUTER_MODEL_IMAGE_PRIMARY }}
+          OPENROUTER_MODEL_IMAGE_LITE: ${{ vars.OPENROUTER_MODEL_IMAGE_LITE }}
+          DISABLE_AUTO_PROJECT_IMAGE_GENERATION: ${{ vars.DISABLE_AUTO_PROJECT_IMAGE_GENERATION }}
+          # Service URLs
+          RESEARCH_AGENT_SERVICE_URL: ${{ vars.RESEARCH_AGENT_SERVICE_URL }}
+          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
+          # Dev-only
+          ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
+          USE_EXTERNAL_PROMPTS: ${{ vars.FF_USE_EXTERNAL_PROMPTS }}
+          # Safe shell refs
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$REF_NAME" = "main" ]; then
+            ./scripts/deploy-api.sh production
+            WORKER_NAME="turboplan-api-prod"
+          elif [ "$REF_NAME" = "develop" ]; then
+            ./scripts/deploy-api.sh staging
+            WORKER_NAME="turboplan-api-staging"
+          else
+            ./scripts/deploy-api.sh preview "$PR_NUMBER"
+            WORKER_NAME="turboplan-api-pr-${PR_NUMBER}"
+          fi
+          URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}"
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  deploy-web:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, code-quality, database-migrate]
+    # database-migrate is skipped on non-PR events (push to main/develop) — skipped != failed, so this still runs
+    if: ${{ !cancelled() && !failure() && needs.detect-changes.outputs.web_changed == 'true' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'develop' && 'develop' || 'pr_preview' }}
+    outputs:
+      deployed: ${{ steps.deploy.outputs.deployed }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Cache turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-web-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-web-
+
+      - name: Create Neon branch for PR preview
+        if: github.event_name == 'pull_request'
+        uses: neondatabase/create-branch-action@v6
+        id: neon-branch
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Resolve service URLs
+        id: service-urls
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          API_DOMAIN: ${{ vars.PRODUCTION_API_DOMAIN }}
+          APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
+          LANDING_DOMAIN: ${{ vars.PRODUCTION_LANDING_DOMAIN }}
+          COOKIE_DOMAIN: ${{ vars.PRODUCTION_COOKIE_DOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          SUFFIX="$WORKERS_SUBDOMAIN"
+          if [ "$REF_NAME" = "main" ]; then
+            # The auth cookie's Domain must be a parent of the app host or the
+            # browser drops every Set-Cookie and login silently breaks. Both
+            # vars come as a pair; catch a half-configured deployment here.
+            if { [ -n "$APP_DOMAIN" ] && [ -z "$COOKIE_DOMAIN" ]; } || { [ -z "$APP_DOMAIN" ] && [ -n "$COOKIE_DOMAIN" ]; }; then
+              echo "::error::PRODUCTION_APP_DOMAIN and PRODUCTION_COOKIE_DOMAIN must be set together" >&2
+              exit 1
+            fi
+            if [ -n "$APP_DOMAIN" ]; then
+              case ".${APP_DOMAIN}" in
+                *".${COOKIE_DOMAIN#.}") ;;
+                *)
+                  echo "::error::PRODUCTION_COOKIE_DOMAIN (${COOKIE_DOMAIN}) is not a parent domain of PRODUCTION_APP_DOMAIN (${APP_DOMAIN})" >&2
+                  exit 1
+                  ;;
+              esac
+            fi
+            echo "server_url=https://${API_DOMAIN:-turboplan-api-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://${APP_DOMAIN:-turboplan-web-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://${LANDING_DOMAIN:-turboplan-landing-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+          elif [ "$REF_NAME" = "develop" ]; then
+            echo "server_url=https://turboplan-api-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://turboplan-web-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          else
+            echo "server_url=https://turboplan-api-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "turboplan_url=https://turboplan-web-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set release date
+        id: release-info
+        run: |
+          RELEASE_DATE=$(date -u +"%Y/%m/%d %H:%M")
+          echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_OUTPUT
+
+      - name: Build with turbo
+        run: pnpm turbo build --filter=turboplan
+        env:
+          # Sentry webpack plugin pushes next build past Node's default ~2GB heap
+          NODE_OPTIONS: --max-old-space-size=6144
+          # Build-time vars (NEXT_PUBLIC_*) — baked into the Next.js bundle
+          NEXT_PUBLIC_SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
+          NEXT_PUBLIC_TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          NEXT_PUBLIC_LANDING_URL: ${{ steps.service-urls.outputs.landing_url }}
+          NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
+          NEXT_PUBLIC_APP_ENV: ${{ vars.APP_ENV }}
+          NEXT_PUBLIC_RELEASE_VERSION: ${{ github.sha }}
+          NEXT_PUBLIC_RELEASE_DATE: ${{ steps.release-info.outputs.RELEASE_DATE }}
+          NEXT_PUBLIC_RELEASE_BRANCH: ${{ github.ref_name }}
+          NEXT_PUBLIC_IS_TASKS_PACKAGE_ENABLED: ${{ vars.FF_IS_TASKS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_FIELDS_PACKAGE_ENABLED: ${{ vars.FF_IS_FIELDS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_MAPS_PACKAGE_ENABLED: ${{ vars.FF_IS_MAPS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_DOCUMENTS_PACKAGE_ENABLED: ${{ vars.FF_IS_DOCUMENTS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED: ${{ vars.FF_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          # Server-side vars needed during prerendering
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+          JWT_SIGNING_SECRET: ${{ secrets.JWT_SIGNING_SECRET }}
+          AUTH_COOKIE_DOMAIN: ${{ github.ref_name == 'main' && vars.PRODUCTION_COOKIE_DOMAIN || vars.WORKERS_SUBDOMAIN }}
+          POSTGRES_URL: ${{ github.event_name == 'pull_request' && steps.neon-branch.outputs.db_url || secrets.POSTGRES_URL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          OPENROUTER_MODEL_PRIMARY: ${{ vars.OPENROUTER_MODEL_PRIMARY }}
+          OPENROUTER_MODEL_LITE: ${{ vars.OPENROUTER_MODEL_LITE }}
+          OPENROUTER_MODEL_IMAGE_PRIMARY: ${{ vars.OPENROUTER_MODEL_IMAGE_PRIMARY }}
+          OPENROUTER_MODEL_IMAGE_LITE: ${{ vars.OPENROUTER_MODEL_IMAGE_LITE }}
+          POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+          ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
+          USE_EXTERNAL_PROMPTS: ${{ vars.FF_USE_EXTERNAL_PROMPTS }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN_WEB }}
+
+      - name: Deploy
+        id: deploy
+        env:
+          # Optional custom domain — when unset, production stays on workers.dev
+          PRODUCTION_APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
+          # Sentry webpack plugin pushes next build past Node's default ~2GB heap
+          NODE_OPTIONS: --max-old-space-size=6144
+          # Build-time vars (NEXT_PUBLIC_*) — needed by OpenNext for bundling
+          NEXT_PUBLIC_SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
+          NEXT_PUBLIC_TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          NEXT_PUBLIC_LANDING_URL: ${{ steps.service-urls.outputs.landing_url }}
+          NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
+          NEXT_PUBLIC_APP_ENV: ${{ vars.APP_ENV }}
+          NEXT_PUBLIC_RELEASE_VERSION: ${{ github.sha }}
+          NEXT_PUBLIC_RELEASE_DATE: ${{ steps.release-info.outputs.RELEASE_DATE }}
+          NEXT_PUBLIC_RELEASE_BRANCH: ${{ github.ref_name }}
+          NEXT_PUBLIC_IS_TASKS_PACKAGE_ENABLED: ${{ vars.FF_IS_TASKS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_FIELDS_PACKAGE_ENABLED: ${{ vars.FF_IS_FIELDS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_MAPS_PACKAGE_ENABLED: ${{ vars.FF_IS_MAPS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_DOCUMENTS_PACKAGE_ENABLED: ${{ vars.FF_IS_DOCUMENTS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED: ${{ vars.FF_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          # Runtime secrets (used by deploy script for wrangler secret put)
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+          JWT_SIGNING_SECRET: ${{ secrets.JWT_SIGNING_SECRET }}
+          AUTH_COOKIE_DOMAIN: ${{ github.ref_name == 'main' && vars.PRODUCTION_COOKIE_DOMAIN || vars.WORKERS_SUBDOMAIN }}
+          POSTGRES_URL: ${{ github.event_name == 'pull_request' && steps.neon-branch.outputs.db_url || secrets.POSTGRES_URL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          # Runtime vars (used by deploy script for --var flags)
+          POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+          OPENROUTER_MODEL_PRIMARY: ${{ vars.OPENROUTER_MODEL_PRIMARY }}
+          OPENROUTER_MODEL_LITE: ${{ vars.OPENROUTER_MODEL_LITE }}
+          OPENROUTER_MODEL_IMAGE_PRIMARY: ${{ vars.OPENROUTER_MODEL_IMAGE_PRIMARY }}
+          OPENROUTER_MODEL_IMAGE_LITE: ${{ vars.OPENROUTER_MODEL_IMAGE_LITE }}
+          ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
+          USE_EXTERNAL_PROMPTS: ${{ vars.FF_USE_EXTERNAL_PROMPTS }}
+          # Sentry (optional — monitoring/sourcemap upload disabled when unset)
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN_WEB }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT_WEB }}
+          # Safe shell refs
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$REF_NAME" = "main" ]; then
+            ./scripts/deploy-web.sh production
+            WORKER_NAME="turboplan-web-prod"
+          elif [ "$REF_NAME" = "develop" ]; then
+            ./scripts/deploy-web.sh staging
+            WORKER_NAME="turboplan-web-staging"
+          else
+            ./scripts/deploy-web.sh preview "$PR_NUMBER"
+            WORKER_NAME="turboplan-web-pr-${PR_NUMBER}"
+          fi
+          URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}"
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  deploy-map:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.map_changed == 'true'
+    environment: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'develop' && 'develop' || 'pr_preview' }}
+    outputs:
+      deployed: ${{ steps.deploy.outputs.deployed }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve allowed origins
+        id: origins
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          API_DOMAIN: ${{ vars.PRODUCTION_API_DOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          SUFFIX="$WORKERS_SUBDOMAIN"
+          if [ "$REF_NAME" = "main" ]; then
+            echo "origins=https://${API_DOMAIN:-turboplan-api-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+          elif [ "$REF_NAME" = "develop" ]; then
+            echo "origins=https://turboplan-api-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          else
+            echo "origins=https://turboplan-api-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy
+        id: deploy
+        env:
+          MAP_SERVICE_API_KEY: ${{ secrets.MAP_SERVICE_API_KEY }}
+          # Optional custom domain — when unset, production stays on workers.dev
+          PRODUCTION_MAP_DOMAIN: ${{ vars.PRODUCTION_MAP_DOMAIN }}
+          ALLOWED_ORIGINS: ${{ steps.origins.outputs.origins }}
+          SENTRY_DSN: ${{ vars.SENTRY_DSN_MAP }}
+          RELEASE_VERSION: ${{ github.sha }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$REF_NAME" = "main" ]; then
+            ./scripts/deploy-map.sh production
+            WORKER_NAME="turboplan-map-prod"
+          elif [ "$REF_NAME" = "develop" ]; then
+            ./scripts/deploy-map.sh staging
+            WORKER_NAME="turboplan-map-staging"
+          else
+            ./scripts/deploy-map.sh preview "$PR_NUMBER"
+            WORKER_NAME="turboplan-map-pr-${PR_NUMBER}"
+          fi
+          URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}"
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  deploy-mcp:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, code-quality, database-migrate]
+    if: ${{ !cancelled() && !failure() && needs.detect-changes.outputs.mcp_changed == 'true' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'develop' && 'develop' || 'pr_preview' }}
+    outputs:
+      deployed: ${{ steps.deploy.outputs.deployed }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Cache turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-mcp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-mcp-
+
+      - name: Create Neon branch for PR preview
+        if: github.event_name == 'pull_request'
+        uses: neondatabase/create-branch-action@v6
+        id: neon-branch
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Resolve service URLs
+        id: service-urls
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
+          LANDING_DOMAIN: ${{ vars.PRODUCTION_LANDING_DOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          SUFFIX="$WORKERS_SUBDOMAIN"
+          if [ "$REF_NAME" = "main" ]; then
+            echo "turboplan_url=https://${APP_DOMAIN:-turboplan-web-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://${LANDING_DOMAIN:-turboplan-landing-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+          elif [ "$REF_NAME" = "develop" ]; then
+            echo "turboplan_url=https://turboplan-web-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          else
+            echo "turboplan_url=https://turboplan-web-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build dependencies with turbo
+        run: pnpm turbo build --filter=@wildfires-org/turboplan-mcp-server
+
+      - name: Deploy
+        id: deploy
+        env:
+          # Optional custom domain — when unset, production stays on workers.dev
+          PRODUCTION_MCP_DOMAIN: ${{ vars.PRODUCTION_MCP_DOMAIN }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          POSTGRES_URL: ${{ github.event_name == 'pull_request' && steps.neon-branch.outputs.db_url || secrets.POSTGRES_URL }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          LANDING_URL: ${{ steps.service-urls.outputs.landing_url }}
+          ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL_IMAGE_PRIMARY: ${{ vars.OPENROUTER_MODEL_IMAGE_PRIMARY }}
+          OPENROUTER_MODEL_IMAGE_LITE: ${{ vars.OPENROUTER_MODEL_IMAGE_LITE }}
+          IS_TASKS_PACKAGE_ENABLED: ${{ vars.FF_IS_TASKS_PACKAGE_ENABLED }}
+          IS_FIELDS_PACKAGE_ENABLED: ${{ vars.FF_IS_FIELDS_PACKAGE_ENABLED }}
+          IS_MAPS_PACKAGE_ENABLED: ${{ vars.FF_IS_MAPS_PACKAGE_ENABLED }}
+          IS_DOCUMENTS_PACKAGE_ENABLED: ${{ vars.FF_IS_DOCUMENTS_PACKAGE_ENABLED }}
+          IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED: ${{ vars.FF_IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED }}
+          IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
+          IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
+          SENTRY_DSN: ${{ vars.SENTRY_DSN_MCP }}
+          RELEASE_VERSION: ${{ github.sha }}
+          POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
+          REF_NAME: ${{ github.ref_name }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$REF_NAME" = "main" ]; then
+            ./scripts/deploy-mcp.sh production
+            WORKER_NAME="turboplan-mcp-prod"
+          elif [ "$REF_NAME" = "develop" ]; then
+            ./scripts/deploy-mcp.sh staging
+            WORKER_NAME="turboplan-mcp-staging"
+          else
+            ./scripts/deploy-mcp.sh preview "$PR_NUMBER"
+            WORKER_NAME="turboplan-mcp-pr-${PR_NUMBER}"
+          fi
+          URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}"
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  comment-preview-urls:
+    runs-on: ubuntu-latest
+    needs: [deploy-landing, deploy-api, deploy-web, deploy-map, deploy-mcp]
+    if: always() && github.event_name == 'pull_request' && (needs.deploy-landing.result == 'success' || needs.deploy-api.result == 'success' || needs.deploy-web.result == 'success' || needs.deploy-map.result == 'success' || needs.deploy-mcp.result == 'success')
+    steps:
+      - name: Build comment body
+        id: comment-body
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          SHA="${{ github.event.pull_request.head.sha }}"
+          SHORT_SHA="${SHA:0:7}"
+
+          BODY="## Preview Deployment"$'\n\n'
+          BODY+="| App | URL |"$'\n'
+          BODY+="|-----|-----|"$'\n'
+
+          if [ "${{ needs.deploy-landing.outputs.deployed }}" = "true" ]; then
+            BODY+="| landing | ${{ needs.deploy-landing.outputs.url }} |"$'\n'
+          fi
+
+          if [ "${{ needs.deploy-api.outputs.deployed }}" = "true" ]; then
+            BODY+="| api | ${{ needs.deploy-api.outputs.url }} |"$'\n'
+          fi
+
+          if [ "${{ needs.deploy-web.outputs.deployed }}" = "true" ]; then
+            BODY+="| web | ${{ needs.deploy-web.outputs.url }} |"$'\n'
+          fi
+
+          if [ "${{ needs.deploy-map.outputs.deployed }}" = "true" ]; then
+            BODY+="| map | ${{ needs.deploy-map.outputs.url }} |"$'\n'
+          fi
+
+          if [ "${{ needs.deploy-mcp.outputs.deployed }}" = "true" ]; then
+            BODY+="| mcp | ${{ needs.deploy-mcp.outputs.url }} |"$'\n'
+          fi
+
+          BODY+=$'\n'"Last deployed: ${TIMESTAMP}"$'\n'
+          BODY+="Commit: ${SHORT_SHA}"
+
+          echo "$BODY" > /tmp/comment-body.md
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: github-actions[bot]
+          body-includes: "## Preview Deployment"
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: /tmp/comment-body.md
+          edit-mode: replace

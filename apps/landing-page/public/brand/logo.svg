@@ -1,0 +1,8 @@
+<svg width="275" height="45" viewBox="0 0 275 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Neutral placeholder logo. Forks: replace this file's CONTENTS (same path, same viewBox) with your brand asset. -->
+  <rect x="2" y="4" width="37" height="37" rx="9" fill="#27c187"/>
+  <path d="M20.5 12c-4.5 3-7 7-7 11.5 0 4 3 8 7 8s7-4 7-8c0-4.5-2.5-8.5-7-11.5z" fill="#fff"/>
+  <path d="M20.5 18v13" stroke="#27c187" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M20.5 23l3.5-3M20.5 27l-3.5-3" stroke="#27c187" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="50" y="30" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="20" font-weight="700" fill="#1f2937">Your Brand</text>
+</svg>

@@ -1,0 +1,26 @@
+.barLabel {
+  text-anchor: middle;
+  font-weight: 500;
+  dominant-baseline: central;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.barLabelOutside {
+  font-weight: 500;
+  text-anchor: start;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.pointer {
+  cursor: pointer;
+}

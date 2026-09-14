@@ -1,0 +1,58 @@
+{
+  "name": "@wildfires-org/turboplan-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Admin panel package for TurboPlan \u2014 middleware, routers, and admin UI",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    }
+  },
+  "dependencies": {
+    "@wildfires-org/turboplan-ai": "workspace:*",
+    "@wildfires-org/turboplan-api-client": "workspace:*",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-rbac": "workspace:*",
+    "@wildfires-org/turboplan-utils": "workspace:*",
+    "@wildfires-org/turboplan-workspace": "workspace:*",
+    "@hono/zod-validator": "^0.8.0",
+    "drizzle-orm": "^0.42.0",
+    "hono": "^4.6.3",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "framer-motion": "^11.3.19",
+    "lucide-react": "^0.539.0",
+    "react": "^19.1.1",
+    "sonner": "^1.5.0",
+    "swr": "^2.0.0",
+    "usehooks-ts": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/react": "^19.1.1",
+    "rollup-plugin-preserve-use-client": "^3.0.1",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.3.3"
+  }
+}

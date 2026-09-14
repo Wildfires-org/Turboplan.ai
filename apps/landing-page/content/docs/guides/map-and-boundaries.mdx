@@ -1,0 +1,60 @@
+---
+title: Map and boundaries
+description: Upload a project boundary and optional units layer, then view them on the project's interactive map.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+
+The **Map** module gives a project a spatial footprint. You upload boundary
+data, and the project shows it on an interactive map you can pan and zoom.
+
+## What you can upload
+
+The map accepts two file formats:
+
+- **Zipped shapefile** — a standard `.zip` shapefile bundle.
+- **GeoJSON** — a plain GeoJSON file.
+
+Other formats (such as KML or GPX) are not supported — upload your boundary as
+GeoJSON or a zipped shapefile.
+
+## Two kinds of layers
+
+A project's map is built from two distinct layer types:
+
+- **Project boundary** — the outer footprint of the project area.
+- **Units boundary** — a finer breakdown of individual units within that area.
+
+## Adding layers
+
+Adding boundaries is a short two-step flow:
+
+1. **Pick or upload the project boundary.** Start by choosing the layer that
+   defines the project's overall area.
+2. **Optionally add a units layer.** After the boundary is in place, you can add
+   a units layer. The system can auto-detect a unit layer and match its features
+   to the boundary using a unit-ID key field, so each unit lines up with the
+   right area.
+
+Once your layers are added, they render together on the interactive map, where
+you can view the project boundary and its units in context.
+
+## Choose your next step
+
+<Cards>
+  <Card
+    title="Chat and project setup"
+    href="/docs/guides/chat-and-setup"
+    description="Set a project up through the AI chat before adding a map."
+  />
+  <Card
+    title="Custom fields"
+    href="/docs/guides/custom-fields"
+    description="Attach simple key/value fields to a project."
+  />
+  <Card
+    title="Projects and workspaces"
+    href="/docs/guides/projects-and-workspaces"
+    description="Where projects live and who can access them."
+  />
+</Cards>

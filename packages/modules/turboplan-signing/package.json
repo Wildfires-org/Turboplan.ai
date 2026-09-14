@@ -1,0 +1,73 @@
+{
+  "name": "@wildfires-org/turboplan-signing",
+  "description": "Document signing integration via Documenso for TurboPlan",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    },
+    "./pdf": {
+      "types": "./dist/pdf-generator.d.ts",
+      "import": "./dist/pdf-generator.js",
+      "default": "./dist/pdf-generator.js"
+    }
+  },
+  "dependencies": {
+    "@documenso/embed-react": "^0.6.1",
+    "@documenso/sdk-typescript": "^0.8.1",
+    "@wildfires-org/turboplan-api-client": "workspace:*",
+    "@wildfires-org/turboplan-auth": "workspace:*",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-mail": "workspace:*",
+    "@wildfires-org/turboplan-rbac": "workspace:*",
+    "@wildfires-org/turboplan-timeline-records": "workspace:*",
+    "@wildfires-org/turboplan-upload": "workspace:*",
+    "@wildfires-org/turboplan-utils": "workspace:*",
+    "drizzle-orm": "^0.42.0",
+    "hono": "^4.12.23",
+    "lucide-react": "^0.446.0",
+    "pdfkit": "^0.18.0",
+    "sonner": "^1.5.0",
+    "swr": "^2.2.5",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "next": ">=15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.1.4",
+    "@types/node": "^20.10.5",
+    "@types/pdfkit": "^0.17.3",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.7",
+    "next": "15.5.16",
+    "react": "19.1.7",
+    "react-dom": "19.1.7",
+    "rollup-plugin-preserve-use-client": "^3.0.1",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.3.3"
+  }
+}

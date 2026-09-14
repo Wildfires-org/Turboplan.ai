@@ -1,0 +1,31 @@
+{
+  "name": "@wildfires-org/e2e-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "dotenv -e .env -- playwright test",
+    "test:headed": "dotenv -e .env -- playwright test --headed",
+    "test:debug": "dotenv -e .env -- playwright test --debug",
+    "test:ui": "dotenv -e .env -- playwright test --ui",
+    "report": "playwright show-report reports/html"
+  },
+  "dependencies": {
+    "@wildfires-org/turboplan-api-client": "workspace:*",
+    "@wildfires-org/turboplan-db": "workspace:*",
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-billing": "workspace:*",
+    "@wildfires-org/turboplan-workspace": "workspace:*",
+    "bcrypt-ts": "^5.0.2",
+    "drizzle-orm": "^0.42.0",
+    "imapflow": "^1.0.171",
+    "stripe": "^22.2.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.1",
+    "@types/node": "^22.8.6",
+    "dotenv-cli": "^7.4.2",
+    "typescript": "^5.6.3",
+    "wait-on": "^8.0.1"
+  }
+}

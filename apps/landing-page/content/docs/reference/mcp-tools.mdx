@@ -1,0 +1,60 @@
+---
+title: MCP tool catalog
+description: The full set of TurboPlan MCP tools grouped by domain — organizations, offices, projects, fields, context, milestones, tasks, timeline, documents, members, comments, and more.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+
+The TurboPlan MCP server exposes **60 tools** to connected agents. Tool names
+follow a `verb_noun` convention (`list_projects`, `create_task`,
+`update_task_status`), so they read the way you'd describe the action out loud.
+
+If you haven't connected a client yet, start with the
+[MCP server](/docs/reference/mcp-server) page — it covers creating a Personal
+Access Token and pointing your client at the server.
+
+## Tools by domain
+
+| Domain | Tools |
+| ------ | ----- |
+| Organizations | `list_my_organizations`, `get_organization`, `search_organizations`, `create_organization`, `update_organization`, `upload_organization_logo_from_url` |
+| Offices | `list_offices`, `get_office`, `create_office`, `update_office` |
+| Projects | `list_projects`, `get_project`, `create_project`, `update_project` |
+| Fields | `list_project_fields`, `add_project_field`, `add_project_fields`, `update_project_field`, `delete_project_field` |
+| Context | `list_project_context`, `add_project_context`, `add_project_context_entries`, `update_project_context`, `delete_project_context` |
+| Milestones | `list_milestones`, `get_milestone`, `create_milestone`, `update_milestone`, `delete_milestone` |
+| Tasks | `list_tasks`, `get_task`, `create_task`, `update_task`, `delete_task`, `update_task_status`, `move_task` |
+| Timeline | `get_timeline`, `get_timeline_stats`, `create_timeline_event`, `create_timeline_events` |
+| Documents | `list_project_documents`, `upload_document_from_url`, `upload_documents_from_urls`, `upload_document_from_content`, `delete_project_document` |
+| Cover images | `create_project_cover_image`, `create_office_cover_image`, `create_organization_cover_image` |
+| Members | `list_project_members`, `add_project_member`, `update_member_role`, `remove_project_member` |
+| Comments | `list_comments`, `create_comment`, `update_comment_visibility`, `delete_comment` |
+| Summary | `get_project_summary` — a one-call, comprehensive snapshot of a project |
+| Capabilities | `list_my_permissions`, `check_entity_permission` |
+| Server | `ping` — an identity and status check |
+
+## Input schemas
+
+This page lists the tools, not their parameters. The server advertises the full
+input schema for every tool over the protocol itself, so the most accurate
+reference is your client: connect, then ask it to list the tools and their
+arguments. The schemas you see there always match the deployed server.
+
+## How reads and writes are metered
+
+Each tool is classified as a **read** or a **write** purely from its name. A tool
+counts as a write when its name starts with `create_`, `update_`, `delete_`,
+`upload_`, `add_`, `move_`, or `remove_`; everything else is a read. That
+classification decides which rate limit applies — write tools get 30
+requests/min per user, read tools get 60. See
+[Rate limits](/docs/reference/mcp-server#rate-limits) for the full picture.
+
+## Choose your next step
+
+<Cards>
+  <Card
+    title="MCP server setup"
+    href="/docs/reference/mcp-server"
+    description="Create a Personal Access Token, connect a client, and review the security model."
+  />
+</Cards>

@@ -1,0 +1,80 @@
+{
+  "name": "@wildfires-org/turboplan-db",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Centralized database schemas and client for TurboPlan",
+  "type": "module",
+  "files": [
+    "dist",
+    "drizzle.config.ts"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --experimental-test-module-mocks --test $(find unit-tests -name '*.test.ts')"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./db-client": {
+      "types": "./dist/db-client/index.d.ts",
+      "import": "./dist/db-client/index.js",
+      "default": "./dist/db-client/index.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas/index.d.ts",
+      "import": "./dist/schemas/index.js",
+      "default": "./dist/schemas/index.js"
+    },
+    "./queries": {
+      "types": "./dist/queries/index.d.ts",
+      "import": "./dist/queries/index.js",
+      "default": "./dist/queries/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js",
+      "default": "./dist/utils/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js",
+      "default": "./dist/types/index.js"
+    },
+    "./constants": {
+      "types": "./dist/constants/index.d.ts",
+      "import": "./dist/constants/index.js",
+      "default": "./dist/constants/index.js"
+    },
+    "./drizzle-config": {
+      "types": "./drizzle.config.ts",
+      "import": "./drizzle.config.ts",
+      "default": "./drizzle.config.ts"
+    },
+    "./migrate": {
+      "types": "./dist/migrate.d.ts",
+      "import": "./dist/migrate.js",
+      "default": "./dist/migrate.js"
+    }
+  },
+  "dependencies": {
+    "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-utils": "workspace:*",
+    "bcrypt-ts": "^5.0.2",
+    "drizzle-orm": "^0.42.0",
+    "postgres": "^3.4.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "drizzle-kit": "^0.31.9",
+    "tsdown": "^0.15.9",
+    "tsx": "^4.19.1",
+    "typescript": "^5.3.3"
+  }
+}

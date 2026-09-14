@@ -1,0 +1,9 @@
+{
+  "name": "@wildfires-org/turboplan-map-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "GIS file processing service (Cloudflare Container)",
+  "dependencies": {
+    "@cloudflare/containers": "^0.2.3"
+  }
+}

@@ -1,0 +1,34 @@
+.barWrapper {
+  cursor: pointer;
+  outline: none;
+}
+
+.handleGroup {
+  opacity: 1;
+}
+
+.handleGroup:hover {
+  opacity: 1;
+}
+
+.barWrapper:hover .handleGroup,
+.barSmallBarHandle:hover .handleGroup {
+  opacity: 1;
+}
+
+.handleGroup {
+  cursor: ew-resize;
+}
+
+.barWrapper:hover .barHandle {
+  opacity: 1;
+}
+
+.barHandle {
+  cursor: ew-resize;
+  opacity: 0;
+}
+
+.barBackground {
+  user-select: none;
+}

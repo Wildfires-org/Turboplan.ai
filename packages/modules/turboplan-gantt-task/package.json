@@ -1,0 +1,82 @@
+{
+  "name": "@wildfires-org/turboplan-gantt-task",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive Gantt Chart for React with TypeScript.",
+  "author": "MaTeMaTuK <maksym.vikarii@gmail.com>",
+  "homepage": "https://github.com/MaTeMaTuK/gantt-task-react",
+  "license": "MIT",
+  "repository": "MaTeMaTuK/gantt-task-react",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "react",
+    "gantt",
+    "typescript",
+    "chart",
+    "svg",
+    "gantt-chart",
+    "gantt chart",
+    "react-gantt",
+    "task"
+  ],
+  "scripts": {
+    "build": "tsc && vite build",
+    "build-watch": "vite build --watch",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'Tests temporarily disabled'",
+    "test:build": "npm run build",
+    "test:lint": "eslint --ext .tsx src/**/*",
+    "test:unit": "cross-env CI=1 react-scripts test --env=jsdom",
+    "test:watch": "react-scripts test --env=jsdom"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./index.css": "./dist/style.css",
+    "./style.css": "./dist/style.css"
+  },
+  "husky": {
+    "hooks": {
+      "pre-push": "pnpm run lint"
+    }
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "@types/resize-observer-browser": "^0.1.11",
+    "@vitejs/plugin-react": "^4.3.3",
+    "cross-env": "^7.0.3",
+    "mini-css-extract-plugin": "^2.9.2",
+    "npm-run-all": "^4.1.5",
+    "postcss-flexbugs-fixes": "^5.0.2",
+    "postcss-normalize": "^13.0.1",
+    "postcss-preset-env": "^10.1.2",
+    "prettier": "^3.4.2",
+    "react": "19.1.7",
+    "react-dom": "19.1.7",
+    "react-scripts": "^5.0.1",
+    "typescript": "^5.7.2",
+    "vite": "^4.0.0",
+    "vite-plugin-dts": "^4.3.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

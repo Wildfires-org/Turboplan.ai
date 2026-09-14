@@ -1,0 +1,201 @@
+// Theme tokens are now provided via @wildfires-org/theme-tokens and should be imported in the app's root CSS/TSX.
+
+import type { Config } from "tailwindcss";
+
+import { BRAND_GRADIENT_CSS } from "@wildfires-org/turboplan-utils";
+
+const config: Config = {
+  darkMode: ["class"],
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "../../packages/*/*/src/**/*.{js,ts,jsx,tsx,mdx}",
+    "./node_modules/streamdown/dist/**/*.js",
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ["var(--font-geist)"],
+        mono: ["var(--font-geist-mono)"],
+      },
+      screens: {
+        "toast-mobile": "600px",
+        /** Project Fields and other ultrawide-specific layouts (Figma: >1920px) */
+        ultrawide: "1920px",
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      transitionTimingFunction: {
+        "in-quad": "var(--ease-in-quad)",
+        "in-cubic": "var(--ease-in-cubic)",
+        "in-quart": "var(--ease-in-quart)",
+        "in-quint": "var(--ease-in-quint)",
+        "in-expo": "var(--ease-in-expo)",
+        "in-circ": "var(--ease-in-circ)",
+        "out-quad": "var(--ease-out-quad)",
+        "out-cubic": "var(--ease-out-cubic)",
+        "out-quart": "var(--ease-out-quart)",
+        "out-quint": "var(--ease-out-quint)",
+        "out-expo": "var(--ease-out-expo)",
+        "out-circ": "var(--ease-out-circ)",
+        "in-out-quad": "var(--ease-in-out-quad)",
+        "in-out-cubic": "var(--ease-in-out-cubic)",
+        "in-out-quart": "var(--ease-in-out-quart)",
+        "in-out-quint": "var(--ease-in-out-quint)",
+        "in-out-expo": "var(--ease-in-out-expo)",
+        "in-out-circ": "var(--ease-in-out-circ)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "scale-pulse": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.2)" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "scale-pulse": "scale-pulse 1s ease-in-out infinite",
+      },
+      backgroundImage: {
+        "brand-special": BRAND_GRADIENT_CSS,
+      },
+      colors: {
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
+        "chat-user": {
+          DEFAULT: "hsl(var(--chat-user-bg))",
+          foreground: "hsl(var(--chat-user-fg))",
+        },
+        gray: {
+          "10": "#F4F4F4",
+          "15": "#E8E8E8",
+          "30": "#C6C6C6",
+          "40": "#A8A8A8",
+          "45": "#8F8F8F",
+          "70": "#525252",
+          "150": "#F8F9F9",
+          "160": "#F1F2F3",
+          "165": "#EAE3E1",
+          "175": "#EDE3F7",
+          "250": "#DADBE0",
+          "265": "#CECECE",
+          "325": "#C2C5CB",
+          "350": "#72767D",
+          "550": "#505358",
+          "750": "#3C3C3C",
+          "800": "#2E3033",
+          "850": "#2E3033",
+          "950": "#0C0D0E",
+        },
+        neutral: {
+          "50": "#F9FAFB",
+          "100": "#F3F4F6",
+          "200": "#E5E7EB",
+          "300": "#D1D5DB",
+          "400": "#9CA3AF",
+          "500": "#6B7280",
+          "600": "#4B5563",
+          "700": "#374151",
+          "800": "#1F2937",
+          "900": "#111827",
+        },
+        brand: {
+          "50": "#EEFCF6",
+          "100": "#CAF4E4",
+          "200": "#A7EDD2",
+          "300": "#83E6C0",
+          "400": "#60DEAE",
+          "500": "#3CD79C",
+          "600": "#27C187",
+          "700": "#209E6E",
+          "800": "#1B845C",
+          "900": "#12563C",
+          "950": "#0A3323",
+        },
+        brandAlt: {
+          "100": "#F4F9F7",
+          "200": "#D1E6DE",
+          "300": "#A4CEBE",
+          "400": "#5FA98D",
+          "500": "#1B845C",
+          "600": "#156647",
+          "700": "#0F4832",
+        },
+        error: {
+          "50": "#FEF2F2",
+          "100": "#FEE2E2",
+          "200": "#FECACA",
+          "300": "#FCA5A5",
+          "400": "#F87171",
+          "500": "#EF4444",
+          "600": "#DC2626",
+          "700": "#B91C1C",
+          "800": "#991B1B",
+          "900": "#7F1D1D",
+        },
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+};
+export default config;

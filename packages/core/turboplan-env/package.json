@@ -1,0 +1,31 @@
+{
+  "name": "@wildfires-org/turboplan-env",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Env Variables related utilities for TurboPlan",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./crypto": {
+      "types": "./dist/crypto.d.ts",
+      "import": "./dist/crypto.js",
+      "default": "./dist/crypto.js"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.3.3"
+  }
+}

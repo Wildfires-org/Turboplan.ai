@@ -1,0 +1,12 @@
+# Branding override surface — forks keep their own version on upstream merges.
+# NOTE: the attribute only takes effect once the fork enables the driver, and
+# ONLY in the fork clone (--local — never --global, or every merge in every
+# repo on that machine silently keeps "ours" for these paths):
+#   git config --local merge.ours.driver true
+# (per clone / per CI checkout; see README "Branding")
+apps/turboplan/public/brand/** merge=ours
+apps/landing-page/public/brand/** merge=ours
+apps/turboplan/lib/brand.ts merge=ours
+apps/landing-page/src/lib/brand.ts merge=ours
+# Stripe identity (product key, meter event name) — immutable per Stripe account.
+packages/modules/turboplan-billing/catalog/brand.yaml merge=ours

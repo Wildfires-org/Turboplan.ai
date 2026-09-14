@@ -1,0 +1,110 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "concurrency": "32",
+  "globalPassThroughEnv": [
+    "GITHUB_TOKEN",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET_NAME",
+    "R2_ACCOUNT_ID",
+    "R2_PUBLIC_URL",
+    "POSTGRES_URL",
+    "TEST_POSTGRES_URL",
+    "AUTH_SECRET",
+    "INTERNAL_API_SECRET",
+    "ENCRYPTION_KEY",
+    "JWT_SIGNING_SECRET",
+    "ALLOWED_ORIGINS",
+    "OPENROUTER_API_KEY",
+    "NODE_ENV",
+    "IS_TASKS_PACKAGE_ENABLED",
+    "IS_MAPS_PACKAGE_ENABLED",
+    "IS_FIELDS_PACKAGE_ENABLED",
+    "API_KEY",
+    "MAP_SERVICE_API_KEY",
+    "MAP_SERVICE_URL",
+    "RELEASE_VERSION",
+    "RELEASE_DATE",
+    "TURBOPLAN_URL",
+    "DISABLE_AUTO_PROJECT_IMAGE_GENERATION",
+    "OPENROUTER_MODEL_PRIMARY",
+    "OPENROUTER_MODEL_LITE",
+    "OPENROUTER_MODEL_IMAGE_PRIMARY",
+    "OPENROUTER_MODEL_IMAGE_LITE",
+    "TURBO_TOKEN",
+    "TURBO_TEAM",
+    "AUTH_COOKIE_DOMAIN",
+    "ETHEREAL_USER",
+    "ETHEREAL_PASS",
+    "SERVER_API_KEY",
+    "APP_NAME",
+    "USE_EXTERNAL_PROMPTS",
+    "ADMIN_EMAILS",
+    "SERVER_URL",
+    "RESEARCH_AGENT_SERVICE_URL",
+    "RESEARCH_AGENT_SERVICE_API_KEY",
+    "IS_RESEARCH_AGENT_INTEGRATION_PACKAGE_ENABLED",
+    "EXA_API_KEY",
+    "FIRECRAWL_API_KEY",
+    "IS_BILLING_PACKAGE_ENABLED",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "LANDING_URL",
+    "POSTHOG_API_KEY",
+    "NEXT_PUBLIC_*"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": [
+        "NEXT_PUBLIC_*",
+        "SENTRY_DSN",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT"
+      ]
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**", "reports/**", "playwright-report/**"],
+      "cache": false
+    },
+    "db:generate": {
+      "cache": false
+    },
+    "db:migrate": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "db:push": {
+      "cache": false
+    },
+    "db:pull": {
+      "cache": false
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:check": {
+      "cache": false
+    },
+    "db:up": {
+      "cache": false
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

@@ -1,0 +1,29 @@
+TurboPlan
+Copyright 2025 Wildfires.org
+
+This product includes software developed by Vercel, Inc.
+Copyright 2024 Vercel, Inc.
+
+Portions of this software, specifically the Next.js application in apps/turboplan,
+are derived from Vercel's work and are licensed under the Apache License, Version 2.0.
+
+--------------------------------------------------------------------------------
+
+This product bundles the following third-party components, each under its own
+license. The full license text ships alongside the component.
+
+gantt-task-react
+Copyright (c) 2020 Maksym Vikarii (https://github.com/MaTeMaTuK)
+Licensed under the MIT License.
+Vendored and modified as packages/modules/turboplan-gantt-task; see
+packages/modules/turboplan-gantt-task/LICENSE for the full license text.
+Upstream project: https://github.com/MaTeMaTuK/gantt-task-react
+
+--------------------------------------------------------------------------------
+
+The following workspace packages are distributed under the MIT License rather
+than the repository's Apache License 2.0, as declared in their package.json:
+
+  packages/core/turboplan-utils
+  packages/modules/turboplan-chat-actions
+  packages/modules/turboplan-gantt-task

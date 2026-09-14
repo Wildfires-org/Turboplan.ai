@@ -1,0 +1,61 @@
+---
+title: Browsing public projects
+description: Browse the public catalog of organizations, offices, projects, and templates (the Projects page), and create a project from a template.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+import { routing } from "@/utils/routing";
+
+The <a href={routing.catalog()}>public catalog</a> — the **Projects** entry in
+the site menu — is a browsable, no-account view of what government
+organizations are working on and the templates they've published. Anyone can
+look — signing in only adds the ability to build on what you find.
+
+## Browsing the catalog
+
+The catalog is organized as a multi-level browse that mirrors the app's
+hierarchy:
+
+- **Organizations** — the government organizations publishing to the catalog.
+- **Offices** — the offices within an organization.
+- **Projects and templates** — the published projects and templates under an
+  office.
+- **Template detail** — the full view of a single template.
+
+You can drill down from an organization to its offices to their projects and
+templates, all without an account.
+
+## Creating a project from a template
+
+When you're **signed in**, a **Create from template** button appears on a
+template. Using it creates a new project in your own workspace from that
+template and drops you into it in the main app. If you're logged out, the button
+doesn't appear — you'll be prompted to sign in or sign up first.
+
+## Publishing to the catalog
+
+The catalog's contents come from the organization side: **government
+organizations can publish projects and templates** into the catalog to make them
+publicly visible. That's how the organizations, offices, and templates you
+browse get there in the first place. As a visitor or signed-in user, you're on
+the receiving end — browsing what's been published and building on it.
+
+## Choose your next step
+
+<Cards>
+  <Card
+    title="Browse the catalog"
+    href={routing.catalog()}
+    description="Explore public organizations, offices, projects, and templates."
+  />
+  <Card
+    title="Quickstart"
+    href="/docs/getting-started/quickstart"
+    description="Sign in and create your first project."
+  />
+  <Card
+    title="Comments and engagement"
+    href="/docs/guides/comments-and-engagement"
+    description="How public comments show up on catalog project pages."
+  />
+</Cards>

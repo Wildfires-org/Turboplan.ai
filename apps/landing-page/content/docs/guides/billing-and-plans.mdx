@@ -1,0 +1,69 @@
+---
+title: Billing and plans
+description: Organization subscriptions, the Starter, Pro, and Max plans, seat-based pricing, and usage-alert emails.
+---
+
+import { Card, Cards } from "fumadocs-ui/components/card";
+import { routing } from "@/utils/routing";
+
+Billing is handled per organization through Stripe subscriptions. An
+organization picks a plan, and that plan governs how many projects it can run
+and how many seats it includes.
+
+## Plans
+
+There are three plans:
+
+- **Starter** — the entry-level plan.
+- **Pro** — a higher tier with more capacity.
+- **Max** — the top tier.
+
+Pricing is **seat-based**: each plan includes a per-seat cost, so what you pay
+reflects both the plan and the number of members on it.
+
+## The Starter hard limit
+
+**Starter enforces a hard limit.** Once an organization on Starter reaches its
+plan limits, creating new projects is blocked until the organization upgrades to
+a higher-tier plan. Pro and Max are the higher tiers you upgrade into for more
+capacity.
+
+## Knowing you're approaching a limit
+
+The system sends **usage-alert emails** as your organization consumes its plan.
+Alerts fire at **70%**, **90%**, and **100%** of plan usage, so you get advance
+warning well before hitting the ceiling — and a final notice when you reach it.
+If you're on Starter and hit 100%, that's when new project creation stops until
+you upgrade.
+
+## Failed payments
+
+If a payment fails, the system sends **payment-failure emails** so you can
+update your billing details and keep the subscription active.
+
+## Managing billing and seats
+
+Billing and seats are managed at the **organization level**. Open your
+organization's settings and go to its billing page to review the current plan,
+manage seats, and change plans. Because billing is org-scoped, these settings
+live with the organization rather than with an individual project.
+
+## Choose your next step
+
+<Cards>
+  <Card
+    title="Projects and workspaces"
+    href="/docs/guides/projects-and-workspaces"
+    description="How organizations, offices, and projects fit together."
+  />
+  <Card
+    title="Reviewing submissions"
+    href="/docs/guides/reviewing-submissions"
+    description="How government offices act on submitted projects."
+  />
+  <Card
+    title="Open TurboPlan"
+    href={routing.dashboard()}
+    description="Head to the app to manage your organization and its plan."
+  />
+</Cards>
