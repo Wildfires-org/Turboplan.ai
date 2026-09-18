@@ -21,13 +21,20 @@ interface BillableOrganizationsResponse {
   organizations: Array<{ id: string; type?: string }>;
 }
 
+/** Starter's active-project allowance, straight from the catalog. */
+const STARTER_PROJECT_LIMIT =
+  "active_projects" in PLANS.starter.limits
+    ? PLANS.starter.limits.active_projects
+    : 0;
+
 /** Compact per-plan summary line for the narrow onboarding card. */
 const planSummary = (plan: PlanKey): string => {
   const config = PLANS[plan];
   const credits = `${(config.limits.credits / 1000).toLocaleString("en-US")}k credits/mo`;
   const seats = `${config.included_seats} seats`;
   if (plan === "starter") {
-    return `${seats} · ${credits} · 1 active project`;
+    const activeProjects: number = STARTER_PROJECT_LIMIT;
+    return `${seats} · ${credits} · ${activeProjects} active ${activeProjects === 1 ? "project" : "projects"}`;
   }
   return `${seats} · ${credits} · +$${config.additional_seat_price_usd}/extra seat`;
 };

@@ -42,8 +42,11 @@ const planFacts = (plan: CatalogPlan): string[] => {
   }
 
   if ("active_projects" in plan.limits) {
+    // Widened to `number`: the catalog literal would otherwise narrow the
+    // plural check to a constant comparison TS rejects.
+    const activeProjects: number = plan.limits.active_projects;
     facts.push(
-      `${plan.limits.active_projects} active ${plan.limits.active_projects === 1 ? "project" : "projects"}`,
+      `${activeProjects} active ${activeProjects === 1 ? "project" : "projects"}`,
     );
   }
 

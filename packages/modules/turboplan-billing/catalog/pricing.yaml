@@ -46,7 +46,7 @@ billing:
       additional_seat_price_usd: null
       additional_seat_credits: 0
       overage_usd_per_credit: null
-      limits: { credits: 5000, active_projects: 1 }
+      limits: { credits: 5000, active_projects: 3 }
       hard_stop: true
       cta: "Get Started"
     - id: pro

@@ -73,14 +73,21 @@ interface UpgradeModalProps {
 /** Roster display label — name when present, otherwise the email. */
 const seatLabel = (member: SeatMember): string => member.name || member.email;
 
+/** Starter's active-project allowance, straight from the catalog. */
+const STARTER_PROJECT_LIMIT: number =
+  "active_projects" in PLANS.starter.limits
+    ? PLANS.starter.limits.active_projects
+    : 0;
+
 const REASON_COPY: Record<
   UpgradeReason,
   { title: string; description: string }
 > = {
   "project-limit": {
     title: "You've reached the free plan's project limit",
-    description:
-      "The free Starter plan includes 1 active project. Upgrade to a paid plan for unlimited projects and a much bigger monthly credit pool.",
+    description: `The free Starter plan includes ${STARTER_PROJECT_LIMIT} active ${
+      STARTER_PROJECT_LIMIT === 1 ? "project" : "projects"
+    }. Upgrade to a paid plan for unlimited projects and a much bigger monthly credit pool.`,
   },
   "credits-exhausted": {
     title: "Monthly credits used up",

@@ -83,20 +83,6 @@ export const ORGANIZATION_SEEDS: OrganizationSeed[] = [
       "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/org-logos/dow.svg",
   },
   {
-    name: "Jacobs",
-    shortName: "Jacobs",
-    slug: "jacobs",
-    description:
-      "A global professional services company providing environmental planning, engineering, and consulting services to public and private sector clients.",
-    country: "USA",
-    emailDomains: ["jacobs.com"],
-    type: OrganizationType.ENVIRONMENTAL_PLANNER,
-    logoUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/org-logos/8bf7666f-1613-4fac-ade5-b38d5576348e.png",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/organization-8bf7666f-1613-4fac-ade5-b38d5576348e-1785236197040.png",
-  },
-  {
     name: "National Park Service",
     shortName: "NPS",
     slug: "nps",
@@ -806,103 +792,6 @@ export const OFFICE_SEEDS: OfficeSeed[] = [
     organizationSlug: "dot",
     coverImageUrl:
       "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-e1c1abf8-fb0b-4ec3-bf96-5e92083ddafb-1785234523523.png",
-  },
-  {
-    name: "Atlanta Office",
-    slug: "atlanta-office",
-    description:
-      "Jacobs office in Atlanta, Georgia. Serves Southeast US environmental, water, and transportation infrastructure clients.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-8a8b00b6-50ad-44fa-95f3-25aec453ab85-1785236341325.png",
-  },
-  {
-    name: "Chicago Office",
-    slug: "chicago-office",
-    description:
-      "Jacobs office in Chicago, Illinois. Serves Midwest environmental, water resources, and transportation infrastructure clients.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-44989027-d4dc-4ad9-a7bd-01a51533ca22-1785236388805.png",
-  },
-  {
-    name: "Dallas Headquarters",
-    slug: "dallas-headquarters",
-    description:
-      "Jacobs' headquarters office in Dallas, Texas. Moved from Pasadena, CA in 2016. Houses executive leadership and central operations for the global professional services firm.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-15f1fb83-f7ff-4fb9-9213-4f69a61ca952-1785236292215.png",
-  },
-  {
-    name: "Dallas Office",
-    slug: "dallas-office-2e5bd6",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-4de136a1-ea9b-4f19-8827-2129767eb357-1784896536383.png",
-  },
-  {
-    name: "Denver Office",
-    slug: "denver-office",
-    description:
-      "Jacobs office in Denver, Colorado. Major regional hub serving environmental planning, water resources, and infrastructure projects across the Mountain West.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-4cb80f0e-41ce-42f4-9e72-21c109c9e7c9-1785236313586.png",
-  },
-  {
-    name: "New York Office",
-    slug: "new-york-office",
-    description:
-      "Jacobs office in New York, NY. Serves Northeast US environmental, transportation, and infrastructure clients.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-b35c716e-31a5-4794-aa1a-d2e5929409cd-1785236410468.png",
-  },
-  {
-    name: "Pasadena Office",
-    slug: "pasadena-office",
-    description:
-      "Jacobs office in Pasadena, California. Former headquarters location, now a major regional office serving Southern California environmental and engineering projects.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-53988340-ba70-4d50-9c33-2ce29f10c176-1785236302137.png",
-  },
-  {
-    name: "Phoenix Office",
-    slug: "phoenix-office",
-    description:
-      "Jacobs office in Phoenix, Arizona. Serves Southwest US water resources, environmental compliance, and infrastructure clients.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-68cef0b0-602e-4645-a43a-58e5eab8c99f-1785236373134.png",
-  },
-  {
-    name: "Sacramento Office",
-    slug: "sacramento-office",
-    description:
-      "Jacobs office in Sacramento, California. Serves Northern California water resources, environmental planning, and infrastructure clients.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-89a28370-712a-47ec-a4c2-911263be9e46-1785236351741.png",
-  },
-  {
-    name: "Seattle Office",
-    slug: "seattle-office",
-    description:
-      "Jacobs office in Seattle, Washington. Serves Pacific Northwest environmental, water, and transportation infrastructure clients.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-f6d687e3-4751-4357-8f26-086af5e2b610-1785236363092.png",
-  },
-  {
-    name: "Washington D.C. Office",
-    slug: "washington-dc-office",
-    description:
-      "Jacobs office in Washington, D.C. Serves federal agency clients including DOI, DOT, EPA, and DOD on environmental compliance and infrastructure projects.",
-    organizationSlug: "jacobs",
-    coverImageUrl:
-      "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev/generated-images/office-205ef4ab-d08f-43dc-9093-0db3db99a55e-1785236324440.png",
   },
   {
     name: "Region 10: California - Great Basin",
