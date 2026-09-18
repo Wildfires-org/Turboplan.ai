@@ -39,8 +39,9 @@ const suffix = () => Math.random().toString(36).substring(2, 10);
  * Starter-plan entitlement tests, exercised through the real server helpers
  * against the test DB (`api` Playwright project, no browser):
  *
- *   - active-project limit: first project allowed, second blocked with
- *     UPGRADE_REQUIRED; template projects don't consume the limit
+ *   - active-project limit: projects allowed up to limits.active_projects, the
+ *     next one blocked with UPGRADE_REQUIRED; template projects don't consume
+ *     the limit
  *   - seat cap: billable members up to included_seats, the next one blocked
  *     with SEAT_LIMIT_REACHED; existing seat-holders and viewers are free
  *   - invitation accept-time gate: a billable invite into a full Starter org
@@ -107,24 +108,34 @@ test.describe("Starter plan entitlements", () => {
     return row;
   };
 
-  test("first active project allowed, second blocked with UPGRADE_REQUIRED", async () => {
+  test("active projects allowed up to the limit, the next blocked with UPGRADE_REQUIRED", async () => {
     test.skip(STARTER_PROJECT_LIMIT === null, "Starter has no project limit.");
+
+    const limit = STARTER_PROJECT_LIMIT as number;
 
     const before = await assertProjectCreationAllowed({
       organizationId: org.id,
     });
     expect(before.allowed).toBe(true);
-    expect(before.projectLimit).toBe(STARTER_PROJECT_LIMIT);
+    expect(before.projectLimit).toBe(limit);
     expect(before.activeProjects).toBe(0);
 
-    await insertProject({});
+    // Fill the allowance: every project up to the limit must be permitted.
+    for (let i = 0; i < limit; i++) {
+      const decision = await assertProjectCreationAllowed({
+        organizationId: org.id,
+      });
+      expect(decision.allowed).toBe(true);
+      expect(decision.activeProjects).toBe(i);
+      await insertProject({});
+    }
 
     const after = await assertProjectCreationAllowed({
       organizationId: org.id,
     });
     expect(after.allowed).toBe(false);
     expect(after.code).toBe("UPGRADE_REQUIRED");
-    expect(after.activeProjects).toBe(1);
+    expect(after.activeProjects).toBe(limit);
   });
 
   test("template projects do not consume the active-project limit", async () => {
@@ -133,9 +144,9 @@ test.describe("Starter plan entitlements", () => {
     const decision = await assertProjectCreationAllowed({
       organizationId: org.id,
     });
-    // Still exactly 1 counted active project (the template is excluded); the
-    // decision stays blocked from the previous test's real project.
-    expect(decision.activeProjects).toBe(1);
+    // Still exactly `limit` counted active projects (the template is excluded);
+    // the decision stays blocked from the previous test's real projects.
+    expect(decision.activeProjects).toBe(STARTER_PROJECT_LIMIT);
   });
 
   test("seat cap blocks the first billable member beyond included_seats", async () => {

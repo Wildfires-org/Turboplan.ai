@@ -43,7 +43,7 @@ export const CATALOG = {
         "overage_usd_per_credit": null,
         "limits": {
           "credits": 5000,
-          "active_projects": 1
+          "active_projects": 3
         },
         "hard_stop": true,
         "cta": "Get Started"
