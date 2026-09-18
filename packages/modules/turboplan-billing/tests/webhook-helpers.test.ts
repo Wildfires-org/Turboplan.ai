@@ -11,6 +11,15 @@ import {
   mapSubscription,
   subscriptionIdFromInvoice,
 } from "../src/server/webhook-helpers";
+import { PLANS } from "../src/types";
+
+// catalog/brand.yaml is fork-owned, so every lookup key carries a
+// per-deployment brand prefix. Derive the fixture keys from the catalog the
+// runtime reads, keeping the seat/overage suffixes explicit.
+const PRO_BASE_KEY = PLANS.pro.lookup_key;
+const PRO_SEAT_KEY = `${PRO_BASE_KEY}_additional_seat`;
+const PRO_OVERAGE_KEY = `${PRO_BASE_KEY}_credit_overage`;
+const MAX_BASE_KEY = PLANS.max.lookup_key;
 
 type ItemOverrides = {
   id?: string;
@@ -27,8 +36,7 @@ const item = (over: ItemOverrides = {}) => ({
   current_period_end: over.currentPeriodEnd ?? null,
   price: {
     id: "price_default",
-    lookup_key:
-      over.lookupKey === undefined ? "turboplan_pro_monthly" : over.lookupKey,
+    lookup_key: over.lookupKey === undefined ? PRO_BASE_KEY : over.lookupKey,
   },
 });
 
@@ -123,7 +131,7 @@ describe("mapSubscription", () => {
             item({
               id: "si_seat",
               quantity: 3,
-              lookupKey: "turboplan_pro_monthly_additional_seat",
+              lookupKey: PRO_SEAT_KEY,
             }),
           ],
         }),
@@ -134,7 +142,7 @@ describe("mapSubscription", () => {
     it("uses Max's included count for a max base item", () => {
       const result = mapSubscription(
         makeSub({
-          items: [item({ quantity: 1, lookupKey: "turboplan_max_monthly" })],
+          items: [item({ quantity: 1, lookupKey: MAX_BASE_KEY })],
         }),
       );
       assert.strictEqual(result?.seats, 10);
@@ -164,11 +172,11 @@ describe("mapSubscription", () => {
             item({
               id: "si_seat",
               quantity: 2,
-              lookupKey: "turboplan_pro_monthly_additional_seat",
+              lookupKey: PRO_SEAT_KEY,
             }),
             item({
               id: "si_overage",
-              lookupKey: "turboplan_pro_monthly_credit_overage",
+              lookupKey: PRO_OVERAGE_KEY,
             }),
           ],
         }),
@@ -221,7 +229,7 @@ describe("mapSubscription", () => {
             item({
               id: "si_seat",
               quantity: 2,
-              lookupKey: "turboplan_pro_monthly_additional_seat",
+              lookupKey: PRO_SEAT_KEY,
               currentPeriodEnd: 1,
             }),
             item({
@@ -328,7 +336,7 @@ describe("mapSubscription", () => {
       const result = mapSubscription(
         makeSub({
           metadata: { organizationId: "org_1", plan: "max" },
-          items: [item({ quantity: 1, lookupKey: "turboplan_pro_monthly" })],
+          items: [item({ quantity: 1, lookupKey: PRO_BASE_KEY })],
         }),
       );
       assert.strictEqual(result?.plan, SubscriptionPlan.MAX);
@@ -338,7 +346,7 @@ describe("mapSubscription", () => {
       const result = mapSubscription(
         makeSub({
           metadata: { organizationId: "org_1" },
-          items: [item({ quantity: 1, lookupKey: "turboplan_pro_monthly" })],
+          items: [item({ quantity: 1, lookupKey: PRO_BASE_KEY })],
         }),
       );
       assert.strictEqual(result?.plan, SubscriptionPlan.PRO);
@@ -348,7 +356,7 @@ describe("mapSubscription", () => {
       const result = mapSubscription(
         makeSub({
           metadata: { organizationId: "org_1", plan: "enterprise" },
-          items: [item({ quantity: 1, lookupKey: "turboplan_max_monthly" })],
+          items: [item({ quantity: 1, lookupKey: MAX_BASE_KEY })],
         }),
       );
       assert.strictEqual(result?.plan, SubscriptionPlan.MAX);

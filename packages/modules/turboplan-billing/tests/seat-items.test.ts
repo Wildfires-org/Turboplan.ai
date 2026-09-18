@@ -6,6 +6,7 @@ import {
   planSeatItemTransition,
   transitionChangesStripe,
 } from "../src/server/seat-items";
+import { PLANS } from "../src/types";
 
 type FakeItem = { id: string; quantity?: number; lookupKey: string | null };
 
@@ -16,26 +17,34 @@ const item = ({ id, quantity, lookupKey }: FakeItem) =>
     price: { id: `price_${id}`, lookup_key: lookupKey },
   }) as unknown as Stripe.SubscriptionItem;
 
+// catalog/brand.yaml is fork-owned, so lookup keys carry a per-deployment
+// brand prefix. Derive them from the catalog so the fixtures stay in sync
+// with what the runtime resolves, while still pinning the key structure.
+const PRO_BASE_KEY = PLANS.pro.lookup_key;
+const PRO_SEAT_KEY = `${PRO_BASE_KEY}_additional_seat`;
+const PRO_OVERAGE_KEY = `${PRO_BASE_KEY}_credit_overage`;
+const MAX_SEAT_KEY = `${PLANS.max.lookup_key}_additional_seat`;
+
 const base = item({
   id: "si_base",
   quantity: 1,
-  lookupKey: "turboplan_pro_monthly",
+  lookupKey: PRO_BASE_KEY,
 });
 const overage = item({
   id: "si_overage",
-  lookupKey: "turboplan_pro_monthly_credit_overage",
+  lookupKey: PRO_OVERAGE_KEY,
 });
 const proSeat = (quantity: number) =>
   item({
     id: "si_seat_pro",
     quantity,
-    lookupKey: "turboplan_pro_monthly_additional_seat",
+    lookupKey: PRO_SEAT_KEY,
   });
 const maxSeat = (quantity: number) =>
   item({
     id: "si_seat_max",
     quantity,
-    lookupKey: "turboplan_max_monthly_additional_seat",
+    lookupKey: MAX_SEAT_KEY,
   });
 
 describe("planSeatItemTransition", () => {
@@ -59,7 +68,7 @@ describe("planSeatItemTransition", () => {
     assert.deepEqual(transition.action, {
       type: "create",
       quantity: 2,
-      priceLookupKey: "turboplan_pro_monthly_additional_seat",
+      priceLookupKey: PRO_SEAT_KEY,
     });
     assert.equal(transition.prorationBehavior, "create_prorations");
   });
@@ -126,7 +135,7 @@ describe("planSeatItemTransition", () => {
       type: "update",
       itemId: "si_seat_max",
       quantity: 2,
-      repriceLookupKey: "turboplan_pro_monthly_additional_seat",
+      repriceLookupKey: PRO_SEAT_KEY,
     });
   });
 
