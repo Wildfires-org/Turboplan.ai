@@ -9,7 +9,7 @@ import {
   UI_SCALE_STEP,
   useUiScale,
 } from "@/components/providers/ui-scale-provider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PANEL_CLASS, PANEL_TITLE_CLASS } from "@/lib/glass";
 
 const UI_SCALE_INPUT_ID = "interface-scale";
 
@@ -25,63 +25,65 @@ export const UiScaleSection = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Appearance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor={UI_SCALE_INPUT_ID} className="text-sm font-medium">
-              Interface scale
-            </Label>
-            <span
-              className={cn(
-                "tabular-nums text-sm font-medium",
-                isDefault ? "text-muted-foreground" : "text-foreground",
-              )}
-            >
-              {formatScale(scale)}
-            </span>
-          </div>
+    <section aria-labelledby="appearance-title" className={PANEL_CLASS}>
+      <h2 id="appearance-title" className={PANEL_TITLE_CLASS}>
+        Appearance
+      </h2>
 
-          <p className="text-sm text-muted-foreground">
-            Makes text, spacing and controls across the app larger or smaller.
-            Saved on this device only.
-          </p>
-
-          <div className="space-y-2">
-            <input
-              id={UI_SCALE_INPUT_ID}
-              type="range"
-              min={MIN_UI_SCALE}
-              max={MAX_UI_SCALE}
-              step={UI_SCALE_STEP}
-              value={scale}
-              onChange={handleChange}
-              aria-valuetext={formatScale(scale)}
-              className={cn(
-                "h-2 w-full cursor-pointer accent-primary",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              )}
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{formatScale(MIN_UI_SCALE)}</span>
-              <span>{formatScale(MAX_UI_SCALE)}</span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={resetScale}
-            disabled={isDefault}
+      <div className="mt-4 space-y-4 border-t border-slate-900/[0.06] pt-5 dark:border-white/10">
+        <div className="flex items-center justify-between gap-4">
+          <Label
+            htmlFor={UI_SCALE_INPUT_ID}
+            className="text-[15px] font-medium leading-6 tracking-[-0.01em] text-foreground"
           >
-            Reset to default
-          </Button>
+            Interface scale
+          </Label>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-[13px] font-medium tabular-nums ring-1 ring-inset",
+              isDefault
+                ? "bg-slate-900/[0.04] text-gray-550 ring-slate-900/[0.06]"
+                : "bg-brand-50 text-brand-900 ring-brand-800/15",
+            )}
+          >
+            {formatScale(scale)}
+          </span>
         </div>
-      </CardContent>
-    </Card>
+
+        <p className="text-[13px] leading-5 text-gray-550">
+          Makes text, spacing and controls across the app larger or smaller.
+          Saved on this device only.
+        </p>
+
+        <div className="glass-inset rounded-xl px-4 py-3">
+          <input
+            id={UI_SCALE_INPUT_ID}
+            type="range"
+            min={MIN_UI_SCALE}
+            max={MAX_UI_SCALE}
+            step={UI_SCALE_STEP}
+            value={scale}
+            onChange={handleChange}
+            aria-valuetext={formatScale(scale)}
+            className="h-2 w-full cursor-pointer rounded-full accent-brand-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-700"
+          />
+          <div className="mt-1.5 flex justify-between text-xs tabular-nums text-gray-550">
+            <span>{formatScale(MIN_UI_SCALE)}</span>
+            <span>{formatScale(MAX_UI_SCALE)}</span>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="glass"
+          size="sm"
+          onClick={resetScale}
+          disabled={isDefault}
+          className="h-9 px-4"
+        >
+          Reset to default
+        </Button>
+      </div>
+    </section>
   );
 };

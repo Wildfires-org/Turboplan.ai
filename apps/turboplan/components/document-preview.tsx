@@ -17,6 +17,7 @@ import type { Document } from "@wildfires-org/turboplan-db/types";
 import { TasksPreview } from "@wildfires-org/turboplan-tasks/components";
 
 import { useArtifact } from "@/hooks/use-artifact";
+import { SKELETON_BAR_CLASS } from "@/lib/glass";
 import { cn, fetcher } from "@/lib/utils";
 import { ArtifactKind, UIArtifact } from "./artifact";
 import {
@@ -28,6 +29,16 @@ import {
 import { InlineDocumentSkeleton } from "./document-skeleton";
 import { FileIcon, FullscreenIcon, LoaderIcon } from "./icons";
 import { Editor } from "./text-editor";
+
+/** Artifact preview in the chat: glass-card shell, title row, and the
+ * document on a white sheet inset in the glass. Loading shares the geometry. */
+const PREVIEW_SHELL_CLASS = "glass-card relative w-full rounded-[20px] p-1.5";
+
+const PREVIEW_HEADER_CLASS =
+  "flex h-11 flex-row items-center justify-between gap-2 pl-3 pr-12";
+
+const PREVIEW_BODY_CLASS =
+  "rounded-[14px] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)] dark:bg-slate-900";
 
 interface DocumentPreviewProps {
   isReadonly: boolean;
@@ -112,7 +123,7 @@ export function DocumentPreview({
   if (!document) return <LoadingSkeleton artifactKind={artifact.kind} />;
 
   return (
-    <div className="relative w-full cursor-pointer">
+    <div className={cn(PREVIEW_SHELL_CLASS, "cursor-pointer")}>
       {result && (
         <HitboxLayer
           hitboxRef={hitboxRef}
@@ -135,19 +146,19 @@ const LoadingSkeleton = ({
 }: {
   artifactKind: ArtifactKind;
 }) => (
-  <div className="w-full">
-    <div className="p-4 border rounded-t-2xl flex flex-row gap-2 items-center justify-between dark:bg-muted h-[57px] dark:border-zinc-700 border-b-0">
+  <div className={PREVIEW_SHELL_CLASS} aria-busy="true">
+    <div className={PREVIEW_HEADER_CLASS}>
       <div className="flex flex-row items-center gap-3">
-        <div className="text-muted-foreground">
-          <div className="animate-pulse rounded-md size-4 bg-muted-foreground/20" />
-        </div>
-        <div className="animate-pulse rounded-lg h-4 bg-muted-foreground/20 w-24" />
+        <div className={cn(SKELETON_BAR_CLASS, "size-4")} />
+        <div className={cn(SKELETON_BAR_CLASS, "h-3.5 w-24")} />
       </div>
-      <div>
+      <div className="p-2 text-gray-550">
         <FullscreenIcon />
       </div>
     </div>
-    <div className="overflow-y-scroll border rounded-b-2xl p-8 pt-4 bg-muted border-t-0 dark:border-zinc-700">
+    <div
+      className={cn(PREVIEW_BODY_CLASS, "h-[257px] overflow-hidden p-8 pt-4")}
+    >
       <InlineDocumentSkeleton />
     </div>
   </div>
@@ -191,14 +202,14 @@ const PureHitboxLayer = ({
 
   return (
     <div
-      className="size-full absolute top-0 left-0 rounded-xl z-10"
+      className="absolute left-0 top-0 z-10 size-full rounded-[20px]"
       ref={hitboxRef}
       onClick={handleClick}
       role="presentation"
       aria-hidden="true"
     >
       <div className="w-full p-4 flex justify-end items-center">
-        <div className="absolute right-[9px] top-[13px] p-2 hover:dark:bg-zinc-700 rounded-md hover:bg-zinc-100">
+        <div className="absolute right-3 top-3 rounded-lg p-2 text-gray-550 hover:bg-white hover:text-foreground dark:hover:bg-white/10">
           <FullscreenIcon />
         </div>
       </div>
@@ -220,9 +231,9 @@ const PureDocumentHeader = ({
   kind: ArtifactKind;
   isStreaming: boolean;
 }) => (
-  <div className="p-4 border rounded-t-2xl flex flex-row gap-2 items-start sm:items-center justify-between dark:bg-muted border-b-0 dark:border-zinc-700">
-    <div className="flex flex-row items-start sm:items-center gap-3">
-      <div className="text-muted-foreground">
+  <div className={PREVIEW_HEADER_CLASS}>
+    <div className="flex min-w-0 flex-row items-center gap-3">
+      <div className="shrink-0 text-brand-800">
         {isStreaming ? (
           <div className="animate-spin">
             <LoaderIcon />
@@ -233,7 +244,9 @@ const PureDocumentHeader = ({
           <FileIcon />
         )}
       </div>
-      <div className="-translate-y-1 sm:translate-y-0 font-medium">{title}</div>
+      <div className="truncate text-[14px] font-medium tracking-[-0.01em] text-foreground">
+        {title}
+      </div>
     </div>
     <div className="w-8" />
   </div>
@@ -249,14 +262,11 @@ const DocumentHeader = memo(PureDocumentHeader, (prevProps, nextProps) => {
 const DocumentContent = ({ document }: { document: Document }) => {
   const { artifact } = useArtifact();
 
-  const containerClassName = cn(
-    "border rounded-b-2xl dark:bg-muted border-t-0 dark:border-zinc-700 bg-white dark:bg-zinc-900",
-    {
-      "h-[257px] p-4 sm:px-14 sm:py-16 overflow-y-scroll":
-        document.kind === "text",
-      // Tasks: no fixed height or overflow to allow expand/collapse
-    },
-  );
+  const containerClassName = cn(PREVIEW_BODY_CLASS, {
+    "h-[257px] p-4 sm:px-14 sm:py-16 overflow-y-scroll":
+      document.kind === "text",
+    // Tasks: no fixed height or overflow to allow expand/collapse
+  });
 
   const commonProps = {
     content: document.content ?? "",

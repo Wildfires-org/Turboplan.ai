@@ -108,7 +108,7 @@ export function ContextSection({
             >
               <div className="flex items-center gap-3">
                 {item.saved ? (
-                  <CheckCheck className="size-4 text-green-500 shrink-0" />
+                  <CheckCheck className="size-4 text-brand-700 shrink-0" />
                 ) : (
                   <Checkbox
                     checked={isIndexSelected(index)}
@@ -128,7 +128,7 @@ export function ContextSection({
               </div>
               <AccordionContent>
                 <div className="pl-7">
-                  <p className="text-xs text-neutral-400 leading-4">
+                  <p className="text-xs text-gray-550 leading-4">
                     {item.content}
                   </p>
                   {item.url && (

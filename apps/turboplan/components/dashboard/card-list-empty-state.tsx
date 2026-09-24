@@ -7,6 +7,8 @@ interface CardListEmptyStateProps {
   entityLabel: string;
   hasSearchTerm: boolean;
   createAction?: ReactNode;
+  /** Replaces the default "create your first ..." hint (no search term). */
+  emptyDescription?: string;
 }
 
 export function CardListEmptyState({
@@ -14,6 +16,7 @@ export function CardListEmptyState({
   entityLabel,
   hasSearchTerm,
   createAction,
+  emptyDescription,
 }: CardListEmptyStateProps) {
   return (
     <div className="glass-card flex flex-col items-center px-6 py-12 text-center">
@@ -26,7 +29,8 @@ export function CardListEmptyState({
       <p className="mb-5 max-w-[420px] text-sm text-gray-550">
         {hasSearchTerm
           ? "Try adjusting your search terms to find what you're looking for."
-          : `Create your first ${entityLabel.slice(0, -1)} to get started with organizing your work.`}
+          : (emptyDescription ??
+            `Create your first ${entityLabel.slice(0, -1)} to get started with organizing your work.`)}
       </p>
       {!hasSearchTerm && createAction}
     </div>

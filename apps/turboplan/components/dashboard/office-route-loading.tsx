@@ -22,6 +22,7 @@ import {
 } from "@/components/dashboard/office-page-frame";
 import { OfficeTabNav } from "@/components/dashboard/office-tab-nav";
 import { ProjectsCardSection } from "@/components/dashboard/projects-card-section";
+import { TemplatesGridSection } from "@/components/dashboard/templates-grid-section";
 import { useOptionalDashboard } from "@/components/providers/dashboard-provider";
 import { useUser } from "@/components/providers/user-provider";
 import { PAGE_CONTAINER_CLASS, STICKY_TOOLBAR_CLASS } from "@/lib/glass";
@@ -61,6 +62,11 @@ const getOfficeRoute = (
     rest === "citizen-submissions"
   ) {
     return rest;
+  }
+  // Only the templates list shares the office frame (template detail and
+  // document templates have their own layouts).
+  if (pathname === AppUrls.officeProjectTemplates(orgSlug, officeSlug)) {
+    return "templates";
   }
   if (rest === "projects") {
     return "project";
@@ -160,6 +166,13 @@ const OfficeTabBody = ({
     case "citizen-submissions":
       return (
         <CitizenSubmissionsSection
+          organizationSlug={orgSlug}
+          officeSlug={officeSlug}
+        />
+      );
+    case "templates":
+      return (
+        <TemplatesGridSection
           organizationSlug={orgSlug}
           officeSlug={officeSlug}
         />

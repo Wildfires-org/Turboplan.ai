@@ -23,7 +23,8 @@ export type OfficeTab =
   | "projects"
   | "members"
   | "my-submissions"
-  | "citizen-submissions";
+  | "citizen-submissions"
+  | "templates";
 
 interface OfficePageFrameProps {
   organization: Organization;
@@ -39,6 +40,7 @@ const TAB_BREADCRUMB_LABELS: Record<Exclude<OfficeTab, "projects">, string> = {
   members: "Members",
   "my-submissions": "My Submissions",
   "citizen-submissions": "Citizen Submissions",
+  templates: "Templates",
 };
 
 const PAGE_ROOT_CLASS = "flex min-h-screen shrink-0 flex-col";

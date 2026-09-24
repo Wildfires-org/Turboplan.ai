@@ -382,7 +382,7 @@ function PureProjectMultimodalInput({
       onDrop={handleDrop}
     >
       {(attachments.length > 0 || uploadQueue.length > 0) && (
-        <div className="flex flex-row gap-2 overflow-x-auto">
+        <div className="flex flex-row gap-2 overflow-x-auto px-1 pt-1">
           {attachments.map((attachment) => (
             <PreviewAttachment
               key={attachment.url}
@@ -415,7 +415,7 @@ function PureProjectMultimodalInput({
         value={input}
         onChange={handleInput}
         className={cx(
-          "max-h-[calc(75dvh)] min-h-[44px] resize-none overflow-hidden rounded-xl py-2.5 pr-20 text-base",
+          "max-h-[calc(75dvh)] min-h-[44px] resize-none overflow-hidden rounded-[14px] py-2.5 pr-20 text-base",
           isInputDisabled && "opacity-60 cursor-not-allowed",
           className,
         )}
@@ -427,7 +427,9 @@ function PureProjectMultimodalInput({
       {isLoading ? (
         <Button
           type="button"
-          className="size-7 p-0 absolute bottom-2 right-2 border dark:border-zinc-600"
+          aria-label="Stop generating"
+          variant="glass"
+          className="absolute bottom-2 right-2 size-7 rounded-lg p-0 text-foreground"
           onClick={(event) => {
             event.preventDefault();
             stop();
@@ -476,7 +478,7 @@ function PureProjectMultimodalInput({
       )}
 
       {isDraggingFiles && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-700 bg-brand-50/90">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-[14px] border-2 border-dashed border-brand-700 bg-brand-50/90">
           <Upload className="size-4 text-brand-800" />
           <span className="text-sm font-medium text-brand-800">
             Drop files to upload

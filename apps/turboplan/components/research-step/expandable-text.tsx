@@ -21,7 +21,7 @@ export const ExpandableText = ({ text }: { text: string }) => {
       <p
         ref={ref}
         className={cn(
-          "text-xs leading-relaxed text-muted-foreground/80",
+          "text-xs leading-relaxed text-gray-550",
           !isTextExpanded && "line-clamp-3",
         )}
       >
@@ -30,7 +30,7 @@ export const ExpandableText = ({ text }: { text: string }) => {
       {(isClamped || isTextExpanded) && (
         <button
           type="button"
-          className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground hover:underline cursor-pointer mt-0.5"
+          className="mt-0.5 cursor-pointer text-[11px] font-medium text-brand-900 hover:underline"
           onClick={(e) => {
             e.stopPropagation();
             setIsTextExpanded(!isTextExpanded);

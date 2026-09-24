@@ -1,5 +1,5 @@
-import { ProjectChatPageFallback } from "@/components/chat/project-chat-page-shell";
+import { ProjectChatRouteLoading } from "@/components/chat/project-chat-route-loading";
 
 export default function ProjectChatLoading() {
-  return <ProjectChatPageFallback />;
+  return <ProjectChatRouteLoading />;
 }

@@ -129,7 +129,7 @@ const DocumentRow = ({
     <div className="flex items-start gap-3">
       <div className="pt-0.5 shrink-0">
         {doc.saved ? (
-          <CheckCheck className="size-4 text-green-500" />
+          <CheckCheck className="size-4 text-brand-700" />
         ) : isSaveableDocument(doc) ? (
           <Checkbox
             checked={isSelected}
@@ -381,7 +381,7 @@ export function DocumentsSection({
                   <div className="flex items-start gap-3">
                     <div className="pt-0.5 shrink-0">
                       {folderState.allSaved ? (
-                        <CheckCheck className="size-4 text-green-500" />
+                        <CheckCheck className="size-4 text-brand-700" />
                       ) : (
                         <Checkbox
                           checked={
@@ -405,7 +405,7 @@ export function DocumentsSection({
                             {folder.name}
                           </span>
                           {folder.description && (
-                            <span className="text-xs text-neutral-400 leading-4 block mt-0.5">
+                            <span className="text-xs text-gray-550 leading-4 block mt-0.5">
                               {folder.description}
                             </span>
                           )}
@@ -449,7 +449,7 @@ export function DocumentsSection({
                           {hasMore && (
                             <button
                               type="button"
-                              className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700 font-medium mt-1"
+                              className="flex items-center gap-1 text-xs text-gray-550 hover:text-foreground font-medium mt-1"
                               onClick={() => toggleShowAllDocs(folder.name)}
                             >
                               {isExpanded ? (

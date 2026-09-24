@@ -54,11 +54,11 @@ export function ResearchPanelHeader({
     <div>
       <div className="flex items-center justify-between">
         <Button
-          variant="ghost-outline"
+          variant="glass"
           onClick={onClose}
-          className="gap-2 text-base font-semibold h-auto py-1.5 px-3"
+          className="h-9 gap-2 px-4 text-[14px]"
         >
-          <PanelRightClose className="size-5 text-neutral-500" />
+          <PanelRightClose aria-hidden />
           Research
         </Button>
 
@@ -66,18 +66,19 @@ export function ResearchPanelHeader({
           <Button
             type="button"
             onClick={() => setIsExpanded(true)}
-            variant="ghost-outline"
+            variant="glass"
             size="xs"
+            className="rounded-full text-foreground"
           >
             {isCompleted ? (
-              <Check className="size-3.5 text-emerald-600 shrink-0" />
+              <Check className="size-3.5 shrink-0 text-brand-800" />
             ) : (
-              <FileText className="size-3 text-muted-foreground shrink-0" />
+              <FileText className="size-3 shrink-0 text-gray-550" />
             )}
             <span
               className={cn(
                 "text-xs truncate max-w-[190px]",
-                isCompleted ? "text-emerald-600" : "text-muted-foreground",
+                isCompleted ? "text-brand-800" : "text-gray-550",
               )}
             >
               {currentStep}
@@ -90,7 +91,7 @@ export function ResearchPanelHeader({
               <span
                 className={cn(
                   "text-xs font-medium tabular-nums",
-                  isCompleted ? "text-emerald-600" : "text-muted-foreground",
+                  isCompleted ? "text-brand-800" : "text-gray-550",
                 )}
               >
                 {elapsedTime}
@@ -98,8 +99,8 @@ export function ResearchPanelHeader({
             )}
             <ArrowUpRight
               className={cn(
-                "size-3.5 shrink-0 text-purple-300",
-                isCompleted ? "text-emerald-600" : "text-purple-500",
+                "size-3.5 shrink-0",
+                isCompleted ? "text-brand-800" : "text-purple-600",
               )}
             />
           </Button>
@@ -108,12 +109,13 @@ export function ResearchPanelHeader({
         {shouldShow && isExpanded && (
           <Button
             type="button"
-            variant="ghost-outline"
+            variant="glass"
             size="xs"
+            className="rounded-full text-foreground"
             onClick={() => setIsExpanded(false)}
           >
             Hide thinking
-            <ArrowDownLeft className="size-3.5 shrink-0 text-purple-500" />
+            <ArrowDownLeft className="size-3.5 shrink-0 text-purple-600" />
           </Button>
         )}
       </div>
@@ -128,7 +130,7 @@ export function ResearchPanelHeader({
             className="overflow-hidden"
           >
             <div className="pt-4 pl-1">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-gray-550">
                 {currentStep}
                 {elapsedTime ? ` (${elapsedTime})` : ""}
               </div>
@@ -139,7 +141,7 @@ export function ResearchPanelHeader({
                     return (
                       <span
                         key={msg.id}
-                        className="text-xs text-muted-foreground/70 leading-5"
+                        className="text-xs leading-5 text-gray-550"
                       >
                         └ {data.step}
                       </span>

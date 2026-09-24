@@ -181,22 +181,23 @@ function AgentRunningState({
           <Button
             type="button"
             onClick={() => setIsExpanded((prev) => !prev)}
-            variant="ghost-outline"
+            variant="glass"
             size="xs"
+            className="rounded-full"
           >
-            <FileText className="size-3 text-muted-foreground shrink-0" />
-            <span className="text-xs truncate max-w-[190px] text-blue-400">
+            <FileText className="size-3 shrink-0 text-gray-550" />
+            <span className="max-w-[190px] truncate text-xs text-foreground">
               {currentStep}
             </span>
             {elapsedTime && (
-              <span className="text-xs font-medium tabular-nums text-blue-400">
+              <span className="text-xs font-medium tabular-nums text-gray-550">
                 {elapsedTime}
               </span>
             )}
             {isExpanded ? (
-              <ArrowDownLeft className="size-3.5 shrink-0 text-purple-500" />
+              <ArrowDownLeft className="size-3.5 shrink-0 text-purple-600" />
             ) : (
-              <ArrowUpRight className="size-3.5 shrink-0 text-purple-500" />
+              <ArrowUpRight className="size-3.5 shrink-0 text-purple-600" />
             )}
           </Button>
 
@@ -221,7 +222,7 @@ function AgentRunningState({
                     return (
                       <span
                         key={msg.id}
-                        className="text-xs text-muted-foreground/70 leading-5"
+                        className="text-xs leading-5 text-gray-550"
                       >
                         &lsaquo; {data.step}
                       </span>
@@ -232,7 +233,7 @@ function AgentRunningState({
             )}
           </AnimatePresence>
 
-          <p className="text-xs text-muted-foreground leading-5 w-[290px]">
+          <p className="w-[290px] text-xs leading-5 text-gray-550">
             The Research Agent is currently scanning databases to find relevant
             details, citations, frameworks, and historical precedents. Your
             artifacts will populate here shortly.
@@ -343,9 +344,13 @@ export function EmptyState({
       {/* Text content on top */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="px-8 py-6 max-w-xs text-center">
-          <Layers className="size-5 mx-auto mb-3 text-muted-foreground" />
-          <h3 className="text-base font-semibold mb-2">Project Artifacts</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <span className="glass mx-auto mb-3 flex size-10 items-center justify-center rounded-2xl text-brand-800">
+            <Layers aria-hidden className="size-5" />
+          </span>
+          <h3 className="mb-1.5 text-[15px] font-medium leading-6 tracking-[-0.01em] text-foreground">
+            Project Artifacts
+          </h3>
+          <p className="text-[13px] leading-5 text-gray-550">
             There are no artifacts yet. Start the Research Agent to extract key
             details, compliance citations, and milestones, and organize them
             here for your review.

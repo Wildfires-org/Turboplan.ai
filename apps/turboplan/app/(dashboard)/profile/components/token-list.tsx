@@ -12,7 +12,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-  Badge,
   Button,
   cn,
   Table,
@@ -25,6 +24,14 @@ import {
 
 import type { AccessToken } from "@/hooks/use-access-tokens";
 import { useAccessTokens, useRevokeToken } from "@/hooks/use-access-tokens";
+import {
+  CHIP_BASE_CLASS,
+  CHIP_TONE_CLASS,
+  type ChipTone,
+  DESTRUCTIVE_BUTTON_CLASS,
+  EMPTY_STATE_TEXT_CLASS,
+  EMPTY_STATE_TITLE_CLASS,
+} from "@/lib/glass";
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) {
@@ -39,15 +46,19 @@ const formatDate = (dateString: string | null) => {
 
 const getTokenStatus = (
   token: AccessToken,
-): { label: string; variant: "default" | "destructive" | "secondary" } => {
+): { label: string; tone: ChipTone } => {
   if (token.revokedAt) {
-    return { label: "Revoked", variant: "destructive" };
+    return { label: "Revoked", tone: "danger" };
   }
   if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
-    return { label: "Expired", variant: "secondary" };
+    return { label: "Expired", tone: "neutral" };
   }
-  return { label: "Active", variant: "default" };
+  return { label: "Active", tone: "brand" };
 };
+
+/** Inset white well the list states sit in (same box for loading/empty). */
+const TOKEN_STATE_CLASS =
+  "flex flex-col items-center justify-center rounded-xl bg-white/60 py-12 text-center ring-1 ring-inset ring-slate-900/[0.06] dark:bg-white/5";
 
 export const TokenList = () => {
   const { tokens, isLoading, mutate } = useAccessTokens();
@@ -61,26 +72,35 @@ export const TokenList = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center rounded-lg border border-dashed py-12">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div
+        role="status"
+        aria-label="Loading tokens"
+        className={TOKEN_STATE_CLASS}
+      >
+        <Loader2 className="size-6 animate-spin text-brand-800" />
       </div>
     );
   }
 
   if (tokens.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
-        <KeyRound className="size-10 text-muted-foreground/50" />
-        <p className="mt-3 text-sm text-muted-foreground">
-          No access tokens created yet.
+      <div className={TOKEN_STATE_CLASS}>
+        <span className="flex size-10 items-center justify-center rounded-2xl bg-brand-50 text-brand-800 ring-1 ring-inset ring-brand-800/15">
+          <KeyRound aria-hidden className="size-5" />
+        </span>
+        <p className={cn(EMPTY_STATE_TITLE_CLASS, "mt-3")}>
+          No access tokens yet
+        </p>
+        <p className={EMPTY_STATE_TEXT_CLASS}>
+          Create one to connect an integration.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border">
-      <Table>
+    <div className="overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-slate-900/[0.06] dark:bg-slate-900 dark:ring-white/10">
+      <Table className="whitespace-nowrap">
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
@@ -101,35 +121,30 @@ export const TokenList = () => {
             return (
               <TableRow key={token.id}>
                 <TableCell className="font-medium">{token.name}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {token.actor}
-                </TableCell>
+                <TableCell className="text-gray-550">{token.actor}</TableCell>
                 <TableCell>
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                  <code className="rounded-md bg-slate-900/[0.04] px-1.5 py-0.5 text-xs text-foreground ring-1 ring-inset ring-slate-900/[0.06]">
                     {token.tokenPrefix}...
                   </code>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-gray-550">
                   {formatDate(token.createdAt)}
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-gray-550">
                   {formatDate(token.lastUsedAt)}
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-gray-550">
                   {formatDate(token.expiresAt)}
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant={status.variant}
+                  <span
                     className={cn(
-                      status.label === "Active" &&
-                        "bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400",
-                      status.label === "Expired" &&
-                        "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400",
+                      CHIP_BASE_CLASS,
+                      CHIP_TONE_CLASS[status.tone],
                     )}
                   >
                     {status.label}
-                  </Badge>
+                  </span>
                 </TableCell>
                 <TableCell className="text-right">
                   <AlertDialog>
@@ -139,7 +154,7 @@ export const TokenList = () => {
                         size="sm"
                         disabled={isInactive || isRevoking}
                         className={cn(
-                          "text-destructive hover:text-destructive",
+                          "rounded-lg text-error-700 hover:bg-error-50 hover:text-error-800",
                           isRevoking && "pointer-events-none",
                         )}
                       >
@@ -161,11 +176,11 @@ export const TokenList = () => {
                           lose access.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
-                      <AlertDialogFooter>
+                      <AlertDialogFooter className="gap-2 sm:space-x-0">
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleRevoke(token.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          className={DESTRUCTIVE_BUTTON_CLASS}
                         >
                           Revoke
                         </AlertDialogAction>

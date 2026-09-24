@@ -662,3 +662,122 @@ main[class*="overflow-auto"] {
 .leaflet-popup-tip {
   background: rgba(255, 255, 255, 0.94) !important;
 }
+
+/* ---------------------------------------------------------------------------
+   Chat markdown (Streamdown) -> glass system. Streamdown ships its own
+   utility classes and exposes `data-streamdown` hooks; these scoped rules
+   (class + attribute, so they outrank its single-class utilities) restyle
+   assistant/user message content only. Applied via `.chat-prose` on the
+   message content wrapper in components/message.tsx.
+--------------------------------------------------------------------------- */
+@layer components {
+  .chat-prose {
+    @apply text-[15px] leading-[1.6] text-foreground;
+  }
+
+  .chat-prose [data-streamdown="heading-1"],
+  .chat-prose [data-streamdown="heading-2"] {
+    @apply mb-2 mt-6 text-[20px] font-medium leading-7 tracking-[-0.02em];
+  }
+
+  .chat-prose [data-streamdown="heading-3"],
+  .chat-prose [data-streamdown="heading-4"] {
+    @apply mb-1.5 mt-5 text-[16px] font-medium leading-6 tracking-[-0.01em];
+  }
+
+  .chat-prose a {
+    @apply text-brand-900 underline decoration-brand-900/30 underline-offset-2 hover:decoration-brand-900 dark:text-brand-300;
+  }
+
+  .chat-prose [data-streamdown="ordered-list"] li::marker,
+  .chat-prose [data-streamdown="unordered-list"] li::marker {
+    @apply text-brand-700;
+  }
+
+  .chat-prose [data-streamdown="inline-code"] {
+    @apply rounded-md bg-white/80 px-1.5 py-0.5 text-[13px] text-brand-900 ring-1 ring-inset ring-slate-900/[0.06] dark:bg-white/10 dark:text-brand-200;
+  }
+
+  .chat-prose [data-streamdown="blockquote"] {
+    @apply border-l-2 border-brand-700/40 pl-4 not-italic text-gray-550;
+  }
+
+  /* Table + code block shells: glass card, content on a white inset. */
+  .chat-prose [data-streamdown="table-wrapper"],
+  .chat-prose [data-streamdown="code-block"] {
+    @apply gap-1.5 rounded-2xl border border-white/90 bg-white/55 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(21,102,71,0.25)] dark:border-white/10 dark:bg-slate-950/60;
+  }
+
+  .chat-prose [data-streamdown="table-wrapper"] > div:last-child,
+  .chat-prose [data-streamdown="code-block-body"] {
+    @apply rounded-xl border-0 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06)] dark:bg-slate-900;
+  }
+
+  .chat-prose [data-streamdown="table-header"] {
+    @apply bg-brandAlt-100/70 dark:bg-white/5;
+  }
+
+  /* Markdown's custom th/td renderers drop Streamdown's cell classes. */
+  .chat-prose [data-streamdown="table"] th,
+  .chat-prose [data-streamdown="table"] td {
+    @apply px-3 py-2 text-left align-top text-[14px];
+  }
+
+  .chat-prose [data-streamdown="table-header"] th {
+    @apply whitespace-nowrap text-[12px] font-medium text-gray-550;
+  }
+
+  .chat-prose [data-streamdown="table"],
+  .chat-prose [data-streamdown="table-body"] {
+    @apply divide-slate-900/[0.06];
+  }
+
+  .chat-prose [data-streamdown="code-block-header"] {
+    @apply px-1.5 text-gray-550;
+  }
+
+  .chat-prose [data-streamdown="code-block-actions"] {
+    @apply border-white/90 bg-white/80;
+  }
+
+  .chat-prose [data-streamdown="table-wrapper"] button,
+  .chat-prose [data-streamdown="code-block-actions"] button {
+    @apply rounded-md text-gray-550 hover:bg-white hover:text-brand-800;
+  }
+
+}
+
+/* Typing indicator: three dots rising in turn. Reduced motion keeps a soft
+   opacity pulse and drops the movement. */
+@keyframes chat-typing-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes chat-typing-dot-reduced {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.chat-typing-dot {
+  animation: chat-typing-dot 1.1s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-typing-dot {
+    animation-name: chat-typing-dot-reduced;
+  }
+}

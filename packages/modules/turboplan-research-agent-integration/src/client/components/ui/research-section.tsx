@@ -8,33 +8,25 @@ import { Checkbox, cn } from "@wildfires-org/turboplan-utils";
 
 export type SectionTone = "purple" | "blue" | "emerald" | "indigo" | "amber";
 
-const sectionRootVariants = cva("rounded-xl border p-4", {
-  variants: {
-    tone: {
-      purple:
-        "bg-purple-50/60 dark:bg-purple-950/20 border-purple-100 dark:border-purple-800/30",
-      blue: "bg-blue-50/60 dark:bg-blue-950/20 border-blue-100 dark:border-blue-800/30",
-      emerald:
-        "bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-800/30",
-      indigo:
-        "bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-800/30",
-      amber:
-        "bg-amber-50/60 dark:bg-amber-950/20 border-amber-100 dark:border-amber-800/30",
-    },
-  },
-});
+// Every section is the same white glass card; the tone only colors the
+// section's icon and title so the panel reads as one surface.
+const SECTION_ROOT_CLASS =
+  "rounded-2xl border border-white/90 bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(21,102,71,0.25)] dark:border-white/10 dark:bg-slate-950/60";
 
-const sectionTitleVariants = cva("text-sm font-bold truncate", {
-  variants: {
-    tone: {
-      purple: "text-purple-700 dark:text-purple-300",
-      blue: "text-blue-700 dark:text-blue-300",
-      emerald: "text-emerald-700 dark:text-emerald-300",
-      indigo: "text-indigo-700 dark:text-indigo-300",
-      amber: "text-amber-700 dark:text-amber-300",
+const sectionTitleVariants = cva(
+  "text-sm font-medium tracking-[-0.01em] truncate",
+  {
+    variants: {
+      tone: {
+        purple: "text-purple-700 dark:text-purple-300",
+        blue: "text-blue-700 dark:text-blue-300",
+        emerald: "text-emerald-700 dark:text-emerald-300",
+        indigo: "text-indigo-700 dark:text-indigo-300",
+        amber: "text-amber-700 dark:text-amber-300",
+      },
     },
   },
-});
+);
 
 const sectionIconVariants = cva("size-4 shrink-0", {
   variants: {
@@ -79,15 +71,10 @@ type SelectionIndicatorProps = {
 };
 
 export function ResearchSectionRoot({
-  tone,
   className,
   children,
 }: ResearchSectionRootProps) {
-  return (
-    <div className={cn(sectionRootVariants({ tone }), className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn(SECTION_ROOT_CLASS, className)}>{children}</div>;
 }
 
 export function ResearchSectionHeader({
@@ -135,9 +122,9 @@ export function SelectAllControl({
         onCheckedChange={onChange}
         disabled={disabled}
         aria-label="Select all items"
-        className="rounded-[4px] border-[#6B7280] data-[state=checked]:border-black data-[state=checked]:bg-black data-[state=checked]:text-white focus-visible:ring-black/25"
+        className="rounded-[4px] border-gray-550 data-[state=checked]:border-brand-800 data-[state=checked]:bg-brand-800 data-[state=checked]:text-white focus-visible:ring-brand-700/30"
       />
-      <span className="text-[12px] font-semibold leading-4 tracking-[0.12px] text-[#262626]">
+      <span className="text-[12px] font-medium leading-4 tracking-[0.12px] text-foreground">
         Select all
       </span>
     </label>

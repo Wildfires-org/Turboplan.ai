@@ -11,6 +11,7 @@ import {
 
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
 import type { QuickResponse } from "@/lib/ai/tools/generate-quick-responses";
+import { cn } from "@/lib/utils";
 
 interface QuickResponsesProps {
   quickResponses: QuickResponse[];
@@ -75,10 +76,13 @@ function PureQuickResponses({
               <TooltipTrigger asChild>
                 <Button
                   type="button"
-                  variant="outline"
-                  className={`rounded-full whitespace-nowrap ${
-                    shouldPulse ? "ring-2 ring-primary ring-offset-2" : ""
-                  }`}
+                  variant="glass"
+                  size="sm"
+                  className={cn(
+                    "h-8 whitespace-nowrap rounded-full px-3.5 text-[13px] text-foreground",
+                    shouldPulse &&
+                      "outline outline-2 outline-offset-2 outline-brand-700",
+                  )}
                   onClick={() => handleClick(response.message)}
                   disabled={isDisabled}
                 >

@@ -2,7 +2,15 @@
 
 import { type ReactNode, useState } from "react";
 
-import { cn } from "@wildfires-org/turboplan-utils";
+import { KeyRound, Palette, UserRound } from "lucide-react";
+
+import {
+  SEGMENT_ACTIVE_CLASS,
+  SEGMENT_CLASS,
+  SEGMENT_INACTIVE_CLASS,
+  SEGMENTED_TRACK_CLASS,
+} from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 type Tab = "profile" | "tokens" | "appearance";
 
@@ -12,11 +20,15 @@ interface ProfileTabsProps {
   appearanceContent: ReactNode;
 }
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "profile", label: "Profile" },
-  { id: "tokens", label: "Access Tokens" },
-  { id: "appearance", label: "Appearance" },
-];
+const PROFILE_TABS = [
+  { id: "profile", label: "Profile", icon: UserRound },
+  { id: "tokens", label: "Access Tokens", icon: KeyRound },
+  { id: "appearance", label: "Appearance", icon: Palette },
+] as const satisfies ReadonlyArray<{
+  id: Tab;
+  label: string;
+  icon: typeof UserRound;
+}>;
 
 export const ProfileTabs = ({
   profileContent,
@@ -32,25 +44,44 @@ export const ProfileTabs = ({
   };
 
   return (
-    <div className="flex gap-8">
-      <nav className="flex w-48 shrink-0 flex-col gap-1" aria-label="Tabs">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
-              activeTab === tab.id
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-      <div className="flex-1 min-w-0">{contentByTab[activeTab]}</div>
+    <div className="flex flex-col gap-4">
+      <div
+        role="tablist"
+        aria-label="Profile sections"
+        className={SEGMENTED_TRACK_CLASS}
+      >
+        {PROFILE_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              id={`profile-tab-${tab.id}`}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-controls="profile-tab-panel"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                SEGMENT_CLASS,
+                isActive ? SEGMENT_ACTIVE_CLASS : SEGMENT_INACTIVE_CLASS,
+              )}
+            >
+              <Icon aria-hidden />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+      <div
+        id="profile-tab-panel"
+        role="tabpanel"
+        aria-labelledby={`profile-tab-${activeTab}`}
+        className="min-w-0"
+      >
+        {contentByTab[activeTab]}
+      </div>
     </div>
   );
 };

@@ -28,7 +28,7 @@ export const PreviewAttachment = ({
 
   const content = (
     <>
-      <div className="w-20 h-16 aspect-video rounded-md relative flex flex-col items-center justify-center border border-emerald-100/60 bg-gradient-to-br from-emerald-50/50 via-emerald-100/40 to-emerald-200/30">
+      <div className="relative flex aspect-video h-16 w-20 flex-col items-center justify-center overflow-hidden rounded-xl border border-white/90 bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_20px_-14px_rgba(21,102,71,0.35)] dark:border-white/10 dark:bg-slate-900/60">
         {contentType ? (
           contentType.startsWith("image") ? (
             // NOTE: it is recommended to use next/image for images
@@ -37,18 +37,18 @@ export const PreviewAttachment = ({
               key={url}
               src={url}
               alt={name ?? "An image attachment"}
-              className="rounded-md size-full object-cover"
+              className="size-full object-cover"
             />
           ) : contentType === "application/zip" ||
             contentType === "application/x-zip-compressed" ||
             contentType === "application/octet-stream" ||
             name?.toLowerCase().endsWith(".zip") ? (
-            <div className="flex flex-col items-center justify-center text-emerald-600">
+            <div className="flex flex-col items-center justify-center text-brand-800">
               <MapPin className="size-6 mb-1" />
               <FileArchive className="size-4" />
             </div>
           ) : (
-            <div className="flex items-center justify-center text-emerald-600">
+            <div className="flex items-center justify-center text-brand-800">
               <FileArchive className="size-6" />
             </div>
           )
@@ -59,13 +59,13 @@ export const PreviewAttachment = ({
         {isUploading && (
           <div
             data-testid="input-attachment-loader"
-            className="animate-spin absolute text-zinc-500"
+            className="absolute animate-spin text-gray-550"
           >
             <LoaderIcon />
           </div>
         )}
       </div>
-      <div className="text-xs text-zinc-500 max-w-16 truncate" title={name}>
+      <div className="max-w-16 truncate text-xs text-gray-550" title={name}>
         {name}
       </div>
     </>
@@ -76,7 +76,7 @@ export const PreviewAttachment = ({
       type="button"
       onClick={onClick}
       data-testid="input-attachment-preview"
-      className="flex flex-col gap-2 text-left rounded-md transition-colors hover:bg-muted/40 p-1 -m-1"
+      className="press -m-1 flex flex-col gap-2 rounded-xl p-1 text-left hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
     >
       {content}
     </button>
@@ -100,7 +100,7 @@ export const PreviewAttachment = ({
         onClick={handleRemove}
         aria-label="Remove attachment"
         data-testid="input-attachment-remove"
-        className="absolute top-0.5 right-0.5 z-10 flex items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm size-5 transition-colors hover:bg-muted/40 hover:text-foreground/70"
+        className="glass press absolute right-0.5 top-0.5 z-10 flex size-5 items-center justify-center rounded-full text-gray-550 hover:bg-white hover:text-foreground"
       >
         <X className="size-3" />
       </button>

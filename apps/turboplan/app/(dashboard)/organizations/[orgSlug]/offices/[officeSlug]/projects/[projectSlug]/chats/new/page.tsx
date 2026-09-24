@@ -7,6 +7,7 @@ import {
   getChatsByProjectId,
   getInitialChatByProjectId,
 } from "@wildfires-org/turboplan-db/queries";
+import { isResearchAgentPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 
 import { AccessError } from "@/components/access-error";
 import {
@@ -133,6 +134,9 @@ export default async function NewChatPage({
     <Suspense
       fallback={
         <ProjectChatPageFallback
+          showResearchPane={
+            isResearchAgentPackageEnabled() && !project.isResearchPhaseCompleted
+          }
           breadcrumbs={
             <DashboardHeader
               breadcrumbs={breadcrumbs}

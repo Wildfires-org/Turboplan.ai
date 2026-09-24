@@ -150,7 +150,7 @@ export function MilestonesSection({
                   <div className="flex items-start gap-3">
                     <div className="pt-0.5 shrink-0">
                       {milestone.saved ? (
-                        <CheckCheck className="size-4 text-green-500" />
+                        <CheckCheck className="size-4 text-brand-700" />
                       ) : (
                         <Checkbox
                           checked={
@@ -179,7 +179,7 @@ export function MilestonesSection({
                             milestone.startDate,
                             milestone.dueDate,
                           ) && (
-                            <span className="text-xs text-neutral-400 leading-4 block mt-0.5">
+                            <span className="text-xs text-gray-550 leading-4 block mt-0.5">
                               {formatDateRange(
                                 milestone.startDate,
                                 milestone.dueDate,
@@ -205,7 +205,7 @@ export function MilestonesSection({
                   <div className="grid grid-cols-[16px_1fr] items-center gap-3">
                     <div className="pt-0.5">
                       {milestone.saved ? (
-                        <CheckCheck className="size-4 text-green-500" />
+                        <CheckCheck className="size-4 text-brand-700" />
                       ) : (
                         <Checkbox
                           checked={false}
@@ -224,7 +224,7 @@ export function MilestonesSection({
                         milestone.startDate,
                         milestone.dueDate,
                       ) && (
-                        <span className="text-xs text-neutral-400 leading-4 block mt-0.5">
+                        <span className="text-xs text-gray-550 leading-4 block mt-0.5">
                           {formatDateRange(
                             milestone.startDate,
                             milestone.dueDate,
@@ -249,7 +249,7 @@ export function MilestonesSection({
                             className="relative flex items-start gap-2 py-1.5"
                           >
                             {milestone.saved || (task.saved ?? false) ? (
-                              <CheckCheck className="size-3.5 text-green-500 shrink-0 mt-0.5" />
+                              <CheckCheck className="size-3.5 text-brand-700 shrink-0 mt-0.5" />
                             ) : (
                               <Checkbox
                                 checked={isTaskSelected(index, taskIndex)}
@@ -267,12 +267,12 @@ export function MilestonesSection({
                                 {task.title}
                               </span>
                               {(task.saved ?? false) && (
-                                <span className="text-xs text-green-600 leading-snug block mt-0.5">
+                                <span className="text-xs text-brand-800 leading-snug block mt-0.5">
                                   Saved
                                 </span>
                               )}
                               {task.description && (
-                                <span className="text-xs text-neutral-400 leading-4 block mt-0.5">
+                                <span className="text-xs text-gray-550 leading-4 block mt-0.5">
                                   {task.description}
                                 </span>
                               )}

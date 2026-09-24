@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 
-import { Check, Copy, Loader2 } from "lucide-react";
+import { Check, Copy, Loader2, Plus } from "lucide-react";
 
 import {
   Button,
+  cn,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -22,6 +23,7 @@ import {
 } from "@wildfires-org/turboplan-utils";
 
 import { useAccessTokens, useCreateToken } from "@/hooks/use-access-tokens";
+import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
 
 type ExpirationOption = "30d" | "90d" | "1y" | "never";
 
@@ -103,7 +105,14 @@ export const CreateTokenDialog = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <Button onClick={() => setIsOpen(true)}>Create Token</Button>
+      <Button
+        variant="brand"
+        onClick={() => setIsOpen(true)}
+        className={cn(HEADER_ACTION_BUTTON_CLASS, "shrink-0 self-start")}
+      >
+        <Plus aria-hidden />
+        Create token
+      </Button>
       <DialogContent className="sm:max-w-md">
         {plaintextToken ? (
           <>
@@ -121,25 +130,28 @@ export const CreateTokenDialog = () => {
                   className="font-mono text-sm"
                 />
                 <Button
-                  variant="outline"
+                  variant="glass"
                   size="icon"
+                  aria-label={isCopied ? "Copied" : "Copy token"}
                   onClick={handleCopy}
                   className="shrink-0"
                 >
                   {isCopied ? (
-                    <Check className="size-4 text-green-600" />
+                    <Check className="size-4 text-brand-800" />
                   ) : (
                     <Copy className="size-4" />
                   )}
                 </Button>
               </div>
-              <p className="text-sm text-amber-600 dark:text-amber-400">
+              <p className="rounded-xl bg-amber-50 px-3 py-2 text-[13px] leading-5 text-amber-800 ring-1 ring-inset ring-amber-700/15 dark:bg-amber-950/30 dark:text-amber-300">
                 Make sure to copy your personal access token now. You won&apos;t
                 be able to see it again.
               </p>
             </div>
             <DialogFooter>
-              <Button onClick={() => handleClose(false)}>Done</Button>
+              <Button variant="brand" onClick={() => handleClose(false)}>
+                Done
+              </Button>
             </DialogFooter>
           </>
         ) : (
@@ -197,19 +209,25 @@ export const CreateTokenDialog = () => {
                   </Select>
                 </div>
                 {createError ? (
-                  <p className="text-sm text-destructive">{createError}</p>
+                  <p role="alert" className="text-[13px] text-error-700">
+                    {createError}
+                  </p>
                 ) : null}
               </div>
-              <DialogFooter>
+              <DialogFooter className="gap-2 sm:space-x-0">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="glass"
                   onClick={() => handleClose(false)}
                   disabled={isCreating}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!isFormValid || isCreating}>
+                <Button
+                  type="submit"
+                  variant="brand"
+                  disabled={!isFormValid || isCreating}
+                >
                   {isCreating ? (
                     <Loader2 className="mr-1.5 size-4 animate-spin" />
                   ) : null}

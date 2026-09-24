@@ -3,7 +3,6 @@
 import { useState } from "react";
 
 import type { UIMessage } from "ai";
-import cx from "classnames";
 import { motion } from "framer-motion";
 
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
@@ -23,6 +22,10 @@ import { useStreamingDots } from "@/hooks/use-streaming-dots";
 import { cn } from "@/lib/utils";
 import { ToolInvocationState } from "@/types/ToolInvocationState";
 import { Tools } from "@/types/Tools";
+import {
+  CHAT_MESSAGE_ROW_CLASS,
+  USER_BUBBLE_SHELL_CLASS,
+} from "./chat/chat-classes";
 import { ThinkingDots } from "./chat/thinking-dots";
 import { PencilEditIcon, SparklesIcon } from "./icons";
 import { Markdown } from "./markdown";
@@ -82,7 +85,7 @@ const PurePreviewMessage = ({
     <>
       <div
         data-testid={`message-${message.role}`}
-        className="w-full mx-auto max-w-3xl px-4 group/message"
+        className={cn(CHAT_MESSAGE_ROW_CLASS, "group/message")}
         data-role={message.role}
       >
         <div
@@ -94,13 +97,7 @@ const PurePreviewMessage = ({
             },
           )}
         >
-          {message.role === "assistant" && (
-            <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
-              <div className="translate-y-px">
-                <SparklesIcon size={14} />
-              </div>
-            </div>
-          )}
+          {message.role === "assistant" && <AssistantAvatar />}
 
           <div className="flex flex-col gap-4 w-full min-w-0">
             {/* Get attachments from legacy field (v4) or file parts (v6) */}
@@ -201,7 +198,8 @@ const PurePreviewMessage = ({
                             <Button
                               data-testid="message-edit-button"
                               variant="ghost"
-                              className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
+                              aria-label="Edit message"
+                              className="h-fit rounded-full px-2 text-gray-550 opacity-0 hover:bg-white/70 hover:text-foreground focus-visible:opacity-100 group-hover/message:opacity-100"
                               onClick={() => {
                                 setMode("edit");
                               }}
@@ -215,10 +213,11 @@ const PurePreviewMessage = ({
 
                       <div
                         data-testid="message-content"
-                        className={cn("flex flex-col gap-4", {
-                          "bg-chat-user text-chat-user-foreground px-3 py-2 rounded-xl":
-                            message.role === "user",
-                        })}
+                        className={cn(
+                          "chat-prose flex min-w-0 flex-col gap-4",
+                          message.role === "user" &&
+                            cn(USER_BUBBLE_SHELL_CLASS, "px-3.5 py-2.5"),
+                        )}
                       >
                         <Markdown>{part.text}</Markdown>
                       </div>
@@ -341,32 +340,27 @@ const PurePreviewMessage = ({
 export const PreviewMessage = PurePreviewMessage;
 
 export const ThinkingMessage = () => {
-  const role = "assistant";
-
   return (
     <motion.div
       data-testid="message-assistant-loading"
-      className="w-full mx-auto max-w-3xl px-4 group/message"
-      initial={{ y: 5, opacity: 0 }}
-      animate={{ y: 0, opacity: 1, transition: { delay: 1 } }}
-      data-role={role}
+      className={cn(CHAT_MESSAGE_ROW_CLASS, "group/message")}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1, transition: { delay: 0.6, duration: 0.2 } }}
+      data-role="assistant"
     >
-      <div
-        className={cx(
-          "flex gap-4 group-data-[role=user]/message:px-3 w-full group-data-[role=user]/message:w-fit group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl group-data-[role=user]/message:py-2 rounded-xl",
-          {
-            "group-data-[role=user]/message:bg-muted": true,
-          },
-        )}
-      >
-        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
-          <SparklesIcon size={14} />
-        </div>
-
-        <div className="flex flex-col gap-2 w-full">
+      <div className="flex w-full gap-4">
+        <AssistantAvatar />
+        <div className="flex w-full flex-col gap-2">
           <ThinkingDots />
         </div>
       </div>
     </motion.div>
   );
 };
+
+/** Assistant mark: small round glass chip with the brand sparkle. */
+const AssistantAvatar = () => (
+  <div className="glass flex size-8 shrink-0 items-center justify-center rounded-full text-brand-800">
+    <SparklesIcon size={14} />
+  </div>
+);

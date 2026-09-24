@@ -14,4 +14,10 @@ Learned 2026-09-24 while restyling the project view (`/projects/[projectSlug]/*`
 - **Browser pane**: the app resets the emulated viewport often — put `resize_window` at the start of every batch. `layout-shift` entries are only recorded while the pane is displayed; buffered PerformanceObserver after a hard load gives CLS. In dev, client nav between project sub-routes doesn't show `loading.tsx` (no prefetch), so measure loading states via hard loads.
 - Turboplan body is zoomed like the landing (measured px ≈ 0.9375 × CSS px).
 
+- **Hidden Browser pane = no screenshots**: when the Claude Browser pane is hidden, use the Playwright MCP instead (headless, own session: mint a magic link per manual-testing.md). Screenshots must be saved under the repo (`.playwright-mcp/`, gitignored), not the scratchpad. `browser_run_code_unsafe` batches navigate/resize/screenshot/CLS in one call.
+- **Chat has no seeded messages**: the test user's only chat is empty. A temporary client `SWRConfig` wrapper with `fallback` + `revalidateOnMount:false` around `ProjectChatView` (keys `/api/chat/:id/messages`, research-agent `/messages` + `/status`, `/api/projects/:id`, `/api/document?id=`) renders every message/tool/research state without an LLM call. Remove it afterwards.
+- **Streamdown in chat**: `components/markdown.tsx` overrides `th`/`td`, which drops Streamdown's cell classes; style via `.chat-prose [data-streamdown=...]` in globals.css.
+- **Research pane CLS**: it auto-opens while research is in progress; open it on first render (`ResearchPanelProvider defaultOpen`) + `AnimatePresence initial={false}`, and reserve it in the chat loading fallbacks, or the width animation shifts the whole chat (~0.33 CLS).
+- A Radix useId hydration mismatch in NavUser (sidebar) shows intermittently on first hard load after switching page types; not caused by page content.
+
 **Why:** each cost several rounds. **How to apply:** any turboplan restyle touching module packages, sidebar, or loading-state verification.

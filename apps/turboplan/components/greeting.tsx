@@ -1,28 +1,36 @@
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
+import { SparklesIcon } from "./icons";
+
+const ENTER_EASE = [0.23, 1, 0.32, 1] as const;
+
+/** Empty chat state: glass mark + app-scaled page title and lead. */
 export const Greeting = () => {
+  const shouldReduceMotion = useReducedMotion();
+  const offset = shouldReduceMotion ? "0px" : "8px";
+
   return (
     <div
       key="overview"
-      className="max-w-3xl mx-auto md:mt-20 px-8 size-full flex flex-col justify-center"
+      className="mx-auto flex size-full max-w-3xl flex-col justify-center px-8 md:mt-20"
     >
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.5 }}
-        className="text-2xl font-semibold"
+        initial={{ opacity: 0, transform: `translateY(${offset})` }}
+        animate={{ opacity: 1, transform: "translateY(0px)" }}
+        transition={{ delay: 0.15, duration: 0.3, ease: ENTER_EASE }}
+        className="flex flex-col gap-3"
       >
-        Hello there!
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.6 }}
-        className="text-2xl text-zinc-500"
-      >
-        How can I help you today?
+        <span className="glass flex size-10 items-center justify-center rounded-2xl text-brand-800">
+          <SparklesIcon size={16} />
+        </span>
+        <div>
+          <h2 className="text-[26px] font-medium leading-[1.15] tracking-[-0.03em] text-foreground">
+            Hello there!
+          </h2>
+          <p className="mt-1.5 text-[17px] leading-6 tracking-[-0.01em] text-gray-550">
+            How can I help you today?
+          </p>
+        </div>
       </motion.div>
     </div>
   );

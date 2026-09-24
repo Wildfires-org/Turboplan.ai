@@ -33,6 +33,7 @@ import { generateUUID } from "@/lib/utils";
 import { Artifact, type ArtifactKind, artifactDefinitions } from "../artifact";
 import type { ArtifactStreamDelta } from "../data-stream-handler";
 import { Messages } from "../messages";
+import { CHAT_COMPOSER_SHELL_CLASS, CHAT_FORM_CLASS } from "./chat-classes";
 import { ProjectMultimodalInput } from "./project-multimodal-input";
 
 type ProjectChatProps = {
@@ -325,7 +326,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
 
     return (
       <>
-        <div className="flex flex-col min-w-0 h-full bg-background">
+        <div className="flex h-full min-w-0 flex-col">
           <Messages
             chatId={id}
             status={status}
@@ -339,24 +340,26 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
             projectId={projectId}
           />
 
-          <form className="flex flex-col mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
+          <form className={CHAT_FORM_CLASS}>
             {!isReadonly && (
-              <ProjectMultimodalInput
-                chatId={id}
-                projectId={projectId}
-                input={input}
-                setInput={setInput}
-                handleSubmit={handleSubmit}
-                status={status}
-                stop={stop}
-                attachments={attachments}
-                setAttachments={setAttachments}
-                messages={messages}
-                setMessages={setMessages}
-                append={append}
-                isInputDisabled={isInputDisabled}
-                disabledPlaceholder={disabledPlaceholder}
-              />
+              <div className={CHAT_COMPOSER_SHELL_CLASS}>
+                <ProjectMultimodalInput
+                  chatId={id}
+                  projectId={projectId}
+                  input={input}
+                  setInput={setInput}
+                  handleSubmit={handleSubmit}
+                  status={status}
+                  stop={stop}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
+                  messages={messages}
+                  setMessages={setMessages}
+                  append={append}
+                  isInputDisabled={isInputDisabled}
+                  disabledPlaceholder={disabledPlaceholder}
+                />
+              </div>
             )}
 
             {isResearchPhaseCompleted &&

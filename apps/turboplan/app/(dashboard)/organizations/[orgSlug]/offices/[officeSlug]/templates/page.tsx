@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AccessError } from "@/components/access-error";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { OfficePageFrame } from "@/components/dashboard/office-page-frame";
 import { TemplatesGridSection } from "@/components/dashboard/templates-grid-section";
 import {
   getCachedSession,
@@ -78,39 +78,17 @@ export default async function TemplatesPage({ params }: OfficePageProps) {
 
   const { organization, office } = data;
 
-  // Create breadcrumbs with organization, office, and templates
-  const breadcrumbs = [
-    {
-      label: organization.name,
-      href: AppUrls.organization(organization.slug),
-      isActive: false,
-      entity: { type: "organization" as const, data: organization },
-    },
-    {
-      label: office.name,
-      href: AppUrls.office(organization.slug, office.slug),
-      isActive: false,
-      entity: {
-        type: "office" as const,
-        data: office,
-        organizationSlug: organization.slug,
-      },
-    },
-    {
-      label: "Templates",
-      isActive: true,
-    },
-  ];
-
   return (
-    <div className="flex flex-col shrink-0 min-h-screen">
-      <DashboardHeader breadcrumbs={breadcrumbs} userId={session.user.id} />
-      <div className="flex-1 container mx-auto p-6">
-        <TemplatesGridSection
-          organizationSlug={organization.slug}
-          officeSlug={office.slug}
-        />
-      </div>
-    </div>
+    <OfficePageFrame
+      organization={organization}
+      office={office}
+      userId={session.user.id}
+      tab="templates"
+    >
+      <TemplatesGridSection
+        organizationSlug={organization.slug}
+        officeSlug={office.slug}
+      />
+    </OfficePageFrame>
   );
 }

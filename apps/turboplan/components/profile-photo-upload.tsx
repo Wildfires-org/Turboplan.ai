@@ -134,44 +134,48 @@ export function ProfilePhotoUpload({
   const isBusy = isUploading || isRemoving;
 
   return (
-    <div className="flex flex-col items-center space-y-4">
-      {/* Photo Description */}
-      <div className="text-center max-w-md">
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Your photo will be displayed on your professional profile to
-          communicate with your team on assignments, file ownership, and more.
-        </p>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      {/* Avatar */}
+      <div className="relative shrink-0 self-start sm:self-auto">
+        <Avatar className="size-20 ring-4 ring-white shadow-[0_10px_30px_-12px_rgba(21,102,71,0.35)] dark:ring-slate-900">
+          <AvatarImage src={previewUrl || ""} alt="Profile photo" />
+          <AvatarFallback className="bg-brand-50 text-2xl font-medium text-brand-900">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+
+        {/* Upload/Remove Progress Overlay */}
+        {isBusy && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-brand-950/60">
+            <div className="size-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            {isUploading && progress > 0 && (
+              <span className="mt-1 text-xs tabular-nums text-white">
+                {progress}%
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Photo Display and Controls */}
-      <div className="flex items-center space-x-4">
-        {/* Avatar */}
-        <div className="relative">
-          <Avatar className="size-20">
-            <AvatarImage src={previewUrl || ""} alt="Profile photo" />
-            <AvatarFallback className="text-2xl font-semibold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-
-          {/* Upload/Remove Progress Overlay */}
-          {isBusy && (
-            <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center">
-              <div className="animate-spin rounded-full size-6 border-b-2 border-white" />
-              {isUploading && progress > 0 && (
-                <span className="text-white text-xs mt-1">{progress}%</span>
-              )}
-            </div>
-          )}
+      <div className="flex min-w-0 flex-col gap-3">
+        <div>
+          <p className="text-[15px] font-medium leading-6 tracking-[-0.01em] text-foreground">
+            Profile photo
+          </p>
+          <p className="max-w-md text-[13px] leading-5 text-gray-550">
+            Shown to your team on assignments, file ownership, and more.
+            Recommended size is 256×256px.
+          </p>
         </div>
 
-        {/* Buttons */}
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
+            variant="brand"
+            size="sm"
             onClick={handleChangePhoto}
             disabled={isBusy}
-            className="text-sm px-4 py-2"
+            className="h-9 px-4"
           >
             Change photo
           </Button>
@@ -179,28 +183,24 @@ export function ProfilePhotoUpload({
           {previewUrl && (
             <Button
               type="button"
+              variant="glass"
+              size="sm"
               onClick={handleRemovePhoto}
               disabled={isBusy}
-              variant="ghost"
-              className="text-sm px-4 py-2"
+              className="h-9 px-4 text-error-700 hover:text-error-800 dark:text-error-400"
             >
               Remove
             </Button>
           )}
         </div>
 
-        {/* Recommendation Text */}
-        <div className="text-xs text-muted-foreground">
-          Recommended size is
-          <br />
-          256×256px
-        </div>
+        {/* Error Message */}
+        {uploadError && (
+          <p role="alert" className="text-[13px] text-error-700">
+            {uploadError.message}
+          </p>
+        )}
       </div>
-
-      {/* Error Message */}
-      {uploadError && (
-        <p className="text-sm text-destructive">{uploadError.message}</p>
-      )}
 
       {/* Hidden File Input */}
       <input

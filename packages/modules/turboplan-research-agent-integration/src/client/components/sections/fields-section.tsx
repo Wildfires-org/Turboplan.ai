@@ -85,7 +85,7 @@ export function FieldsSection({
         {fields.map((field, index) => (
           <SectionItemCard key={`${field.label}-${index}`} layout="row">
             {field.saved ? (
-              <CheckCheck className="size-4 text-green-500 shrink-0" />
+              <CheckCheck className="size-4 text-brand-700 shrink-0" />
             ) : (
               <Checkbox
                 checked={isIndexSelected(index)}
@@ -99,9 +99,7 @@ export function FieldsSection({
               <span className="text-xs text-neutral-700 font-semibold">
                 {field.label}
               </span>
-              <span className="text-xs text-neutral-400 ml-2">
-                {field.value}
-              </span>
+              <span className="text-xs text-gray-550 ml-2">{field.value}</span>
             </div>
           </SectionItemCard>
         ))}

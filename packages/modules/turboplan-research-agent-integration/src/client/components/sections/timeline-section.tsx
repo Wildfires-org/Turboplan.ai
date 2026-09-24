@@ -110,7 +110,7 @@ export function TimelineSection({
           return (
             <SectionItemCard key={`${item.title}-${index}`} layout="row">
               {item.saved ? (
-                <CheckCheck className="size-4 text-green-500 shrink-0" />
+                <CheckCheck className="size-4 text-brand-700 shrink-0" />
               ) : (
                 <Checkbox
                   checked={isIndexSelected(index)}
@@ -125,12 +125,12 @@ export function TimelineSection({
                   {item.title}
                 </span>
                 {item.description && (
-                  <p className="text-xs text-neutral-400 mt-1">
+                  <p className="text-xs text-gray-550 mt-1">
                     {item.description}
                   </p>
                 )}
                 {dateRange && (
-                  <p className="text-xs text-neutral-400 mt-1">{dateRange}</p>
+                  <p className="text-xs text-gray-550 mt-1">{dateRange}</p>
                 )}
               </div>
             </SectionItemCard>

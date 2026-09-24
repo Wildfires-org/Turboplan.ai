@@ -7,7 +7,7 @@ import type { User } from "next-auth";
 
 import type { Project } from "@wildfires-org/turboplan-workspace/types";
 
-import { ProjectChatPageFallback } from "@/components/chat/project-chat-page-shell";
+import { ProjectChatRouteLoading } from "@/components/chat/project-chat-route-loading";
 import { CommentsPage } from "@/components/dashboard/comments/comments-page";
 import {
   DashboardHeader,
@@ -131,7 +131,7 @@ export function ProjectRouteLoading() {
   const project = dashboard?.project ?? null;
 
   if (route === "chat") {
-    return <ProjectChatPageFallback />;
+    return <ProjectChatRouteLoading />;
   }
 
   if (route === "map") {
