@@ -56,24 +56,22 @@ export function LayerStatusItem({
 
   return (
     <div
-      className="flex flex-row items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+      className="flex flex-row items-center justify-between rounded-xl border border-white/90 bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] transition-colors hover:bg-white dark:border-white/10 dark:bg-slate-900/40 dark:hover:bg-gray-800"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="flex items-center gap-3">
         {exists ? (
-          <CheckCircle2 className="size-5 text-green-500" />
+          <CheckCircle2 className="size-5 text-brand-800" />
         ) : (
-          <Circle className="size-5 text-gray-400" />
+          <Circle className="size-5 text-gray-500" />
         )}
         <div className="flex flex-col">
           <span className="font-medium">
             {displayName}: {exists ? layerName || displayName : displayName}
           </span>
           {!exists && (
-            <span className="text-sm text-muted-foreground">
-              No layer uploaded
-            </span>
+            <span className="text-sm text-gray-600">No layer uploaded</span>
           )}
         </div>
       </div>
@@ -85,14 +83,15 @@ export function LayerStatusItem({
             size="sm"
             onClick={handleDelete}
             disabled={isDeleting}
-            className={`text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition-opacity ${
+            aria-label="Delete layer"
+            className={`text-error-700 transition-opacity hover:bg-error-50 hover:text-error-800 focus-visible:opacity-100 dark:hover:bg-red-900/20 ${
               isHovered ? "opacity-100" : "opacity-0"
             }`}
           >
             <Trash2 className="size-4" />
           </Button>
         ) : !exists && onUpload ? (
-          <Button variant="outline" size="sm" onClick={onUpload}>
+          <Button variant="glass" size="sm" onClick={onUpload}>
             Upload map
           </Button>
         ) : null}

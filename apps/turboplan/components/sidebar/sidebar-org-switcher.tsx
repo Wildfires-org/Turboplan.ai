@@ -15,6 +15,7 @@ import {
 import { useOffices } from "@/hooks/use-offices";
 import { useUserOrganizations } from "@/hooks/use-organization";
 import { useOrganizationsWithOffices } from "@/hooks/use-organizations-with-offices";
+import { SKELETON_BAR_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
 import { OrgAvatar } from "../org-avatar";
 import { SidebarOrgOfficeSearch } from "./sidebar-org-office-search";
@@ -58,9 +59,16 @@ export function SidebarOrgSwitcher() {
 
   if (isLoading) {
     return (
-      <div className="flex h-11 items-center gap-3 rounded-lg border border-brandAlt-200 bg-white p-2">
-        <div className="size-7 shrink-0 animate-pulse rounded bg-brandAlt-200" />
-        <div className="h-4 flex-1 animate-pulse rounded bg-neutral-300 group-data-[collapsible=icon]:hidden" />
+      // Same shell as the trigger below: avatar box, name line, chevron slot.
+      <div
+        aria-hidden
+        className="flex h-11 w-full items-center gap-3 overflow-hidden rounded-lg border border-brandAlt-200 bg-white p-2 group-data-[collapsible=icon]:justify-center"
+      >
+        <span className={cn(SKELETON_BAR_CLASS, "size-7 shrink-0 rounded")} />
+        <span className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:hidden">
+          <span className={cn(SKELETON_BAR_CLASS, "h-3 w-28")} />
+        </span>
+        <ChevronsUpDown className="ml-auto size-5 shrink-0 text-brand-800/30 group-data-[collapsible=icon]:hidden" />
       </div>
     );
   }

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
+import { useIsClient } from "usehooks-ts";
 
 import { Button } from "@wildfires-org/turboplan-utils";
 
@@ -28,6 +29,7 @@ import { SidebarCitizenContent } from "./sidebar-citizen-content";
 import { SidebarOrgContent } from "./sidebar-org-content";
 import { SidebarOrgSwitcher } from "./sidebar-org-switcher";
 import { SidebarPinButton } from "./sidebar-pin-button";
+import { SidebarProjectContent } from "./sidebar-project-content";
 
 interface AppSidebarProps {
   defaultPinned?: boolean;
@@ -36,7 +38,11 @@ interface AppSidebarProps {
 export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
   const { user, profile } = useUser();
   const { content } = useSidebarContent();
-  const params = useParams<{ orgSlug?: string; officeSlug?: string }>();
+  const params = useParams<{
+    orgSlug?: string;
+    officeSlug?: string;
+    projectSlug?: string;
+  }>();
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const {
     sidebarRef,
@@ -47,6 +53,7 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
   } = useSidebarBehavior({ defaultPinned });
 
   const isCitizen = useIsCitizen();
+  const isClient = useIsClient();
   const appName = brand.name;
 
   const { orgSlug, officeSlug } = params;
@@ -117,8 +124,15 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
         </div>
 
         <div className="flex-1 min-h-0 overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Registrars fill this from the route layouts (client effect);
+              until then (route loading) a project route shows the project
+              nav with a placeholder name instead of the org list. Client
+              only: the nav's feature flags can differ between server and
+              client, which would break hydration. */}
           {content ??
-            (isCitizen && orgSlug && officeSlug ? (
+            (params.projectSlug && isClient ? (
+              <SidebarProjectContent isResearchPhaseCompleted={false} />
+            ) : isCitizen && orgSlug && officeSlug ? (
               <SidebarCitizenContent
                 organizationSlug={orgSlug}
                 officeSlug={officeSlug}

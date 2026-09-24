@@ -14,11 +14,14 @@ import type { User } from "next-auth";
 
 import { useProjectDocuments } from "@wildfires-org/turboplan-documents/client";
 import { EntityType } from "@wildfires-org/turboplan-rbac";
-import { TasksContainer } from "@wildfires-org/turboplan-tasks/components";
+import {
+  TasksContainer,
+  TasksListSkeleton,
+} from "@wildfires-org/turboplan-tasks/components";
 import { useProjectTasksUI } from "@wildfires-org/turboplan-tasks/hooks";
 import { TasksProvider } from "@wildfires-org/turboplan-tasks/providers";
 import type { TaskInviteContext } from "@wildfires-org/turboplan-tasks/types";
-import { SuggestionPills } from "@wildfires-org/turboplan-utils";
+import { Button, SuggestionPills } from "@wildfires-org/turboplan-utils";
 import {
   type MembersDialogMode,
   useEmptyStateSuggestions,
@@ -27,7 +30,9 @@ import {
 import { useDashboard } from "@/components/providers/dashboard-provider";
 import { useCoverImage } from "@/hooks/use-cover-image";
 import { useTimeline } from "@/hooks/use-timeline";
+import { EMPTY_STATE_TEXT_CLASS, EMPTY_STATE_TITLE_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
+import { cn } from "@/lib/utils";
 import { ManageMembersDialog } from "./manage-members-dialog";
 import { TimelineContent } from "./timeline/timeline-content";
 
@@ -173,14 +178,7 @@ export function ProjectTasks({
 
   // Loading state
   if (tasks.loading && tasks.displayMilestones.length === 0) {
-    return (
-      <div className="min-h-[220px] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full size-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading project tasks...</p>
-        </div>
-      </div>
-    );
+    return <TasksListSkeleton />;
   }
 
   // Error state
@@ -188,14 +186,11 @@ export function ProjectTasks({
     return (
       <div className="min-h-[220px] flex items-center justify-center">
         <div className="text-center">
-          <h3 className="text-lg font-medium mb-2 text-destructive">Error</h3>
-          <p className="text-muted-foreground mb-4">{tasks.error}</p>
-          <button
-            onClick={tasks.handlers.handleRetry}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-          >
+          <h3 className="mb-2 text-lg font-medium text-error-700">Error</h3>
+          <p className="mb-4 text-gray-550">{tasks.error}</p>
+          <Button variant="glass" onClick={tasks.handlers.handleRetry}>
             Try Again
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -226,15 +221,13 @@ export function ProjectTasks({
       <div className="group relative min-h-[220px] flex items-center justify-center overflow-hidden">
         <div className="flex flex-col items-center gap-5 text-center">
           <div className="flex flex-col items-center gap-1.5">
-            <h3 className="text-lg font-medium text-foreground">
-              No tasks assigned
-            </h3>
+            <h3 className={EMPTY_STATE_TITLE_CLASS}>No tasks assigned</h3>
             {readOnly ? (
-              <p className="text-xs text-muted-foreground max-w-xs leading-5">
+              <p className={cn(EMPTY_STATE_TEXT_CLASS, "max-w-xs")}>
                 This project doesn&apos;t have any tasks or milestones yet.
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground max-w-xs leading-5">
+              <p className={cn(EMPTY_STATE_TEXT_CLASS, "max-w-xs")}>
                 You can generate a compliant workflow schedule based on your
                 NEPA pathway.
               </p>

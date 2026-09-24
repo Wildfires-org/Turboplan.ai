@@ -82,6 +82,31 @@ const DocumentRowContent = ({ document }: DocumentRowContentProps) => {
   );
 };
 
+const SKELETON_BAR_CLASS =
+  "rounded-md bg-brandAlt-200/70 animate-pulse motion-reduce:animate-none dark:bg-slate-800/70";
+
+/** Three placeholder rows at DocumentRow's metrics (px-3 py-2, 32px tile,
+ * 19.5px + 16px text lines). */
+const DocumentRowsSkeleton = () => (
+  <div role="status" aria-label="Loading documents" className="flex flex-col">
+    {["w-[56%]", "w-[44%]", "w-[64%]"].map((widthClass) => (
+      <div key={widthClass} className="flex items-center gap-2.5 px-3 py-2">
+        <span
+          className={cn(SKELETON_BAR_CLASS, "size-8 shrink-0 rounded-[10px]")}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="flex h-[19.5px] items-center">
+            <span className={cn(SKELETON_BAR_CLASS, "h-3", widthClass)} />
+          </span>
+          <span className="flex h-4 items-center">
+            <span className={cn(SKELETON_BAR_CLASS, "h-2.5 w-24")} />
+          </span>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 interface DocumentRowProps {
   document: DocumentRowData;
   actions?: ReactNode;
@@ -93,7 +118,8 @@ const DocumentRow = ({ document, actions, onClick }: DocumentRowProps) => {
     <div
       className={cn(
         "group/row flex items-center gap-2.5 rounded-[10px] px-3 py-2",
-        onClick && "cursor-pointer transition-colors hover:bg-muted/60",
+        onClick &&
+          "cursor-pointer transition-colors hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 dark:hover:bg-white/5",
       )}
       onClick={onClick}
       onKeyDown={
@@ -467,11 +493,7 @@ export function ProjectDocumentsSection({
       <div className={cn("flex flex-col pb-1.5", className)}>
         <div className="group relative overflow-hidden rounded-lg">
           {/* Loading state */}
-          {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
+          {isLoading && <DocumentRowsSkeleton />}
 
           {/* Empty state */}
           {!isLoading && documents.length === 0 && (

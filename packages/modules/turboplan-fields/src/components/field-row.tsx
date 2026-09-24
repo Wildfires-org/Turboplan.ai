@@ -28,7 +28,7 @@ import { FieldValueEditor } from "./field-value-editor";
 import { FieldValuesDisplay } from "./field-values-display";
 import { FieldsFieldItem } from "./fields-list-layout";
 
-const fieldLabelColumnClassName = "w-44 shrink-0";
+const fieldLabelColumnClassName = "w-36 shrink-0 sm:w-44";
 
 interface FieldRowProps {
   field: ProjectField;
@@ -108,9 +108,9 @@ export function FieldRow({
               <Button
                 variant="ghost"
                 size="sm"
-                className="size-8 p-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+                className="size-8 rounded-lg p-0 text-gray-600 opacity-0 transition-opacity hover:bg-white hover:text-gray-900 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:bg-white data-[state=open]:opacity-100"
               >
-                <MoreVertical className="size-5" />
+                <MoreVertical className="size-4" />
                 <span className="sr-only">Open menu</span>
               </Button>
             </DropdownMenuTrigger>
@@ -121,7 +121,7 @@ export function FieldRow({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setIsDeleteDialogOpen(true)}
-                className="text-destructive focus:text-destructive"
+                className="text-error-700 focus:text-error-700"
               >
                 <Trash2 className="mr-2 size-4" />
                 Delete field

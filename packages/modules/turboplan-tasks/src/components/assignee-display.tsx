@@ -94,7 +94,7 @@ export const AssigneeDisplay: React.FC<AssigneeDisplayProps> = ({
             }}
           >
             <div
-              className={`w-full h-full bg-blue-500 text-white flex items-center justify-center ${textSizeClasses[size]}`}
+              className={`w-full h-full bg-brand-800 text-white flex items-center justify-center ${textSizeClasses[size]}`}
             >
               {generateInitials({ email: user.email })}
             </div>

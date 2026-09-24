@@ -133,7 +133,7 @@ export function CommentCard({
           {!comment.isAutoResponse && comment.author.avatarUrl && (
             <AvatarImage src={comment.author.avatarUrl} alt={displayName} />
           )}
-          <AvatarFallback className="bg-brandAlt-400 text-xs text-white">
+          <AvatarFallback className="bg-brand-800 text-xs text-white">
             {displayInitials}
           </AvatarFallback>
         </Avatar>
@@ -267,7 +267,7 @@ export function CommentCard({
           {/* Replies and reply input */}
           {(showReplies && comment.replies && comment.replies.length > 0) ||
           (isReplying && !readOnly) ? (
-            <div className="mt-3 space-y-3 border-l-2 border-muted pl-4">
+            <div className="mt-3 space-y-3 border-l-2 border-brand-800/15 pl-4">
               {/* Existing replies */}
               {showReplies &&
                 comment.replies?.map((reply) => (

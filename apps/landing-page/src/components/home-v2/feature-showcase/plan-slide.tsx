@@ -52,7 +52,7 @@ export function PlanSlide({ reduce }: { reduce: boolean }) {
       <div className="relative isolate h-full overflow-hidden">
         <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[140px]">
           <Image
-            src="/images/project-header-default-background.png"
+            src="/images/project-header-default-background.jpg"
             alt=""
             fill
             sizes="(min-width: 1024px) 1100px, 100vw"

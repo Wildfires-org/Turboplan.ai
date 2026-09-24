@@ -65,7 +65,7 @@ export function ProjectImageHeader({
   projectName,
   organizationLogoUrl,
   coverImageUrl,
-  defaultImageUrl = "/images/project-header-default-background.png",
+  defaultImageUrl = "/images/project-header-default-background.jpg",
   readOnly = false,
   isLoading = false,
   editControls,

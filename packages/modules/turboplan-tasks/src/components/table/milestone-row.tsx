@@ -18,10 +18,10 @@ import {
   DropdownMenuTrigger,
 } from "@wildfires-org/turboplan-utils";
 
-import { getStatusIcon, getStatusText } from "../../utils/status-helpers";
 import { ActionButton } from "../action-button";
 import { AssigneeDisplay } from "../assignee-display";
 import { DeleteConfirmationModal } from "../delete-confirmation-modal";
+import { StatusChip } from "../status-chip";
 import { COLUMN_WIDTHS, TABLE_CONFIG } from "./constants";
 import { TaskRow } from "./task-row";
 import type { MilestoneRowProps } from "./types";
@@ -110,7 +110,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
     <React.Fragment>
       {/* Milestone Row */}
       <div
-        className={`relative flex items-center hover:bg-gray-50 dark:hover:bg-gray-800 border-t border-gray-200 ${
+        className={`group relative flex items-center border-t border-brandAlt-200/70 bg-brandAlt-100 hover:bg-[#EDF5F1] dark:border-white/10 dark:bg-slate-900 dark:hover:bg-gray-800 ${
           isDragging ? "opacity-50" : ""
         } ${isEditing ? "overflow-visible" : "overflow-hidden"}`}
         style={{ height: `${TABLE_CONFIG.ROW_HEIGHT}px` }}
@@ -125,8 +125,13 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
         >
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => onToggleMilestone(milestone.id)}
-              className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+              aria-expanded={isExpanded}
+              aria-label={
+                isExpanded ? "Collapse milestone" : "Expand milestone"
+              }
+              className="flex size-6 items-center justify-center rounded-md text-brand-800 transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 dark:text-brand-300 dark:hover:bg-gray-700"
             >
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4" />
@@ -143,7 +148,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
                   onChange={(e) => setEditTitle(e.target.value)}
                   onKeyDown={handleKeyDown}
                   draggable={false}
-                  className="w-full px-2 py-1 pr-14 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1 pr-14 text-sm rounded-md border border-transparent bg-white shadow-[inset_0_2px_6px_rgba(15,23,42,0.10),inset_0_1px_2px_rgba(15,23,42,0.08)] focus:outline focus:outline-2 focus:outline-brand-700/40 dark:bg-gray-800"
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-1 gap-0.5">
                   <button
@@ -151,7 +156,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
                     onClick={() => {
                       handleSaveEdit();
                     }}
-                    className="p-0.5 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                    className="rounded p-0.5 text-brand-800 hover:bg-brand-50 dark:hover:bg-green-900/20"
                     title="Save (Enter)"
                   >
                     <Check className="h-3 w-3" />
@@ -169,8 +174,16 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
                 </div>
               </div>
             ) : (
-              <span className="font-medium truncate" data-milestone-title>
-                {milestone.title} ({milestone.tasks?.length || 0})
+              <span
+                className="flex min-w-0 items-center gap-2"
+                data-milestone-title
+              >
+                <span className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {milestone.title}
+                </span>
+                <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-white px-1.5 text-[11px] font-medium tabular-nums text-gray-600 ring-1 ring-inset ring-brandAlt-200">
+                  {milestone.tasks?.length || 0}
+                </span>
               </span>
             )}
           </div>
@@ -179,7 +192,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
         {/* ASSIGNEE Column */}
         {columnVisibility.assignee && (
           <div
-            className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 text-center flex-shrink-0"
+            className="flex-shrink-0 px-4 py-2 text-center text-[13px] tabular-nums text-gray-600 dark:text-gray-400"
             style={{ width: `${COLUMN_WIDTHS.ASSIGNEE}px` }}
           >
             <div className="flex justify-center">
@@ -195,7 +208,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
         {/* START DATE Column */}
         {columnVisibility.startDate && (
           <div
-            className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 text-center flex-shrink-0"
+            className="flex-shrink-0 px-4 py-2 text-center text-[13px] tabular-nums text-gray-600 dark:text-gray-400"
             style={{ width: `${COLUMN_WIDTHS.START_DATE}px` }}
           >
             {milestone.startDate
@@ -207,7 +220,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
         {/* DUE DATE Column */}
         {columnVisibility.dueDate && (
           <div
-            className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 text-center flex-shrink-0"
+            className="flex-shrink-0 px-4 py-2 text-center text-[13px] tabular-nums text-gray-600 dark:text-gray-400"
             style={{ width: `${COLUMN_WIDTHS.DUE_DATE}px` }}
           >
             {milestone.dueDate
@@ -222,9 +235,8 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
             className="px-4 py-2 text-center flex-shrink-0"
             style={{ width: `${COLUMN_WIDTHS.STATUS}px` }}
           >
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-sm">{getStatusIcon(milestone.status)}</span>
-              <span className="text-sm">{getStatusText(milestone.status)}</span>
+            <div className="flex justify-center">
+              <StatusChip status={milestone.status} />
             </div>
           </div>
         )}
@@ -232,7 +244,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
         {/* Actions Column - Sticky Right (hidden in read-only mode) */}
         {!isReadOnly && (
           <div
-            className="py-2 flex-shrink-0 bg-white dark:bg-gray-900"
+            className="flex-shrink-0 bg-brandAlt-100 py-2 group-hover:bg-[#EDF5F1] dark:bg-slate-900 dark:group-hover:bg-gray-800"
             style={{
               width: `${COLUMN_WIDTHS.ACTIONS}px`,
               position: "sticky",
@@ -300,7 +312,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
       {/* Add Task Button - hidden in read-only mode */}
       {isExpanded && !isReadOnly && (
         <div
-          className="relative flex items-center border-t border-gray-200 dark:border-gray-700 overflow-hidden"
+          className="relative flex items-center border-t border-brandAlt-200/70 dark:border-gray-700 overflow-hidden"
           style={{ height: `${TABLE_CONFIG.ROW_HEIGHT}px` }}
         >
           {/* TASK Column */}

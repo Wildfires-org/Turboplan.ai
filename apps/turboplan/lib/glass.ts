@@ -65,3 +65,40 @@ export const HEADER_ACTION_BUTTON_CLASS = "h-9 gap-2 px-4 text-[14px]";
 /** Solid destructive confirm (error-700: white text >= 4.5:1), with press. */
 export const DESTRUCTIVE_BUTTON_CLASS =
   "rounded-xl bg-error-700 text-white hover:bg-error-800 active:scale-[0.97] motion-reduce:active:scale-100";
+
+/** Segmented glass control (tabs / view switchers): the track... */
+export const SEGMENTED_TRACK_CLASS =
+  "glass flex max-w-full items-center gap-1 self-start overflow-x-auto rounded-full p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
+/** ...and its segments; the active one is a white pill with a top highlight. */
+export const SEGMENT_CLASS =
+  "press inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 [&_svg]:size-4";
+
+export const SEGMENT_ACTIVE_CLASS =
+  "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(21,102,71,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white";
+
+export const SEGMENT_INACTIVE_CLASS =
+  "text-gray-550 hover:bg-white/60 hover:text-foreground dark:text-slate-300 dark:hover:bg-white/10";
+
+/** Inset search field (label wrapper around a bare input). */
+export const SEARCH_FIELD_CLASS =
+  "glass-inset flex h-10 w-full items-center gap-2 rounded-xl px-3 focus-within:outline focus-within:outline-2 focus-within:outline-brand-700/40 sm:w-[340px]";
+
+export const SEARCH_INPUT_CLASS =
+  "min-w-0 flex-1 bg-transparent text-[13px] text-foreground placeholder:text-gray-550 focus:outline-none";
+
+/** Empty state inside a glass card / section body. */
+export const EMPTY_STATE_TITLE_CLASS =
+  "text-[15px] font-medium leading-6 tracking-[-0.01em] text-foreground";
+
+export const EMPTY_STATE_TEXT_CLASS = "text-[13px] leading-5 text-gray-550";
+
+/** Sub-view content panel (timeline, comments, documents, context...). */
+export const PANEL_CLASS = "glass-card rounded-[20px] p-4 sm:p-5";
+
+/** Title inside a PANEL_CLASS panel. */
+export const PANEL_TITLE_CLASS =
+  "text-[16px] font-medium leading-6 tracking-[-0.01em] text-foreground";
+
+/** Edge-to-edge panel for content with its own toolbar (tasks table). */
+export const FLUSH_PANEL_CLASS = "glass-card overflow-hidden rounded-[20px]";

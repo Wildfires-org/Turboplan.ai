@@ -29,6 +29,13 @@ import { useIsCitizen } from "@/hooks/use-citizen-mode";
 import { useCreateTemplate } from "@/hooks/use-create-template";
 import { useSeatBillingActive } from "@/hooks/use-seat-billing-active";
 import { useSendInvitations } from "@/hooks/use-send-invitations";
+import {
+  CHIP_BASE_CLASS,
+  CHIP_TONE_CLASS,
+  HEADER_ACTION_BUTTON_CLASS,
+  PAGE_LEAD_CLASS,
+  PAGE_TITLE_CLASS,
+} from "@/lib/glass";
 import { cn } from "@/lib/utils";
 import { CreateTemplateDialog } from "./create-template-dialog";
 import { EditProjectDialog } from "./edit-project-dialog";
@@ -76,6 +83,8 @@ interface ProjectDetailsProps {
    * owner of the draft and may submit it for review.
    */
   isPersonalWorkspace?: boolean;
+  /** Classes for the root row (spacing inside the host card). */
+  className?: string;
 }
 
 export function ProjectDetails({
@@ -92,6 +101,7 @@ export function ProjectDetails({
   progressSlot,
   onEditCover,
   isPersonalWorkspace = false,
+  className,
 }: ProjectDetailsProps) {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -193,11 +203,16 @@ export function ProjectDetails({
     !project.isTemplate && !citizenHasSubmitted && hasAnyAction ? (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm">
+          <Button
+            variant="glass"
+            size="icon"
+            aria-label="Project actions"
+            className="size-9 text-foreground data-[state=open]:bg-white/90"
+          >
             <MoreVertical className="size-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="bottom" align="start">
+        <DropdownMenuContent side="bottom" align="end">
           {canUpdate && organizationSlug && officeSlug && (
             <DropdownMenuItem onSelect={() => setShowEditDialog(true)}>
               <Pencil className="mr-2 size-4" />
@@ -223,30 +238,47 @@ export function ProjectDetails({
   return (
     <>
       {/* Left column = avatar + title/progress/members; actions = right column */}
-      <div className="mt-6 flex items-start justify-between gap-4">
+      <div
+        className={cn(
+          "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+          className,
+        )}
+      >
         <div className="flex min-w-0 flex-1 items-start gap-4">
           {avatar}
           <div className="flex min-w-0 flex-1 flex-col">
             {/* Title block */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {!project.isTemplate && !isCitizen && (
-                <span className="inline-flex w-fit items-center gap-1.5 rounded bg-gray-950 px-2 py-1 text-xs text-white">
-                  <LockIcon size={14} />
+                <span
+                  className={cn(
+                    CHIP_BASE_CLASS,
+                    "w-fit bg-slate-900 text-white [&_svg]:size-3",
+                  )}
+                >
+                  <LockIcon size={12} />
                   Manager view
                 </span>
               )}
-              <h1 className="text-2xl font-semibold flex items-center gap-2">
-                {project.name} {badge}
+              <h1
+                className={cn(
+                  PAGE_TITLE_CLASS,
+                  "flex flex-wrap items-center gap-x-3 gap-y-1",
+                )}
+              >
+                <span className="min-w-0">{project.name}</span>
+                {badge}
                 {isCitizen && ownershipStatusLabel && (
                   <span
                     className={cn(
-                      "rounded-full px-2.5 py-0.5 text-sm font-normal",
+                      CHIP_BASE_CLASS,
+                      "h-6 px-2.5 text-[12px] tracking-normal",
                       project.ownershipStatus === OwnershipStatus.SUBMITTED &&
-                        "bg-amber-100 text-amber-700",
+                        "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-800/15",
                       project.ownershipStatus === OwnershipStatus.ACCEPTED &&
-                        "bg-green-100 text-green-700",
+                        CHIP_TONE_CLASS.brand,
                       project.ownershipStatus === OwnershipStatus.REJECTED &&
-                        "bg-red-100 text-red-700",
+                        CHIP_TONE_CLASS.danger,
                     )}
                   >
                     {ownershipStatusLabel}
@@ -255,7 +287,9 @@ export function ProjectDetails({
               </h1>
             </div>
             {project.description && (
-              <p className="mt-3 text-sm">{project.description}</p>
+              <p className={cn(PAGE_LEAD_CLASS, "mt-1.5 max-w-[720px]")}>
+                {project.description}
+              </p>
             )}
             {progressSlot}
             {showMembers && (
@@ -274,8 +308,8 @@ export function ProjectDetails({
                     }
                   />
                 )}
-                <div className="flex items-center text-xs text-muted-foreground gap-1">
-                  <Pencil className="size-3" />
+                <div className="flex items-center gap-1 text-xs text-gray-550">
+                  <Pencil aria-hidden className="size-3" />
                   <span>
                     Last modified{" "}
                     {project.updatedAt
@@ -294,10 +328,11 @@ export function ProjectDetails({
           {canSubmitForReview && (
             <Button
               size="sm"
-              className="bg-brandAlt-400 text-white hover:bg-brandAlt-500"
+              variant="brand"
+              className={HEADER_ACTION_BUTTON_CLASS}
               onClick={() => setShowSubmitDialog(true)}
             >
-              <Send className="mr-1.5 size-4" />
+              <Send aria-hidden />
               Submit Application
             </Button>
           )}

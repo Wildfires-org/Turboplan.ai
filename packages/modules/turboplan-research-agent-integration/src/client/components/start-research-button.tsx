@@ -11,6 +11,7 @@ import { postFetcher } from "@wildfires-org/turboplan-api-client";
 import { isResearchAgentPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 import {
   Button,
+  cn,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -29,7 +30,14 @@ interface StartResearchButtonProps {
    * The button renders nothing when false.
    */
   canEdit: boolean;
+  /** Surface style: "outline" (white, default) or "glass" (glass UI hosts). */
+  appearance?: "outline" | "glass";
 }
+
+const APPEARANCE_CLASS = {
+  outline: "border-white bg-white shadow-sm hover:bg-white/90",
+  glass: "rounded-lg text-foreground",
+} as const;
 
 // Maps the raw status payload to the derived UI state. No `status` field means
 // there is no run record yet (idle); an active run takes precedence over the
@@ -52,7 +60,9 @@ const getResearchUiState = (
 export function StartResearchButton({
   projectId,
   canEdit,
+  appearance = "outline",
 }: StartResearchButtonProps) {
+  const variant = appearance === "glass" ? "glass" : "outline";
   const { mutate: globalMutate } = useSWRConfig();
 
   const isEnabled = isResearchAgentPackageEnabled() && canEdit;
@@ -99,10 +109,13 @@ export function StartResearchButton({
   if (uiState === "running") {
     const runningButton = (
       <Button
-        variant="outline"
+        variant={variant}
         size="sm"
         disabled
-        className="cursor-default border-white bg-white shadow-sm disabled:opacity-100"
+        className={cn(
+          APPEARANCE_CLASS[appearance],
+          "cursor-default disabled:opacity-100",
+        )}
       >
         <Loader2 className="size-4 animate-spin" aria-hidden />
         Researching…
@@ -140,11 +153,11 @@ export function StartResearchButton({
 
   return (
     <Button
-      variant="outline"
+      variant={variant}
       size="sm"
       onClick={handleStartResearch}
       disabled={isStarting}
-      className="border-white bg-white shadow-sm hover:bg-white/90"
+      className={APPEARANCE_CLASS[appearance]}
     >
       {isStarting ? (
         <Loader2 className="size-4 animate-spin" aria-hidden />

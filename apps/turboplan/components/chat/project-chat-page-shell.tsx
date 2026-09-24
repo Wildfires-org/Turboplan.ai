@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { Skeleton } from "@wildfires-org/turboplan-utils";
 
+import { DashboardHeaderSkeleton } from "@/components/dashboard/dashboard-header";
+
 interface ProjectChatPageShellProps {
   children: ReactNode;
   containerHeight?: string;
@@ -27,18 +29,6 @@ export function ProjectChatPageShell({
   );
 }
 
-const BreadcrumbsSkeleton = () => (
-  <header className="sticky top-0 z-30 flex shrink-0 h-16 items-center gap-4 border-b bg-background px-4 lg:px-6">
-    <nav className="flex items-center gap-2 text-sm">
-      <Skeleton className="h-4 w-20" />
-      <span className="text-gray-400">/</span>
-      <Skeleton className="h-4 w-24" />
-      <span className="text-gray-400">/</span>
-      <Skeleton className="h-4 w-28" />
-    </nav>
-  </header>
-);
-
 export function ProjectChatPageFallback({
   breadcrumbs,
 }: {
@@ -46,7 +36,7 @@ export function ProjectChatPageFallback({
 }) {
   return (
     <div className="flex flex-col shrink-0 min-h-screen">
-      {breadcrumbs ?? <BreadcrumbsSkeleton />}
+      {breadcrumbs ?? <DashboardHeaderSkeleton crumbs={4} />}
       <ProjectChatPageShell>
         <div className="flex h-full flex-col">
           {/* Chat header — matches project-chat-header.tsx */}

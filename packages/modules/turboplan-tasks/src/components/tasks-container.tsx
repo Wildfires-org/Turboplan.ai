@@ -18,6 +18,7 @@ import type {
   User,
 } from "../types";
 import { TasksHeader } from "./tasks-header";
+import { TasksListSkeleton } from "./tasks-list-skeleton";
 import { TasksModals } from "./tasks-modals";
 import { TasksView } from "./tasks-view";
 
@@ -95,14 +96,7 @@ export const TasksContainer: React.FC<TasksContainerProps> = ({
   }, [displayMilestones, selectedTask?.id]);
 
   if (loading && displayMilestones.length === 0) {
-    return (
-      <div className={`flex items-center justify-center h-64 ${className}`}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2" />
-          <p className="text-gray-600">Loading tasks...</p>
-        </div>
-      </div>
-    );
+    return <TasksListSkeleton className={className} />;
   }
 
   if (error) {

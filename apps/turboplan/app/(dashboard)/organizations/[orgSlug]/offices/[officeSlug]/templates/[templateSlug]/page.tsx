@@ -129,6 +129,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
         />
         <div className="flex-1 container mx-auto p-6 space-y-6">
           <ProjectDetails
+            className="mt-6"
             project={project}
             user={session.user}
             badge={

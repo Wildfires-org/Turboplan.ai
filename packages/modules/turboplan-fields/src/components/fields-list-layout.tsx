@@ -51,7 +51,7 @@ export function FieldsListLayout({
         {columns.map((column, index) => (
           <div
             key={index === 0 ? "left" : "right"}
-            className="divide-y divide-border overflow-hidden rounded-lg border border-border"
+            className="divide-y divide-slate-900/[0.06] overflow-hidden rounded-xl border border-white/90 bg-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] dark:divide-white/10 dark:border-white/10 dark:bg-slate-900/40"
           >
             {column}
           </div>
@@ -71,7 +71,7 @@ export function FieldsFieldItem({
   return (
     <div
       className={cn(
-        "group flex min-w-0 items-center gap-4 py-2 pl-4 transition-colors hover:bg-muted/40",
+        "group flex min-w-0 items-center gap-4 py-2 pl-4 transition-colors hover:bg-white/80 dark:hover:bg-white/5",
         withActions ? "pr-2" : "pr-4",
         className,
       )}

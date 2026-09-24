@@ -53,7 +53,7 @@ export default async function ProjectLayout({
       return <AccessError type="project" />;
     }
 
-    const { organization, office, project } = data;
+    const { organization, office, project, coverImage } = data;
 
     // Templates are not accessible via the projects route
     if (project.isTemplate) {
@@ -65,6 +65,7 @@ export default async function ProjectLayout({
         organization={organization}
         office={office}
         project={project}
+        projectCoverImageUrl={coverImage?.imageUrl ?? null}
       >
         <SidebarProjectRegistrar
           projectName={project.name}

@@ -33,7 +33,7 @@ const StepDot = ({ status }: { status: StepStatus }) => {
   if (status === "completed") {
     return (
       <div className="flex size-[10px] items-center justify-center">
-        <Check className="size-[10px] text-green-400" strokeWidth={3} />
+        <Check className="size-[10px] text-brand-800" strokeWidth={3} />
       </div>
     );
   }
@@ -43,7 +43,7 @@ const StepDot = ({ status }: { status: StepStatus }) => {
       <div
         className={cn(
           "size-2 rounded-full",
-          status === "active" ? "bg-[#3F9EFF]" : "bg-gray-400",
+          status === "active" ? "bg-brand-700" : "bg-gray-400",
         )}
       />
     </div>
@@ -106,9 +106,8 @@ export const ProjectSetupBanner = ({
       <div className="absolute inset-x-0 top-0 px-4 pt-3">
         <div
           className={cn(
-            "rounded-xl border border-gray-100 bg-[#F6F9FF]",
-            "bg-gradient-to-r from-[#F6F9FF] to-[#F0F4FF]",
-            "shadow-sm relative overflow-hidden",
+            // Glass strip (landing `glass`), mint-tinted like the page ground.
+            "glass relative overflow-hidden rounded-2xl bg-brandAlt-100/80",
           )}
         >
           {/* Collapsed header - always visible */}
@@ -120,7 +119,7 @@ export const ProjectSetupBanner = ({
               "cursor-pointer select-none",
             )}
           >
-            <span className="text-xs font-semibold text-gray-500 tracking-[0.12px] whitespace-nowrap">
+            <span className="whitespace-nowrap text-xs font-semibold tracking-[0.12px] text-gray-550">
               Project Setup:
             </span>
 
@@ -131,16 +130,16 @@ export const ProjectSetupBanner = ({
                     key={step.label}
                     className="flex items-center gap-1.5 min-w-0"
                   >
-                    <span className="text-xs font-medium text-gray-400 tracking-wide w-3 shrink-0">
+                    <span className="w-3 shrink-0 text-xs font-medium tracking-wide text-gray-550">
                       {index + 1}.
                     </span>
                     <StepDot status={step.status} />
                     <span
                       className={cn(
                         "text-xs font-medium tracking-wide whitespace-nowrap truncate",
-                        step.status === "completed" && "text-green-400",
-                        step.status === "active" && "text-gray-600",
-                        step.status === "pending" && "text-gray-400",
+                        step.status === "completed" && "text-brand-800",
+                        step.status === "active" && "text-foreground",
+                        step.status === "pending" && "text-gray-550",
                       )}
                     >
                       {step.label}
@@ -153,9 +152,9 @@ export const ProjectSetupBanner = ({
             {isExpanded && <div className="flex-1" />}
 
             {isExpanded ? (
-              <CircleChevronUp className="size-5 text-gray-400 shrink-0" />
+              <CircleChevronUp className="size-5 shrink-0 text-gray-550" />
             ) : (
-              <CircleChevronDown className="size-5 text-gray-400 shrink-0" />
+              <CircleChevronDown className="size-5 shrink-0 text-gray-550" />
             )}
           </button>
 
@@ -196,7 +195,7 @@ export const ProjectSetupBanner = ({
                           )}
 
                           <div className="flex gap-2 items-start">
-                            <span className="w-3 shrink-0 text-xs font-medium text-gray-400 tracking-[0.24px] leading-4">
+                            <span className="w-3 shrink-0 text-xs font-medium leading-4 tracking-[0.24px] text-gray-550">
                               {index + 1}.
                             </span>
                             <div className="flex flex-col gap-1.5">
@@ -238,10 +237,11 @@ export const ProjectSetupBanner = ({
                                   className={cn(
                                     "text-xs font-medium tracking-[0.24px] leading-4",
                                     step.status === "completed" &&
-                                      "text-green-400",
-                                    step.status === "active" && "text-gray-600",
+                                      "text-brand-800",
+                                    step.status === "active" &&
+                                      "text-foreground",
                                     step.status === "pending" &&
-                                      "text-gray-400",
+                                      "text-gray-550",
                                   )}
                                 >
                                   {step.label}
@@ -255,7 +255,7 @@ export const ProjectSetupBanner = ({
                                     className="flex items-center gap-1 pl-1"
                                   >
                                     <div className="w-1.5 h-2.5 shrink-0 border-l border-b border-gray-300 rounded-bl-sm" />
-                                    <span className="text-xs text-gray-400 leading-4">
+                                    <span className="text-xs leading-4 text-gray-550">
                                       {subStep}
                                     </span>
                                   </div>

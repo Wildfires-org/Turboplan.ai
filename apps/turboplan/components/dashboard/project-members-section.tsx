@@ -14,6 +14,12 @@ import type { Project } from "@wildfires-org/turboplan-workspace/types";
 import { ProjectSubpageHeader } from "@/components/dashboard/project-subpage-header";
 import { useMembersSection } from "@/hooks/use-members-section";
 import { useOrgBillingActive } from "@/hooks/use-org-billing-active";
+import {
+  HEADER_ACTION_BUTTON_CLASS,
+  SEARCH_FIELD_CLASS,
+  SEARCH_INPUT_CLASS,
+} from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 interface ProjectMembersSectionProps {
   user: User;
@@ -56,7 +62,7 @@ export function ProjectMembersSection({
   const seatBillingActive = useOrgBillingActive(organizationId);
 
   return (
-    <div>
+    <div className="space-y-6">
       <InviteMembersDialog
         open={showInviteForm}
         onOpenChange={handleInviteDialogChange}
@@ -66,37 +72,37 @@ export function ProjectMembersSection({
         existingEmails={existingEmails}
         seatBillingActive={seatBillingActive}
       />
-      <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-        <ProjectSubpageHeader
-          title="Members List"
-          backHref={backHref}
-          noBorder
-        />
-        <div className="flex items-center gap-3">
-          {canManageMembers && (
-            <Button
-              size="sm"
-              className="gap-2 rounded-[6px] bg-foreground px-4 py-1.5 text-[14px] font-medium leading-[20px] text-white hover:bg-foreground/90"
-              onClick={openInviteForm}
-            >
-              <UserPlus className="size-5" />
-              Invite Members
-            </Button>
-          )}
-          <div className="flex items-center gap-1.5 rounded-md border border-gray-200 p-2">
-            <Search className="size-4 text-gray-400" />
-            <input
-              type="text"
-              aria-label="Search members"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search members..."
-              className="w-[280px] bg-transparent text-xs tracking-[0.12px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
-            />
-          </div>
-        </div>
-      </div>
-      <div className="pt-6">
+      <ProjectSubpageHeader
+        title="Members"
+        backHref={backHref}
+        actions={
+          <>
+            <label className={cn(SEARCH_FIELD_CLASS, "sm:w-[280px]")}>
+              <Search aria-hidden className="size-4 shrink-0 text-gray-550" />
+              <input
+                type="text"
+                aria-label="Search members"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search members..."
+                className={SEARCH_INPUT_CLASS}
+              />
+            </label>
+            {canManageMembers && (
+              <Button
+                size="sm"
+                variant="brand"
+                className={cn(HEADER_ACTION_BUTTON_CLASS, "h-10 shrink-0")}
+                onClick={openInviteForm}
+              >
+                <UserPlus aria-hidden />
+                Invite Members
+              </Button>
+            )}
+          </>
+        }
+      />
+      <div>
         <MembersTable
           rows={rows}
           config={config}

@@ -27,7 +27,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
 
   return (
     <div
-      className="relative flex items-center bg-white dark:bg-gray-900 flex-shrink-0"
+      className="relative flex flex-shrink-0 items-center bg-white dark:bg-gray-900"
       style={{ height: `${TABLE_CONFIG.HEADER_HEIGHT}px` }}
     >
       {/* TASK Column */}
@@ -35,7 +35,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
         className="px-4 py-2 flex-shrink-0"
         style={{ width: `${taskColumnWidth}px` }}
       >
-        <span className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+        <span className="text-left text-[11px] font-medium uppercase tracking-[0.08em] text-gray-550 dark:text-gray-400">
           TASK
         </span>
       </div>
@@ -46,7 +46,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
           className="px-4 py-2 text-center flex-shrink-0"
           style={{ width: `${COLUMN_WIDTHS.ASSIGNEE}px` }}
         >
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-gray-550 dark:text-gray-400">
             ASSIGNEE
           </span>
         </div>
@@ -58,7 +58,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
           className="px-4 py-2 text-center flex-shrink-0"
           style={{ width: `${COLUMN_WIDTHS.START_DATE}px` }}
         >
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-gray-550 dark:text-gray-400">
             START DATE
           </span>
         </div>
@@ -70,7 +70,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
           className="px-4 py-2 text-center flex-shrink-0"
           style={{ width: `${COLUMN_WIDTHS.DUE_DATE}px` }}
         >
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-gray-550 dark:text-gray-400">
             DUE DATE
           </span>
         </div>
@@ -82,7 +82,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
           className="px-4 py-2 text-center flex-shrink-0"
           style={{ width: `${COLUMN_WIDTHS.STATUS}px` }}
         >
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-gray-550 dark:text-gray-400">
             STATUS
           </span>
         </div>
@@ -103,7 +103,10 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
           <div className="flex justify-center">
             <button
               onClick={() => setShowColumnSettings(!showColumnSettings)}
-              className="h-6 w-6 inline-flex items-center justify-center rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
+              type="button"
+              aria-label="Column settings"
+              aria-expanded={showColumnSettings}
+              className="inline-flex size-7 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-brandAlt-100 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 aria-expanded:bg-brandAlt-100 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
               title="Column settings"
             >
               <Settings className="h-4 w-4" />

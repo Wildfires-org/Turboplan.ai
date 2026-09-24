@@ -5,10 +5,12 @@ import { UserPlus } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
-  Button,
   generateInitials,
 } from "@wildfires-org/turboplan-utils";
 import type { Member } from "@wildfires-org/turboplan-workspace/client";
+
+import { GLASS_ICON_BUTTON_CLASS } from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 interface ProjectMembersDisplayProps {
   members: Member[];
@@ -35,72 +37,69 @@ export function ProjectMembersDisplay({
   const displayedMembers = members.slice(0, 3);
   const remainingCount = Math.max(0, members.length - 3);
 
+  const inviteButton = onAddMemberClick && (
+    <button
+      type="button"
+      onClick={onAddMemberClick}
+      aria-label="Invite members"
+      title="Invite members"
+      className={cn(GLASS_ICON_BUTTON_CLASS, "size-8 text-brand-800")}
+    >
+      <UserPlus aria-hidden className="size-4" />
+    </button>
+  );
+
   if (isLoading) {
     return (
-      <div className="flex items-center gap-1">
-        <div className="flex -space-x-2">
+      <div className="flex items-center gap-1.5">
+        <div aria-hidden className="flex -space-x-2">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="size-8 rounded-full bg-muted animate-pulse border-2 border-background"
+              className="size-8 animate-pulse rounded-full border-2 border-white bg-brandAlt-200 motion-reduce:animate-none"
             />
           ))}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled
-          className="size-7 rounded-md bg-gray-160 text-foreground hover:bg-gray-250"
-        >
-          <UserPlus className="size-4" />
-        </Button>
+        {inviteButton}
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1.5">
       {members.length > 0 ? (
-        <div className="flex -space-x-2">
+        <button
+          type="button"
+          onClick={onMembersClick}
+          aria-label={`View all ${members.length} members`}
+          className="press flex -space-x-2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
+        >
           {displayedMembers.map((member, index) => (
             <Avatar
               key={member.userId}
-              className="size-8 cursor-pointer border-2 border-white transition-all hover:z-20"
+              className="size-8 border-2 border-white"
               style={{ zIndex: displayedMembers.length - index }}
               title={member.user.email}
-              onClick={onMembersClick}
             >
-              <AvatarFallback className="bg-brandAlt-400 text-xs text-white">
+              {/* brand-800: white initials >= 4.5:1 */}
+              <AvatarFallback className="bg-brand-800 text-xs font-medium text-white">
                 {getMemberInitials(member)}
               </AvatarFallback>
             </Avatar>
           ))}
           {remainingCount > 0 && (
-            <div
-              className="flex size-8 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-brandAlt-400 transition-colors hover:bg-brandAlt-500"
+            <span
+              className="flex size-8 items-center justify-center rounded-full border-2 border-white bg-brand-900 text-xs font-medium text-white"
               style={{ zIndex: 0 }}
-              onClick={onMembersClick}
               title={`+${remainingCount} more members`}
             >
-              <span className="text-xs font-medium text-white">
-                +{remainingCount}
-              </span>
-            </div>
+              +{remainingCount}
+            </span>
           )}
-        </div>
+        </button>
       ) : null}
 
-      {onAddMemberClick && (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onAddMemberClick}
-          className="size-7 rounded-md bg-brandAlt-400 text-white shadow-sm hover:bg-brandAlt-500 hover:text-white"
-          title="Invite members"
-        >
-          <UserPlus className="size-4" />
-        </Button>
-      )}
+      {inviteButton}
     </div>
   );
 }

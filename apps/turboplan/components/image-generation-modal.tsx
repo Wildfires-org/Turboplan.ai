@@ -108,11 +108,13 @@ export function ImageGenerationModal({
         <div className="space-y-4">
           {!generatedImageUrl && !isGenerating && !error && (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
-              <WandSparkles className="size-16 text-muted-foreground" />
+              <span className="glass flex size-16 items-center justify-center rounded-full text-brand-800">
+                <WandSparkles aria-hidden className="size-7" />
+              </span>
               <p className="text-sm text-muted-foreground text-center">
                 Click the button below to generate a unique cover image
               </p>
-              <Button onClick={handleGenerate} size="lg">
+              <Button onClick={handleGenerate} size="lg" variant="brand">
                 <WandSparkles className="size-4" />
                 Generate Image
               </Button>
@@ -121,7 +123,7 @@ export function ImageGenerationModal({
 
           {isGenerating && (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <Loader2 className="size-12 animate-spin text-primary" />
+              <Loader2 className="size-12 animate-spin text-brand-800 motion-reduce:animate-none" />
               <p className="text-sm text-muted-foreground">
                 Generating your image...
               </p>
@@ -134,7 +136,7 @@ export function ImageGenerationModal({
           {error && (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
               <p className="text-sm text-destructive">{error}</p>
-              <Button onClick={handleGenerate} variant="outline">
+              <Button onClick={handleGenerate} variant="glass">
                 Try Again
               </Button>
             </div>
@@ -142,7 +144,7 @@ export function ImageGenerationModal({
 
           {generatedImageUrl && (
             <div className="space-y-4">
-              <div className="relative w-full h-[200px] rounded-lg overflow-hidden">
+              <div className="relative h-[200px] w-full overflow-hidden rounded-[18px] bg-brandAlt-200">
                 <Image
                   src={generatedImageUrl}
                   alt="Generated cover"
@@ -151,10 +153,12 @@ export function ImageGenerationModal({
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button onClick={handleClose} variant="outline">
+                <Button onClick={handleClose} variant="glass">
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>Save Image</Button>
+                <Button onClick={handleSave} variant="brand">
+                  Save Image
+                </Button>
               </div>
             </div>
           )}

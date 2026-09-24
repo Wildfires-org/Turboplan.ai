@@ -583,3 +583,82 @@ main[class*="overflow-auto"] {
 .max-w-screen {
   max-width: calc(100vw / var(--ui-scale));
 }
+
+/* Leaflet zoom control -> glass icon buttons, matching the map overlay
+   controls (MAP_CONTROL_BUTTON_CLASS in @wildfires-org/turboplan-map: 36px,
+   12px radius, white glass, brand-800 glyphs). Lives here because the map
+   package's own CSS is not shipped to consumers. */
+.leaflet-control-zoom.leaflet-bar {
+  border: 0 !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 0 12px !important;
+}
+
+.leaflet-control-zoom.leaflet-bar a {
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 34px !important;
+  font-size: 18px !important;
+  font-weight: 500;
+  color: #1b845c !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 10px 30px -12px rgba(15, 23, 42, 0.35);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition:
+    background-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.leaflet-control-zoom.leaflet-bar a:hover {
+  background: #fff !important;
+}
+
+.leaflet-control-zoom.leaflet-bar a:active {
+  transform: scale(0.97);
+}
+
+.leaflet-control-zoom.leaflet-bar a:focus-visible {
+  outline: 2px solid #209e6e;
+  outline-offset: 2px;
+}
+
+.leaflet-control-zoom.leaflet-bar a.leaflet-disabled {
+  color: #9ca3af !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-control-zoom.leaflet-bar a:active {
+    transform: none;
+  }
+}
+
+/* Leaflet feature popups -> near-opaque glass popover surface. */
+.leaflet-popup-content-wrapper {
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow:
+    0 18px 48px -20px rgba(15, 23, 42, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  color: #0c0d0e;
+}
+
+.leaflet-popup-content {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.94) !important;
+}

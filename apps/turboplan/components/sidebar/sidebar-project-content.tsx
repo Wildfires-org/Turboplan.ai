@@ -39,9 +39,18 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { SKELETON_BAR_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
-import { SidebarChatList } from "./sidebar-chat-list";
+import {
+  SidebarChatList,
+  SidebarChatRowPlaceholder,
+} from "./sidebar-chat-list";
 import { SidebarInitialsBadge } from "./sidebar-initials-badge";
+import {
+  PROJECT_NAV_SUB_BUTTON_CLASS,
+  PROJECT_NAV_SUB_CLASS,
+  PROJECT_NAV_SUB_ITEM_CLASS,
+} from "./sidebar-project-nav-classes";
 
 interface NavItem {
   label: string;
@@ -110,7 +119,9 @@ const projectNavItems: NavItem[] = [
 ];
 
 interface SidebarProjectContentProps {
-  projectName: string;
+  /** Omitted while the project is still loading: the badge and name render
+   * as placeholders in the same boxes, everything else is static. */
+  projectName?: string;
   projectId?: string;
   isResearchPhaseCompleted: boolean;
 }
@@ -187,47 +198,70 @@ export function SidebarProjectContent({
                 className="h-11 group-data-[collapsible=icon]:justify-center"
               >
                 <Link href={AppUrls.project(orgSlug, officeSlug, projectSlug)}>
-                  <SidebarInitialsBadge name={projectName} className="size-6" />
-                  <span className="truncate font-normal group-data-[collapsible=icon]:hidden">
-                    {projectName}
-                  </span>
+                  {projectName ? (
+                    <SidebarInitialsBadge
+                      name={projectName}
+                      className="size-6"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        SKELETON_BAR_CLASS,
+                        "size-6 shrink-0 rounded",
+                      )}
+                    />
+                  )}
+                  {projectName ? (
+                    <span className="truncate font-normal group-data-[collapsible=icon]:hidden">
+                      {projectName}
+                    </span>
+                  ) : (
+                    <span className="flex h-5 flex-1 items-center group-data-[collapsible=icon]:hidden">
+                      <span
+                        aria-hidden
+                        className={cn(SKELETON_BAR_CLASS, "h-3 w-32")}
+                      />
+                    </span>
+                  )}
                 </Link>
               </SidebarMenuButton>
 
-              {/* Vertical connecting line (always visible, painted on top) */}
-              <div className="absolute left-[20px] top-[40px] bottom-0 z-10 w-px bg-neutral-100 pointer-events-none" />
-
-              {/* Nav sub-items */}
-              <SidebarMenuSub className="ml-2 mr-0 translate-x-0 border-l-0 p-0 gap-0">
+              {/* Nav sub-items, hung off a guide line centred under the
+                  project badge. Pills are inset past the line so it never
+                  crosses them; the active row marks its line segment. */}
+              <SidebarMenuSub className={PROJECT_NAV_SUB_CLASS}>
                 {visibleNavItems.map((item) => {
                   const active = isActive(item);
                   const itemHref = item.href(orgSlug, officeSlug, projectSlug);
 
                   // Render Chat with expand/collapse and sub-list
-                  if (item.label === "Chat" && projectId) {
-                    return (
+                  if (item.label === "Chat") {
+                    return projectId ? (
                       <SidebarChatList
                         key={item.label}
                         projectId={projectId}
                         isResearchPhaseCompleted={isResearchPhaseCompleted}
                       />
+                    ) : (
+                      <SidebarChatRowPlaceholder key={item.label} />
                     );
                   }
 
                   // Render other nav items normally
                   return (
-                    <SidebarMenuSubItem key={item.label}>
+                    <SidebarMenuSubItem
+                      key={item.label}
+                      data-active={active}
+                      className={PROJECT_NAV_SUB_ITEM_CLASS}
+                    >
                       <SidebarMenuSubButton
                         asChild
                         isActive={active}
-                        className={cn(
-                          "h-11 rounded-lg pl-8 text-gray-550 hover:bg-brandAlt-100 hover:text-brandAlt-500 [&>svg]:text-current data-[active=true]:!bg-brand-800 data-[active=true]:!text-white data-[active=true]:hover:!bg-brand-800",
-                          active &&
-                            "!bg-brand-800 !text-white shadow-sm hover:!bg-brand-800 hover:!text-white",
-                        )}
+                        className={PROJECT_NAV_SUB_BUTTON_CLASS}
                       >
                         <Link href={itemHref}>
-                          <item.icon className="size-5" />
+                          <item.icon />
                           <span>{item.label}</span>
                         </Link>
                       </SidebarMenuSubButton>
@@ -252,7 +286,7 @@ export function SidebarProjectContent({
                     isActive={active}
                     asChild
                     className={cn(
-                      "text-gray-550 hover:bg-brandAlt-100 hover:text-brandAlt-500 [&>svg]:text-current",
+                      "text-gray-550 hover:bg-brandAlt-100 hover:text-brand-900 [&>svg]:text-current",
                       active &&
                         "!bg-brand-800 !text-white hover:!bg-brand-800 hover:!text-white data-[active=true]:!bg-brand-800 data-[active=true]:!text-white",
                     )}

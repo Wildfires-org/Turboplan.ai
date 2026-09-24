@@ -99,14 +99,14 @@ export const GridBody: React.FC<GridBodyProps> = ({
       const positionXOfToday = taskXCoordinate(now, dates, columnWidth) - 4.8;
       today = (
         <g transform={`translate(${positionXOfToday}, 0)`}>
-          <rect x={4.8} y={0} width={1} height={y} fill="#0C0D0E" />
+          <rect x={4.8} y={0} width={1} height={y} fill="#1B845C" />
           <path
             d="M6.47573 10.9678L9.28827 8.59935C9.73953 8.21934 10 7.65948 10 7.06953L10 6L0 6L0 7.00945C0 7.63364 0.291417 8.22203 0.787913 8.60032L3.97537 11.0289C4.72031 11.5964 5.75936 11.5711 6.47573 10.9678Z"
-            fill="#0C0D0E"
+            fill="#1B845C"
           />
           <path
             d="M0 6L0 2C0 0.895431 0.89543 0 2 0L8 0C9.10457 0 10 0.895431 10 2L10 6L0 6Z"
-            fill="#0C0D0E"
+            fill="#1B845C"
           />
         </g>
       );

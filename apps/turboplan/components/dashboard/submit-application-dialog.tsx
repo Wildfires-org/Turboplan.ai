@@ -18,6 +18,7 @@ import {
   Button,
   Checkbox,
   cn,
+  GLASS_INSET_CLASS,
   Label,
   Popover,
   PopoverContent,
@@ -203,7 +204,7 @@ export function SubmitApplicationDialog({
           <div className="flex-1">
             <AlertDialogTitle className="flex items-center gap-2 text-xl">
               Submit Project Application
-              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-sm font-normal text-gray-600">
+              <span className="rounded-full bg-slate-900/[0.05] px-2.5 py-0.5 text-sm font-normal text-gray-550 ring-1 ring-inset ring-slate-900/[0.06]">
                 {projectName}
               </span>
             </AlertDialogTitle>
@@ -212,9 +213,10 @@ export function SubmitApplicationDialog({
             </AlertDialogDescription>
           </div>
           <Button
-            variant="ghost"
-            size="sm"
-            className="size-8 p-0"
+            variant="glass"
+            size="icon"
+            aria-label="Close"
+            className="size-8 shrink-0 text-foreground"
             onClick={() => onOpenChange(false)}
           >
             <X className="size-4" />
@@ -223,9 +225,9 @@ export function SubmitApplicationDialog({
 
         <div className="space-y-4">
           {/* Warning Banner */}
-          <div className="flex gap-3 rounded-md border border-yellow-200 bg-yellow-50 p-3">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-yellow-600" />
-            <p className="text-sm text-yellow-800">
+          <div className="flex gap-3 rounded-xl bg-amber-50 p-3 ring-1 ring-inset ring-amber-800/15">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700" />
+            <p className="text-sm text-amber-900">
               <span className="font-semibold">Important:</span> Submitting this
               application will transfer its ownership to the selected
               organization.{" "}
@@ -248,8 +250,8 @@ export function SubmitApplicationDialog({
                 <button
                   type="button"
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 p-2",
-                    "transition-colors hover:bg-gray-100",
+                    GLASS_INSET_CLASS,
+                    "flex w-full items-center gap-2 rounded-xl p-2 transition-colors",
                   )}
                 >
                   {selectedOrg ? (
@@ -259,27 +261,27 @@ export function SubmitApplicationDialog({
                         logoUrl={selectedOrg.logoUrl}
                         className="size-[35px] shrink-0 rounded border border-gray-100 shadow-sm"
                       />
-                      <span className="min-w-0 flex-1 truncate text-left text-sm font-medium text-gray-900">
+                      <span className="min-w-0 flex-1 truncate text-left text-sm font-medium text-foreground">
                         {selectedOffice?.name ?? selectedOrg.name}
                       </span>
                     </>
                   ) : isLoadingOrgs ? (
-                    <span className="min-w-0 flex-1 py-1.5 pl-1 text-left text-sm text-gray-400">
+                    <span className="min-w-0 flex-1 py-1.5 pl-1 text-left text-sm text-gray-550">
                       Loading...
                     </span>
                   ) : (
-                    <span className="min-w-0 flex-1 py-1.5 pl-1 text-left text-sm text-gray-400">
+                    <span className="min-w-0 flex-1 py-1.5 pl-1 text-left text-sm text-gray-550">
                       Select an organization...
                     </span>
                   )}
-                  <ChevronsUpDown className="ml-auto size-4 shrink-0 text-gray-500" />
+                  <ChevronsUpDown className="ml-auto size-4 shrink-0 text-gray-550" />
                 </button>
               </PopoverTrigger>
               <PopoverContent
                 side="bottom"
                 align="start"
                 sideOffset={4}
-                className="w-[var(--radix-popover-trigger-width)] rounded-lg border border-neutral-50 bg-neutral-50 py-2 pl-2 pr-0 shadow-[0px_20px_40px_rgba(0,7,26,0.08)]"
+                className="w-[var(--radix-popover-trigger-width)] py-2 pl-2 pr-0"
               >
                 <SidebarOrgOfficeSearch
                   organizations={organizations}
@@ -303,19 +305,19 @@ export function SubmitApplicationDialog({
             />
             <label
               htmlFor="confirm"
-              className="text-sm leading-snug text-gray-700"
+              className="text-sm leading-snug text-foreground"
             >
               I understand that I am transferring ownership of this project and
               will lose editing rights.
             </label>
           </div>
 
-          <div className="h-px bg-gray-200" />
+          <div className="h-px bg-slate-900/[0.08]" />
 
           <AlertDialogFooter className="gap-2">
             <Button
               type="button"
-              variant="ghost"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
@@ -323,13 +325,9 @@ export function SubmitApplicationDialog({
             </Button>
             <Button
               type="button"
+              variant="brand"
               disabled={isDisabled}
               onClick={handleSubmit}
-              className={cn(
-                isDisabled &&
-                  !isSubmitting &&
-                  "bg-neutral-300 text-white hover:bg-neutral-300",
-              )}
             >
               {isSubmitting ? (
                 <>

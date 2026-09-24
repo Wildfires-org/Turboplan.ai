@@ -51,9 +51,9 @@ export function DocumentCardEditable({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-border bg-[#F7FAFF] p-4 shadow-sm",
+        "overflow-hidden rounded-xl border border-white/90 bg-white/80 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-slate-900/60",
         onClick &&
-          "cursor-pointer transition-all hover:border-brandAlt-400/30 hover:shadow-sm",
+          "cursor-pointer transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 dark:hover:bg-slate-900/80",
       )}
       onClick={onClick}
       onKeyDown={
@@ -93,7 +93,7 @@ export function DocumentCardEditable({
         </div>
 
         <div className="flex shrink-0 items-start gap-2">
-          <span className="rounded bg-gray-200 px-2 py-1 text-xs text-foreground">
+          <span className="rounded-full bg-slate-900/[0.05] px-2 py-0.5 text-[11px] font-medium text-gray-700 ring-1 ring-inset ring-slate-900/[0.06]">
             {getFileTypeLabel(document.mimeType)}
           </span>
           {actions}
@@ -127,7 +127,7 @@ export function DocumentCardReadOnly({
       </div>
 
       <div className="mt-0.5 flex shrink-0 items-start gap-2">
-        <span className="rounded bg-gray-200 px-2 py-1 text-xs text-foreground">
+        <span className="rounded-full bg-slate-900/[0.05] px-2 py-0.5 text-[11px] font-medium text-gray-700 ring-1 ring-inset ring-slate-900/[0.06]">
           {getFileTypeLabel(document.mimeType)}
         </span>
       </div>

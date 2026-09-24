@@ -14,6 +14,9 @@ import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 import { Button } from "@wildfires-org/turboplan-utils";
 
+import { HEADER_ACTION_BUTTON_CLASS, PANEL_CLASS } from "@/lib/glass";
+import { cn } from "@/lib/utils";
+
 interface ProjectDocumentsPageSectionProps {
   projectId: string;
   userId: string;
@@ -59,25 +62,29 @@ export function ProjectDocumentsPageSection({
   };
 
   return (
-    <div className="bg-card border rounded-xl p-6 shadow-sm h-full flex flex-col">
-      <div className="flex items-center justify-end gap-4 pb-4">
+    <div className={cn(PANEL_CLASS, "flex h-full flex-col")}>
+      <div className="flex min-h-9 items-center justify-between gap-4 pb-4">
+        <p className="text-[13px] leading-5 text-gray-550">
+          Uploaded plans, permits and reports for this project.
+        </p>
         {canEdit && (
           <div className="flex items-center gap-2">
             <Button
               type="button"
               onClick={handleUploadClick}
               disabled={isUploading}
-              variant="secondary"
+              variant="brand"
               size="sm"
+              className={HEADER_ACTION_BUTTON_CLASS}
             >
               {isUploading ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <Loader2 className="animate-spin motion-reduce:animate-none" />
                   {uploadProgress > 0 ? `${uploadProgress}%` : "..."}
                 </>
               ) : (
                 <>
-                  <Upload className="size-4" />
+                  <Upload aria-hidden />
                   Upload
                 </>
               )}

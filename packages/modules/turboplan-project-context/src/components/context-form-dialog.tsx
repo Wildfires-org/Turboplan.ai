@@ -146,13 +146,13 @@ export function ContextFormDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" variant="brand" disabled={isSubmitting}>
               {isSubmitting ? submittingLabel : submitLabel}
             </Button>
           </DialogFooter>

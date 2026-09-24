@@ -124,13 +124,13 @@ export const RenameDocumentDialog = ({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={isRenaming}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!canSave}>
+            <Button type="submit" variant="brand" disabled={!canSave}>
               {isRenaming ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />

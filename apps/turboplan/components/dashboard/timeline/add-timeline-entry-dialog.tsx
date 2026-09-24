@@ -72,9 +72,10 @@ export function AddTimelineEntryDialog({
             </AlertDialogDescription>
           </div>
           <Button
-            variant="ghost"
-            size="sm"
-            className="size-8 shrink-0 p-0"
+            variant="glass"
+            size="icon"
+            aria-label="Close"
+            className="size-8 shrink-0 text-foreground"
             onClick={() => onOpenChange(false)}
           >
             <X className="size-4" />
@@ -91,7 +92,7 @@ export function AddTimelineEntryDialog({
               disabled={form.formState.isSubmitting}
             />
             {form.formState.errors.title && (
-              <p className="text-sm text-red-500">
+              <p className="text-sm text-error-700">
                 {form.formState.errors.title.message}
               </p>
             )}
@@ -111,13 +112,17 @@ export function AddTimelineEntryDialog({
           <AlertDialogFooter className="gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={form.formState.isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={form.formState.isSubmitting}
+            >
               {form.formState.isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />

@@ -10,6 +10,7 @@ import {
 } from "@wildfires-org/turboplan-utils";
 
 import { useComments } from "@/hooks/use-comments";
+import { PANEL_CLASS } from "@/lib/glass";
 
 interface CommentsPageProps {
   projectId: string;
@@ -88,16 +89,18 @@ export function CommentsPage({ projectId, userId }: CommentsPageProps) {
   };
 
   return (
-    <CommentsSectionUI
-      comments={comments}
-      permissions={permissions}
-      isLoading={isLoading}
-      onSubmit={handleSubmit}
-      onReply={handleReply}
-      onDelete={handleDelete}
-      onToggleVisibility={handleToggleVisibility}
-      title="Comments"
-      withAccordion={false}
-    />
+    <div className={PANEL_CLASS}>
+      <CommentsSectionUI
+        comments={comments}
+        permissions={permissions}
+        isLoading={isLoading}
+        onSubmit={handleSubmit}
+        onReply={handleReply}
+        onDelete={handleDelete}
+        onToggleVisibility={handleToggleVisibility}
+        title="Comments"
+        withAccordion={false}
+      />
+    </div>
   );
 }

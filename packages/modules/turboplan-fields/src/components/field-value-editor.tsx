@@ -107,7 +107,7 @@ export function FieldValueEditor({
 
   /** Ghost input: plain text until hover/focus reveals the editable affordance. */
   const inputClassName =
-    "h-8 w-full rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-foreground transition-colors hover:border-border hover:bg-background focus:border-border focus:bg-background";
+    "h-8 w-full rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 shadow-none transition-[background-color,box-shadow] placeholder:text-gray-500 hover:bg-white/80 focus:bg-white focus:shadow-[inset_0_2px_6px_rgba(15,23,42,0.10),inset_0_1px_2px_rgba(15,23,42,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-brand-700/40 dark:text-gray-100";
 
   // Text field - always show input
   if (field.type === "text") {
@@ -167,7 +167,7 @@ export function FieldValueEditor({
               setIsAddingOption(true);
               setTimeout(() => newOptionInputRef.current?.focus(), 0);
             }}
-            className="flex h-8 w-fit items-center gap-1 px-2 text-sm text-blue-500 transition-colors hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-blue-500"
+            className="flex h-8 w-fit items-center gap-1 rounded-lg px-2 text-sm font-medium text-brand-800 transition-colors hover:bg-white/80 hover:text-brand-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus className="size-4" />
             Add option

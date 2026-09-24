@@ -1,21 +1,15 @@
-import React from "react";
-
+/** Map-frame placeholder at the loaded map's height (min-h 400px) so the
+ * section card keeps its size; soft pulse, static for reduced motion. */
 export function MapLoadingView() {
   return (
-    <div className="w-full h-[400px] flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg border">
-      <div className="text-center space-y-4">
-        <div className="size-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-          <div className="animate-spin rounded-full size-8 border-b-2 border-blue-500" />
-        </div>
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            Loading Map Data
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Fetching geospatial layers...
-          </p>
-        </div>
-      </div>
+    <div
+      role="status"
+      aria-label="Loading map"
+      className="relative h-[400px] w-full overflow-hidden rounded-lg bg-brandAlt-200/70 animate-pulse motion-reduce:animate-none dark:bg-slate-800/70"
+    >
+      {/* Faint map-control hints: layer switcher + zoom stack. */}
+      <span className="absolute right-3 top-3 h-8 w-28 rounded-lg bg-white/60 dark:bg-white/10" />
+      <span className="absolute left-3 top-3 h-16 w-8 rounded-lg bg-white/60 dark:bg-white/10" />
     </div>
   );
 }

@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 
 import { AccessError } from "@/components/access-error";
 import { ProjectModules } from "@/components/dashboard";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { ProjectPageWithHeader } from "@/components/dashboard/project-page-with-header";
+import { ProjectPageFrame } from "@/components/dashboard/project-page-frame";
 import { SubmissionInfoBanner } from "@/components/dashboard/submission-info-banner";
 import { SwrFallbackProvider } from "@/components/providers/swr-fallback-provider";
 import {
@@ -85,75 +84,42 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     projectId: project.id,
   });
 
-  // Create breadcrumbs with slug-based URLs
-  const breadcrumbs = [
-    {
-      label: organization.name,
-      href: AppUrls.organization(organization.slug),
-      isActive: false,
-      entity: { type: "organization" as const, data: organization },
-    },
-    {
-      label: office.name,
-      href: AppUrls.office(organization.slug, office.slug),
-      isActive: false,
-      entity: {
-        type: "office" as const,
-        data: office,
-        organizationSlug: organization.slug,
-      },
-    },
-    {
-      label: project.name,
-      isActive: true,
-      entity: {
-        type: "project" as const,
-        data: project,
-        organizationSlug: organization.slug,
-        officeSlug: office.slug,
-      },
-    },
-  ];
-
   return (
     <SwrFallbackProvider fallback={permissionsFallback}>
-      <div className="flex flex-col shrink-0 min-h-screen">
-        <DashboardHeader breadcrumbs={breadcrumbs} userId={session.user.id} />
-        <SubmissionInfoBanner
-          organizationName={organization.name}
-          ownershipStatus={project.ownershipStatus}
+      <ProjectPageFrame
+        organization={organization}
+        office={office}
+        project={project}
+        coverImage={coverImage}
+        user={session.user}
+        membersHref={AppUrls.projectMembers(
+          organization.slug,
+          office.slug,
+          project.slug,
+        )}
+        topSlot={
+          <SubmissionInfoBanner
+            organizationName={organization.name}
+            ownershipStatus={project.ownershipStatus}
+            projectId={project.id}
+            projectName={project.name}
+            userId={session.user.id}
+          />
+        }
+      >
+        <ProjectModules
           projectId={project.id}
-          projectName={project.name}
+          organizationSlug={organization.slug}
+          officeSlug={office.slug}
+          projectSlug={project.slug}
           userId={session.user.id}
-        />
-        <ProjectPageWithHeader
-          project={project}
-          organization={organization}
-          office={office}
-          coverImage={coverImage}
           user={session.user}
-          membersHref={AppUrls.projectMembers(
-            organization.slug,
-            office.slug,
-            project.slug,
-          )}
-        >
-          <div className="flex-1 container mx-auto p-6 space-y-6">
-            <ProjectModules
-              projectId={project.id}
-              organizationSlug={organization.slug}
-              officeSlug={office.slug}
-              projectSlug={project.slug}
-              userId={session.user.id}
-              user={session.user}
-              projectName={project.name}
-              isResearchPhaseCompleted={project.isResearchPhaseCompleted}
-              isMember={isMember}
-              initialProject={project}
-            />
-          </div>
-        </ProjectPageWithHeader>
-      </div>
+          projectName={project.name}
+          isResearchPhaseCompleted={project.isResearchPhaseCompleted}
+          isMember={isMember}
+          initialProject={project}
+        />
+      </ProjectPageFrame>
     </SwrFallbackProvider>
   );
 }

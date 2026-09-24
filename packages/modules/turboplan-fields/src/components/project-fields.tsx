@@ -67,10 +67,12 @@ export function ProjectFields({
   if (isLoading) {
     return (
       <FieldsListLayout>
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          // Same row metrics as FieldRow: label, value, 32px menu slot.
           <FieldsFieldItem key={i} withActions>
-            <Skeleton className="h-4 w-44 shrink-0" />
-            <Skeleton className="h-4 min-w-0 flex-1" />
+            <Skeleton className="h-3 w-44 shrink-0" />
+            <Skeleton className="h-3 min-w-0 flex-1" />
+            <span className="size-8 shrink-0" />
           </FieldsFieldItem>
         ))}
       </FieldsListLayout>
@@ -80,7 +82,7 @@ export function ProjectFields({
   // Error state
   if (error) {
     return (
-      <div className="border border-border rounded-lg py-8 text-center text-destructive">
+      <div className="rounded-xl bg-error-50 py-8 text-center text-error-700 ring-1 ring-inset ring-error-700/10">
         <p>Failed to load fields</p>
       </div>
     );
@@ -91,8 +93,10 @@ export function ProjectFields({
     return (
       <div className="group relative flex min-h-[220px] items-center justify-center overflow-hidden py-8">
         <div className="flex flex-col items-center gap-1.5 text-center">
-          <h3 className="text-lg font-medium text-foreground">No fields yet</h3>
-          <p className="text-xs text-muted-foreground max-w-xs leading-5">
+          <h3 className="text-[15px] font-medium leading-6 tracking-[-0.01em] text-foreground">
+            No fields yet
+          </h3>
+          <p className="max-w-xs text-[13px] leading-5 text-gray-600">
             Add custom fields to capture project metadata.
           </p>
         </div>
@@ -112,7 +116,7 @@ export function ProjectFields({
     <button
       type="button"
       onClick={() => setShowAll(!showAll)}
-      className="flex w-full items-center justify-center gap-1 rounded-md border border-border bg-muted px-5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+      className="flex w-full items-center justify-center gap-1 rounded-xl border border-white/85 bg-white/55 px-5 py-2 text-sm font-medium text-brand-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(21,102,71,0.18)] transition-[background-color,transform] hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 active:scale-[0.97] motion-reduce:active:scale-100"
     >
       {showAll ? (
         <>

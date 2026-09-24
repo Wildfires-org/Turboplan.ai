@@ -106,10 +106,11 @@ export function AddUnitLayerDialog({
         />
 
         <DialogFooter className="flex !justify-between">
-          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+          <Button variant="glass" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
           <Button
+            variant="brand"
             onClick={handleSave}
             disabled={isSaving || !selectedLayerId || !unitIdKey}
           >

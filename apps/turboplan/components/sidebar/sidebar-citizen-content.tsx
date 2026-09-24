@@ -16,7 +16,9 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { useCitizenProjects } from "@/hooks/use-citizen-projects";
+import { SKELETON_BAR_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
+import { cn } from "@/lib/utils";
 
 interface SidebarCitizenContentProps {
   organizationSlug: string;
@@ -32,9 +34,13 @@ const LoadingSkeleton = ({ label }: { label: string }) => (
       <SidebarMenu>
         {Array.from({ length: 3 }).map((_, i) => (
           <SidebarMenuItem key={i}>
-            <SidebarMenuButton className="h-11">
-              <div className="size-4 animate-pulse rounded bg-neutral-300" />
-              <div className="h-4 w-24 animate-pulse rounded bg-neutral-300" />
+            <SidebarMenuButton aria-hidden className="h-11" tabIndex={-1}>
+              <span
+                className={cn(SKELETON_BAR_CLASS, "size-4 shrink-0 rounded")}
+              />
+              <span className="flex flex-1 items-center group-data-[collapsible=icon]:hidden">
+                <span className={cn(SKELETON_BAR_CLASS, "h-3 w-24")} />
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         ))}

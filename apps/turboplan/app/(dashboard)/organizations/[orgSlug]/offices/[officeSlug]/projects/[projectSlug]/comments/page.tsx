@@ -3,14 +3,11 @@ import { redirect } from "next/navigation";
 
 import { AccessError } from "@/components/access-error";
 import { CommentsPage } from "@/components/dashboard/comments/comments-page";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { ProjectPageWithHeader } from "@/components/dashboard/project-page-with-header";
-import { ProjectSubpageHeader } from "@/components/dashboard/project-subpage-header";
+import { ProjectPageFrame } from "@/components/dashboard/project-page-frame";
 import {
   getCachedSession,
   getValidatedProjectBySlug,
 } from "@/lib/cache/dashboard";
-import { AppUrls } from "@/lib/nav/urls";
 import type { ProjectPageProps } from "@/types/dashboard";
 
 export async function generateMetadata({
@@ -77,60 +74,16 @@ export default async function ProjectCommentsPage({
 
   const { organization, office, project, coverImage } = data;
 
-  const breadcrumbs = [
-    {
-      label: organization.name,
-      href: AppUrls.organization(organization.slug),
-      isActive: false,
-      entity: { type: "organization" as const, data: organization },
-    },
-    {
-      label: office.name,
-      href: AppUrls.office(organization.slug, office.slug),
-      isActive: false,
-      entity: {
-        type: "office" as const,
-        data: office,
-        organizationSlug: organization.slug,
-      },
-    },
-    {
-      label: project.name,
-      href: AppUrls.project(organization.slug, office.slug, project.slug),
-      isActive: false,
-      entity: {
-        type: "project" as const,
-        data: project,
-        organizationSlug: organization.slug,
-        officeSlug: office.slug,
-      },
-    },
-    { label: "Comments", isActive: true },
-  ];
-
   return (
-    <div className="flex flex-col shrink-0 min-h-screen h-full">
-      <DashboardHeader breadcrumbs={breadcrumbs} userId={session.user.id} />
-      <ProjectPageWithHeader
-        project={project}
-        organization={organization}
-        office={office}
-        coverImage={coverImage}
-        user={session.user}
-        readOnly
-      >
-        <div className="flex-1 container mx-auto p-6 space-y-6">
-          <ProjectSubpageHeader
-            title="Comments"
-            backHref={AppUrls.project(
-              organization.slug,
-              office.slug,
-              project.slug,
-            )}
-          />
-          <CommentsPage projectId={project.id} userId={session.user.id} />
-        </div>
-      </ProjectPageWithHeader>
-    </div>
+    <ProjectPageFrame
+      organization={organization}
+      office={office}
+      project={project}
+      coverImage={coverImage}
+      user={session.user}
+      section="Comments"
+    >
+      <CommentsPage projectId={project.id} userId={session.user.id} />
+    </ProjectPageFrame>
   );
 }

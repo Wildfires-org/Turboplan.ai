@@ -448,8 +448,8 @@ export function DocumentsSectionUI({
         <div
           {...(dropzoneEnabled && documents.length > 0 ? getRootProps() : {})}
           className={cn(
-            "group bg-card border border-border rounded-lg p-4 mb-[-6px] z-[2] relative overflow-hidden",
-            isDragActive && "border-blue-500 bg-blue-50",
+            "group relative z-[2] mb-[-6px] overflow-hidden rounded-xl border border-white/90 bg-white/60 p-4 dark:border-white/10 dark:bg-slate-900/40",
+            isDragActive && "border-brand-700 bg-brand-50",
             isUploading && "pointer-events-none opacity-60",
           )}
         >
@@ -459,8 +459,18 @@ export function DocumentsSectionUI({
 
           {/* Loading state */}
           {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            // Card placeholders at DocumentCardEditable's size, same grid.
+            <div
+              role="status"
+              aria-label="Loading documents"
+              className="grid grid-cols-1 gap-4 md:grid-cols-2"
+            >
+              {[0, 1].map((index) => (
+                <div
+                  key={index}
+                  className="h-[86px] rounded-xl bg-brandAlt-200/70 animate-pulse motion-reduce:animate-none dark:bg-slate-800/70"
+                />
+              ))}
             </div>
           )}
 
@@ -535,9 +545,9 @@ export function DocumentsSectionUI({
 
           {/* Error message */}
           {dropError && (
-            <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
-              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
-              <p className="text-sm text-red-700">{dropError}</p>
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-error-50 p-3 ring-1 ring-inset ring-error-700/10">
+              <AlertCircle className="mt-0.5 size-5 shrink-0 text-error-700" />
+              <p className="text-sm text-error-700">{dropError}</p>
             </div>
           )}
         </div>
@@ -547,10 +557,10 @@ export function DocumentsSectionUI({
           <div
             {...getRootProps()}
             className={cn(
-              "border border-t-0 border-dashed border-gray-400 rounded-b-xl pt-4 pb-4 z-[1] relative flex items-center justify-center transition-colors",
+              "relative z-[1] flex items-center justify-center rounded-b-xl border border-t-0 border-dashed border-brand-800/25 pb-4 pt-4 transition-colors",
               isDragActive
-                ? "border-blue-500 bg-blue-50"
-                : "hover:border-gray-500",
+                ? "border-brand-700 bg-brand-50"
+                : "hover:border-brand-800/45 hover:bg-white/40",
               {
                 "flex-1": variant === "page",
               },
@@ -568,7 +578,7 @@ export function DocumentsSectionUI({
                   </span>
                 </>
               ) : isDragActive ? (
-                <span className="text-blue-600">Drop file to upload</span>
+                <span className="text-brand-800">Drop file to upload</span>
               ) : (
                 <>
                   <button
@@ -577,7 +587,7 @@ export function DocumentsSectionUI({
                       e.stopPropagation();
                       handleBrowseClick();
                     }}
-                    className="px-0.5 text-blue-500 hover:underline"
+                    className="rounded px-0.5 font-medium text-brand-800 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
                   >
                     browse
                   </button>

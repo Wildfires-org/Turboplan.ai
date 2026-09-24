@@ -13,7 +13,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useUserOrganizations } from "@/hooks/use-organization";
+import { SKELETON_BAR_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
+import { cn } from "@/lib/utils";
 import { OrgAvatar } from "../org-avatar";
 
 export function SidebarOrgContent() {
@@ -55,9 +57,20 @@ export function SidebarOrgContent() {
               <>
                 {[1, 2, 3].map((i) => (
                   <SidebarMenuItem key={i}>
-                    <SidebarMenuButton className="h-11">
-                      <div className="size-5 shrink-0 animate-pulse rounded-sm bg-muted" />
-                      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                    <SidebarMenuButton
+                      aria-hidden
+                      className="h-11"
+                      tabIndex={-1}
+                    >
+                      <span
+                        className={cn(
+                          SKELETON_BAR_CLASS,
+                          "size-5 shrink-0 rounded-sm",
+                        )}
+                      />
+                      <span className="flex flex-1 items-center group-data-[collapsible=icon]:hidden">
+                        <span className={cn(SKELETON_BAR_CLASS, "h-3 w-24")} />
+                      </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}

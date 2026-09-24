@@ -65,7 +65,7 @@ export const CardView: React.FC<CardViewProps> = ({
           </p>
           <button
             onClick={onAddMilestone}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
+            className="rounded-xl bg-[linear-gradient(135deg,#1d8a60_0%,#1b845c_25%,#156647_65%,#0f4832_100%)] px-4 py-2 font-medium text-white shadow-[inset_0_2px_2px_0_rgba(255,255,255,0.25),0_6px_16px_-8px_rgba(15,72,50,0.45)] transition-[opacity,transform] hover:opacity-90 active:scale-[0.97] motion-reduce:active:scale-100"
           >
             Create Milestone
           </button>
@@ -91,7 +91,7 @@ export const CardView: React.FC<CardViewProps> = ({
         <div className="flex-shrink-0 w-80">
           <button
             onClick={onAddMilestone}
-            className="w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex flex-col items-center justify-center"
+            className="flex h-32 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand-800/20 text-gray-600 transition-colors hover:border-brand-800/40 hover:bg-white/60 hover:text-brand-800 dark:border-white/15 dark:text-gray-400 dark:hover:bg-white/5"
           >
             <div className="text-2xl mb-2">+</div>
             <div className="font-medium">Add Milestone</div>
