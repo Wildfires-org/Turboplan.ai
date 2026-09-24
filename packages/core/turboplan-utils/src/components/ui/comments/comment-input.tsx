@@ -70,7 +70,7 @@ export function CommentInput({
 
   return (
     <div className={cn("", className)}>
-      <div className="flex items-center gap-1 rounded-md border border-border bg-muted px-4 py-3">
+      <div className="flex items-center gap-1 rounded-md border border-white bg-white px-4 py-3 shadow-sm">
         <input
           ref={inputRef}
           type="text"

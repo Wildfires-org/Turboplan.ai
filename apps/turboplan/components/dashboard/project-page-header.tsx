@@ -123,7 +123,12 @@ export function ProjectPageHeader({
     <>
       {/* TODO(TC-417): wire to a real project export handler once one exists.
           No export functionality exists in the codebase yet — placeholder. */}
-      <Button variant="outline" size="sm" disabled>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled
+        className="border-white bg-white shadow-sm disabled:opacity-100 disabled:text-neutral-500"
+      >
         <Download className="mr-1.5 size-4" />
         Export
       </Button>
@@ -153,11 +158,11 @@ export function ProjectPageHeader({
         heightClassName="h-[450px]"
         gradientOverlay
         // eslint-disable-next-line tailwindcss/no-contradicting-classname
-        gradientClassName="from-transparent via-[#F9FAFB]/80 via-45% to-[#F9FAFB] to-70%"
+        gradientClassName="from-[#F4F9F7]/70 via-[#F4F9F7]/90 via-45% to-[#F4F9F7] to-75%"
         className="absolute inset-x-0 top-0 z-0 pointer-events-none"
       />
       <div className="relative z-10 container mx-auto px-6 pt-9">
-        <Card className="rounded-xl border bg-card p-6 shadow-sm">
+        <Card className="rounded-2xl border-[1.5px] border-white/95 bg-white/[0.62] p-6 shadow-[0_20px_56px_-40px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.62]">
           <ProjectDetails
             project={project}
             user={user}

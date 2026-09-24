@@ -24,7 +24,7 @@ export function OrgAvatar({ name, logoUrl, className }: OrgAvatarProps) {
           className="object-contain rounded-sm bg-white p-0.5"
         />
       )}
-      <AvatarFallback className="rounded-sm bg-emerald-400 text-[10px] font-semibold text-white">
+      <AvatarFallback className="rounded-sm bg-brandAlt-400 text-[10px] font-semibold text-white">
         {generateInitialsFromName(name)}
       </AvatarFallback>
     </Avatar>

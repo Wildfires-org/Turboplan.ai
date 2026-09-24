@@ -22,7 +22,7 @@ export function DashboardHeader({
   userId,
 }: DashboardHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex shrink-0 h-16 items-center gap-4 border-b bg-background px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-white bg-white px-4 shadow-[0_1px_0_rgba(255,255,255,0.9)] lg:px-6">
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-2 text-sm">
         {breadcrumbs.map((breadcrumb, index) => (

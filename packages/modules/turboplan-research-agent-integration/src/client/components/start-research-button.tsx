@@ -98,7 +98,12 @@ export function StartResearchButton({
 
   if (uiState === "running") {
     const runningButton = (
-      <Button variant="outline" size="sm" disabled className="cursor-default">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled
+        className="cursor-default border-white bg-white shadow-sm disabled:opacity-100"
+      >
         <Loader2 className="size-4 animate-spin" aria-hidden />
         Researching…
       </Button>
@@ -139,6 +144,7 @@ export function StartResearchButton({
       size="sm"
       onClick={handleStartResearch}
       disabled={isStarting}
+      className="border-white bg-white shadow-sm hover:bg-white/90"
     >
       {isStarting ? (
         <Loader2 className="size-4 animate-spin" aria-hidden />

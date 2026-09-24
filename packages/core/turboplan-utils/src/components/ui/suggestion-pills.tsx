@@ -43,7 +43,13 @@ export const SuggestionPills = ({
   }
 
   return (
-    <div className="flex items-center rounded-xl bg-muted">
+    <div
+      className={
+        disabled
+          ? "flex items-center rounded-xl border border-white bg-white shadow-sm"
+          : "flex items-center rounded-xl bg-muted"
+      }
+    >
       {disabled && (
         <p className="px-3 py-2 text-xs text-muted-foreground">
           Complete project setup to unlock AI suggestions

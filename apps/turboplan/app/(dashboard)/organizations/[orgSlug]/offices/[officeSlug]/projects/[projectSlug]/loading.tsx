@@ -4,7 +4,7 @@ export default function ProjectLoading() {
   return (
     <div className="flex flex-col shrink-0 min-h-screen">
       {/* DashboardHeader skeleton */}
-      <header className="sticky top-0 z-30 flex shrink-0 h-16 items-center gap-4 border-b bg-background px-4 lg:px-6">
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-white bg-white px-4 lg:px-6">
         <nav className="flex items-center gap-2 text-sm">
           <Skeleton className="h-4 w-20" />
           <span className="text-gray-400">/</span>
@@ -15,17 +15,25 @@ export default function ProjectLoading() {
       </header>
 
       {/* Positioning context for the full-bleed cover (mirrors page.tsx). */}
-      <div className="relative flex flex-1 flex-col">
+      <div className="relative isolate flex flex-1 flex-col overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{
+            background:
+              "radial-gradient(ellipse at 4% 40%, rgba(164, 206, 190, 0.38), transparent 40%), radial-gradient(ellipse at 96% 24%, rgba(209, 230, 222, 0.5), transparent 38%), radial-gradient(ellipse at 52% 82%, rgba(96, 222, 174, 0.12), transparent 42%), linear-gradient(180deg, rgba(244, 249, 247, 0.48) 0%, rgba(244, 249, 247, 0.8) 220px, rgba(244, 249, 247, 0.98) 430px, #f4f9f7 620px)",
+          }}
+        />
         {/* Full-bleed cover background skeleton — matches ProjectImageHeader
             h-[450px] with the white gradient fading into #F9FAFB. */}
         <div className="absolute inset-x-0 top-0 z-0 h-[450px] w-full bg-muted">
           {/* eslint-disable-next-line tailwindcss/no-contradicting-classname */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-[#F9FAFB]/80 via-45% to-[#F9FAFB] to-70%" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#F4F9F7]/70 via-[#F4F9F7]/90 via-45% to-[#F4F9F7] to-75%" />
         </div>
 
         {/* Overlapping header card skeleton. */}
         <div className="relative z-10 container mx-auto px-6 pt-9">
-          <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <div className="rounded-2xl border-[1.5px] border-white/95 bg-white/[0.62] p-6 shadow-[0_20px_56px_-40px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl backdrop-saturate-150">
             <div className="mt-6 flex items-start justify-between gap-4">
               <div className="flex min-w-0 flex-1 items-start gap-4">
                 {/* Project avatar */}

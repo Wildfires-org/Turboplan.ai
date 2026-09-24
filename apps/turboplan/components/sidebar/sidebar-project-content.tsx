@@ -221,9 +221,9 @@ export function SidebarProjectContent({
                         asChild
                         isActive={active}
                         className={cn(
-                          "h-11 pl-8 rounded-lg text-gray-550 hover:text-brand-800 [&>svg]:text-current data-[active=true]:text-brand-800",
+                          "h-11 rounded-lg pl-8 text-gray-550 hover:bg-brandAlt-100 hover:text-brandAlt-500 [&>svg]:text-current data-[active=true]:!bg-brandAlt-400 data-[active=true]:!text-white data-[active=true]:hover:!bg-brandAlt-400",
                           active &&
-                            "bg-brand-100 text-brand-800 shadow-[0_4px_4px_rgba(0,0,0,0.1)] hover:bg-brand-100 hover:text-brand-800",
+                            "!bg-brandAlt-400 !text-white shadow-sm hover:!bg-brandAlt-400 hover:!text-white",
                         )}
                       >
                         <Link href={itemHref}>
@@ -252,9 +252,9 @@ export function SidebarProjectContent({
                     isActive={active}
                     asChild
                     className={cn(
-                      "text-gray-550 [&>svg]:text-current",
+                      "text-gray-550 hover:bg-brandAlt-100 hover:text-brandAlt-500 [&>svg]:text-current",
                       active &&
-                        "text-brand-800 data-[active=true]:text-brand-800",
+                        "!bg-brandAlt-400 !text-white hover:!bg-brandAlt-400 hover:!text-white data-[active=true]:!bg-brandAlt-400 data-[active=true]:!text-white",
                     )}
                   >
                     <Link href={itemHref}>

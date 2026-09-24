@@ -99,9 +99,16 @@ export function SectionCard({
   };
 
   return (
-    <Card className={cn("overflow-hidden rounded-2xl border bg-card")}>
+    <Card
+      className={cn(
+        "overflow-hidden rounded-2xl border-[1.5px] border-white/95 bg-white/[0.58]",
+        "shadow-[0_18px_48px_-34px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.9)]",
+        "backdrop-blur-2xl backdrop-saturate-150",
+        "dark:border-white/10 dark:bg-slate-950/60",
+      )}
+    >
       {/* Header row mirrors Figma: icon + title + count on the left, action link + controls on the right, separated from the body by a divider */}
-      <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3.5">
+      <div className="flex items-center justify-between gap-3 border-b border-white/75 px-4 py-3.5 dark:border-white/10">
         {/* Left cluster - drag region (entire cluster draggable when enabled and not readOnly) */}
         <div
           className={cn(

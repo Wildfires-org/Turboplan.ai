@@ -71,14 +71,14 @@ export function SidebarBottomNav() {
   if (bottomNavItems.length === 0) return null;
 
   return (
-    <SidebarGroup className="bg-neutral-200 py-3">
+    <SidebarGroup className="border-t border-brandAlt-100 bg-white py-3">
       <SidebarGroupContent>
         <SidebarMenu>
           {bottomNavItems.map((item) => (
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
                 tooltip={item.label}
-                className="h-11 hover:bg-gray-100 hover:shadow-sm p-3"
+                className="h-11 p-3 hover:bg-brandAlt-100 hover:text-brandAlt-500"
                 asChild
               >
                 <Link href={item.href}>

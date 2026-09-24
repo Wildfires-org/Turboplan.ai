@@ -110,7 +110,7 @@ export function ProjectProgress({
             </span>
           </div>
 
-          <div className="h-2 w-full overflow-hidden rounded-sm bg-neutral-100">
+          <div className="h-2 w-full overflow-hidden rounded-sm bg-white shadow-[inset_0_1px_2px_rgba(15,23,42,0.08)] ring-1 ring-white">
             <div
               className={cn(
                 "h-full rounded-full transition-all duration-300",

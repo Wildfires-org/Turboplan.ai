@@ -72,7 +72,7 @@ export function TimelineEntry({
     <div className="flex flex-col gap-1">
       {/* Row 1: Circle + meta info */}
       <div className="flex items-center gap-4">
-        <div className="size-6 shrink-0 rounded-full border border-gray-200 bg-gray-50" />
+        <div className="size-6 shrink-0 rounded-full border-2 border-white bg-brandAlt-400 shadow-sm" />
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs leading-4 text-gray-500">
             {entry.dateRange}
@@ -84,15 +84,15 @@ export function TimelineEntry({
                 <img
                   src={entry.authorAvatarUrl}
                   alt={entry.authorName}
-                  className="size-6 rounded-full object-cover"
+                  className="size-6 rounded-full bg-white object-cover shadow-sm ring-2 ring-white"
                 />
               ) : entry.authorInitials ? (
-                <span className="flex size-6 items-center justify-center rounded-full bg-gray-100 text-[10px] font-medium text-gray-600">
+                <span className="flex size-6 items-center justify-center rounded-full bg-brandAlt-400 text-[10px] font-medium text-white shadow-sm ring-2 ring-white">
                   {entry.authorInitials}
                 </span>
               ) : (
-                <div className="flex size-4 items-center overflow-hidden rounded-full bg-gray-300">
-                  <User className="size-4 text-gray-500" />
+                <div className="flex size-4 items-center overflow-hidden rounded-full bg-brandAlt-400 shadow-sm ring-1 ring-white">
+                  <User className="size-4 text-white" />
                 </div>
               )}
             </div>
@@ -107,13 +107,13 @@ export function TimelineEntry({
       <div className="flex gap-4">
         <div className="flex w-6 shrink-0 items-center justify-center overflow-hidden rounded-full px-[11px]">
           <div
-            className={`h-full w-px bg-gray-200 ${isLast ? "opacity-0" : ""}`}
+            className={`h-full w-px bg-brandAlt-200 ${isLast ? "opacity-0" : ""}`}
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col pb-6 pt-2">
           <div
             data-testid="timeline-entry"
-            className="rounded-lg border border-gray-200 bg-[#F7FAFF] p-5"
+            className="rounded-lg border border-white bg-white p-5 shadow-sm"
           >
             <div className="flex items-start gap-4">
               {/* Content */}
