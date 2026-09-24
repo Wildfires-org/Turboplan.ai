@@ -101,3 +101,7 @@ export function useDashboard() {
   }
   return context;
 }
+
+/** Non-throwing variant for components that may render above the provider
+ * (e.g. a loading boundary that sits outside the office layout). */
+export const useOptionalDashboard = () => useContext(DashboardContext) ?? null;

@@ -78,7 +78,7 @@ export function SidebarBottomNav() {
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
                 tooltip={item.label}
-                className="h-11 p-3 hover:bg-brandAlt-100 hover:text-brandAlt-500"
+                className="h-11 p-3"
                 asChild
               >
                 <Link href={item.href}>

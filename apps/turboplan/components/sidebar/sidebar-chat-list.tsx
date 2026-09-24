@@ -65,9 +65,9 @@ export function SidebarChatList({
         <SidebarMenuSubButton
           isActive={isOnChatsRoute}
           className={cn(
-            "h-11 flex-1 rounded-lg pl-8 text-gray-550 hover:bg-brandAlt-100 hover:text-brandAlt-500 [&>svg]:text-current data-[active=true]:!bg-brandAlt-400 data-[active=true]:!text-white data-[active=true]:hover:!bg-brandAlt-400",
+            "h-11 flex-1 rounded-lg pl-8 text-gray-550 hover:bg-brandAlt-100 hover:text-brandAlt-500 [&>svg]:text-current data-[active=true]:!bg-brand-800 data-[active=true]:!text-white data-[active=true]:hover:!bg-brand-800",
             isOnChatsRoute &&
-              "!bg-brandAlt-400 !text-white shadow-sm hover:!bg-brandAlt-400 hover:!text-white",
+              "!bg-brand-800 !text-white shadow-sm hover:!bg-brand-800 hover:!text-white",
           )}
           onClick={() => setIsChatExpanded((prev) => !prev)}
         >

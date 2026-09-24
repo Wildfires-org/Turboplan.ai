@@ -10,6 +10,8 @@ import {
   AvatarFallback,
   AvatarImage,
   cn,
+  GLASS_INSET_CLASS,
+  GLASS_POPOVER_CLASS,
   generateDisplayName,
   generateInitials,
 } from "@wildfires-org/turboplan-utils";
@@ -254,8 +256,9 @@ export function UserSelector({
         {/* Selected chips and input */}
         <div
           className={cn(
-            "flex h-10 flex-wrap gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm",
-            "ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+            "flex h-10 flex-wrap gap-1.5 rounded-xl px-3 py-2 text-sm",
+            GLASS_INSET_CLASS,
+            "focus-within:outline focus-within:outline-2 focus-within:outline-brand-700/40",
             disabled && "cursor-not-allowed opacity-50",
           )}
           onClick={() => inputRef.current?.focus()}
@@ -322,7 +325,12 @@ export function UserSelector({
 
         {/* Dropdown results */}
         {open && !disabled && (
-          <div className="absolute top-full z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+          <div
+            className={cn(
+              "absolute top-full z-50 mt-1 w-full text-popover-foreground",
+              GLASS_POPOVER_CLASS,
+            )}
+          >
             <Command.List className="max-h-60 overflow-auto p-1">
               {/* Hint to type more characters */}
               {!shouldSearch &&
@@ -359,8 +367,8 @@ export function UserSelector({
                     value={user.id}
                     onSelect={() => handleSelectUser(user)}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-sm px-2 py-2",
-                      "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                      "flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2",
+                      "aria-selected:bg-brandAlt-100 aria-selected:text-brand-900",
                     )}
                   >
                     {/* Avatar */}
@@ -383,7 +391,7 @@ export function UserSelector({
 
                     {/* Selected indicator */}
                     {selectedIds.has(user.id) && (
-                      <Check className="size-4 text-primary" />
+                      <Check className="size-4 text-brand-700" />
                     )}
                   </Command.Item>
                 ))}
@@ -398,8 +406,8 @@ export function UserSelector({
                     value={`invite-${inputValue}`}
                     onSelect={handleInvite}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-sm px-2 py-2",
-                      "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                      "flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2",
+                      "aria-selected:bg-brandAlt-100 aria-selected:text-brand-900",
                     )}
                   >
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-orange-300 bg-orange-50">

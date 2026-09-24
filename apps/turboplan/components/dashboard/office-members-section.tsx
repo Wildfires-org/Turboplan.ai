@@ -12,6 +12,7 @@ import type { Office } from "@wildfires-org/turboplan-workspace/types";
 import { OfficeTabNav } from "@/components/dashboard/office-tab-nav";
 import { useMembersSection } from "@/hooks/use-members-section";
 import { useOrgBillingActive } from "@/hooks/use-org-billing-active";
+import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 
 interface OfficeMembersSectionProps {
   user: User;
@@ -63,7 +64,7 @@ export function OfficeMembersSection({
         existingEmails={existingEmails}
         seatBillingActive={seatBillingActive}
       />
-      <div className="sticky top-[120px] z-20 -mx-6 bg-[#F9FAFB] px-6 pb-2 pt-4">
+      <div className={STICKY_TOOLBAR_CLASS}>
         <OfficeTabNav
           orgSlug={orgSlug}
           officeSlug={officeSlug}

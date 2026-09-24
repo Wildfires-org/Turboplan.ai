@@ -34,8 +34,12 @@ export function TabNav({
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex items-center gap-1.5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      {/* Segmented glass control: active tab = white pill with a top highlight. */}
+      <nav
+        aria-label="Sections"
+        className="glass flex max-w-full items-center gap-1 self-start overflow-x-auto rounded-full p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.href === activeHref;
@@ -44,32 +48,33 @@ export function TabNav({
             <Link
               key={tab.key}
               href={tab.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border pl-2.5 pr-3 py-1.5 text-xs font-normal tracking-[0.12px] transition-colors",
+                "press inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700",
                 active
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-gray-200 bg-white text-gray-800 hover:bg-gray-50",
+                  ? "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(21,102,71,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white"
+                  : "text-gray-550 hover:bg-white/60 hover:text-foreground dark:text-slate-300 dark:hover:bg-white/10",
               )}
             >
-              <Icon className="size-[21px]" />
+              <Icon aria-hidden className="size-4" />
               {tab.label}
             </Link>
           );
         })}
-      </div>
+      </nav>
 
       {onSearchChange !== undefined && (
-        <div className="flex items-center gap-1.5 rounded-md border border-gray-200 p-2">
-          <Search className="size-[19px] text-gray-400" />
+        <label className="glass-inset flex h-10 w-full items-center gap-2 rounded-xl px-3 focus-within:outline focus-within:outline-2 focus-within:outline-brand-700/40 sm:w-[340px]">
+          <Search aria-hidden className="size-4 shrink-0 text-gray-550" />
           <input
             aria-label={searchPlaceholder}
             type="text"
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-[332px] bg-transparent text-xs tracking-[0.12px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground placeholder:text-gray-550 focus:outline-none"
           />
-        </div>
+        </label>
       )}
     </div>
   );

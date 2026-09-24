@@ -83,7 +83,7 @@ export function SidebarOrgSwitcher() {
               className="size-7 shrink-0 rounded border border-white shadow-sm"
             />
           ) : (
-            <Building2 className="size-7 shrink-0 rounded bg-brandAlt-400 p-1.5 text-white" />
+            <Building2 className="size-7 shrink-0 rounded bg-brand-800 p-1.5 text-white" />
           )}
           <span
             className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium text-gray-900 group-data-[collapsible=icon]:hidden"
@@ -91,14 +91,14 @@ export function SidebarOrgSwitcher() {
           >
             {displayName ?? "Select workspace"}
           </span>
-          <ChevronsUpDown className="ml-auto size-5 shrink-0 text-brandAlt-500 group-data-[collapsible=icon]:hidden" />
+          <ChevronsUpDown className="ml-auto size-5 shrink-0 text-brand-800 group-data-[collapsible=icon]:hidden" />
         </button>
       </PopoverTrigger>
       <PopoverContent
         side="bottom"
         align="start"
         sideOffset={4}
-        className="w-[276px] rounded-lg border border-neutral-50 bg-neutral-50 py-2 pl-2 pr-0 shadow-[0px_20px_40px_rgba(0,7,26,0.08)]"
+        className="w-[276px] py-2 pl-2 pr-0"
       >
         <SidebarOrgOfficeSearch
           organizations={dropdownOrgs}

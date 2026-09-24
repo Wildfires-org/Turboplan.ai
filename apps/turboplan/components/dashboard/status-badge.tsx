@@ -1,5 +1,6 @@
-import { Check, X } from "lucide-react";
+import { Archive, Check, CheckCheck, X } from "lucide-react";
 
+import { CHIP_BASE_CLASS, CHIP_TONE_CLASS, type ChipTone } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
 type StatusBadgeProps = {
@@ -7,27 +8,14 @@ type StatusBadgeProps = {
   className?: string;
 };
 
-const statusConfig = {
-  active: {
-    label: "Active",
-    icon: Check,
-    classes: "bg-emerald-50 border-emerald-200 text-emerald-700",
-  },
-  inactive: {
-    label: "Inactive",
-    icon: X,
-    classes: "bg-red-50 border-red-100 text-red-700",
-  },
-  completed: {
-    label: "Completed",
-    icon: Check,
-    classes: "bg-blue-50 border-blue-200 text-blue-700",
-  },
-  archived: {
-    label: "Archived",
-    icon: X,
-    classes: "bg-gray-50 border-gray-100 text-gray-600",
-  },
+const statusConfig: Record<
+  StatusBadgeProps["status"],
+  { label: string; icon: typeof Check; tone: ChipTone }
+> = {
+  active: { label: "Active", icon: Check, tone: "brand" },
+  inactive: { label: "Inactive", icon: X, tone: "danger" },
+  completed: { label: "Completed", icon: CheckCheck, tone: "info" },
+  archived: { label: "Archived", icon: Archive, tone: "neutral" },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
@@ -35,15 +23,11 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   const Icon = config.icon;
 
   return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5",
-        config.classes,
-        className,
-      )}
+    <span
+      className={cn(CHIP_BASE_CLASS, CHIP_TONE_CLASS[config.tone], className)}
     >
-      <Icon className="size-3.5" />
-      <span className="text-[10px] leading-4">{config.label}</span>
-    </div>
+      <Icon aria-hidden />
+      {config.label}
+    </span>
   );
 }

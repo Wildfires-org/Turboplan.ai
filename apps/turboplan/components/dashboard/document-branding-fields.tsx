@@ -45,8 +45,11 @@ export function DocumentBrandingFields({
       />
 
       {/* Document Footer Section */}
-      <div className="space-y-4 rounded-md border p-3">
-        <span className="text-sm font-medium">Document footer</span>
+      {/* Nested group: a tinted inset panel instead of a bordered box */}
+      <fieldset className="min-w-0 space-y-4 rounded-2xl bg-brandAlt-100/80 p-4 ring-1 ring-inset ring-brandAlt-200/70 dark:bg-white/5 dark:ring-white/10">
+        <legend className="float-left mb-1 w-full text-sm font-medium text-foreground">
+          Document footer
+        </legend>
 
         <div className="space-y-2">
           <Label htmlFor="documentFooterText" className="text-sm font-medium">
@@ -57,8 +60,8 @@ export function DocumentBrandingFields({
             placeholder="Caring for the Land and Serving People"
             {...textField}
           />
-          {textError && <p className="text-xs text-red-500">{textError}</p>}
-          <p className="text-xs text-muted-foreground">
+          {textError && <p className="text-xs text-error-700">{textError}</p>}
+          <p className="text-xs text-gray-550">
             Centered at the bottom of every page.
           </p>
         </div>
@@ -72,10 +75,8 @@ export function DocumentBrandingFields({
             placeholder="Printed on Recycled Paper"
             {...noteField}
           />
-          {noteError && <p className="text-xs text-red-500">{noteError}</p>}
-          <p className="text-xs text-muted-foreground">
-            Right-aligned in the footer.
-          </p>
+          {noteError && <p className="text-xs text-error-700">{noteError}</p>}
+          <p className="text-xs text-gray-550">Right-aligned in the footer.</p>
         </div>
 
         <DocumentLogoUpload
@@ -85,7 +86,7 @@ export function DocumentBrandingFields({
           helperText="Small image shown at the left of the footer. PNG or JPEG."
           disabled={disabled}
         />
-      </div>
+      </fieldset>
     </>
   );
 }

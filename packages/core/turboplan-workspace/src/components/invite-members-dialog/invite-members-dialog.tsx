@@ -80,13 +80,13 @@ export function InviteMembersDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[620px]">
+      <DialogContent className="max-w-[620px] p-6 sm:p-7">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <DialogTitle className="text-xl font-semibold">
               Invite Members
             </DialogTitle>
-            <span className="rounded bg-gray-100 px-2 py-1 text-xs text-foreground">
+            <span className="inline-flex h-6 items-center rounded-full bg-brand-50 px-2.5 text-xs font-medium text-brand-900 ring-1 ring-inset ring-brand-800/15">
               {entityName}
             </span>
           </div>
@@ -98,7 +98,9 @@ export function InviteMembersDialog({
         <div className="space-y-4">
           {/* Add Members section */}
           <div className="space-y-1.5">
-            <label className="text-sm text-muted-foreground">Add Members</label>
+            <span className="text-sm font-medium text-foreground">
+              Add Members
+            </span>
             <MemberAssignRow
               selectedUsers={selectedUsers}
               onSelectedUsersChange={setSelectedUsers}
@@ -113,7 +115,7 @@ export function InviteMembersDialog({
           {/* Pending invitees list */}
           {pendingInvitees.length > 0 && (
             <>
-              <div className="h-px bg-gray-200" />
+              <div className="h-px bg-slate-900/[0.06]" />
               <div className="max-h-[240px] space-y-4 overflow-y-auto">
                 {pendingInvitees.map((invitee) => (
                   <PendingInviteeRow
@@ -129,7 +131,7 @@ export function InviteMembersDialog({
         </div>
 
         {showSeatBillingNotice && (
-          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
             <Info className="mt-0.5 size-4 shrink-0" />
             <p>
               Heads up: Owner and Editor members each use a paid seat. Sending
@@ -139,9 +141,9 @@ export function InviteMembersDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:space-x-0">
           <Button
-            variant="ghost"
+            variant="glass"
             onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
           >
@@ -149,8 +151,8 @@ export function InviteMembersDialog({
           </Button>
           <Button
             onClick={handleSend}
+            variant="brand"
             disabled={pendingInvitees.length === 0 || isSubmitting}
-            className="bg-foreground text-background hover:bg-foreground/90"
           >
             {isSubmitting ? (
               <>

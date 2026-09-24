@@ -31,7 +31,7 @@ export function StickyEntityBanner({
   // a cleared or malformed logo/cover just falls back instead of throwing.
   const safeLogoUrl = logoUrl?.trim() || null;
   const safeCoverImageUrl =
-    coverImageUrl?.trim() || "/images/banner-placeholder.png";
+    coverImageUrl?.trim() || "/images/banner-placeholder.jpg";
 
   useEffect(() => {
     const el = bannerRef.current;
@@ -69,26 +69,26 @@ export function StickyEntityBanner({
           // exposed to the accessibility tree alongside the full banner's.
           inert={!isSticky}
           className={cn(
-            "w-full transition-all duration-200",
+            "w-full transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
             isSticky
               ? "translate-y-0 opacity-100"
               : "-translate-y-full opacity-0 pointer-events-none",
           )}
         >
-          <div className="relative w-full overflow-hidden border-b border-gray-200 bg-white">
-            {/* Background cover image with gradient */}
+          <div className="relative w-full overflow-hidden border-b border-white/80 bg-white/75 shadow-[0_10px_30px_-18px_rgba(15,23,42,0.25)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/75">
+            {/* Faint cover tint behind the compact header */}
             <div
-              className="absolute inset-0 bg-cover bg-center opacity-30"
+              className="absolute inset-0 bg-cover bg-center opacity-20"
               style={{
                 backgroundImage: `url(${safeCoverImageUrl})`,
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-white/40 dark:from-slate-950 dark:via-slate-950/85 dark:to-slate-950/40" />
 
-            <div className="relative flex items-center gap-3 px-8 py-3">
+            <div className="relative flex h-14 items-center gap-3 px-4 sm:px-8">
               {/* Logo */}
               {safeLogoUrl && (
-                <div className="flex size-[30px] shrink-0 items-center justify-center rounded border border-gray-50 bg-white shadow-sm">
+                <div className="flex size-[30px] shrink-0 items-center justify-center rounded-lg border border-white bg-white shadow-sm">
                   <Image
                     src={safeLogoUrl}
                     alt=""
@@ -100,13 +100,15 @@ export function StickyEntityBanner({
               )}
 
               {/* Title */}
-              <h2 className="flex-1 text-[18px] font-medium leading-[20px] text-foreground">
+              <h2 className="min-w-0 flex-1 truncate text-[17px] font-medium leading-[20px] tracking-[-0.02em] text-foreground">
                 {title}
               </h2>
 
               {/* Actions */}
               {actions && (
-                <div className="flex items-center gap-3">{actions}</div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {actions}
+                </div>
               )}
             </div>
           </div>

@@ -11,6 +11,7 @@ import { Button } from "@wildfires-org/turboplan-utils";
 import { CreateProjectButton } from "@/components/dashboard/create-project-button";
 import { EditOfficeDialog } from "@/components/dashboard/edit-office-dialog";
 import { useInviteMembers } from "@/components/dashboard/invite-members-context";
+import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
 
 interface OfficeBannerActionsProps {
@@ -35,20 +36,22 @@ export function OfficeBannerActions({
     <>
       <Button
         size="sm"
-        className="gap-2 rounded-[6px] border border-gray-200 bg-white px-4 py-1.5 text-[14px] font-medium leading-[20px] text-foreground hover:bg-gray-50"
+        variant="glass"
+        className={HEADER_ACTION_BUTTON_CLASS}
         onClick={() => setEditDialogOpen(true)}
       >
-        <Settings2 className="size-5" />
+        <Settings2 aria-hidden />
         Manage Office
       </Button>
 
       {isMembersTab ? (
         <Button
           size="sm"
-          className="gap-2 rounded-[6px] bg-foreground px-4 py-1.5 text-[14px] font-medium leading-[20px] text-white hover:bg-foreground/90"
+          variant="brand"
+          className={HEADER_ACTION_BUTTON_CLASS}
           onClick={openInviteForm}
         >
-          <UserPlus className="size-5" />
+          <UserPlus aria-hidden />
           Invite Members
         </Button>
       ) : (
@@ -57,9 +60,10 @@ export function OfficeBannerActions({
           officeSlug={office.slug}
           onSuccess={() => router.refresh()}
           size="sm"
-          className="gap-2 rounded-[6px] bg-foreground px-4 py-1.5 text-[14px] font-medium leading-[20px] text-white hover:bg-foreground/90"
+          variant="brand"
+          className={HEADER_ACTION_BUTTON_CLASS}
         >
-          <Plus className="size-5" />
+          <Plus aria-hidden />
           New Project
         </CreateProjectButton>
       )}

@@ -331,12 +331,14 @@ export function BreadcrumbEntityActions({
   // No edit rights → plain breadcrumb, identical to the default header.
   if (!interactive) {
     if (isActive) {
-      return <span className="text-foreground">{displayLabel}</span>;
+      return (
+        <span className="font-medium text-foreground">{displayLabel}</span>
+      );
     }
     return (
       <Link
         href={href}
-        className="text-gray-400 hover:text-foreground transition-colors"
+        className="text-gray-550 transition-colors hover:text-foreground"
       >
         {displayLabel}
       </Link>
@@ -344,9 +346,9 @@ export function BreadcrumbEntityActions({
   }
 
   const labelClassName = cn(
-    "transition-colors group-hover:text-[#1489FF] group-hover:underline",
-    isActive ? "text-foreground" : "text-gray-400",
-    menuOpen && "text-[#1489FF] underline",
+    "underline-offset-4 transition-colors group-hover:text-brand-800 group-hover:underline",
+    isActive ? "font-medium text-foreground" : "text-gray-550",
+    menuOpen && "text-brand-800 underline",
   );
 
   return (
@@ -377,8 +379,8 @@ export function BreadcrumbEntityActions({
             <Settings2
               aria-hidden
               className={cn(
-                "size-4 text-gray-400 transition-colors group-hover:text-[#1489FF]",
-                menuOpen && "text-[#1489FF]",
+                "size-4 text-gray-550 transition-colors group-hover:text-brand-800",
+                menuOpen && "text-brand-800",
               )}
             />
           </span>

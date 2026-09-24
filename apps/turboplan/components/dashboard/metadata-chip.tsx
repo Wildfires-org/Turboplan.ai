@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
+import { CHIP_BASE_CLASS, CHIP_TONE_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
 type MetadataChipProps = {
@@ -14,14 +15,16 @@ export function MetadataChip({
   className,
 }: MetadataChipProps) {
   return (
-    <div
+    <span
       className={cn(
-        "inline-flex items-center gap-1 rounded border border-gray-100 bg-gray-50 px-1.5 py-0.5",
+        CHIP_BASE_CLASS,
+        CHIP_TONE_CLASS.neutral,
+        "font-normal",
         className,
       )}
     >
-      {Icon && <Icon className="size-3.5 text-gray-500" />}
-      <span className="text-[10px] leading-4 text-gray-500">{children}</span>
-    </div>
+      {Icon && <Icon aria-hidden />}
+      <span>{children}</span>
+    </span>
   );
 }

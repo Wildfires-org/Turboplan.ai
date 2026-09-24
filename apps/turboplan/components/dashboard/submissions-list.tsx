@@ -12,6 +12,7 @@ import { ListPagination } from "@/components/dashboard/list-pagination";
 import { OfficeTabNav } from "@/components/dashboard/office-tab-nav";
 import { ProjectCardSkeleton } from "@/components/dashboard/project-card-skeleton";
 import { useFilteredPaginatedList } from "@/hooks/use-filtered-paginated-list";
+import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 
 // ── Constants ─────────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ export const SubmissionsList = ({
   return (
     <div className="space-y-2">
       {/* Sticky tabs + search + filters */}
-      <div className="sticky top-[120px] z-20 -mx-6 bg-[#F9FAFB] px-6 pb-2 pt-4">
+      <div className={STICKY_TOOLBAR_CLASS}>
         <OfficeTabNav
           orgSlug={organizationSlug}
           officeSlug={officeSlug}
@@ -137,7 +138,7 @@ export const SubmissionsList = ({
 
       {/* Submission cards grid */}
       {isLoading ? (
-        <ProjectCardSkeleton />
+        <ProjectCardSkeleton cardClassName="h-[344px]" />
       ) : filteredItems.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {paginatedItems.map((project) => (

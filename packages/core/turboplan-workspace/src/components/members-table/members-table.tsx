@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { ArrowUpDown } from "lucide-react";
 
-import { cn } from "@wildfires-org/turboplan-utils";
+import { cn, GLASS_CARD_CLASS } from "@wildfires-org/turboplan-utils";
 
 import type { MemberRoleType } from "../../types";
 import { MemberRowItem } from "./member-row-item";
@@ -129,7 +129,7 @@ export function MembersTable({
   };
 
   const headerCellClass =
-    "flex items-center gap-1.5 text-xs font-semibold text-foreground tracking-wide select-none";
+    "flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-gray-550 select-none";
 
   return (
     <div>
@@ -149,8 +149,8 @@ export function MembersTable({
         totalCount={rows.length}
       />
 
-      <div className="rounded-lg overflow-hidden border border-gray-200">
-        <div className="flex items-center gap-4 bg-gray-50 px-6 py-4">
+      <div className={cn(GLASS_CARD_CLASS, "overflow-hidden")}>
+        <div className="flex items-center gap-4 border-b border-white/80 bg-white/40 px-6 py-3.5 dark:border-white/10 dark:bg-white/5">
           <div className={cn(headerCellClass, "flex-1 min-w-0")}>User</div>
           {config.showSubEntityColumn && (
             <button
@@ -178,16 +178,15 @@ export function MembersTable({
             Status
             <ArrowUpDown className="size-3.5" />
           </button>
-          {config.canManageMembers && <div className="w-[60px]" />}
+          {/* Always reserved: `canManageMembers` resolves after an async
+              permission check, and a late column would shift every cell. */}
+          <div className="w-[60px]" />
         </div>
 
         {isLoading ? (
-          <SkeletonRows
-            showSubEntityColumn={config.showSubEntityColumn}
-            showActions={config.canManageMembers}
-          />
+          <SkeletonRows showSubEntityColumn={config.showSubEntityColumn} />
         ) : filteredAndSortedRows.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+          <div className="px-6 py-12 text-center text-sm text-gray-550">
             No members found
           </div>
         ) : (

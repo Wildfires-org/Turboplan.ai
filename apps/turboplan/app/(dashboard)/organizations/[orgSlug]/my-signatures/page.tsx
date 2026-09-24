@@ -15,6 +15,7 @@ import {
   getCachedSession,
   getValidatedOrganizationBySlug,
 } from "@/lib/cache/dashboard";
+import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
 import type { OrganizationPageProps } from "@/types/dashboard";
 
@@ -105,7 +106,7 @@ export default async function OrganizationMySignaturesPage({
           actions={<OrgBannerActions organization={organization} />}
         />
         <div className="flex-1 container mx-auto px-6">
-          <div className="sticky top-[120px] z-20 -mx-6 bg-[#F9FAFB] px-6 pb-2 pt-4">
+          <div className={STICKY_TOOLBAR_CLASS}>
             <OrgTabNav orgSlug={organization.slug} />
           </div>
           <MySignaturesPage organizationId={organization.id} />

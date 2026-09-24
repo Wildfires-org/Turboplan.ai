@@ -112,10 +112,10 @@ export function EditOfficeDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <AlertDialogContent className="max-h-[90vh] max-w-[480px] overflow-y-auto p-6 sm:p-7">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <Edit className="size-5" />
+            <Edit aria-hidden className="size-5 text-brand-800" />
             Edit Office
           </AlertDialogTitle>
           <AlertDialogDescription>
@@ -144,11 +144,11 @@ export function EditOfficeDialog({
           {/* Name Field */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">
-              Name <span className="text-red-500">*</span>
+              Name <span className="text-error-700">*</span>
             </Label>
             <Input id="name" placeholder="Office name" {...register("name")} />
             {errors.name && (
-              <p className="text-xs text-red-500">{errors.name.message}</p>
+              <p className="text-xs text-error-700">{errors.name.message}</p>
             )}
           </div>
 
@@ -164,25 +164,25 @@ export function EditOfficeDialog({
               {...register("description")}
             />
             {errors.description && (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-error-700">
                 {errors.description.message}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs tabular-nums text-gray-550">
               {((watch("description") as string) || "").length}/500 characters
             </p>
           </div>
 
-          <AlertDialogFooter className="pt-4">
+          <AlertDialogFooter className="gap-2 pt-2 sm:space-x-0">
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" variant="brand" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />

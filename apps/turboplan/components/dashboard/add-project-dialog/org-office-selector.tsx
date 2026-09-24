@@ -54,8 +54,8 @@ export function OrgOfficeSelector({
           <button
             type="button"
             className={cn(
-              "flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 p-2",
-              "transition-colors hover:bg-gray-100",
+              "glass-inset flex w-full items-center gap-2 rounded-xl p-2 text-left",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700/40",
             )}
           >
             {selectedOrg ? (
@@ -63,29 +63,29 @@ export function OrgOfficeSelector({
                 <OrgAvatar
                   name={selectedOrg.name}
                   logoUrl={selectedOrg.logoUrl}
-                  className="size-[35px] shrink-0 rounded border border-gray-100 shadow-sm"
+                  className="size-[35px] shrink-0 rounded-lg border border-white shadow-sm"
                 />
                 <span className="min-w-0 flex-1 truncate text-left text-sm font-medium text-gray-900">
                   {selectedOffice?.name ?? selectedOrg.name}
                 </span>
               </>
             ) : isLoading && selectedOfficeSlug ? (
-              <span className="min-w-0 flex-1 text-left text-sm text-gray-400 py-1.5 pl-1">
+              <span className="min-w-0 flex-1 text-left py-1.5 pl-1 text-sm text-gray-550">
                 Loading...
               </span>
             ) : (
-              <span className="min-w-0 flex-1 text-left text-sm text-gray-400 py-1.5 pl-1">
+              <span className="min-w-0 flex-1 text-left py-1.5 pl-1 text-sm text-gray-550">
                 Select an office...
               </span>
             )}
-            <ChevronsUpDown className="ml-auto size-4 shrink-0 text-gray-500" />
+            <ChevronsUpDown className="ml-auto size-4 shrink-0 text-gray-550" />
           </button>
         </PopoverTrigger>
         <PopoverContent
           side="bottom"
           align="start"
           sideOffset={4}
-          className="w-[var(--radix-popover-trigger-width)] rounded-lg border border-neutral-50 bg-neutral-50 py-2 pl-2 pr-0 shadow-[0px_20px_40px_rgba(0,7,26,0.08)]"
+          className="w-[var(--radix-popover-trigger-width)] py-2 pl-2 pr-0"
         >
           <SidebarOrgOfficeSearch
             organizations={organizations}

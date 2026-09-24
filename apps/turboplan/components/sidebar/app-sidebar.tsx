@@ -95,7 +95,8 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
             <SidebarGroup>
               <SidebarGroupContent>
                 <Button
-                  className="h-11 w-full justify-center gap-2 overflow-hidden rounded-lg bg-brandAlt-400 text-white shadow-sm hover:bg-brandAlt-500 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:p-0"
+                  variant="brand"
+                  className="h-11 w-full justify-center gap-2 overflow-hidden group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:p-0"
                   onClick={() => setAddProjectOpen(true)}
                 >
                   <Plus className="size-5 shrink-0" />

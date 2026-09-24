@@ -45,11 +45,11 @@ export function MemberRowItem({
   onRevokeInvitation,
 }: MemberRowItemProps) {
   return (
-    <div className="flex items-center gap-4 border-t border-gray-200 px-6 py-3">
+    <div className="flex items-center gap-4 border-t border-slate-900/[0.06] px-6 py-3 first:border-t-0 dark:border-white/10">
       <div className="flex-1 min-w-0 flex items-center gap-3">
         <Avatar className="size-8 rounded-lg">
           {row.type === "invitation" ? (
-            <AvatarFallback className="rounded-lg border border-dashed border-gray-300 bg-transparent text-xs">
+            <AvatarFallback className="rounded-lg border border-dashed border-brandAlt-300 bg-transparent text-xs text-brand-900">
               {generateInitialsFromName(row.name)}
             </AvatarFallback>
           ) : row.avatarUrl ? (
@@ -59,21 +59,23 @@ export function MemberRowItem({
               className="rounded-lg"
             />
           ) : (
-            <AvatarFallback className="rounded-lg text-xs">
+            <AvatarFallback className="rounded-lg bg-brandAlt-200 text-xs font-medium text-brand-900">
               {generateInitialsFromName(row.name)}
             </AvatarFallback>
           )}
         </Avatar>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm text-gray-900 truncate">{row.name}</p>
+            <p className="truncate text-sm font-medium leading-5 text-foreground">
+              {row.name}
+            </p>
             {row.isCurrentUser && (
-              <span className="text-[8px] font-semibold bg-gray-200 text-black rounded-md px-1.5 py-0.5 shrink-0">
+              <span className="inline-flex h-4 shrink-0 items-center rounded-full bg-brand-50 px-1.5 text-[10px] font-medium text-brand-900 ring-1 ring-inset ring-brand-800/15">
                 You
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 tracking-wide truncate">
+          <p className="truncate text-xs leading-4 text-gray-550">
             {row.type === "invitation" ? "pending invitation" : row.email}
           </p>
         </div>
@@ -84,7 +86,7 @@ export function MemberRowItem({
           {row.subEntities.map((entity) => (
             <span
               key={entity.id}
-              className="bg-gray-100 text-gray-900 text-[10px] rounded px-1.5 py-0.5"
+              className="rounded-full bg-slate-900/[0.04] px-2 py-0.5 text-[10px] text-gray-550"
             >
               {entity.name}
             </span>
@@ -136,16 +138,17 @@ export function MemberRowItem({
         <StatusIcon status={row.status} />
       </div>
 
-      {config.canManageMembers && (
-        <div className="w-[60px] flex justify-end">
-          {(row.type === "invitation" ||
+      <div className="w-[60px] flex justify-end">
+        {config.canManageMembers &&
+          (row.type === "invitation" ||
             (row.isDirect && !row.isCurrentUser)) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
+                  aria-label={`Actions for ${row.name}`}
                   variant="ghost"
                   size="sm"
-                  className="size-6 p-0 rounded-full"
+                  className="size-7 rounded-full p-0 hover:bg-brandAlt-100"
                 >
                   <EllipsisVertical className="size-4" />
                 </Button>
@@ -159,7 +162,7 @@ export function MemberRowItem({
                       Resend invitation
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className="text-destructive"
+                      className="text-error-700 focus:bg-error-50 focus:text-error-700"
                       onClick={() => onRevokeInvitation?.(row.invitationId)}
                     >
                       Revoke invitation
@@ -167,7 +170,7 @@ export function MemberRowItem({
                   </>
                 ) : (
                   <DropdownMenuItem
-                    className="text-destructive"
+                    className="text-error-700 focus:bg-error-50 focus:text-error-700"
                     onClick={() => onRemoveMember?.(row.id)}
                   >
                     Remove member
@@ -176,8 +179,7 @@ export function MemberRowItem({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -185,10 +187,12 @@ export function MemberRowItem({
 function StatusIcon({ status }: { status: MemberStatus }) {
   switch (status) {
     case "active":
-      return <Check className="size-4 text-green-500" />;
+      return <Check aria-label="Active" className="size-4 text-brand-700" />;
     case "inactive":
-      return <X className="size-4 text-red-500" />;
+      return <X aria-label="Inactive" className="size-4 text-error-700" />;
     case "pending":
-      return <Hourglass className="size-4 text-gray-400" />;
+      return (
+        <Hourglass aria-label="Pending" className="size-4 text-gray-550" />
+      );
   }
 }

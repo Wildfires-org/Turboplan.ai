@@ -58,7 +58,7 @@ export function PendingInvitationItem({
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 border rounded-lg border-dashed ${
+      className={`flex items-center gap-3 rounded-xl border border-dashed p-3 ${
         isExpired
           ? "bg-destructive/5 border-destructive/30"
           : "bg-amber-50/50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800"

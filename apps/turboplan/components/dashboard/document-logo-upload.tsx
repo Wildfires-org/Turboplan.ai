@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { ImageIcon } from "lucide-react";
 
 import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
-import { Button, cn, toast } from "@wildfires-org/turboplan-utils";
+import { Button, toast } from "@wildfires-org/turboplan-utils";
 
 interface DocumentLogoUploadProps {
   label: string;
@@ -92,7 +92,7 @@ export function DocumentLogoUpload({
     <div className="space-y-2">
       <span className="text-sm font-medium">{label}</span>
       <div className="flex items-center gap-4">
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-md border bg-muted">
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-white shadow-[inset_0_2px_6px_rgba(15,23,42,0.10),inset_0_1px_2px_rgba(15,23,42,0.08)] dark:bg-slate-900">
           {previewUrl ? (
             // Logo previews are user-uploaded blob/remote URLs of unknown
             // dimensions, so a plain img keeps the square thumbnail simple.
@@ -102,13 +102,13 @@ export function DocumentLogoUpload({
               className="size-full object-contain"
             />
           ) : (
-            <div className="flex size-full items-center justify-center text-muted-foreground">
+            <div className="flex size-full items-center justify-center text-brandAlt-400">
               <ImageIcon className="size-6" />
             </div>
           )}
 
           {isUploading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-black/50">
+            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-brand-950/60">
               <div className="size-5 animate-spin rounded-full border-b-2 border-white" />
               {progress > 0 && (
                 <span className="mt-0.5 text-[10px] text-white">
@@ -123,7 +123,7 @@ export function DocumentLogoUpload({
           <div className="flex gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               size="sm"
               onClick={handleChangeLogo}
               disabled={isBusy}
@@ -136,6 +136,7 @@ export function DocumentLogoUpload({
                 type="button"
                 variant="ghost"
                 size="sm"
+                className="rounded-xl text-gray-550 hover:bg-brandAlt-100 hover:text-foreground"
                 onClick={handleRemoveLogo}
                 disabled={isBusy}
               >
@@ -143,7 +144,7 @@ export function DocumentLogoUpload({
               </Button>
             )}
           </div>
-          <p className={cn("text-xs text-muted-foreground")}>{helperText}</p>
+          <p className="text-xs text-gray-550">{helperText}</p>
           {uploadError && (
             <p className="text-xs text-destructive">{uploadError.message}</p>
           )}

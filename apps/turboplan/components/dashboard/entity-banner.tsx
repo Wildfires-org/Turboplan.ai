@@ -1,12 +1,18 @@
 import Image from "next/image";
 
+import {
+  PAGE_CONTAINER_CLASS,
+  PAGE_LEAD_CLASS,
+  PAGE_TITLE_CLASS,
+} from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
 type EntityBannerProps = {
   coverImageUrl?: string | null;
   logoUrl?: string | null;
-  title: string;
-  description?: string | null;
+  /** A node so loading states can pass a placeholder with the same metrics. */
+  title: React.ReactNode;
+  description?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
 };
@@ -24,61 +30,67 @@ export function EntityBanner({
   // null and trim stray whitespace so a cleared/malformed logo just falls back.
   const safeLogoUrl = logoUrl?.trim() || null;
   const safeCoverImageUrl =
-    coverImageUrl?.trim() || "/images/banner-placeholder.png";
+    coverImageUrl?.trim() || "/images/banner-placeholder.jpg";
 
   return (
-    <div className={cn("relative w-full", className)}>
-      {/* Cover image */}
-      <div className="relative h-[124px] w-full overflow-hidden">
-        <Image
-          src={safeCoverImageUrl}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="100vw"
-        />
-      </div>
-
-      {/* Logo overlapping bottom of cover — outside overflow-hidden */}
-      {safeLogoUrl && (
-        <div className="absolute left-8 top-[88px] z-10">
-          <div className="flex size-[72px] items-center justify-center rounded-lg border-2 border-gray-50 bg-white shadow-[0px_2px_4px_rgba(0,0,0,0.1),0px_2px_6px_rgba(0,0,0,0.1)]">
+    <div className={cn(PAGE_CONTAINER_CLASS, "pt-5", className)}>
+      <div className="glass-card overflow-hidden rounded-[24px]">
+        {/* Cover inset in the glass shell (landing header-shell pattern). */}
+        <div className="p-2 pb-0">
+          <div className="relative h-[124px] overflow-hidden rounded-[18px] bg-brandAlt-200">
             <Image
-              src={safeLogoUrl}
+              src={safeCoverImageUrl}
               alt=""
-              width={49}
-              height={55}
-              className="object-contain"
+              fill
+              priority
+              className="object-cover object-center"
+              sizes="(max-width: 1224px) 100vw, 1224px"
             />
           </div>
         </div>
-      )}
 
-      {/* Content below cover */}
-      <div className="border-b border-gray-300 bg-white px-8 pb-5 pt-[52px]">
-        <div className="flex items-end justify-between gap-3">
-          <div className="flex-1">
-            <h1 className="text-[24px] font-semibold leading-[32px] text-foreground">
-              {title}
-            </h1>
-          </div>
-          {actions && (
-            // Testid distinguishes these actions from the duplicate set in
-            // StickyEntityBanner's compact scroll header, which stays matchable
-            // by role locators even while inert (Playwright ignores inert).
-            <div
-              data-testid="entity-banner-actions"
-              className="flex items-center gap-3"
-            >
-              {actions}
+        <div
+          className={cn(
+            "relative px-5 pb-5 sm:px-6 sm:pb-6",
+            safeLogoUrl ? "pt-[52px]" : "pt-5",
+          )}
+        >
+          {/* Logo overlapping the bottom edge of the cover */}
+          {safeLogoUrl && (
+            <div className="absolute -top-9 left-5 z-10 flex size-[72px] items-center justify-center rounded-2xl border-[3px] border-white bg-white shadow-[0_10px_24px_-12px_rgba(15,23,42,0.35)] sm:left-6">
+              <Image
+                src={safeLogoUrl}
+                alt=""
+                width={49}
+                height={55}
+                className="object-contain"
+              />
             </div>
           )}
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <h1 className={PAGE_TITLE_CLASS}>{title}</h1>
+              {description && (
+                <p className={cn(PAGE_LEAD_CLASS, "mt-1.5 max-w-[720px]")}>
+                  {description}
+                </p>
+              )}
+            </div>
+            {actions && (
+              // Testid distinguishes these actions from the duplicate set in
+              // StickyEntityBanner's compact scroll header, which stays
+              // matchable by role locators even while inert (Playwright
+              // ignores inert).
+              <div
+                data-testid="entity-banner-actions"
+                className="flex shrink-0 flex-wrap items-center gap-2"
+              >
+                {actions}
+              </div>
+            )}
+          </div>
         </div>
-        {description && (
-          <p className="mt-3 text-[14px] leading-[20px] text-foreground">
-            {description}
-          </p>
-        )}
       </div>
     </div>
   );

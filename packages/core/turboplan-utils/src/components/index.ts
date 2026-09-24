@@ -11,6 +11,7 @@ export * from "./ui/checkbox";
 export * from "./ui/comments";
 export * from "./ui/dialog";
 export * from "./ui/dropdown";
+export * from "./ui/glass-classes";
 export * from "./ui/input";
 export * from "./ui/json-block";
 export * from "./ui/label";

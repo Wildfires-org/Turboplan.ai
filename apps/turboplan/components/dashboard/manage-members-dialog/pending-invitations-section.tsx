@@ -32,7 +32,7 @@ export const PendingInvitationsSection = ({
     <>
       <Separator />
       <div className="space-y-2">
-        <h3 className="font-medium text-sm text-muted-foreground">
+        <h3 className="text-[11px] font-medium uppercase tracking-[0.08em] text-gray-550">
           Pending Invitations ({invitations.length})
         </h3>
         <div className="max-h-[200px] overflow-y-auto space-y-3">

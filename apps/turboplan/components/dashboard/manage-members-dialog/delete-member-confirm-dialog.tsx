@@ -12,6 +12,8 @@ import {
   Button,
 } from "@wildfires-org/turboplan-utils";
 
+import { DESTRUCTIVE_BUTTON_CLASS } from "@/lib/glass";
+
 interface DeleteMemberConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,9 +39,9 @@ export const DeleteMemberConfirmDialog = ({
             They will lose access to all {entityLabel} resources.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogFooter className="gap-2 sm:space-x-0">
           <Button
-            variant="outline"
+            variant="glass"
             onClick={() => onOpenChange(false)}
             disabled={isRemoving}
           >
@@ -47,6 +49,7 @@ export const DeleteMemberConfirmDialog = ({
           </Button>
           <Button
             variant="destructive"
+            className={DESTRUCTIVE_BUTTON_CLASS}
             onClick={onConfirm}
             disabled={isRemoving}
           >

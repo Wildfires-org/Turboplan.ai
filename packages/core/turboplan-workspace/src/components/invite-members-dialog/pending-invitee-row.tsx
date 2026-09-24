@@ -50,7 +50,7 @@ export function PendingInviteeRow({
             onRoleChange(invitee.id, value as MemberRoleType)
           }
         >
-          <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full border-gray-200 bg-white px-3 text-sm">
+          <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full px-3 text-sm">
             <SelectValue />
             <ChevronDown className="size-3.5 opacity-50" />
           </SelectTrigger>
@@ -70,7 +70,8 @@ export function PendingInviteeRow({
         <button
           type="button"
           onClick={() => onRemove(invitee.id)}
-          className="p-1 text-muted-foreground hover:text-foreground"
+          aria-label={`Remove ${invitee.displayName}`}
+          className="rounded-full p-1 text-gray-550 transition-colors hover:bg-brandAlt-100 hover:text-foreground"
         >
           <X className="size-4" />
         </button>

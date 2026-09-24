@@ -12,7 +12,7 @@ export function SidebarInitialsBadge({
   return (
     <span
       className={cn(
-        "flex size-5 shrink-0 items-center justify-center rounded bg-brandAlt-400 text-[10px] font-semibold text-white",
+        "flex size-5 shrink-0 items-center justify-center rounded bg-brand-800 text-[10px] font-semibold text-white",
         className,
       )}
     >

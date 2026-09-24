@@ -4,8 +4,6 @@ import { FileText } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { cn } from "@wildfires-org/turboplan-utils";
-
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -79,10 +77,7 @@ const ProjectItem = ({
         <SidebarMenuSub className="group-data-[collapsible=icon]:!block group-data-[collapsible=icon]:invisible">
           <SidebarMenuSubItem>
             <SidebarMenuSubButton asChild isActive>
-              <Link
-                href={projectHref}
-                className={cn("text-brandAlt", "[&>svg]:text-brandAlt")}
-              >
+              <Link href={projectHref}>
                 <FileText className="size-4 shrink-0" />
                 <span>Overview</span>
               </Link>

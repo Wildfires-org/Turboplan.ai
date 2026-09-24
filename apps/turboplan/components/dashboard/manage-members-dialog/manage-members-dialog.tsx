@@ -285,13 +285,13 @@ export const ManageMembersDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto p-6 sm:p-7">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {isAssignMode ? (
-                <UserCheck className="size-5" />
+                <UserCheck aria-hidden className="size-5 text-brand-800" />
               ) : (
-                <Users className="size-5" />
+                <Users aria-hidden className="size-5 text-brand-800" />
               )}
               {getDialogTitle(isAssignMode, taskContext, entityName)}
             </DialogTitle>
@@ -309,7 +309,7 @@ export const ManageMembersDialog = ({
             {canManageMembers && !showAddForm && (
               <Button
                 onClick={() => setShowAddForm(true)}
-                variant="outline"
+                variant="glass"
                 className="w-full"
               >
                 <UserPlus className="mr-2 size-4" />
@@ -358,19 +358,19 @@ export const ManageMembersDialog = ({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:space-x-0">
             {isAssignMode ? (
               <>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                <Button variant="glass" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAssign}>
+                <Button variant="brand" onClick={handleAssign}>
                   <UserCheck className="mr-2 size-4" />
                   Assign ({selectedUserIds.size})
                 </Button>
               </>
             ) : (
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="glass" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
             )}

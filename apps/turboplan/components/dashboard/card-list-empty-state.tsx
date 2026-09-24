@@ -16,12 +16,14 @@ export function CardListEmptyState({
   createAction,
 }: CardListEmptyStateProps) {
   return (
-    <div className="py-12 text-center text-muted-foreground">
-      <Icon className="mx-auto mb-4 size-12 opacity-50" />
-      <h3 className="mb-2 text-lg font-medium">
+    <div className="glass-card flex flex-col items-center px-6 py-12 text-center">
+      <span className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-brandAlt-100 text-brand-800">
+        <Icon aria-hidden className="size-6" />
+      </span>
+      <h3 className="mb-1.5 text-lg font-medium tracking-[-0.02em] text-foreground">
         {hasSearchTerm ? `No ${entityLabel} found` : `No ${entityLabel} yet`}
       </h3>
-      <p className="mb-4 text-sm">
+      <p className="mb-5 max-w-[420px] text-sm text-gray-550">
         {hasSearchTerm
           ? "Try adjusting your search terms to find what you're looking for."
           : `Create your first ${entityLabel.slice(0, -1)} to get started with organizing your work.`}

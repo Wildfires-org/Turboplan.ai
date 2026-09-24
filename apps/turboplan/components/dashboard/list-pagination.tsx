@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { Button } from "@wildfires-org/turboplan-utils";
+import { GLASS_ICON_BUTTON_CLASS } from "@/lib/glass";
 
 interface ListPaginationProps {
   currentPage: number;
@@ -17,34 +17,34 @@ export function ListPagination({
   totalItems,
   onPageChange,
 }: ListPaginationProps) {
-  if (totalPages <= 1) return null;
+  if (totalPages <= 1) {
+    return null;
+  }
 
   return (
     <div className="flex items-center justify-end gap-2 pt-2">
-      <span className="text-sm text-gray-500">
+      <span className="text-sm tabular-nums text-gray-550">
         {(currentPage - 1) * pageSize + 1}–
         {Math.min(currentPage * pageSize, totalItems)} of {totalItems}
       </span>
-      <Button
+      <button
+        type="button"
         aria-label="Previous page"
-        variant="ghost"
-        size="sm"
-        className="size-8 p-0"
+        className={GLASS_ICON_BUTTON_CLASS}
         disabled={currentPage <= 1}
         onClick={() => onPageChange(currentPage - 1)}
       >
         <ChevronLeft className="size-4" />
-      </Button>
-      <Button
+      </button>
+      <button
+        type="button"
         aria-label="Next page"
-        variant="ghost"
-        size="sm"
-        className="size-8 p-0"
+        className={GLASS_ICON_BUTTON_CLASS}
         disabled={currentPage >= totalPages}
         onClick={() => onPageChange(currentPage + 1)}
       >
         <ChevronRight className="size-4" />
-      </Button>
+      </button>
     </div>
   );
 }

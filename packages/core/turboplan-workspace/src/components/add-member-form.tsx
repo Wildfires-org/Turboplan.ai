@@ -94,7 +94,7 @@ export function AddMemberForm({
   };
 
   return (
-    <div className="border rounded-lg p-4 space-y-4">
+    <div className="space-y-4 rounded-2xl bg-brandAlt-100/80 p-4 ring-1 ring-inset ring-brandAlt-200/70 dark:bg-white/5 dark:ring-white/10">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">Add New Member</h3>
         <Button variant="ghost" size="sm" onClick={onCancel}>
@@ -112,7 +112,7 @@ export function AddMemberForm({
             allowInvite={true}
             disabled={isSubmitting}
           />
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="text-xs text-error-700">{error}</p>}
         </div>
 
         <div className="space-y-2">
@@ -136,7 +136,7 @@ export function AddMemberForm({
         </div>
 
         {showSeatBillingNotice && (
-          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
+          <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-amber-900 ring-1 ring-inset ring-amber-200">
             <Info className="mt-0.5 size-4 shrink-0 text-amber-600" />
             <p className="text-xs">
               Owner and Editor members each use a paid seat. Adding this member
@@ -148,7 +148,7 @@ export function AddMemberForm({
 
         {/* Task Assignment Info */}
         {hasTaskContext && (
-          <div className="rounded-md bg-muted/50 p-3 space-y-2">
+          <div className="space-y-2 rounded-xl bg-white/70 p-3 dark:bg-white/5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Will be assigned to
             </p>
@@ -173,6 +173,7 @@ export function AddMemberForm({
 
         <Button
           type="submit"
+          variant="brand"
           disabled={isSubmitting || selectedUsers.length === 0}
           className="w-full"
         >
