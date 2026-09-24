@@ -2,7 +2,7 @@
 
 import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
 
-import { FolderOpen, Loader2 } from "lucide-react";
+import { FolderOpen, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 
@@ -10,16 +10,22 @@ import { ApiClient } from "@wildfires-org/turboplan-api-client";
 import { useSession } from "@wildfires-org/turboplan-auth/client";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 
+import {
+  GLASS_BUTTON_CLASS,
+  GLASS_INPUT_CLASS,
+  MODAL_CLOSE_BUTTON_CLASS,
+  MODAL_SURFACE_CLASS,
+  PRIMARY_BUTTON_CLASS,
+} from "@/components/catalog/catalog-layout";
 import { CheckoutModal } from "@/components/checkout/checkout-modal";
 import DialogBase from "@/components/dialogs/dialog-base/dialog-base";
-import Cross from "@/components/icons/cross";
 import LabeledAutocomplete from "@/components/shared/labeled-autocomplete";
 import LabeledInput from "@/components/shared/labeled-input";
 import LabeledTextarea from "@/components/shared/labeled-textarea";
-import { Button } from "@/components/ui/button";
 import { DialogDescription } from "@/components/ui/dialog";
 import { useBillingAccess } from "@/hooks/use-billing-access";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const { SERVER_URL, TURBOPLAN_URL } = getLandingPageEnv();
 const apiClient = new ApiClient({ baseUrl: SERVER_URL });
@@ -357,64 +363,74 @@ export function CreateProjectFromTemplateButton({
         onOpenChange={handleDialogOpenChange}
         title="Create project from template"
         triggerSlot={
-          <Button className="h-8 rounded-md border-[0.75px] border-neutral-grey bg-white px-3 text-sm font-medium text-neutral-black hover:bg-gray-10">
-            <FolderOpen className="mr-2 size-4" />
+          <button type="button" className={cn(PRIMARY_BUTTON_CLASS, "h-11")}>
+            <FolderOpen className="size-4" aria-hidden />
             Use template
-          </Button>
+          </button>
         }
         headerSlot={
-          <div className="space-y-1 px-6 pt-6 pr-12">
-            <Cross
-              className="absolute right-6 top-6 cursor-pointer"
+          <div className="space-y-1.5 px-6 pt-6 pr-16 sm:px-8 sm:pt-8">
+            <button
+              type="button"
+              aria-label="Close"
+              className={MODAL_CLOSE_BUTTON_CLASS}
               onClick={(e) => {
                 setIsOpen(false);
-                e?.stopPropagation();
+                e.stopPropagation();
               }}
-            />
-            <h2 className="text-lg font-medium text-neutral-black">
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+            <h2 className="font-heading text-[24px] font-normal leading-[1.2] tracking-[-0.02em] text-egray-900 sm:text-[28px]">
               Create project from template
             </h2>
-            <DialogDescription className="text-sm text-neutral-grey3">
+            <DialogDescription className="font-inter text-[14px] leading-[20px] text-egray-700">
               Create your project in your personal workspace.
             </DialogDescription>
           </div>
         }
         separator={false}
-        className="w-[calc(100%-24px)] md:w-[560px] rounded-lg bg-neutral-light border-[0.75px] border-neutral-grey"
+        className={cn(MODAL_SURFACE_CLASS, "w-[calc(100%-24px)] md:w-[560px]")}
         footerSlot={
-          <div className="flex items-center justify-end gap-2 border-t border-neutral-grey/60 px-6 py-4">
-            <Button
+          <div className="flex w-full flex-col-reverse gap-3 px-6 pt-2 pb-6 sm:flex-row sm:justify-end sm:px-8 sm:pb-8">
+            <button
               type="button"
-              variant="outline"
+              className={cn(
+                GLASS_BUTTON_CLASS,
+                "h-11 disabled:pointer-events-none disabled:opacity-50",
+              )}
               onClick={() => setIsOpen(false)}
               disabled={isSubmitting || isRedirecting}
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              className="bg-green-60 text-white hover:bg-green-60/90"
+              className={cn(
+                PRIMARY_BUTTON_CLASS,
+                "h-11 disabled:pointer-events-none disabled:opacity-50",
+              )}
               onClick={handleSubmit}
               disabled={isSubmitting || isRedirecting || !projectTitle.trim()}
             >
               {isRedirecting ? (
                 <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
                   Redirecting...
                 </>
               ) : isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
                   Creating...
                 </>
               ) : (
                 "Create project"
               )}
-            </Button>
+            </button>
           </div>
         }
       >
-        <div className="max-h-[58vh] space-y-4 overflow-y-auto px-6 py-4">
+        <div className="max-h-[58vh] space-y-4 overflow-y-auto px-6 py-5 sm:px-8 sm:py-6">
           <LabeledAutocomplete
             label="Submit to organization (optional)"
             placeholder="Select an organization"
@@ -422,7 +438,7 @@ export function CreateProjectFromTemplateButton({
             onValueChange={handleOrganizationChange}
             options={organizationOptions}
             hasError={errors.organization}
-            inputClassName="bg-white"
+            inputClassName={GLASS_INPUT_CLASS}
             disabled={isSubmitting || isRedirecting}
             emptyMessage="No organizations available for submission"
           />
@@ -434,7 +450,7 @@ export function CreateProjectFromTemplateButton({
             onValueChange={handleOfficeChange}
             options={officeOptions}
             hasError={errors.office}
-            inputClassName="bg-white"
+            inputClassName={GLASS_INPUT_CLASS}
             disabled={isSubmitting || isRedirecting || !selectedOrgId}
             emptyMessage={
               selectedOrgId
@@ -448,7 +464,11 @@ export function CreateProjectFromTemplateButton({
             placeholder="Enter project title"
             value={projectTitle}
             hasError={errors.projectTitle}
-            className="bg-white"
+            className={cn(
+              GLASS_INPUT_CLASS,
+              errors.projectTitle &&
+                "outline-solid outline-2 outline-red-60 focus-visible:outline-red-60",
+            )}
             onChange={(e) => setProjectTitle(e.target.value)}
             onKeyDown={handleTitleKeyDown}
             disabled={isSubmitting || isRedirecting}
@@ -458,7 +478,7 @@ export function CreateProjectFromTemplateButton({
             label="Description"
             placeholder="Optional project description"
             value={projectDescription}
-            className="bg-white min-h-[96px]"
+            className={cn(GLASS_INPUT_CLASS, "min-h-[96px]")}
             onChange={(e) => setProjectDescription(e.target.value)}
             disabled={isSubmitting || isRedirecting}
           />

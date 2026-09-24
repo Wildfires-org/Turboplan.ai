@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { Map as MapIcon } from "lucide-react";
+
 import {
   type GeospatialLayer,
   getDefaultVisibleLayers,
@@ -42,9 +44,9 @@ export function PublicMapSection({ layers }: PublicMapSectionProps) {
 
   if (layers.length === 0) {
     return (
-      <div className="w-full h-[400px] flex items-center justify-center bg-muted/30 rounded-lg border border-dashed border-border">
-        <div className="text-center text-muted-foreground">
-          <div className="text-4xl mb-2">🗺️</div>
+      <div className="flex h-[320px] w-full items-center justify-center rounded-xl bg-brandAlt-100 sm:h-[400px]">
+        <div className="flex flex-col items-center gap-2 text-center font-inter text-[14px] text-egray-700">
+          <MapIcon className="size-8 text-brand-800" aria-hidden />
           <p>No map layers available</p>
         </div>
       </div>
@@ -52,7 +54,7 @@ export function PublicMapSection({ layers }: PublicMapSectionProps) {
   }
 
   return (
-    <div className="h-[400px] rounded-lg overflow-hidden border border-border">
+    <div className="h-[320px] overflow-hidden rounded-xl ring-1 ring-egray-200 sm:h-[400px]">
       <SimpleMap
         layers={layers}
         visibleLayerIds={visibleLayerIds}

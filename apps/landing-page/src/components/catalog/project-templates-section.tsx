@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 
-import { ArrowUpRight, PlusIcon } from "lucide-react";
+import { ArrowUpRight, LayoutTemplate, PlusIcon } from "lucide-react";
 import Link from "next/link";
 
 import BeaverRight from "@/../public/images/beaver_right.png";
-import TemplatesBackground from "@/../public/images/templates.png";
 import CatalogRequestDialog from "@/components/dialogs/catalog-request-dialog/catalog-request-dialog";
+import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
 import {
   Select,
   SelectContent,
@@ -16,9 +16,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTemplates } from "@/hooks/use-templates";
+import { cn } from "@/lib/utils";
 import { routing } from "@/utils/routing";
-import { Button } from "../ui/button";
+import { CatalogCardSkeletonGrid } from "./catalog-card-skeleton";
 import { CatalogEmptyState } from "./catalog-empty-state";
+import {
+  CATALOG_GRID_CLASS,
+  CATALOG_SECTION_CLASS,
+  GLASS_BUTTON_CLASS,
+  PRIMARY_BUTTON_CLASS,
+} from "./catalog-layout";
+import { CatalogSectionHeader } from "./catalog-section-header";
 import TemplateCard from "./template-card";
 
 const SORT_OPTIONS = {
@@ -60,7 +68,9 @@ export function ProjectTemplatesSection({
   const hasMoreTemplates = data?.hasMore ?? false;
 
   const sortedTemplates = useMemo(() => {
-    if (!templates) return [];
+    if (!templates) {
+      return [];
+    }
 
     if (sortBy === SORT_OPTIONS.name) {
       return [...templates].sort((a, b) => a.name.localeCompare(b.name));
@@ -82,111 +92,68 @@ export function ProjectTemplatesSection({
 
   if (isLoading) {
     return (
-      <section className="py-10">
-        <p className="text-base text-green-60 mb-1">
-          Get started with your project
-        </p>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl tracking-tight">Project Templates</h2>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-xl border border-neutral-grey p-6 animate-pulse"
-            >
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-4" />
-              <div className="h-3 bg-gray-200 rounded w-1/2 mb-2" />
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4" />
-              <div className="h-2 bg-gray-200 rounded w-full mb-4" />
-              <div className="h-8 bg-gray-200 rounded w-full" />
-            </div>
-          ))}
-        </div>
-      </section>
+      <TemplatesSectionShell>
+        <CatalogCardSkeletonGrid label="Loading templates" />
+      </TemplatesSectionShell>
     );
   }
 
   if (error) {
     return (
-      <section className="py-10">
-        <p className="text-base text-green-60 mb-1">
-          Get started with your project
-        </p>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl tracking-tight">Project Templates</h2>
-          </div>
-        </div>
-        <div className="text-center py-8 text-neutral-grey3">
+      <TemplatesSectionShell>
+        <div className="glass-card px-6 py-12 text-center font-inter text-[15px] text-egray-700">
           Failed to load templates. Please try again later.
         </div>
-      </section>
+      </TemplatesSectionShell>
     );
   }
 
   if (!templates || templates.length === 0) {
     return (
-      <section className="py-10">
-        <p className="text-base text-green-60 mb-1">
-          Get started with your project
-        </p>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl tracking-tight">Project Templates</h2>
-          </div>
-        </div>
+      <TemplatesSectionShell>
         <CatalogEmptyState
-          backgroundImage={TemplatesBackground}
           beaverImage={BeaverRight}
           beaverAlt="Beaver mascot waving"
           title="No templates found"
           description="There are no templates matching your current filters. Try adjusting your search or create a new template from scratch."
           actionButton={
             <CatalogRequestDialog>
-              <Button
-                variant="primary"
-                size="small"
+              <button
+                type="button"
+                className={PRIMARY_BUTTON_CLASS}
                 onClick={() => {
                   document
                     .getElementById("accelerate-planning")
                     ?.scrollIntoView({ behavior: "smooth" });
                 }}
               >
-                <PlusIcon className="size-4 mr-1.5" />
+                <PlusIcon className="size-4" />
                 Create Template
-              </Button>
+              </button>
             </CatalogRequestDialog>
           }
         />
-      </section>
+      </TemplatesSectionShell>
     );
   }
 
   return (
-    <section className="py-10">
-      <p className="text-base text-green-60 mb-1">
-        Get started with your project
-      </p>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl tracking-tight">Project Templates</h2>
-          {!showMoreLink && (
-            <Button variant="outline" size="icon" className="size-8">
+    <TemplatesSectionShell
+      actions={
+        !showMoreLink && (
+          <>
+            <button
+              type="button"
+              aria-label="Create template"
+              className={cn(GLASS_BUTTON_CLASS, "size-10 px-0")}
+            >
               <PlusIcon className="size-4" />
-            </Button>
-          )}
-        </div>
-
-        {!showMoreLink && (
-          <div className="flex items-center gap-3">
+            </button>
             <Select
               value={sortBy}
               onValueChange={(v) => setSortBy(v as SortOption)}
             >
-              <SelectTrigger className="w-fit h-9 bg-white rounded-full gap-1">
+              <SelectTrigger className="glass h-10 w-fit gap-1 rounded-xl border-white/85 bg-white/55 px-4 font-inter text-[14px] text-egray-900 focus:ring-0 focus:ring-offset-0 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -194,27 +161,46 @@ export function ProjectTemplatesSection({
                 <SelectItem value={SORT_OPTIONS.newest}>Newest</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          </>
+        )
+      }
+    >
+      <div className={CATALOG_GRID_CLASS}>
         {sortedTemplates.map((template) => (
           <TemplateCard key={template.id} template={template} />
         ))}
       </div>
 
       {showMoreLink && hasMoreTemplates && (
-        <div className="flex justify-end mt-6">
-          <Link
-            href={moreTemplatesUrl}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-black bg-white border border-neutral-grey rounded-full hover:bg-gray-50 transition-colors"
-          >
+        <div className="mt-8 flex justify-end">
+          <Link href={moreTemplatesUrl} className={GLASS_BUTTON_CLASS}>
             More Templates
-            <ArrowUpRight className="h-4 w-4 text-green-70" />
+            <ArrowUpRight className="size-4" />
           </Link>
         </div>
       )}
+    </TemplatesSectionShell>
+  );
+}
+
+function TemplatesSectionShell({
+  actions,
+  children,
+}: {
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className={CATALOG_SECTION_CLASS}>
+      <div className={PAGE_CONTAINER}>
+        <CatalogSectionHeader
+          icon={LayoutTemplate}
+          eyebrow="Get started with your project"
+          title="Project Templates"
+          actions={actions}
+        />
+        {children}
+      </div>
     </section>
   );
 }

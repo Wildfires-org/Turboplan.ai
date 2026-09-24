@@ -159,24 +159,28 @@ export function PublicTasksSection({ milestones }: PublicTasksSectionProps) {
 
   if (milestones.length === 0) {
     return (
-      <div className="bg-card border border-border rounded-xl p-6">
-        <div className="flex flex-col items-center justify-center text-center py-8">
-          <h3 className="text-lg font-medium mb-2">No Tasks Yet</h3>
-          <p className="text-muted-foreground text-sm max-w-md">
-            This project doesn&apos;t have any tasks or milestones yet.
-          </p>
-        </div>
+      <div className="flex flex-col items-center justify-center rounded-xl bg-brandAlt-100 px-4 py-8 text-center">
+        <h3 className="mb-1 font-heading text-[18px] font-normal leading-[26px] text-egray-900">
+          No tasks yet
+        </h3>
+        <p className="max-w-md font-inter text-[14px] leading-[20px] text-egray-700">
+          This project doesn&apos;t have any tasks or milestones yet.
+        </p>
       </div>
     );
   }
 
   return (
     <TasksProvider tasks={tasksContext}>
-      <TasksContainer
-        className="w-full"
-        isCurrentVersion={false}
-        isPreview={true}
-      />
+      {/* The shared tasks toolbar doesn't wrap on phones; scroll it inside
+          the card instead of widening the page. */}
+      <div className="min-w-0 overflow-x-auto">
+        <TasksContainer
+          className="w-full"
+          isCurrentVersion={false}
+          isPreview={true}
+        />
+      </div>
     </TasksProvider>
   );
 }

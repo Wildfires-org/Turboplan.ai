@@ -16,7 +16,7 @@ export const routing = {
     return `/${params ? "?" + new URLSearchParams(params).toString() : ""}`;
   },
   contact() {
-    return "/contact";
+    return "/#contact";
   },
   checkout(params?: { plan?: string }) {
     return `/checkout${params?.plan ? `?plan=${encodeURIComponent(params.plan)}` : ""}`;

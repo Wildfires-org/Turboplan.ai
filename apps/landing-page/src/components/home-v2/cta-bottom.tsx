@@ -2,12 +2,22 @@
 
 import { useEffect, useState } from "react";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, Sparkles } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import CatalogRequestDialog from "@/components/dialogs/catalog-request-dialog/catalog-request-dialog";
+import {
+  PAGE_CONTAINER,
+  PAGE_GUTTER,
+  PANEL_STACK_Y,
+} from "@/components/home-v2/ui/layout";
+import { ScrollReveal } from "@/components/home-v2/ui/scroll-reveal";
+import {
+  HEADER_STACK_CLASS,
+  SECTION_LEAD_CLASS,
+  SECTION_TITLE_CLASS,
+} from "@/components/home-v2/ui/section-header";
 import { useTypewriterHeading } from "@/components/home-v2/ui/typewriter-heading";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { cn } from "@/lib/utils";
@@ -25,20 +35,36 @@ const CTA_WORDS = [
 
 const CURSOR_BLINK_RATE = 530;
 
+// Same entrance rhythm as ScrollReveal elsewhere: panel, then the buttons
+// 60ms later, then the footer another 60ms on.
+const BUTTONS_DELAY = 0.06;
+const FOOTER_DELAY = 0.12;
+
+const SPARKLE_TRANSITION = {
+  type: "spring",
+  duration: 0.5,
+  bounce: 0.2,
+} as const;
+
 export function CtaBottom() {
   const router = useRouter();
   const { captureEvent } = useAnalytics();
   const { displayText, currentIndex } = useTypewriterHeading(CTA_WORDS);
+  const prefersReducedMotion = useReducedMotion();
 
-  // Blinking cursor
+  // Blinking cursor — static (always visible) under reduced motion.
   const [showCursor, setShowCursor] = useState(true);
   useEffect(() => {
+    if (prefersReducedMotion) {
+      setShowCursor(true);
+      return;
+    }
     const interval = setInterval(
       () => setShowCursor((prev) => !prev),
       CURSOR_BLINK_RATE,
     );
     return () => clearInterval(interval);
-  }, []);
+  }, [prefersReducedMotion]);
 
   // Track index changes for sparkle animation
   const [sparkleKey, setSparkleKey] = useState(0);
@@ -56,135 +82,138 @@ export function CtaBottom() {
   };
 
   return (
-    <section
-      id="cta-footer"
-      className="relative flex min-h-0 w-full flex-col overflow-hidden bg-gradient-to-b from-[#F9FDFC] to-[#F4F9F7] to-[44.235%] py-16 sm:py-20 md:min-h-[80vh] md:py-0 lg:min-h-screen"
-    >
-      {/* CTA content — vertically centered, takes remaining space */}
-      <div className="relative flex flex-1 items-center justify-center pt-[35px]">
-        <div className="flex flex-col items-center gap-8 px-6 text-center">
-          {/* Heading — slide up */}
-          <motion.h2
-            initial={{ opacity: 0, y: 80 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.1 }}
-            transition={{
-              type: "spring",
-              stiffness: 50,
-              damping: 18,
-              mass: 1,
-            }}
-            className="min-h-[100px] max-w-[726px] font-heading text-[36px] font-normal leading-[1.15] tracking-[-2px] text-[#1A1A1A] md:min-h-[120px] md:text-[48px] md:tracking-[-2.8px] lg:min-h-[140px] lg:text-[60px] lg:tracking-[-3.6px]"
-          >
-            {/* Stable accessible name — the typewriter below mutates every
-                few ms and would spam screen readers. */}
-            <span className="sr-only">
-              Ready to accelerate your environmental planning?
-            </span>
-            <span aria-hidden="true" className="block">
-              Ready to accelerate your
-            </span>
-            <span aria-hidden="true" className="inline">
-              <motion.span
-                key={sparkleKey}
-                initial={{ scale: 1.3, rotate: 25 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 15,
-                  duration: 0.5,
-                }}
-                className="mr-2 inline-flex align-middle text-[#27C187] lg:mr-3"
+    <section id="cta-footer" className="w-full font-inter">
+      {/* Follows the Contact panel, so it uses the tighter panel step. It is
+          the last section, so it also owns the (tighter) gap to the footer. */}
+      <div
+        className={cn(PAGE_GUTTER, PANEL_STACK_Y, "pb-10 sm:pb-12 lg:pb-16")}
+      >
+        <ScrollReveal direction="up" className={PAGE_CONTAINER}>
+          <div className="glass-card rounded-[28px] p-6 text-center sm:p-12 lg:p-16">
+            <div className="flex flex-col items-center">
+              <div
+                className={cn(HEADER_STACK_CLASS, "max-w-[760px] items-center")}
               >
-                <Sparkles className="size-[28px] md:size-[35px] lg:size-[42px]" />
-              </motion.span>
-              <span className="text-[#27C187]">
-                {displayText}
-                <span
-                  className={cn(
-                    "ml-[1px] inline-block w-[3px] bg-[#27C187] transition-opacity duration-100",
-                    showCursor ? "opacity-100" : "opacity-0",
-                  )}
-                  style={{ height: "0.75em" }}
-                />
-              </span>
-            </span>
-          </motion.h2>
+                <h2 className={SECTION_TITLE_CLASS}>
+                  {/* Stable accessible name — the typewriter below mutates
+                    every few ms and would spam screen readers. */}
+                  <span className="sr-only">
+                    Ready to accelerate your environmental planning?
+                  </span>
+                  <span aria-hidden="true" className="block">
+                    Ready to accelerate your
+                  </span>
+                  {/* Every word is laid out invisibly in the same grid cell as
+                      the live text, so the cell is always as tall as the
+                      longest wrap and the panel never jumps while typing. */}
+                  <span aria-hidden="true" className="grid">
+                    {CTA_WORDS.map((word) => (
+                      <span
+                        key={word}
+                        className="invisible col-start-1 row-start-1"
+                      >
+                        <TypedLine text={word} />
+                      </span>
+                    ))}
+                    <span className="col-start-1 row-start-1">
+                      <TypedLine
+                        text={displayText}
+                        sparkleKey={sparkleKey}
+                        isCursorVisible={showCursor}
+                        prefersReducedMotion={Boolean(prefersReducedMotion)}
+                      />
+                    </span>
+                  </span>
+                </h2>
 
-          {/* Button row — slide up with delay */}
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.1 }}
-            transition={{
-              type: "spring",
-              stiffness: 50,
-              damping: 18,
-              mass: 1,
-              delay: 0.25,
-            }}
-            className="flex w-full max-w-[420px] flex-col items-center gap-4 sm:w-auto sm:max-w-none sm:flex-row"
-          >
-            {/* Secondary — Add to Catalog (opens catalog request dialog) */}
-            <CatalogRequestDialog>
-              <button
-                type="button"
-                onClick={handleAddToCatalog}
-                className="inline-flex h-[48px] w-full items-center justify-center rounded-[15.558px] border border-[#D1E6DE] bg-white font-inter text-[16px] font-medium tracking-[0.16px] text-brand-600 shadow-[inset_0_0_34.727px_0_rgba(224,241,255,0.10)] transition-all duration-200 hover:border-[#A4CEBE] hover:shadow-[inset_0_0_34.727px_0_rgba(224,241,255,0.20)] sm:w-[202px]"
+                <p className={cn(SECTION_LEAD_CLASS, "max-w-[520px]")}>
+                  Start a project in minutes — draft, plan and track NEPA work
+                  in one workspace.
+                </p>
+              </div>
+
+              <ScrollReveal
+                direction="up"
+                delay={BUTTONS_DELAY}
+                className="mt-8 flex w-full max-w-[420px] flex-col items-center gap-3 sm:mt-10 sm:w-auto sm:max-w-none sm:flex-row sm:gap-4"
               >
-                Add to Catalog
-              </button>
-            </CatalogRequestDialog>
+                {/* Secondary — Add to Catalog (opens catalog request dialog) */}
+                <CatalogRequestDialog>
+                  <button
+                    type="button"
+                    onClick={handleAddToCatalog}
+                    className="glass press inline-flex h-12 w-full items-center justify-center rounded-xl px-6 text-body-md font-medium text-brand-800 hover:bg-white/80 sm:w-auto sm:min-w-[200px]"
+                  >
+                    Add to Catalog
+                  </button>
+                </CatalogRequestDialog>
 
-            {/* Primary — Create Project (try-it flow) */}
-            <button
-              type="button"
-              onClick={handleCreateProject}
-              className={cn(
-                "group/cta relative inline-flex h-[48px] w-full items-center justify-center gap-2 overflow-hidden rounded-[16px] bg-brandAlt-600 px-[32px] py-[12px] sm:w-[202px]",
-                "font-inter text-[16px] font-medium tracking-[0.16px] text-white",
-                "transition-all duration-300 ease-out-expo",
-                "hover:-translate-y-px hover:shadow-ebutton",
-                "active:translate-y-0",
-              )}
-            >
-              {/* Floating deco ellipse — scales up on hover */}
-              <Image
-                src="/images/button-deco.svg"
-                alt=""
-                width={109}
-                height={69}
-                aria-hidden
-                className="pointer-events-none absolute left-0 top-[14px] h-[69px] w-[109px] animate-btn-deco-float blur-[13.65px] transition-all duration-500 ease-out-expo group-hover/cta:scale-[3] group-hover/cta:opacity-0"
-              />
-              {/* Glow flood — radial expansion from deco position */}
-              <span className="pointer-events-none absolute left-[15%] top-1/2 aspect-square w-[250%] -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-[#05B871] opacity-0 transition-all duration-500 ease-out-expo group-hover/cta:scale-100 group-hover/cta:opacity-100" />
-              <span className="relative z-10 flex items-center gap-2">
-                Create Project
-                <ArrowUpRight className="size-4" />
-              </span>
-            </button>
-          </motion.div>
-        </div>
+                {/* Primary — Create Project (try-it flow) */}
+                <button
+                  type="button"
+                  onClick={handleCreateProject}
+                  className="btn-primary press inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 text-body-md font-medium sm:w-auto sm:min-w-[200px]"
+                >
+                  Create Project
+                  <ArrowUpRight className="size-4" />
+                </button>
+              </ScrollReveal>
+            </div>
+          </div>
+        </ScrollReveal>
       </div>
 
-      {/* Footer pinned at bottom */}
-      <motion.div
-        id="footer-nav"
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.1 }}
-        transition={{
-          type: "spring",
-          stiffness: 50,
-          damping: 18,
-          mass: 1,
-          delay: 0.5,
-        }}
-      >
-        <Footer />
-      </motion.div>
+      <div id="footer-nav">
+        <ScrollReveal direction="up" delay={FOOTER_DELAY}>
+          <Footer />
+        </ScrollReveal>
+      </div>
     </section>
   );
 }
+
+interface TypedLineProps {
+  text: string;
+  sparkleKey?: number;
+  isCursorVisible?: boolean;
+  prefersReducedMotion?: boolean;
+}
+
+// Sparkle + accent word + cursor. The invisible sizing copies render it
+// static (no sparkleKey), so only the live line animates.
+const TypedLine = ({
+  text,
+  sparkleKey,
+  isCursorVisible = true,
+  prefersReducedMotion = false,
+}: TypedLineProps) => {
+  const isLive = sparkleKey !== undefined;
+
+  return (
+    <>
+      {/* Off under reduced motion; same spring as the hero. */}
+      <motion.span
+        key={sparkleKey}
+        initial={
+          !isLive || prefersReducedMotion
+            ? false
+            : { transform: "scale(1.3) rotate(25deg)" }
+        }
+        animate={{ transform: "scale(1) rotate(0deg)" }}
+        transition={SPARKLE_TRANSITION}
+        className="mr-2 inline-flex align-middle text-brand-700 lg:mr-3"
+      >
+        <Sparkles className="size-[0.75em]" />
+      </motion.span>
+      <span className="text-brand-700">
+        {text}
+        <span
+          className={cn(
+            "ml-[1px] inline-block h-[0.75em] w-[3px] bg-brand-700 transition-opacity duration-100",
+            isCursorVisible ? "opacity-100" : "opacity-0",
+          )}
+        />
+      </span>
+    </>
+  );
+};

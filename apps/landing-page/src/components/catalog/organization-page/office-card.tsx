@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ImageIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -8,6 +8,7 @@ import type { PublicOffice } from "@wildfires-org/turboplan-public/types";
 import { cn } from "@wildfires-org/turboplan-utils";
 
 import { routing } from "@/utils/routing";
+import { CATALOG_CARD_LINK_CLASS } from "../catalog-layout";
 
 interface OfficeCardProps {
   office: PublicOffice;
@@ -26,39 +27,41 @@ export default function OfficeCard({
         organizationSlug,
         officeSlug: office.slug,
       })}
-      className={cn(
-        "group bg-white rounded-xl border border-neutral-grey overflow-hidden hover:shadow-md transition-shadow cursor-pointer block",
-        className,
-      )}
+      className={cn(CATALOG_CARD_LINK_CLASS, "flex flex-col", className)}
     >
-      <div className="h-[120px] bg-gray-150 relative">
-        {office.coverImageUrl ? (
-          <Image
-            src={office.coverImageUrl}
-            alt={office.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-neutral-grey3 text-sm">
-            {office.name}
-          </div>
-        )}
+      <div className="p-2 pb-0">
+        <div className="relative h-[132px] overflow-hidden rounded-xl bg-brandAlt-100">
+          {office.coverImageUrl ? (
+            <Image
+              src={office.coverImageUrl}
+              alt={office.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <ImageIcon className="size-8 text-brand-800/30" />
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="p-4 flex items-center justify-between">
+      <div className="flex flex-1 items-center justify-between gap-3 p-5">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-neutral-black truncate">
+          <p className="truncate font-inter text-[15px] font-medium leading-[20px] text-egray-900">
             {office.name}
           </p>
           {office.description && (
-            <p className="text-xs text-neutral-grey3 mt-1 line-clamp-1">
+            <p className="mt-1 line-clamp-1 font-inter text-[13px] leading-[18px] text-egray-700">
               {office.description}
             </p>
           )}
         </div>
-        <ChevronRight className="w-5 h-5 text-neutral-grey3 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        <ChevronRight
+          aria-hidden
+          className="size-5 shrink-0 text-egray-700 transition-transform duration-200 ease-out-expo group-hover:translate-x-0.5 motion-reduce:transition-none"
+        />
       </div>
     </Link>
   );

@@ -1,5 +1,6 @@
 import type { PublicOffice } from "@wildfires-org/turboplan-public/types";
 
+import { CATALOG_GRID_CLASS } from "../catalog-layout";
 import OfficeCard from "./office-card";
 
 interface OfficesListProps {
@@ -9,7 +10,7 @@ interface OfficesListProps {
 
 export function OfficesList({ offices, organizationSlug }: OfficesListProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className={CATALOG_GRID_CLASS}>
       {offices.map((office) => (
         <OfficeCard
           key={office.id}

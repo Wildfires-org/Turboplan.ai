@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CATALOG_PAGE_CLASS } from "@/components/catalog/catalog-layout";
 import { CatalogOrganizationHero } from "@/components/catalog/catalog-organization-hero";
 import { ProjectsSection } from "@/components/catalog/projects-section";
 import { getOrganization } from "@/handlers/organizations";
-import { routing } from "@/utils/routing";
 
 interface OrganizationProjectsPageProps {
   params: Promise<{ organization: string }>;
@@ -22,33 +21,16 @@ export default async function OrganizationProjectsPage({
   }
 
   return (
-    <div className="w-full">
-      <CatalogOrganizationHero organization={organization} />
+    <div className={CATALOG_PAGE_CLASS}>
+      <CatalogOrganizationHero
+        organization={organization}
+        extraBreadcrumbs={[{ name: "Projects" }]}
+      />
 
-      <div className="px-4 md:px-8 lg:px-12">
-        <div className="max-w-[1200px] mx-auto">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-neutral-grey3 pt-6">
-            <Link href={routing.catalog()} className="hover:text-neutral-black">
-              Projects
-            </Link>
-            <span>/</span>
-            <Link
-              href={routing.catalogOrganization({ organizationSlug })}
-              className="hover:text-neutral-black"
-            >
-              {organization.name}
-            </Link>
-            <span>/</span>
-            <span className="text-neutral-black">Projects</span>
-          </nav>
-
-          <ProjectsSection
-            organizationSlug={organizationSlug}
-            showMoreLink={false}
-          />
-        </div>
-      </div>
+      <ProjectsSection
+        organizationSlug={organizationSlug}
+        showMoreLink={false}
+      />
     </div>
   );
 }

@@ -41,8 +41,8 @@ export function DraftSlide({ reduce }: { reduce: boolean }) {
       <div className="flex h-full">
         {/* Chat rail */}
         <div className="hidden w-[38%] max-w-[340px] shrink-0 flex-col border-r border-egray-100 bg-white md:flex">
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-egray-100 px-4 py-3">
-            <span className="truncate font-heading text-[13.5px] font-bold text-neutral-black">
+          <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-egray-100 px-4">
+            <span className="truncate font-heading text-[14px] font-bold text-neutral-black">
               Canyon Three Fuels Reduction
             </span>
             <span className="flex shrink-0 items-center gap-1 rounded-md border border-egray-200 px-2 py-1 font-heading text-[10px] font-medium text-egray-600">
@@ -51,14 +51,14 @@ export function DraftSlide({ reduce }: { reduce: boolean }) {
             </span>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
+          <div className="min-h-0 flex-1 overflow-hidden px-4 py-3">
             <div className="flex gap-2.5">
               <Reveal index={0} reduce={reduce}>
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-egray-100">
                   <Sparkles className="size-3.5 text-brand-800" />
                 </span>
               </Reveal>
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                 <Reveal index={0} reduce={reduce}>
                   <p className="font-inter text-[12.5px] leading-[19px] text-neutral-black">
                     The{" "}
@@ -71,7 +71,7 @@ export function DraftSlide({ reduce }: { reduce: boolean }) {
                   </p>
                 </Reveal>
                 <Reveal index={1} reduce={reduce}>
-                  <ul className="flex flex-col gap-1">
+                  <ul className="flex flex-col gap-0.5">
                     {DRAFT_INSERTS.map((item) => (
                       <li
                         key={item}
@@ -125,8 +125,8 @@ export function DraftSlide({ reduce }: { reduce: boolean }) {
         {/* Document artifact preview */}
         <div className="flex min-w-0 flex-1 flex-col bg-white">
           {/* Preview header */}
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-egray-100 px-4 py-3">
-            <div className="flex min-w-0 items-start gap-2.5">
+          <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-egray-100 px-4">
+            <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md text-egray-500 hover:bg-egray-75">
                 <X className="size-4" />
               </span>
@@ -162,8 +162,9 @@ export function DraftSlide({ reduce }: { reduce: boolean }) {
             </div>
           </div>
 
-          {/* Letter body */}
-          <div className="min-h-0 flex-1 overflow-hidden px-6 py-6 sm:px-10">
+          {/* Letter body — on phones the letter runs past the window, so it
+              fades out at the bottom edge like a page continuing below. */}
+          <div className="min-h-0 flex-1 overflow-hidden px-6 py-6 max-sm:[mask-image:linear-gradient(to_bottom,black_75%,transparent)] sm:px-10">
             <div className="mx-auto flex max-w-[520px] flex-col gap-3.5">
               {/* USFS letterhead table */}
               <Reveal index={0} reduce={reduce}>

@@ -5,14 +5,18 @@ import {
 
 interface PublicFieldsSectionProps {
   fields: ReadOnlyField[];
+  entity: "project" | "template";
 }
 
-export function PublicFieldsSection({ fields }: PublicFieldsSectionProps) {
+export function PublicFieldsSection({
+  fields,
+  entity,
+}: PublicFieldsSectionProps) {
   return (
     <ReadOnlyFieldsRenderer
       fields={fields}
       variant="card"
-      emptyMessage="This template doesn't have any custom fields defined yet."
+      emptyMessage={`This ${entity} doesn't have any custom fields defined yet.`}
     />
   );
 }

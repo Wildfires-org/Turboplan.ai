@@ -5,13 +5,22 @@ import { useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
 
+import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
 import { ScrollReveal } from "@/components/home-v2/ui/scroll-reveal";
+import {
+  Eyebrow,
+  HEADER_STACK_CLASS,
+  SECTION_LEAD_CLASS,
+  SECTION_TITLE_CLASS,
+} from "@/components/home-v2/ui/section-header";
 import { cn } from "@/lib/utils";
 
 interface FeatureSectionProps {
   badge: string;
   badgeIcon: LucideIcon;
   heading: string;
+  // Trailing words rendered in the brand accent, as in the other section H2s.
+  headingAccent: string;
   description: string;
   visualSrc: string;
   visualAlt: string;
@@ -26,6 +35,7 @@ export function FeatureSection({
   badge,
   badgeIcon: Icon,
   heading,
+  headingAccent,
   description,
   visualSrc,
   visualAlt,
@@ -65,70 +75,65 @@ export function FeatureSection({
     <div className="w-full">
       <div
         className={cn(
-          "mx-auto flex max-w-[1200px] flex-col-reverse items-start gap-8 self-stretch px-6 sm:gap-10 lg:gap-[64px] lg:px-8 xl:gap-[88px] xl:px-0",
+          PAGE_CONTAINER,
+          "flex flex-col-reverse items-start gap-8 sm:gap-10 lg:gap-16 xl:gap-[88px]",
           isTextLeft ? "lg:flex-row" : "lg:flex-row-reverse",
         )}
       >
         {/* Text column — top-aligned, pt-18, gap-18 */}
         <ScrollReveal
           direction={isTextLeft ? "left" : "right"}
-          distance={30}
           delay={0.1}
           className="w-full shrink-0 lg:w-[420px]"
         >
-          <div className="flex w-full flex-col items-start gap-[18px] pt-[18px]">
-            {/* Badge */}
-            <div className="flex items-center gap-1.5">
-              <Icon className="size-4 text-brand-600" />
-              <span className="font-heading text-[12px] font-medium uppercase leading-[16px] tracking-[0.24px] text-brand-600">
-                {badge}
+          <div
+            className={cn(HEADER_STACK_CLASS, "w-full items-start pt-[18px]")}
+          >
+            <Eyebrow icon={Icon} label={badge} />
+            <h2 className={SECTION_TITLE_CLASS}>
+              {heading}{" "}
+              <span className="whitespace-nowrap text-brand-700">
+                {headingAccent}
               </span>
-            </div>
-
-            {/* Heading */}
-            <h2 className="font-heading text-[28px] font-normal leading-[36px] tracking-[-0.5px] text-[#161616] sm:text-[32px] sm:leading-[40px] lg:text-[48px] lg:leading-[56px] lg:tracking-[-1px]">
-              {heading}
             </h2>
-
-            {/* Description */}
-            <p className="font-inter text-[16px] font-medium leading-[24px] tracking-[0.16px] text-[#6B7280]">
-              {description}
-            </p>
+            <p className={SECTION_LEAD_CLASS}>{description}</p>
           </div>
         </ScrollReveal>
 
         {/* Visual column — fills remaining space */}
         <ScrollReveal
           direction="up"
-          distance={30}
-          delay={0.2}
+          // 60ms after the text column (30–80ms stagger band).
+          delay={0.16}
           className="relative w-full min-w-0 lg:flex-1"
         >
-          {/* Feature UI card — full width, rounded-[12px], white, subtle shadow */}
-          <div className="flex w-full flex-col items-start overflow-hidden rounded-[12px] bg-white shadow-[0_4px_12px_0_rgba(0,0,0,0.08)]">
-            {videoSrc ? (
-              <video
-                ref={videoRef}
-                src={videoSrc}
-                width={1148}
-                height={720}
-                className="h-auto w-full"
-                muted
-                playsInline
-                preload="metadata"
-                aria-label={visualAlt}
-              />
-            ) : (
-              <Image
-                src={visualSrc}
-                alt={visualAlt}
-                width={1554}
-                height={1170}
-                className="h-auto w-full"
-                loading="lazy"
-                sizes="(max-width: 768px) 100vw, 50vw"
-              />
-            )}
+          {/* Feature UI card — glass frame around a rounded screenshot */}
+          <div className="glass-card w-full rounded-[28px] p-2 sm:p-2.5">
+            <div className="flex w-full flex-col items-start overflow-hidden rounded-2xl bg-white">
+              {videoSrc ? (
+                <video
+                  ref={videoRef}
+                  src={videoSrc}
+                  width={1148}
+                  height={720}
+                  className="h-auto w-full"
+                  muted
+                  playsInline
+                  preload="metadata"
+                  aria-label={visualAlt}
+                />
+              ) : (
+                <Image
+                  src={visualSrc}
+                  alt={visualAlt}
+                  width={1554}
+                  height={1170}
+                  className="h-auto w-full"
+                  loading="lazy"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
+              )}
+            </div>
           </div>
 
           {/* Beaver mascot */}

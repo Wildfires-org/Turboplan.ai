@@ -46,23 +46,27 @@ const GANTT_ROWS = [
 export function PlanSlide({ reduce }: { reduce: boolean }) {
   return (
     <AppWindow active="overview" contentClassName="bg-egray-50">
-      <div className="h-full overflow-hidden">
-        {/* Project cover */}
-        <div className="relative h-16 w-full overflow-hidden">
+      {/* Mirrors the real project page (project-page-header.tsx): the cover
+          sits behind the content at z-0 and fades into the page background,
+          and the header card (z-10) overlaps its lower half. */}
+      <div className="relative isolate h-full overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[140px]">
           <Image
             src="/images/project-header-default-background.png"
             alt=""
             fill
+            sizes="(min-width: 1024px) 1100px, 100vw"
             className="object-cover"
           />
+          <div className="absolute inset-0 bg-linear-to-b from-transparent from-35% to-egray-50" />
         </div>
 
-        <div className="-mt-8 flex flex-col gap-4 px-5 pb-5">
-          {/* Project header card (overlaps the cover) */}
-          <div className="rounded-2xl border border-egray-100 bg-white p-4 shadow-[0_12px_28px_-18px_rgba(0,0,0,0.25)]">
+        <div className="relative z-10 flex flex-col gap-4 px-5 pb-5 pt-10">
+          {/* Project header card — glass like the real one, over the cover */}
+          <div className="rounded-2xl border-[1.5px] border-white/95 bg-white/85 p-4 shadow-[0_20px_56px_-40px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.95)]">
             <div className="flex items-start gap-4">
               <Reveal index={0} reduce={reduce}>
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brandAlt-400 font-heading text-[16px] font-semibold text-white">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-brandAlt-400 font-heading text-[16px] sm:size-14 sm:text-[18px] font-semibold text-white shadow-lg">
                   CT
                 </span>
               </Reveal>
@@ -70,15 +74,15 @@ export function PlanSlide({ reduce }: { reduce: boolean }) {
                 <Reveal
                   index={1}
                   reduce={reduce}
-                  className="flex items-center gap-2"
+                  className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2"
                 >
-                  <span className="flex items-center gap-1 rounded-md bg-neutral-black px-2 py-0.5">
+                  <span className="flex shrink-0 items-center gap-1 rounded-md bg-neutral-black px-2 py-0.5">
                     <Lock className="size-2.5 text-white" />
                     <span className="font-heading text-[10px] font-medium text-white">
                       Manager view
                     </span>
                   </span>
-                  <h2 className="truncate font-heading text-[18px] font-semibold text-neutral-black">
+                  <h2 className="max-w-full font-heading text-[16px] font-semibold leading-[22px] text-neutral-black sm:truncate sm:text-[18px] sm:leading-[24px]">
                     Canyon Three Fuels Reduction
                   </h2>
                 </Reveal>
@@ -88,19 +92,19 @@ export function PlanSlide({ reduce }: { reduce: boolean }) {
                   className="flex flex-col gap-1.5"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-inter text-[12px] font-medium text-egray-600">
+                    <span className="font-inter text-[12px] font-medium text-egray-700">
                       Progress
                     </span>
-                    <span className="font-inter text-[12px] text-egray-500">
+                    <span className="font-inter text-[12px] text-egray-600">
                       40/180 days
                     </span>
                   </div>
                   <ProgressBar pct={22} reduce={reduce} />
-                  <span className="font-inter text-[11px] text-egray-500">
+                  <span className="font-inter text-[11.5px] text-egray-600">
                     <span className="font-semibold text-neutral-black">
                       140 days left
                     </span>{" "}
-                    · due: December 30, 2026
+                    · due December 30, 2026
                   </span>
                 </Reveal>
               </div>
@@ -128,10 +132,10 @@ export function PlanSlide({ reduce }: { reduce: boolean }) {
               <span className="flex-1 font-heading text-[10px] font-medium uppercase tracking-wider text-egray-500">
                 Task
               </span>
-              <span className="w-12 text-center font-heading text-[10px] font-medium uppercase tracking-wider text-egray-500">
+              <span className="hidden w-12 text-center font-heading text-[10px] font-medium uppercase tracking-wider text-egray-500 sm:block">
                 Start
               </span>
-              <span className="w-12 text-center font-heading text-[10px] font-medium uppercase tracking-wider text-egray-500">
+              <span className="hidden w-12 text-center font-heading text-[10px] font-medium uppercase tracking-wider text-egray-500 sm:block">
                 Due
               </span>
               <span className="w-24 font-heading text-[10px] font-medium uppercase tracking-wider text-egray-500">
@@ -150,10 +154,10 @@ export function PlanSlide({ reduce }: { reduce: boolean }) {
                     <span className="flex-1 truncate font-inter text-[12.5px] font-medium text-neutral-black">
                       {row.task}
                     </span>
-                    <span className="w-12 text-center font-inter text-[11.5px] text-egray-500">
+                    <span className="hidden w-12 text-center font-inter text-[11.5px] text-egray-600 sm:block">
                       {row.start}
                     </span>
-                    <span className="w-12 text-center font-inter text-[11.5px] text-egray-500">
+                    <span className="hidden w-12 text-center font-inter text-[11.5px] text-egray-600 sm:block">
                       {row.due}
                     </span>
                     <span className="w-24 truncate font-inter text-[11.5px] text-egray-700">
@@ -169,7 +173,7 @@ export function PlanSlide({ reduce }: { reduce: boolean }) {
                           transform: reduce ? "scaleX(1)" : "scaleX(0)",
                           animation: reduce
                             ? "none"
-                            : `showcase-progress 0.9s cubic-bezier(0.25,1,0.4,1) ${0.35 + i * 0.08}s both`,
+                            : `showcase-progress 0.9s var(--ease-out-expo) ${0.35 + i * 0.06}s both`,
                         }}
                       />
                     </span>

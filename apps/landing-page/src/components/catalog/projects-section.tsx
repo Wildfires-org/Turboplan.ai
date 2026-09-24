@@ -1,21 +1,27 @@
 "use client";
 
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 
-import { ArrowUpRight, PlusIcon } from "lucide-react";
+import { ArrowUpRight, FolderKanban, PlusIcon } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 
 import BeaverLeft from "@/../public/images/beaver_left.png";
-import ProjectsBackground from "@/../public/images/projects.png";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
 import { fetcher } from "@/lib/utils";
 import type { PublicProject } from "@/types/public-project";
 import { routing } from "@/utils/routing";
+import { CatalogCardSkeletonGrid } from "./catalog-card-skeleton";
 import { CatalogEmptyState } from "./catalog-empty-state";
+import {
+  CATALOG_GRID_CLASS,
+  CATALOG_SECTION_CLASS,
+  GLASS_BUTTON_CLASS,
+  PRIMARY_BUTTON_CLASS,
+} from "./catalog-layout";
+import { CatalogSectionHeader } from "./catalog-section-header";
 import { ProjectCard } from "./project-card";
 
 interface ProjectsSectionProps {
@@ -69,65 +75,41 @@ export function ProjectsSection({
 
   if (isLoading) {
     return (
-      <section className="py-10">
-        <p className="text-base text-green-60 mb-1">In progress</p>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h2 className="text-2xl tracking-tight">Projects</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-xl border border-neutral-grey p-6 animate-pulse"
-            >
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-4" />
-              <div className="h-3 bg-gray-200 rounded w-1/2 mb-2" />
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4" />
-              <div className="h-2 bg-gray-200 rounded w-full mb-4" />
-              <div className="h-8 bg-gray-200 rounded w-full" />
-            </div>
-          ))}
-        </div>
-      </section>
+      <ProjectsSectionShell>
+        <CatalogCardSkeletonGrid label="Loading projects" />
+      </ProjectsSectionShell>
     );
   }
 
   if (error) {
     return (
-      <section className="py-10">
-        <p className="text-base text-green-60 mb-1">In progress</p>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h2 className="text-2xl tracking-tight">Projects</h2>
-        </div>
-        <div className="text-center py-8 text-neutral-grey3">
+      <ProjectsSectionShell>
+        <div className="glass-card px-6 py-12 text-center font-inter text-[15px] text-egray-700">
           Failed to load projects. Please try again later.
         </div>
-      </section>
+      </ProjectsSectionShell>
     );
   }
 
   if (!projects || projects.length === 0) {
     return (
-      <section className="py-10">
-        <p className="text-base text-green-60 mb-1">In progress</p>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h2 className="text-2xl tracking-tight">Projects</h2>
-        </div>
+      <ProjectsSectionShell>
         <CatalogEmptyState
-          backgroundImage={ProjectsBackground}
           beaverImage={BeaverLeft}
           beaverAlt="Beaver mascot pointing"
           title="Your project list is empty"
           description="Start a new project to track environmental assessments, manage documents, and collaborate with your team."
           actionButton={
-            <Button
-              variant="primary"
-              size="small"
+            <button
+              type="button"
+              className={PRIMARY_BUTTON_CLASS}
               onClick={() => {
                 const container = document.getElementById(
                   "project-prompt-input",
                 );
-                if (!container) return;
+                if (!container) {
+                  return;
+                }
                 const input = container.querySelector<
                   HTMLInputElement | HTMLTextAreaElement
                 >("input, textarea");
@@ -137,12 +119,12 @@ export function ProjectsSection({
                 }
               }}
             >
-              <PlusIcon className="size-4 mr-1.5" />
+              <PlusIcon className="size-4" />
               Create Project
-            </Button>
+            </button>
           }
         />
-      </section>
+      </ProjectsSectionShell>
     );
   }
 
@@ -151,37 +133,50 @@ export function ProjectsSection({
   const hasMoreProjects = limit !== undefined && projects.length > limit;
 
   return (
-    <section className="py-10">
-      <p className="text-base text-green-60 mb-1">In progress</p>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h2 className="text-2xl tracking-tight">Projects</h2>
-
-        <Badge
-          variant="lightGray"
-          className="flex items-center gap-2 w-fit rounded-full px-4 py-2 text-sm font-medium text-neutral-black"
-        >
-          <span className="text-[16px]">🇺🇸</span>
-          US Agencies & Firms
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <ProjectsSectionShell
+      actions={
+        <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 font-inter text-[13px] font-medium leading-[18px] text-egray-900">
+          <span aria-hidden>🇺🇸</span>
+          US Agencies &amp; Firms
+        </span>
+      }
+    >
+      <div className={CATALOG_GRID_CLASS}>
         {displayedProjects.map((project) => (
           <ProjectCard key={project.id} project={project} />
         ))}
       </div>
 
       {showMoreLink && hasMoreProjects && (
-        <div className="flex justify-end mt-6">
-          <Link
-            href={moreProjectsUrl}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-black bg-white border border-neutral-grey rounded-full hover:bg-gray-50 transition-colors"
-          >
+        <div className="mt-8 flex justify-end">
+          <Link href={moreProjectsUrl} className={GLASS_BUTTON_CLASS}>
             More Projects
-            <ArrowUpRight className="h-4 w-4 text-green-70" />
+            <ArrowUpRight className="size-4" />
           </Link>
         </div>
       )}
+    </ProjectsSectionShell>
+  );
+}
+
+function ProjectsSectionShell({
+  actions,
+  children,
+}: {
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className={CATALOG_SECTION_CLASS}>
+      <div className={PAGE_CONTAINER}>
+        <CatalogSectionHeader
+          icon={FolderKanban}
+          eyebrow="In progress"
+          title="Projects"
+          actions={actions}
+        />
+        {children}
+      </div>
     </section>
   );
 }

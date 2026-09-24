@@ -80,6 +80,13 @@ const nextConfig: NextConfig = {
         destination: "/projects/:path*",
         permanent: true,
       },
+      // Contact moved to a homepage section. Temporary so a dedicated page can
+      // come back without fighting cached permanent redirects.
+      {
+        source: "/contact",
+        destination: "/#contact",
+        permanent: false,
+      },
       {
         source: "/user-guide",
         destination: "/docs",

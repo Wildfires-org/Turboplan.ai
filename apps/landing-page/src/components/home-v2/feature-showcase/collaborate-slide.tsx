@@ -117,6 +117,8 @@ export function CollaborateSlide({ reduce }: { reduce: boolean }) {
 
         {/* Activity timeline */}
         <SectionCard
+          // Phones stack the cards in one column; only Members fits.
+          className="hidden sm:flex"
           icon={<Clock className="size-4" />}
           title="Timeline"
           subtitle="5 entries"

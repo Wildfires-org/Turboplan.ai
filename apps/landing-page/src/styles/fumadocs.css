@@ -1,0 +1,400 @@
+/* ===========================================================================
+   Fumadocs (/docs) — "Mist" theme.
+
+   Imported by src/globals.css right after fumadocs-ui's neutral.css +
+   preset.css. Two parts:
+
+   1. Tokens. Fumadocs styles everything through --color-fd-* (and a few
+      --fd-* / --animate-fd-* values); remapping them themes every stock
+      component, including ones the docs don't use yet (Tabs, Steps,
+      Accordion, TypeTable...).
+   2. Overrides for Fumadocs-owned elements that expose no className/
+      component hook: the sidebar/drawer surfaces, TOC list, section bar,
+      search dialog, the `Card`/`Cards` that MDX content imports directly,
+      and prose (links, inline code, tables). Selectors use Fumadocs' stable
+      ids (#nd-*) and data-* attributes only. Unlayered on purpose, so they
+      win over Fumadocs' layered utilities without !important.
+
+   Everything with a supported hook (layout grid, sticky columns, sidebar
+   rows, search trigger, mobile bar, title, prev/next, MDX headings, code
+   blocks, tables, callouts) is styled in src/app/docs/* and
+   src/components/docs/* instead.
+   ========================================================================= */
+
+/* ---- 1. Tokens --------------------------------------------------------- */
+
+@theme {
+  /* Flat Mist ground, like the rest of the site. */
+  --color-fd-background: var(--color-brandAlt-100);
+  --color-fd-foreground: var(--color-egray-900);
+  /* Muted text: egray-700 keeps >= 4.5:1 on the ground and on glass. */
+  --color-fd-muted: rgba(255, 255, 255, 0.7);
+  --color-fd-muted-foreground: var(--color-egray-700);
+  /* Card / popover = the glass-card surface. */
+  --color-fd-card: rgba(255, 255, 255, 0.58);
+  --color-fd-card-foreground: var(--color-egray-900);
+  --color-fd-popover: rgba(255, 255, 255, 0.92);
+  --color-fd-popover-foreground: var(--color-egray-900);
+  --color-fd-border: var(--color-brandAlt-200);
+  /* brand-800: the text-safe green (links, active states, TOC thumb). */
+  --color-fd-primary: var(--color-brand-800);
+  --color-fd-primary-foreground: #fff;
+  --color-fd-secondary: rgba(255, 255, 255, 0.7);
+  --color-fd-secondary-foreground: var(--color-egray-900);
+  /* Light mint for hover/selected fills. */
+  --color-fd-accent: rgba(209, 230, 222, 0.6);
+  --color-fd-accent-foreground: var(--color-brandAlt-600);
+  --color-fd-ring: var(--color-brand-700);
+
+  /* Mobile drawer: the drawer floats 8px off the edge (see SIDEBAR_CLASS in
+     src/app/docs/layout.tsx), so slide it fully out, and use the drawer
+     curve from the animation standards (entry under 300ms). */
+  --fd-sidebar-mobile-offset: calc(100% + 1rem);
+  --animate-fd-sidebar-in: fd-sidebar-in 280ms cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-fd-sidebar-out: fd-sidebar-out 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ---- 2a. Sidebar (desktop panel + mobile drawer) ----------------------- */
+
+/* Glass card instead of the flat grey slab with a right border. */
+#nd-sidebar,
+#nd-sidebar-mobile {
+  border: var(--glass-card-border);
+  border-radius: var(--glass-card-radius);
+  background: var(--glass-card-bg);
+  -webkit-backdrop-filter: var(--glass-card-blur);
+  backdrop-filter: var(--glass-card-blur);
+  box-shadow: var(--glass-card-shadow);
+  overflow: hidden;
+}
+
+/* The drawer sits over the article, so it needs a denser surface. */
+#nd-sidebar-mobile {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 24px 64px -24px rgba(15, 23, 42, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Drawer backdrop (the element right before the drawer): a light tint on
+   top of Fumadocs' blur, above the navbar pill like the drawer itself. */
+div:has(+ #nd-sidebar-mobile) {
+  z-index: 59;
+  background: rgba(12, 13, 14, 0.12);
+}
+
+/* The desktop panel is sized to its content (max-height, see layout.tsx).
+   Let the tree's scroll area shrink inside it instead of relying on
+   Fumadocs' h-full, which needs a definite panel height. */
+#nd-sidebar > [dir]:has(> [data-radix-scroll-area-viewport]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+#nd-sidebar [data-radix-scroll-area-viewport] {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+/* Header spacing: Fumadocs' p-4 pb-2 header + p-4 tree reads loose inside a
+   card; tighten to the card's 16px rhythm. */
+#nd-sidebar > div:first-child {
+  gap: 14px;
+  padding: 18px 16px 6px;
+}
+
+#nd-sidebar-mobile > div:first-child {
+  gap: 12px;
+  padding: 12px 12px 4px 16px;
+}
+
+/* Drawer close button (Fumadocs labels it "Open Sidebar"; it toggles). Same
+   recipe as the navbar's menu button. */
+#nd-sidebar-mobile button[aria-label="Open Sidebar"] {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--color-egray-700);
+}
+
+#nd-sidebar-mobile button[aria-label="Open Sidebar"]:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--color-egray-900);
+}
+
+/* ---- 2b. Table of contents -------------------------------------------- */
+
+/* The TOC column is content-sized with a max-height (see DocsTOC); let its
+   fixed-class inner column shrink so the list scrolls inside the cap. */
+#nd-toc > div {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+/* Rail in brandAlt-200, 2px brand-800 thumb for the active section. */
+#nd-toc .border-s,
+[data-toc-popover] .border-s {
+  border-color: var(--color-brandAlt-200);
+}
+
+#nd-toc .bg-fd-primary,
+[data-toc-popover] .bg-fd-primary {
+  width: 2px;
+  margin-inline-start: -0.5px;
+  border-radius: 2px;
+}
+
+#nd-toc a[data-active],
+[data-toc-popover] a[data-active] {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--color-egray-700);
+}
+
+#nd-toc a[data-active]:hover,
+[data-toc-popover] a[data-active]:hover {
+  color: var(--color-egray-900);
+}
+
+#nd-toc a[data-active="true"],
+[data-toc-popover] a[data-active="true"] {
+  font-weight: 500;
+  color: var(--color-brand-800);
+}
+
+/* Section bar below xl (sticky, see DocsTOCBar): light glass like the navbar
+   pill, open or closed. */
+#nd-tocnav {
+  border: var(--glass-border);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+}
+
+/* ---- 2c. Search dialog -------------------------------------------------- */
+
+/* Fumadocs' default dialog (opened by ⌘K or the sidebar trigger). Matched by
+   its result list ([data-empty]), which no other dialog on the site has. It
+   is a command palette opened from the keyboard, so it appears instantly
+   (no scale/fade), per the animation standards. Both layers go above the
+   navbar pill (z-50), which otherwise covered the input on phones. */
+[role="dialog"]:has([data-empty]) {
+  z-index: 60;
+  border: var(--glass-card-border);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: var(--glass-card-blur);
+  backdrop-filter: var(--glass-card-blur);
+  box-shadow:
+    0 32px 80px -32px rgba(15, 23, 42, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: none;
+}
+
+:has(+ [role="dialog"] [data-empty]) {
+  z-index: 60;
+  background: rgba(12, 13, 14, 0.18);
+  animation: none;
+}
+
+/* Header row → a glass-inset field. */
+[role="dialog"]:has([data-empty]) > div:has(> input) {
+  margin: 10px;
+  padding: 6px 6px 6px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--glass-inset-bg);
+  box-shadow: var(--glass-inset-shadow);
+}
+
+[role="dialog"]:has([data-empty]) input {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 16px;
+  color: var(--color-egray-900);
+}
+
+[role="dialog"]:has([data-empty]) > div:has(> input) > button {
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-brandAlt-100);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 11px;
+  color: var(--color-egray-700);
+}
+
+/* Results. Selected row uses the mint accent token (bg) + brandAlt-600. */
+[role="dialog"]:has([data-empty]) [data-empty] {
+  border-top: 1px solid var(--color-brandAlt-200);
+}
+
+[role="dialog"]:has([data-empty]) button[aria-selected] {
+  border-radius: 12px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* ---- 2d. Article content ------------------------------------------------ */
+
+/* Prose colours + body font. Links in brand-800 with a soft underline that
+   firms up on hover (the stock style is foreground text, thick underline,
+   80% opacity on hover). */
+#nd-page .prose {
+  --tw-prose-body: var(--color-egray-800);
+  --tw-prose-headings: var(--color-egray-900);
+  --tw-prose-lead: var(--color-egray-700);
+  --tw-prose-links: var(--color-brand-800);
+  --tw-prose-bold: var(--color-egray-900);
+  --tw-prose-code: var(--color-egray-900);
+  --tw-prose-bullets: var(--color-brandAlt-400);
+  --tw-prose-counters: var(--color-egray-700);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+#nd-page .prose a:not([data-card]) {
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--color-brand-800) 35%,
+    transparent
+  );
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 150ms ease;
+}
+
+#nd-page .prose a:not([data-card]):hover {
+  opacity: 1;
+  text-decoration-color: var(--color-brand-800);
+}
+
+#nd-page a:focus-visible,
+#nd-page button:focus-visible {
+  outline: 2px solid var(--color-brand-700);
+  outline-offset: 2px;
+}
+
+/* Inline code: a small white chip. */
+#nd-page .prose :not(pre) > code {
+  padding: 1px 5px;
+  border: 1px solid var(--color-brandAlt-200);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 0.85em;
+}
+
+/* Heading anchors (the hover link icon). */
+#nd-page .prose :is(h2, h3, h4) > svg {
+  color: var(--color-egray-500);
+}
+
+/* Tables sit inside a glass card (see docs-mdx.tsx) — flatten the table
+   itself and use hairline brandAlt-200 row rules. */
+#nd-page .prose table {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#nd-page .prose :is(th, td) {
+  padding: 10px 16px;
+  border-inline-start: 0;
+  vertical-align: top;
+  text-align: start;
+}
+
+#nd-page .prose th {
+  border-bottom: 1px solid var(--color-brandAlt-200);
+  background: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-geist), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-egray-900);
+}
+
+#nd-page .prose td {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--color-brandAlt-200) 70%, transparent);
+  color: var(--color-egray-800);
+}
+
+#nd-page .prose tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Code block copy button (no hook: its container is a render prop, which a
+   server-rendered MDX map can't pass to the client CodeBlock). */
+#nd-page figure.shiki button[aria-label] {
+  border-radius: 8px;
+  color: var(--color-egray-700);
+}
+
+#nd-page figure.shiki button[aria-label]:hover {
+  background: #fff;
+  color: var(--color-egray-900);
+}
+
+/* `Card` / `Cards` (imported straight from fumadocs-ui by the MDX files, so
+   the components map can't replace them). Matched by Fumadocs' [data-card]
+   plus the card's own h3 title — heading anchors also carry [data-card].
+   Same surface and hover as the catalog's clickable glass cards. */
+#nd-page [data-card]:has(> h3) {
+  padding: 16px 18px;
+  border: var(--glass-card-border);
+  border-radius: var(--glass-card-radius);
+  background: var(--glass-card-bg);
+  -webkit-backdrop-filter: var(--glass-card-blur);
+  backdrop-filter: var(--glass-card-blur);
+  box-shadow: var(--glass-card-shadow);
+  transition:
+    background-color 200ms ease,
+    scale 160ms var(--ease-out-expo);
+}
+
+#nd-page a[data-card]:has(> h3):hover {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+#nd-page a[data-card]:has(> h3):active {
+  scale: 0.98;
+}
+
+#nd-page [data-card]:has(> h3) > h3 {
+  margin-bottom: 4px;
+  font-family: var(--font-geist), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--color-egray-900);
+}
+
+#nd-page a[data-card]:has(> h3):hover > h3 {
+  color: var(--color-brand-800);
+}
+
+#nd-page [data-card]:has(> h3) > :is(p, div) {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-egray-700);
+}
+
+/* Card icon chip. */
+#nd-page [data-card]:has(> h3) > div.not-prose:first-child {
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-brandAlt-100);
+  color: var(--color-brand-800);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #nd-page a[data-card]:has(> h3):active {
+    scale: none;
+  }
+}

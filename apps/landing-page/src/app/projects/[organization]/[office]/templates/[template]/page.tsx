@@ -1,22 +1,32 @@
+import {
+  FileText,
+  LayoutTemplate,
+  ListChecks,
+  SlidersHorizontal,
+} from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getSession } from "@wildfires-org/turboplan-auth/session";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import type { MilestoneWithTasks } from "@wildfires-org/turboplan-tasks/types";
-import {
-  AccordionSection,
-  ProjectImageHeader,
-} from "@wildfires-org/turboplan-utils";
 
+import {
+  CARD_CHIP_CLASS,
+  CATALOG_PAGE_CLASS,
+  CATALOG_SECTION_CLASS,
+} from "@/components/catalog/catalog-layout";
 import { CreateProjectFromTemplateButton } from "@/components/catalog/create-project-from-template-button";
+import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
+import { PublicDetailHero } from "@/components/public-project/public-detail-hero";
 import { PublicDocumentsSection } from "@/components/public-project/public-documents-section";
 import { PublicFieldsSection } from "@/components/public-project/public-fields-section";
+import { PublicModuleSection } from "@/components/public-project/public-module-section";
 import { PublicTasksSection } from "@/components/public-project/public-tasks-section";
 import { ReadOnlyModulesRenderer } from "@/components/public-project/read-only-modules-renderer";
-import { ReadOnlyPreviewDetails } from "@/components/public-project/read-only-preview-details";
-import { Badge } from "@/components/ui/badge";
 import { brand } from "@/lib/brand";
+import { cn } from "@/lib/utils";
+import { routing } from "@/utils/routing";
 
 interface PublicTemplateDetail {
   id: string;
@@ -207,63 +217,101 @@ export default async function PublicTemplatePage({
   const showCreateFromTemplateCta = !!session?.user;
 
   return (
-    <div className="flex flex-col min-h-screen -mt-20">
-      <ProjectImageHeader
-        projectName={template.name}
+    <div className={CATALOG_PAGE_CLASS}>
+      <PublicDetailHero
+        breadcrumbs={[
+          { name: "Projects", href: routing.catalog() },
+          {
+            name: template.organization.name,
+            href: routing.catalogOrganization({
+              organizationSlug: template.organization.slug,
+            }),
+          },
+          {
+            name: template.office.name,
+            href: routing.catalogOffice({
+              organizationSlug: template.organization.slug,
+              officeSlug: template.office.slug,
+            }),
+          },
+          {
+            name: "Templates",
+            href: routing.catalogOfficeTemplates({
+              organizationSlug: template.organization.slug,
+              officeSlug: template.office.slug,
+            }),
+          },
+          { name: template.name },
+        ]}
+        searchPlaceholder={`Search ${template.office.name} projects...`}
+        name={template.name}
+        description={template.description}
+        organizationName={template.organization.name}
+        officeName={template.office.name}
+        updatedAt={template.updatedAt}
         coverImageUrl={template.coverImageUrl}
-        readOnly={true}
+        badge={
+          <span className={cn(CARD_CHIP_CLASS, "gap-1.5 text-brand-800")}>
+            <LayoutTemplate className="size-3.5" aria-hidden />
+            Template
+          </span>
+        }
+        actions={
+          showCreateFromTemplateCta ? (
+            <CreateProjectFromTemplateButton
+              templateId={template.id}
+              templateName={template.name}
+              templateDescription={template.description}
+              initialOrganization={template.organization}
+            />
+          ) : undefined
+        }
       />
 
-      <div className="flex-1 container mx-auto p-6 space-y-6">
-        <ReadOnlyPreviewDetails
-          name={template.name}
-          description={template.description}
-          organizationName={template.organization.name}
-          updatedAt={template.updatedAt}
-          badge={<Badge className="bg-blue-100 text-blue-700">Template</Badge>}
-          titleActions={
-            showCreateFromTemplateCta ? (
-              <CreateProjectFromTemplateButton
-                templateId={template.id}
-                templateName={template.name}
-                templateDescription={template.description}
-                initialOrganization={template.organization}
-              />
-            ) : undefined
-          }
-        />
-        <ReadOnlyModulesRenderer
-          moduleOrder={moduleOrder}
-          entries={[
-            {
-              id: "tasks",
-              isHidden: isTasksHidden,
-              render: () => (
-                <AccordionSection title="Tasks">
-                  <PublicTasksSection milestones={taskMilestones} />
-                </AccordionSection>
-              ),
-            },
-            {
-              id: "fields",
-              isHidden: isFieldsHidden,
-              render: () => (
-                <AccordionSection title="Fields">
-                  <PublicFieldsSection fields={fieldsData} />
-                </AccordionSection>
-              ),
-            },
-            {
-              id: "documents",
-              isHidden: isDocumentsHidden,
-              render: () => (
-                <AccordionSection title="Documents">
-                  <PublicDocumentsSection documents={documentsData} />
-                </AccordionSection>
-              ),
-            },
-          ]}
-        />
+      <div className={CATALOG_SECTION_CLASS}>
+        <div className={PAGE_CONTAINER}>
+          <ReadOnlyModulesRenderer
+            moduleOrder={moduleOrder}
+            entries={[
+              {
+                id: "tasks",
+                isHidden: isTasksHidden,
+                render: () => (
+                  <PublicModuleSection title="Tasks" icon={<ListChecks />}>
+                    <PublicTasksSection milestones={taskMilestones} />
+                  </PublicModuleSection>
+                ),
+              },
+              {
+                id: "fields",
+                isHidden: isFieldsHidden,
+                render: () => (
+                  <PublicModuleSection
+                    title="Fields"
+                    icon={<SlidersHorizontal />}
+                  >
+                    <PublicFieldsSection
+                      fields={fieldsData}
+                      entity="template"
+                    />
+                  </PublicModuleSection>
+                ),
+              },
+              {
+                id: "documents",
+                isHidden: isDocumentsHidden,
+                render: () => (
+                  <PublicModuleSection title="Documents" icon={<FileText />}>
+                    <PublicDocumentsSection
+                      documents={documentsData}
+                      entity="template"
+                    />
+                  </PublicModuleSection>
+                ),
+              },
+            ]}
+          />
+        </div>
       </div>
     </div>
   );

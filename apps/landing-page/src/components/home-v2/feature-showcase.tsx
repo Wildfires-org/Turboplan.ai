@@ -2,13 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import {
-  AnimatePresence,
-  motion,
-  useInView,
-  useReducedMotion,
-} from "framer-motion";
+import { useInView, useReducedMotion } from "framer-motion";
 
+import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
 import { ScrollReveal } from "@/components/home-v2/ui/scroll-reveal";
 import { cn } from "@/lib/utils";
 import { CollaborateSlide } from "./feature-showcase/collaborate-slide";
@@ -45,7 +41,15 @@ const TABS: Tab[] = [
   },
 ];
 
-export function FeatureShowcase() {
+// Matches the `showcase-tab-shrink` duration in showcase-tabs.tsx.
+const TAB_SHRINK_DURATION_MS = 250;
+
+interface FeatureShowcaseProps {
+  // Entrance delay, so the card can join a surrounding reveal sequence.
+  revealDelay?: number;
+}
+
+export function FeatureShowcase({ revealDelay = 0 }: FeatureShowcaseProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.4 });
   const prefersReducedMotion = useReducedMotion();
@@ -79,7 +83,10 @@ export function FeatureShowcase() {
     if (exiting === null) {
       return;
     }
-    const timeout = window.setTimeout(() => setExiting(null), 500);
+    const timeout = window.setTimeout(
+      () => setExiting(null),
+      TAB_SHRINK_DURATION_MS,
+    );
     return () => window.clearTimeout(timeout);
   }, [exiting]);
 
@@ -91,67 +98,81 @@ export function FeatureShowcase() {
 
   return (
     <div ref={sectionRef} className="w-full">
-      <ScrollReveal direction="up" distance={24} className="w-full">
-        <div className="mx-auto flex w-full max-w-[1040px] flex-col items-center gap-8 px-6 lg:px-8">
-          <ShowcaseTabs
-            tabs={TABS}
-            active={active}
-            exiting={exiting}
-            phase={phase}
-            prefersReducedMotion={Boolean(prefersReducedMotion)}
-            autoAdvance={autoAdvance}
-            onSelect={goTo}
-            onTabEnd={handleTabEnd}
-          />
+      <ScrollReveal
+        direction="up"
+        distance={24}
+        delay={revealDelay}
+        className="w-full"
+      >
+        {/* Glass shell — segmented tabs, description and the app window all
+            sit in one card, with the window inset ~10px from its edge. */}
+        <div className={PAGE_CONTAINER}>
+          <div className="glass-card flex w-full flex-col items-center gap-4 rounded-[28px] p-2.5">
+            <ShowcaseTabs
+              tabs={TABS}
+              active={active}
+              exiting={exiting}
+              phase={phase}
+              prefersReducedMotion={Boolean(prefersReducedMotion)}
+              autoAdvance={autoAdvance}
+              onSelect={goTo}
+              onTabEnd={handleTabEnd}
+            />
 
-          {/* Active-slide description — swaps with a soft crossfade. */}
-          <div className="flex min-h-[48px] max-w-[640px] items-start justify-center">
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={active}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="text-center font-inter text-[15px] font-medium leading-[24px] text-egray-600"
-              >
-                {TABS[active].description}
-              </motion.p>
-            </AnimatePresence>
-          </div>
-
-          {/* Stage */}
-          <div
-            className="relative h-[560px] w-full overflow-hidden rounded-[20px] border border-egray-100 md:h-[640px] lg:h-[700px]"
-            style={{
-              background:
-                "linear-gradient(180deg, #f4f9f7 0%, #eaf1ee 55%, #e2ece7 100%)",
-            }}
-          >
-            {TABS.map((tab, index) => {
-              const isActive = index === active;
-              return (
-                <div
+            {/* Active-slide description. Every description sits in the same
+                grid cell (like the hero H1), so the block always reserves the
+                tallest one and tab switches never change the card height; the
+                active one crossfades in while the others go `invisible`. */}
+            <div className="grid w-full max-w-[640px] px-4">
+              {TABS.map((tab, index) => (
+                <p
                   key={tab.type}
-                  role="tabpanel"
-                  id={`showcase-panel-${index}`}
-                  aria-labelledby={`showcase-tab-${index}`}
-                  aria-hidden={!isActive}
+                  aria-hidden={index !== active}
                   className={cn(
-                    "absolute inset-0 flex items-stretch justify-center p-3 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] sm:p-4 md:p-6",
-                    isActive
-                      ? "translate-y-0 opacity-100"
-                      : "pointer-events-none translate-y-3 opacity-0",
+                    "col-start-1 row-start-1 text-center font-inter text-[15px] font-medium leading-[24px] text-egray-700 transition-[opacity,translate,visibility] duration-200 ease-out-expo motion-reduce:translate-y-0",
+                    index === active
+                      ? "visible translate-y-0 opacity-100"
+                      : "invisible translate-y-1.5 opacity-0",
                   )}
                 >
-                  <MockScreen
-                    type={tab.type}
-                    playKey={isActive ? `active-${phase}` : "idle"}
-                    reduce={Boolean(prefersReducedMotion)}
-                  />
-                </div>
-              );
-            })}
+                  {tab.description}
+                </p>
+              ))}
+            </div>
+
+            {/* Stage — panels crossfade in place (250ms). Both panels overlap
+                mid-swap, so a 2px blur masks the seam; `invisible` lands
+                after the fade and takes idle panels out of rendering.
+                Height is fixed per viewport (never by slide content). On
+                laptops+ it follows the window height so tabs + description +
+                window fit on one screen below the sticky navbar; `/ var(--ui-scale)` undoes the body
+                zoom that viewport units would otherwise get twice. */}
+            <div className="relative h-[540px] w-full overflow-hidden rounded-2xl md:h-[600px] lg:h-[clamp(520px,calc(100svh/var(--ui-scale)_-_250px),640px)]">
+              {TABS.map((tab, index) => {
+                const isActive = index === active;
+                return (
+                  <div
+                    key={tab.type}
+                    role="tabpanel"
+                    id={`showcase-panel-${index}`}
+                    aria-labelledby={`showcase-tab-${index}`}
+                    aria-hidden={!isActive}
+                    className={cn(
+                      "absolute inset-0 flex items-stretch justify-center transition-[opacity,translate,filter,visibility] duration-250 ease-out-expo",
+                      isActive
+                        ? "visible translate-y-0 opacity-100 blur-none"
+                        : "pointer-events-none invisible translate-y-2 opacity-0 blur-[2px] motion-reduce:translate-y-0 motion-reduce:blur-none",
+                    )}
+                  >
+                    <MockScreen
+                      type={tab.type}
+                      playKey={isActive ? `active-${phase}` : "idle"}
+                      reduce={Boolean(prefersReducedMotion)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </ScrollReveal>
