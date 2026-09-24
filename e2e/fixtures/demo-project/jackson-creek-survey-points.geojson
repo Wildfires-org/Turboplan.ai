@@ -1,0 +1,90 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.607647,
+          32.895858
+        ]
+      },
+      "properties": {
+        "SITE_ID": "SP-01",
+        "SURVEY": "Botany",
+        "TARGET": "Cuyamaca larkspur",
+        "RESULT": "Occurrence found",
+        "SURVEY_DT": "2026-08-26"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.593446,
+          32.897239
+        ]
+      },
+      "properties": {
+        "SITE_ID": "SP-02",
+        "SURVEY": "Wildlife",
+        "TARGET": "California spotted owl",
+        "RESULT": "No detection (visit 2 of 6)",
+        "SURVEY_DT": "2026-09-03"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.592353,
+          32.904602
+        ]
+      },
+      "properties": {
+        "SITE_ID": "SP-03",
+        "SURVEY": "Wildlife",
+        "TARGET": "Arroyo toad habitat",
+        "RESULT": "Marginal habitat",
+        "SURVEY_DT": "2026-09-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.605462,
+          32.904142
+        ]
+      },
+      "properties": {
+        "SITE_ID": "SP-04",
+        "SURVEY": "Heritage",
+        "TARGET": "Transect start",
+        "RESULT": "Survey in progress",
+        "SURVEY_DT": "2026-09-15"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.597815,
+          32.907364
+        ]
+      },
+      "properties": {
+        "SITE_ID": "SP-05",
+        "SURVEY": "Fuels",
+        "TARGET": "Photo point",
+        "RESULT": "Baseline photos taken",
+        "SURVEY_DT": "2026-09-17"
+      }
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -116.619117,
+            32.894477
+          ],
+          [
+            -116.610924,
+            32.896134
+          ],
+          [
+            -116.601092,
+            32.896778
+          ],
+          [
+            -116.593446,
+            32.897699
+          ],
+          [
+            -116.586891,
+            32.90046
+          ],
+          [
+            -116.581976,
+            32.902761
+          ]
+        ]
+      },
+      "properties": {
+        "ROAD_ID": "15S04",
+        "NAME": "Jackson Creek Road",
+        "MAINT_LVL": 2,
+        "SURFACE": "Native",
+        "MILES": 2.26
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -116.601092,
+            32.896778
+          ],
+          [
+            -116.603823,
+            32.903222
+          ],
+          [
+            -116.605462,
+            32.907824
+          ]
+        ]
+      },
+      "properties": {
+        "ROAD_ID": "15S04A",
+        "NAME": "Jackson Creek Spur",
+        "MAINT_LVL": 1,
+        "SURFACE": "Native",
+        "MILES": 0.8
+      }
+    }
+  ]
+}

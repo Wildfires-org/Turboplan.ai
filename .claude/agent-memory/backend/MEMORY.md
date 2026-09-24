@@ -1,0 +1,2 @@
+- [Dev environment facts](project_dev-environment-facts.md) — dev DB is remote Neon, R2 creds rejected (2026-09-24), map-server usually off
+- [Seed script module resolution](reference_seed-script-module-resolution.md) — how e2e scripts load module services via apps/server; timeline/progress gotchas
