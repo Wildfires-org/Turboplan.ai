@@ -74,6 +74,41 @@ export function createGeoJsonStyle(
   };
 }
 
+// Feature properties come from user-uploaded GeoJSON/shapefiles, and Leaflet
+// renders string popup/tooltip content as HTML. Build DOM nodes and set only
+// textContent so property keys and values can never inject markup or script.
+export const buildFeaturePopupContent = (
+  properties: GeoJSON.GeoJsonProperties,
+): HTMLElement | null => {
+  const entries = Object.entries(properties ?? {}).filter(
+    ([, value]) => value !== null && value !== undefined,
+  );
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const container = document.createElement("div");
+  container.style.maxWidth = "200px";
+
+  entries.forEach(([key, value], index) => {
+    if (index > 0) {
+      container.appendChild(document.createElement("br"));
+    }
+    const label = document.createElement("strong");
+    label.textContent = `${key}:`;
+    container.appendChild(label);
+    container.appendChild(document.createTextNode(` ${String(value)}`));
+  });
+
+  return container;
+};
+
+export const buildFeatureLabelContent = (value: unknown): HTMLElement => {
+  const label = document.createElement("span");
+  label.textContent = String(value);
+  return label;
+};
+
 // GeoJSON onEachFeature function factory - creates function per layer
 export function createOnEachFeature(
   layer: GeospatialLayer,
@@ -83,15 +118,9 @@ export function createOnEachFeature(
     if (!feature.properties) return;
 
     // Create popup with all properties
-    const properties = Object.entries(feature.properties)
-      .filter(([key, value]) => value !== null && value !== undefined)
-      .map(([key, value]) => `<strong>${key}:</strong> ${value}`)
-      .join("<br>");
-
-    if (properties) {
-      leafletLayer.bindPopup(
-        `<div style="max-width: 200px;">${properties}</div>`,
-      );
+    const popupContent = buildFeaturePopupContent(feature.properties);
+    if (popupContent) {
+      leafletLayer.bindPopup(popupContent);
     }
 
     // For unit boundaries, always show name (feature_name from DB) as label if available
@@ -100,7 +129,7 @@ export function createOnEachFeature(
       const labelValue =
         feature.properties.name || feature.properties.feature_name;
       if (labelValue) {
-        leafletLayer.bindTooltip(String(labelValue), {
+        leafletLayer.bindTooltip(buildFeatureLabelContent(labelValue), {
           permanent: true,
           direction: "center",
           className: "map-feature-label",
@@ -109,8 +138,8 @@ export function createOnEachFeature(
     }
     // For other layers, use labelPropertyKey if provided
     else if (labelPropertyKey && feature.properties[labelPropertyKey]) {
-      const labelValue = String(feature.properties[labelPropertyKey]);
-      leafletLayer.bindTooltip(labelValue, {
+      const labelValue = feature.properties[labelPropertyKey];
+      leafletLayer.bindTooltip(buildFeatureLabelContent(labelValue), {
         permanent: true,
         direction: "center",
         className: "map-feature-label",
