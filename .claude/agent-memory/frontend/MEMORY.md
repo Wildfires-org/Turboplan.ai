@@ -1,0 +1,4 @@
+- [Landing browser verification](landing-browser-verification.md) — hidden pane stalls Suspense reveal; UI scale makes px read ~0.94x
+- [Landing browser testing quirks](landing-browser-testing.md) — hidden streamed tree, duplicate IDs, stale screenshots, zoom when measuring :3002
+- [Glass utility conflicts](glass-utility-conflicts.md) — combining glass/glass-card/glass-inset with shadcn base classes safely
+- [Fumadocs /docs theming](fumadocs-docs-theming.md) — where docs styles live; ui-scale zoom, sticky chrome, client-constant traps
