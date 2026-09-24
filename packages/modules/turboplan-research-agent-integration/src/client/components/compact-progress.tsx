@@ -58,19 +58,19 @@ export const CompactProgress = ({
           ) : (
             <FileText className="size-3 shrink-0 text-gray-550" />
           )}
-          <span className="truncate text-xs font-medium text-purple-700 dark:text-purple-300">
+          <span className="truncate text-xs font-medium text-brand-800 dark:text-brand-300">
             {currentStep}
           </span>
           {elapsedTime && (
-            <span className="shrink-0 text-xs font-medium tabular-nums text-purple-700 dark:text-purple-400">
+            <span className="shrink-0 text-xs font-medium tabular-nums text-brand-800 dark:text-brand-300">
               {elapsedTime}
             </span>
           )}
         </div>
         {isExpanded ? (
-          <ArrowDownLeft className="size-4 shrink-0 text-purple-500" />
+          <ArrowDownLeft className="size-4 shrink-0 text-brand-700" />
         ) : (
-          <ArrowUpRight className="size-4 shrink-0 text-purple-500" />
+          <ArrowUpRight className="size-4 shrink-0 text-brand-700" />
         )}
       </button>
 

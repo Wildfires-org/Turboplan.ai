@@ -68,7 +68,7 @@ function PersonaDebugSelector({
           className={cn(
             "px-2 py-0.5 text-[10px] rounded-md font-medium transition-colors",
             activeState === s
-              ? "bg-purple-500 text-white"
+              ? "bg-brand-800 text-white"
               : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200",
           )}
         >

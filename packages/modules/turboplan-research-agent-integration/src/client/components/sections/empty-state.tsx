@@ -78,8 +78,8 @@ const mockSectionVariants = cva("rounded-xl border p-5", {
   variants: {
     tone: {
       purple:
-        "bg-gradient-to-br from-purple-50/80 to-violet-50/60 dark:from-purple-950/20 dark:to-violet-950/20 border-purple-100 dark:border-purple-800/30",
-      blue: "bg-gradient-to-br from-blue-50/80 to-indigo-50/60 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-100 dark:border-blue-800/30",
+        "bg-gradient-to-br from-brand-50/80 to-brandAlt-100/60 dark:from-brand-950/20 dark:to-brand-950/20 border-brandAlt-200 dark:border-white/10",
+      blue: "bg-gradient-to-br from-brand-50/80 to-brandAlt-100/60 dark:from-brand-950/20 dark:to-brand-950/20 border-brandAlt-200 dark:border-white/10",
     },
   },
 });
@@ -87,8 +87,8 @@ const mockSectionVariants = cva("rounded-xl border p-5", {
 const mockSectionDividerVariants = cva("divide-y", {
   variants: {
     tone: {
-      purple: "divide-purple-100 dark:divide-purple-800/30",
-      blue: "divide-blue-100 dark:divide-blue-800/30",
+      purple: "divide-brandAlt-200 dark:divide-white/10",
+      blue: "divide-brandAlt-200 dark:divide-white/10",
     },
   },
 });
@@ -96,8 +96,8 @@ const mockSectionDividerVariants = cva("divide-y", {
 const mockSaveButtonVariants = cva("gap-1.5", {
   variants: {
     tone: {
-      purple: "border-purple-200 dark:border-purple-700",
-      blue: "border-blue-200 dark:border-blue-700",
+      purple: "border-brandAlt-200 dark:border-white/10",
+      blue: "border-brandAlt-200 dark:border-white/10",
     },
   },
 });
@@ -105,7 +105,7 @@ const mockSaveButtonVariants = cva("gap-1.5", {
 function MockFieldRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 py-2.5">
-      <div className="size-4 rounded border border-purple-200 dark:border-purple-700 shrink-0" />
+      <div className="size-4 rounded border border-brandAlt-200 dark:border-white/10 shrink-0" />
       <div className="flex-1 min-w-0">
         <span className="text-sm font-semibold">{label}</span>
         <span className="text-sm text-muted-foreground ml-2">{value}</span>
@@ -126,7 +126,7 @@ function MockMilestoneRow({
   return (
     <div className="flex items-start gap-3 py-2.5">
       <div className="pt-0.5">
-        <div className="size-4 rounded border border-blue-200 dark:border-blue-700 shrink-0" />
+        <div className="size-4 rounded border border-brandAlt-200 dark:border-white/10 shrink-0" />
       </div>
       <div className="flex items-start justify-between gap-2 min-w-0 flex-1">
         <div className="min-w-0">
@@ -195,9 +195,9 @@ function AgentRunningState({
               </span>
             )}
             {isExpanded ? (
-              <ArrowDownLeft className="size-3.5 shrink-0 text-purple-600" />
+              <ArrowDownLeft className="size-3.5 shrink-0 text-brand-800" />
             ) : (
-              <ArrowUpRight className="size-3.5 shrink-0 text-purple-600" />
+              <ArrowUpRight className="size-3.5 shrink-0 text-brand-800" />
             )}
           </Button>
 
@@ -269,8 +269,8 @@ export function EmptyState({
         {/* Mock Fields Section */}
         <div className={mockSectionVariants({ tone: "purple" })}>
           <div className="flex items-center gap-2 mb-4">
-            <Tag className="size-4 text-purple-600 dark:text-purple-400" />
-            <h3 className="text-sm font-bold text-purple-700 dark:text-purple-300">
+            <Tag className="size-4 text-brand-800 dark:text-brand-300" />
+            <h3 className="text-sm font-bold text-brand-800 dark:text-brand-300">
               Project Fields
             </h3>
           </div>
@@ -298,8 +298,8 @@ export function EmptyState({
         {/* Mock Milestones Section */}
         <div className={mockSectionVariants({ tone: "blue" })}>
           <div className="flex items-center gap-2 mb-4">
-            <Flag className="size-4 text-blue-600 dark:text-blue-400" />
-            <h3 className="text-sm font-bold text-blue-700 dark:text-blue-300">
+            <Flag className="size-4 text-brand-800 dark:text-brand-300" />
+            <h3 className="text-sm font-bold text-brand-800 dark:text-brand-300">
               Suggested Milestones
             </h3>
           </div>

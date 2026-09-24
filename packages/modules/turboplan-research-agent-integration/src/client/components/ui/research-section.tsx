@@ -18,11 +18,11 @@ const sectionTitleVariants = cva(
   {
     variants: {
       tone: {
-        purple: "text-purple-700 dark:text-purple-300",
-        blue: "text-blue-700 dark:text-blue-300",
-        emerald: "text-emerald-700 dark:text-emerald-300",
-        indigo: "text-indigo-700 dark:text-indigo-300",
-        amber: "text-amber-700 dark:text-amber-300",
+        purple: "text-brand-800 dark:text-brand-300",
+        blue: "text-brand-800 dark:text-brand-300",
+        emerald: "text-brand-800 dark:text-brand-300",
+        indigo: "text-brand-800 dark:text-brand-300",
+        amber: "text-brand-800 dark:text-brand-300",
       },
     },
   },
@@ -31,11 +31,11 @@ const sectionTitleVariants = cva(
 const sectionIconVariants = cva("size-4 shrink-0", {
   variants: {
     tone: {
-      purple: "text-purple-600 dark:text-purple-400",
-      blue: "text-blue-600 dark:text-blue-400",
-      emerald: "text-emerald-600 dark:text-emerald-400",
-      indigo: "text-indigo-700 dark:text-indigo-400",
-      amber: "text-amber-600 dark:text-amber-400",
+      purple: "text-brand-800 dark:text-brand-300",
+      blue: "text-brand-800 dark:text-brand-300",
+      emerald: "text-brand-800 dark:text-brand-300",
+      indigo: "text-brand-800 dark:text-brand-300",
+      amber: "text-brand-800 dark:text-brand-300",
     },
   },
 });

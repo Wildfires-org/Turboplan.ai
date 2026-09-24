@@ -67,7 +67,7 @@ export const CompleteResearchDialog = ({
           <Button
             onClick={onConfirm}
             disabled={isCompleting}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-brand-800 text-white hover:bg-brand-900"
           >
             {isCompleting ? (
               <>

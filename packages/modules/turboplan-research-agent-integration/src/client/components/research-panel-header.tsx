@@ -100,7 +100,7 @@ export function ResearchPanelHeader({
             <ArrowUpRight
               className={cn(
                 "size-3.5 shrink-0",
-                isCompleted ? "text-brand-800" : "text-purple-600",
+                isCompleted ? "text-brand-800" : "text-brand-800",
               )}
             />
           </Button>
@@ -115,7 +115,7 @@ export function ResearchPanelHeader({
             onClick={() => setIsExpanded(false)}
           >
             Hide thinking
-            <ArrowDownLeft className="size-3.5 shrink-0 text-purple-600" />
+            <ArrowDownLeft className="size-3.5 shrink-0 text-brand-800" />
           </Button>
         )}
       </div>
