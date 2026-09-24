@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 
+import { InertLoading } from "@/components/dashboard/inert-loading";
 import { EntityPageFrameSkeleton } from "@/components/dashboard/office-page-frame";
 import { OfficeRouteLoading } from "@/components/dashboard/office-route-loading";
 import { OfficeSkeleton } from "@/components/dashboard/office-skeleton";
@@ -15,7 +16,11 @@ export default function OrganizationLoading() {
   const params = useParams<{ officeSlug?: string }>();
 
   if (params.officeSlug) {
-    return <OfficeRouteLoading />;
+    return (
+      <InertLoading>
+        <OfficeRouteLoading />
+      </InertLoading>
+    );
   }
 
   return (
