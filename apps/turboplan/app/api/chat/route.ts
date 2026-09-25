@@ -22,6 +22,7 @@ import {
   resolveBillingOrgForUser,
 } from "@wildfires-org/turboplan-billing/server";
 import { extractOpenRouterCost } from "@wildfires-org/turboplan-billing/types";
+import { isUniqueViolation } from "@wildfires-org/turboplan-db/db-client";
 import {
   deleteChatById,
   getChatById,
@@ -345,11 +346,7 @@ export async function POST(request: Request) {
         // Throw "Already processing" so the outer catch returns 409 and the
         // frontend silently ignores it — preventing duplicate messages and
         // parallel AI streams that cause the UI to blink.
-        const isDuplicateKey =
-          error instanceof Error &&
-          "code" in error &&
-          (error as { code: string }).code === "23505";
-        if (isDuplicateKey) {
+        if (isUniqueViolation(error)) {
           throw new Error("Already processing");
         }
         throw error;

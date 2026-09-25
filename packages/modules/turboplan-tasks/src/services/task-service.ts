@@ -156,9 +156,9 @@ export class TaskDataService implements ITaskDataService, ITaskSyncService {
     }, "fetchProjectMilestones");
   }
 
-  async fetchUsers(): Promise<User[]> {
+  async fetchUsers(projectId: string): Promise<User[]> {
     return this.executeWithErrorHandling(async () => {
-      const result = await apiService.fetchUsers();
+      const result = await apiService.fetchUsers(projectId);
       return z.array(UserSchema).parse(result);
     }, "fetchUsers");
   }

@@ -16,6 +16,7 @@ const Avatar = React.forwardRef<
       "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
       className,
     )}
+    data-slot="avatar"
     {...props}
   />
 ));
@@ -43,6 +44,7 @@ const AvatarFallback = React.forwardRef<
       "flex h-full w-full items-center justify-center rounded-full bg-muted",
       className,
     )}
+    data-slot="avatar-fallback"
     {...props}
   />
 ));

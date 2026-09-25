@@ -2,11 +2,15 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { milestones, TaskStatus, tasks } from "@wildfires-org/turboplan-db";
+import { TaskStatus, tasks } from "@wildfires-org/turboplan-db";
 import {
   db,
   runWithWorkerConnection,
 } from "@wildfires-org/turboplan-db/db-client";
+import {
+  getMilestoneProjectId,
+  getTaskProjectId,
+} from "@wildfires-org/turboplan-db/queries";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
   DrizzleMilestoneRepository,
@@ -14,6 +18,7 @@ import {
   DrizzleUserRepository,
   MilestoneService,
   TaskService,
+  validateTaskReferences,
 } from "@wildfires-org/turboplan-tasks/server";
 import {
   computeChanges,
@@ -36,23 +41,6 @@ const statusSchema = z.enum([
 const taskExists = async (id: string) => {
   const result = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
   return result.length > 0 ? result[0] : null;
-};
-
-const getMilestoneProjectId = async (
-  milestoneId: string,
-): Promise<string | null> => {
-  const result = await db
-    .select({
-      projectId: milestones.projectId,
-      documentId: milestones.documentId,
-    })
-    .from(milestones)
-    .where(eq(milestones.id, milestoneId))
-    .limit(1);
-  if (result.length === 0) {
-    return null;
-  }
-  return result[0].projectId ?? result[0].documentId;
 };
 
 export const registerTaskTools = (server: McpServer, user: McpUserContext) => {
@@ -169,7 +157,9 @@ export const registerTaskTools = (server: McpServer, user: McpUserContext) => {
           return notFound;
         }
 
-        const projectId = existing!.documentId;
+        // Not `existing.documentId`: on legacy tasks that is a chat document.
+        const projectId =
+          (await getTaskProjectId(taskId as string)) ?? existing!.documentId;
 
         const denied = await assertPermission(
           user.userId,
@@ -313,6 +303,17 @@ export const registerTaskTools = (server: McpServer, user: McpUserContext) => {
         }
 
         const validated = validation.data;
+
+        const referenceError = await validateTaskReferences(
+          projectId,
+          validated,
+        );
+        if (referenceError) {
+          return {
+            isError: true,
+            content: [{ type: "text" as const, text: referenceError }],
+          };
+        }
 
         const now = new Date();
         const today = new Date(now);
@@ -473,7 +474,9 @@ export const registerTaskTools = (server: McpServer, user: McpUserContext) => {
           return notFound;
         }
 
-        const projectId = existing!.documentId;
+        // Not `existing.documentId`: on legacy tasks that is a chat document.
+        const projectId =
+          (await getTaskProjectId(taskId as string)) ?? existing!.documentId;
 
         const denied = await assertPermission(
           user.userId,
@@ -487,6 +490,19 @@ export const registerTaskTools = (server: McpServer, user: McpUserContext) => {
         }
 
         const validated = validation.data;
+
+        // The task's own project is where every incoming id must resolve.
+        const referenceError = await validateTaskReferences(
+          projectId,
+          validated,
+        );
+        if (referenceError) {
+          return {
+            isError: true,
+            content: [{ type: "text" as const, text: referenceError }],
+          };
+        }
+
         const updateData: Record<string, unknown> = {};
 
         if (validated.title !== undefined) {
@@ -620,7 +636,9 @@ export const registerTaskTools = (server: McpServer, user: McpUserContext) => {
           return notFound;
         }
 
-        const projectId = existing!.documentId;
+        // Not `existing.documentId`: on legacy tasks that is a chat document.
+        const projectId =
+          (await getTaskProjectId(taskId as string)) ?? existing!.documentId;
 
         const denied = await assertPermission(
           user.userId,
@@ -704,7 +722,9 @@ export const registerTaskTools = (server: McpServer, user: McpUserContext) => {
           return notFound;
         }
 
-        const projectId = existing!.documentId;
+        // Not `existing.documentId`: on legacy tasks that is a chat document.
+        const projectId =
+          (await getTaskProjectId(taskId as string)) ?? existing!.documentId;
 
         const denied = await assertPermission(
           user.userId,
@@ -833,7 +853,9 @@ export const registerTaskTools = (server: McpServer, user: McpUserContext) => {
           return notFound;
         }
 
-        const projectId = existing!.documentId;
+        // Not `existing.documentId`: on legacy tasks that is a chat document.
+        const projectId =
+          (await getTaskProjectId(taskId as string)) ?? existing!.documentId;
 
         const denied = await assertPermission(
           user.userId,

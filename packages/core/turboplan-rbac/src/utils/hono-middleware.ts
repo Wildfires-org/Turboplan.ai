@@ -4,10 +4,14 @@ import type { Context, Next } from "hono";
 
 import { db } from "@wildfires-org/turboplan-db/db-client";
 
-import { NO_PERMISSION_REASON } from "../permission-resolver";
+import {
+  isMembershipGrant,
+  NO_PERMISSION_REASON,
+} from "../permission-resolver";
 import { getRBACService } from "../services/rbac.service";
 import type { ActionType, EntityTypeType } from "../types";
 import { Action, EntityType } from "../types";
+import { isAdmin } from "./admin-server";
 import type { RBACContext } from "./hono-types";
 import {
   isPublicGovProjectReadAllowed,
@@ -48,6 +52,29 @@ const respondServerError = (c: Context<RBACContext>, error: unknown) => {
 };
 
 /**
+ * RBAC service for this request. Personal access tokens never get the
+ * platform-admin bypass — a leaked admin PAT must not unlock every entity.
+ * Prefer this over a bare `getRBACService()` in request handlers.
+ */
+export const getRBACServiceForRequest = (c: Context<RBACContext>) =>
+  getRBACService(undefined, {
+    platformAdminBypass: c.get("authMethod") !== "pat",
+  });
+
+/**
+ * Whether the caller is a platform admin on a session. Personal access tokens
+ * never carry admin powers, so a PAT request is never an admin here.
+ */
+export const isSessionAdmin = async (c: Context<RBACContext>) => {
+  if (c.get("authMethod") === "pat") {
+    return false;
+  }
+
+  const user = c.get("user");
+  return isAdmin(user.userId, user.email);
+};
+
+/**
  * Shared body of every permission guard: authenticate, resolve the entity id,
  * check the permission, and normalise the failure responses.
  */
@@ -56,6 +83,7 @@ const createPermissionGuard = (
   action: ActionType,
   resolveEntityId: EntityIdResolver,
   onMissingEntityId: MissingEntityIdResponder,
+  requireMembership = false,
 ): Middleware => {
   return async (c: Context<RBACContext>, next: Next) => {
     try {
@@ -71,16 +99,18 @@ const createPermissionGuard = (
         return onMissingEntityId(c);
       }
 
-      const permissionResult = await getRBACService().checkPermission(
-        user.userId,
-        entityId,
-        entityType,
-        action,
-        { email: user.email },
-      );
+      const permissionResult = await getRBACServiceForRequest(
+        c,
+      ).checkPermission(user.userId, entityId, entityType, action, {
+        email: user.email,
+      });
 
       if (!permissionResult.allowed) {
         return respondForbidden(c, permissionResult.reason);
+      }
+
+      if (requireMembership && !isMembershipGrant(permissionResult)) {
+        return respondUniformForbidden(c);
       }
 
       // Store permission check result in context for downstream use
@@ -113,7 +143,9 @@ const createReadOrPublicGovGuard = (
         return onMissingProjectId(c);
       }
 
-      const permissionResult = await getRBACService().checkPermission(
+      const permissionResult = await getRBACServiceForRequest(
+        c,
+      ).checkPermission(
         user.userId,
         projectId,
         EntityType.PROJECT,
@@ -176,6 +208,29 @@ export function requirePermission(
     action,
     getEntityId,
     respondBadRequest,
+  );
+}
+
+/**
+ * Like {@link requirePermission}, but the grant must come from a role on the
+ * entity itself (direct, inherited from a parent, or platform admin). READ that
+ * is only derived upward from a child membership — e.g. a project member
+ * reading its parent office — is rejected with the uniform 403.
+ *
+ * Use on endpoints that expose the entity's staff (member lists, pending
+ * invitations), which a member of a single child project must not see.
+ */
+export function requireMemberPermission(
+  entityType: EntityTypeType,
+  action: ActionType,
+  getEntityId: (c: Context<RBACContext>) => string | null,
+): Middleware {
+  return createPermissionGuard(
+    entityType,
+    action,
+    getEntityId,
+    respondBadRequest,
+    true,
   );
 }
 

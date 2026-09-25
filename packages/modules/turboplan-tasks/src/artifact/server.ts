@@ -9,6 +9,7 @@ import {
   resolveBillingOrgForProject,
   resolveBillingOrgForUser,
 } from "@wildfires-org/turboplan-billing/server";
+import { getProjectAssignableUsers } from "@wildfires-org/turboplan-db/queries";
 
 import { taskCreationPrompt } from "../prompts";
 import { aiMilestoneWithTasksSchema } from "../schemas";
@@ -230,8 +231,13 @@ export const taskDocumentHandler = {
           : null,
       );
 
-      // Get available users for AI context
-      const availableUsers = await userRepository.findAll();
+      // Assignee candidates for AI context: the project's people only, never
+      // the whole user base (every email would otherwise land in the prompt).
+      const availableUsers = updateProjectId
+        ? (await getProjectAssignableUsers(updateProjectId)).map(
+            ({ id, email }) => ({ id, email, emailVerified: null }),
+          )
+        : [];
 
       // Get ALL project tasks for deduplication context (if this document has a projectId)
       let allProjectTasks: MilestoneWithTasks[] = [];
@@ -254,6 +260,7 @@ export const taskDocumentHandler = {
         analysisResult,
         document.id,
         session,
+        updateProjectId ?? undefined,
       );
 
       // Get the updated structure to return

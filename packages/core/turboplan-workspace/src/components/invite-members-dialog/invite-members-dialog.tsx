@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@wildfires-org/turboplan-utils";
 
-import { useMemberInvitation } from "../../hooks";
+import { type UserSearchScope, useMemberInvitation } from "../../hooks";
 import { MemberAssignRow } from "../member-assign-row";
 import { PendingInviteeRow } from "./pending-invitee-row";
 import type { PendingInvitee } from "./types";
@@ -23,6 +23,8 @@ interface InviteMembersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entityName: string;
+  /** Entity the user search runs for (see UserSelector) */
+  searchScope: UserSearchScope;
   onSendInvitations: (invitees: PendingInvitee[]) => Promise<void>;
   isSubmitting?: boolean;
   /** Emails of existing members to exclude from search results */
@@ -39,6 +41,7 @@ export function InviteMembersDialog({
   open,
   onOpenChange,
   entityName,
+  searchScope,
   onSendInvitations,
   isSubmitting = false,
   existingEmails,
@@ -104,6 +107,7 @@ export function InviteMembersDialog({
             <MemberAssignRow
               selectedUsers={selectedUsers}
               onSelectedUsersChange={setSelectedUsers}
+              searchScope={searchScope}
               currentRole={currentRole}
               onRoleChange={setCurrentRole}
               onAssign={handleAssign}

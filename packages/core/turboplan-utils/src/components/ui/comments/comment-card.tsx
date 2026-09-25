@@ -74,7 +74,7 @@ export function CommentCard({
   const displayName =
     comment.isAutoResponse && comment.autoResponderName
       ? comment.autoResponderName
-      : generateDisplayName(comment.author, comment.author.email);
+      : generateDisplayName(comment.author, "Unknown user");
 
   // For auto-responses, use first letter of responder name; otherwise use author initials
   const displayInitials =

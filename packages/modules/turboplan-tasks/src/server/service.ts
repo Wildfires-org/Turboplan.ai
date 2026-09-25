@@ -14,6 +14,7 @@ import {
   TaskStatus,
   TaskUpdateInput,
 } from "../types";
+import { milestoneBelongsTo, projectIdOfMilestone } from "./milestone-project";
 
 export class MilestoneService {
   constructor(private readonly milestoneRepository: MilestoneRepository) {}
@@ -208,20 +209,32 @@ export class TaskService {
   ) {}
 
   /**
-   * Load a milestone and assert it belongs to the same project (`documentId`)
-   * as the task it is being linked to. A milestone from another project is
-   * reported with the exact same error as a missing one so cross-project
-   * existence is never leaked.
+   * Load a milestone and assert it belongs to `projectId` — the project the
+   * task is being created in or already lives in. A milestone from another
+   * project is reported with the exact same error as a missing one so
+   * cross-project existence is never leaked.
+   *
+   * `projectId` may also be the chat `Document` id a legacy artifact writes
+   * tasks under; such milestones carry that id in `documentId`.
    */
   private async getMilestoneInProject(
     milestoneId: string,
-    documentId: string,
+    projectId: string,
   ): Promise<Milestone> {
     const milestone = await this.milestoneRepository.findById(milestoneId);
-    if (!milestone || milestone.documentId !== documentId) {
+    if (!milestone || !milestoneBelongsTo(milestone, projectId)) {
       throw new Error(`Milestone with id ${milestoneId} not found`);
     }
     return milestone;
+  }
+
+  /**
+   * The project an existing task belongs to: its milestone's project, falling
+   * back to the task's own `documentId` (see `taskProjectId` in the db package).
+   */
+  private async getTaskProject(task: Task): Promise<string> {
+    const milestone = await this.milestoneRepository.findById(task.milestoneId);
+    return milestone ? projectIdOfMilestone(milestone) : task.documentId;
   }
 
   async getTaskById(id: string): Promise<Task | null> {
@@ -311,9 +324,15 @@ export class TaskService {
 
     // If milestone is being changed, validate the new milestone exists and
     // belongs to the same project as the task (prevents cross-project linking)
-    const milestoneId =
-      data.milestoneId !== undefined ? data.milestoneId : task.milestoneId;
-    await this.getMilestoneInProject(milestoneId, task.documentId);
+    if (
+      data.milestoneId !== undefined &&
+      data.milestoneId !== task.milestoneId
+    ) {
+      await this.getMilestoneInProject(
+        data.milestoneId,
+        await this.getTaskProject(task),
+      );
+    }
 
     // Validate date logic
     const startDate =

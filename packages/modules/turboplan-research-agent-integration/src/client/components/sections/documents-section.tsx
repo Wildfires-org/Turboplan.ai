@@ -28,6 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Checkbox,
+  isSafeHttpUrl,
 } from "@wildfires-org/turboplan-utils";
 
 import {
@@ -559,7 +560,7 @@ export function DocumentsSection({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (redirectUrl) {
+                if (isSafeHttpUrl(redirectUrl)) {
                   window.open(redirectUrl, "_blank", "noopener,noreferrer");
                 }
                 setRedirectUrl(null);

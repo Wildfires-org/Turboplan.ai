@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
+import { EntityType } from "@wildfires-org/turboplan-rbac";
 import {
   Button,
   Dialog,
@@ -205,6 +206,10 @@ export function AddOfficeDialog({
             <MemberAssignRow
               selectedUsers={selectedUsers}
               onSelectedUsersChange={setSelectedUsers}
+              searchScope={{
+                entityType: EntityType.ORGANIZATION,
+                entityId: organizationId,
+              }}
               currentRole={currentRole}
               onRoleChange={setCurrentRole}
               onAssign={handleAssign}

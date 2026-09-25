@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
-
 import useSWR from "swr";
 import { useDebounceValue } from "usehooks-ts";
 
 import { fetcher } from "@wildfires-org/turboplan-api-client";
+import type { EntityTypeType } from "@wildfires-org/turboplan-rbac";
 
 // ============================================================================
 // TYPES
@@ -21,6 +20,15 @@ export type SearchableUser = {
   lastName: string | null;
   avatarUrl: string | null;
 };
+
+/**
+ * What a user search is for. An entity scope searches `/api/users/search`
+ * within that entity's organization tree (strangers only on an exact email);
+ * `"admin"` uses the admin-only global search.
+ */
+export type UserSearchScope =
+  | { entityType: EntityTypeType; entityId: string }
+  | "admin";
 
 /**
  * API response from /api/users/search
@@ -52,6 +60,34 @@ const DEFAULT_DEBOUNCE_MS = 300;
 const DEFAULT_LIMIT = 10;
 const DEFAULT_MIN_QUERY_LENGTH = 3;
 
+const SCOPE_PARAM: Record<EntityTypeType, string> = {
+  organization: "organizationId",
+  office: "officeId",
+  project: "projectId",
+};
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Build the search URL for `scope`. Exported for unit tests.
+ */
+export const buildUserSearchUrl = (
+  scope: UserSearchScope,
+  query: string,
+  limit: number,
+): string => {
+  const params = new URLSearchParams({ q: query, limit: limit.toString() });
+
+  if (scope === "admin") {
+    return `/api/admin/users/search?${params.toString()}`;
+  }
+
+  params.set(SCOPE_PARAM[scope.entityType], scope.entityId);
+  return `/api/users/search?${params.toString()}`;
+};
+
 // ============================================================================
 // HOOK
 // ============================================================================
@@ -67,14 +103,16 @@ const DEFAULT_MIN_QUERY_LENGTH = 3;
  *
  * @example
  * ```tsx
- * const { users, isLoading, error } = useUserSearch(searchTerm, {
- *   enabled: isOpen,
- *   limit: 5,
- * });
+ * const { users, isLoading, error } = useUserSearch(
+ *   searchTerm,
+ *   { entityType: "project", entityId: projectId },
+ *   { enabled: isOpen, limit: 5 },
+ * );
  * ```
  */
 export function useUserSearch(
   searchTerm: string,
+  scope: UserSearchScope,
   options: UseUserSearchOptions = {},
 ) {
   const {
@@ -90,15 +128,10 @@ export function useUserSearch(
   // Only search if enabled and query is long enough
   const shouldSearch = enabled && debouncedTerm.trim().length >= minQueryLength;
 
-  // Build the API URL with query parameters
-  const apiUrl = useMemo(() => {
-    if (!shouldSearch) return null;
-    const params = new URLSearchParams({
-      q: debouncedTerm.trim(),
-      limit: limit.toString(),
-    });
-    return `/api/users/search?${params.toString()}`;
-  }, [shouldSearch, debouncedTerm, limit]);
+  // Build the API URL with query parameters (SWR keys on the string)
+  const apiUrl = shouldSearch
+    ? buildUserSearchUrl(scope, debouncedTerm.trim(), limit)
+    : null;
 
   // Fetch users
   const { data, isLoading, error } = useSWR<UserSearchResponse>(

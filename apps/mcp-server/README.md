@@ -108,6 +108,7 @@ Full input schemas are advertised by the server — list them from your client a
 The server is designed to be safe to expose to autonomous agents:
 
 - **Per-user isolation** — every request is bound to the PAT's user; there is no ambient admin identity.
+- **No platform-admin powers over a PAT** — even a platform admin's PAT gets no admin bypass. `create_organization` always returns `Access denied.`, and `update_organization` rejects any `type` / `status` change; do those in the web app.
 - **RBAC on every tool** — reads require `READ`, mutations require `UPDATE`, member/role operations require `MANAGE_MEMBERS`.
 - **Uniform errors — no existence leaks** — a missing entity and a denied permission both return the exact string `Access denied.`, so a caller cannot probe which IDs exist.
 - **Cross-entity (IDOR) checks** — when a tool links entities, it verifies the target belongs to the same project before writing.

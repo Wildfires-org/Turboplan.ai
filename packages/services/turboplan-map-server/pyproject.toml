@@ -7,15 +7,17 @@ readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.9"
-fastapi = "^0.104.1"
-uvicorn = "^0.24.0"
+python = "^3.10"
+fastapi = "^0.141.1"
+uvicorn = "^0.53.0"
 pydantic = "^2.5.0"
 fiona = "1.9.5"
 click = "8.1.7"
 cligj = "0.7.2"
 six = "1.16.0"
-certifi = "^2022.12.7"
+certifi = ">=2026.7.22"
+# Transitive via starlette; floor pinned explicitly for security fixes.
+anyio = "^4.15.1"
 shapely = "2.0.2"
 requests = "^2.28.0"
 python-dotenv = "^1.0.0"

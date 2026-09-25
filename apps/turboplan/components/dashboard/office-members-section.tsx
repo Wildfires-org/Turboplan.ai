@@ -59,6 +59,7 @@ export function OfficeMembersSection({
         open={showInviteForm}
         onOpenChange={handleInviteDialogChange}
         entityName={office.name}
+        searchScope={{ entityType: EntityType.OFFICE, entityId: office.id }}
         onSendInvitations={handleSendInvitations}
         isSubmitting={isSendingInvites}
         existingEmails={existingEmails}

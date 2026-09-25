@@ -1,9 +1,26 @@
+import {
+  ResearchAgentChatStatus,
+  type ResearchAgentChatStatusType,
+} from "@wildfires-org/turboplan-db/schemas";
+
 // Re-export DB types
 export type {
   ResearchAgentChat,
   ResearchAgentChatStatusType,
 } from "@wildfires-org/turboplan-db/schemas";
 export { ResearchAgentChatStatus } from "@wildfires-org/turboplan-db/schemas";
+
+/**
+ * Statuses a run never leaves on its own. A terminal run's webhook secret stops
+ * authenticating and webhook-driven updates cannot move it back to active; only
+ * an explicit retry (which rotates the secret) re-opens it.
+ */
+export const TERMINAL_RESEARCH_AGENT_CHAT_STATUSES: ResearchAgentChatStatusType[] =
+  [
+    ResearchAgentChatStatus.COMPLETED,
+    ResearchAgentChatStatus.FAILED,
+    ResearchAgentChatStatus.CANCELLED,
+  ];
 
 // Research agent message types
 export const ResearchAgentMessageType = {

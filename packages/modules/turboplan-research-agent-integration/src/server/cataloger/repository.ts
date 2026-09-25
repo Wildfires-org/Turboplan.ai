@@ -1,4 +1,13 @@
-import { and, desc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  inArray,
+  isNotNull,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import {
@@ -6,6 +15,13 @@ import {
   type CatalogerRun,
   catalogerEntry,
   catalogerRun,
+  type Office,
+  type Organization,
+  OrganizationType,
+  office,
+  officeUsers,
+  organization,
+  organizationUsers,
   ResearchAgentChatStatus,
 } from "@wildfires-org/turboplan-db/schemas";
 
@@ -138,14 +154,75 @@ export const getNonTerminalCatalogerRuns = async (
     .limit(limit);
 };
 
-export const getCatalogerRunsByUserId = async (
+/**
+ * Find a non-personal organization with this name (case-insensitive) that the
+ * user owns through a DIRECT membership row. Deliberately not an RBAC check:
+ * the resolver grants platform admins every permission, so it would let a
+ * cataloger run attach output to any tenant's organization.
+ */
+export const getOwnedOrganizationByName = async (
+  name: string,
   userId: string,
-): Promise<CatalogerRun[]> => {
-  return db
-    .select()
-    .from(catalogerRun)
-    .where(eq(catalogerRun.userId, userId))
-    .orderBy(desc(catalogerRun.createdAt));
+): Promise<Organization | null> => {
+  const [result] = await db
+    .select({ organization })
+    .from(organization)
+    .innerJoin(
+      organizationUsers,
+      and(
+        eq(organizationUsers.organizationId, organization.id),
+        eq(organizationUsers.userId, userId),
+        eq(organizationUsers.role, "owner"),
+      ),
+    )
+    .where(
+      and(
+        sql`LOWER(${organization.name}) = LOWER(${name})`,
+        ne(organization.type, OrganizationType.PERSONAL),
+      ),
+    )
+    .limit(1);
+  return result?.organization ?? null;
+};
+
+/**
+ * Find an office with this name (case-insensitive) inside the organization
+ * that the user owns directly — either as office owner or as owner of the
+ * parent organization. Same no-admin-bypass reasoning as above.
+ */
+export const getOwnedOfficeByName = async (
+  name: string,
+  organizationId: string,
+  userId: string,
+): Promise<Office | null> => {
+  const [result] = await db
+    .select({ office })
+    .from(office)
+    .leftJoin(
+      officeUsers,
+      and(
+        eq(officeUsers.officeId, office.id),
+        eq(officeUsers.userId, userId),
+        eq(officeUsers.role, "owner"),
+      ),
+    )
+    .leftJoin(
+      organizationUsers,
+      and(
+        eq(organizationUsers.organizationId, office.organizationId),
+        eq(organizationUsers.userId, userId),
+        eq(organizationUsers.role, "owner"),
+      ),
+    )
+    .where(
+      and(
+        eq(office.organizationId, organizationId),
+        sql`LOWER(${office.name}) = LOWER(${name})`,
+        or(isNotNull(officeUsers.userId), isNotNull(organizationUsers.userId)),
+      ),
+    )
+    .limit(1);
+  return result?.office ?? null;
 };
 
 // ---------------------------------------------------------------------------

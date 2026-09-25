@@ -8,12 +8,14 @@ import {
   profile,
   user,
 } from "../schemas";
+import { toPublicComment } from "./comment-public-view";
 
 // Type for comment with author info
 export interface CommentWithAuthor extends Comment {
   author: {
     id: string;
-    email: string;
+    /** Null in the public view (callers without a project role). */
+    email: string | null;
     firstName: string | null;
     lastName: string | null;
     avatarUrl: string | null;
@@ -31,6 +33,12 @@ export interface GetCommentsOptions {
   currentUserId?: string;
   /** If true, show all comments including all private ones (for moderators) */
   showAllPrivate?: boolean;
+  /**
+   * If true, return the projection served to callers without a project role
+   * (anonymous visitors, public-government readers): no author email and no
+   * auto-response target user.
+   */
+  publicView?: boolean;
 }
 
 /**
@@ -73,7 +81,7 @@ function buildVisibilityCondition(
 export async function getCommentsByProjectId(
   options: GetCommentsOptions,
 ): Promise<CommentWithAuthor[]> {
-  const { projectId, currentUserId, showAllPrivate } = options;
+  const { projectId, currentUserId, showAllPrivate, publicView } = options;
 
   try {
     const visibilityCondition = buildVisibilityCondition(
@@ -154,11 +162,13 @@ export async function getCommentsByProjectId(
     }
 
     // Combine comments with their replies
-    return topLevelComments.map((c) => ({
+    const comments: CommentWithAuthor[] = topLevelComments.map((c) => ({
       ...c.comment,
       author: c.author,
       replies: repliesMap.get(c.comment.id) || [],
     }));
+
+    return publicView ? comments.map(toPublicComment) : comments;
   } catch (error) {
     console.error("Failed to get comments by project id from database", error);
     throw error;

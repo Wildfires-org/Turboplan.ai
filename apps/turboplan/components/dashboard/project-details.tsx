@@ -179,7 +179,9 @@ export function ProjectDetails({
   // The owner may submit a non-template DRAFT for review. Gate on either the
   // global citizen role (gov-context proposals) OR a personal-workspace view
   // (self-service/landing-page projects, whose owners have no citizen role).
+  // The server requires MANAGE_MEMBERS (owner) to submit.
   const canSubmitForReview =
+    canManageMembers &&
     (isCitizen || isPersonalWorkspace) &&
     !project.isTemplate &&
     (!project.ownershipStatus ||
@@ -346,6 +348,7 @@ export function ProjectDetails({
           open={showInviteDialog}
           onOpenChange={setShowInviteDialog}
           entityName={project.name}
+          searchScope={{ entityType: EntityType.PROJECT, entityId: project.id }}
           onSendInvitations={handleSendInvitations}
           isSubmitting={isSendingInvites}
           existingEmails={existingEmails}

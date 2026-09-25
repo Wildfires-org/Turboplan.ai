@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 
-import { Button } from "@wildfires-org/turboplan-utils";
+import { Button, isSafeHttpUrl } from "@wildfires-org/turboplan-utils";
 
 import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -125,7 +125,7 @@ export function PdfViewer({
     [],
   );
 
-  const isExternalUrl = url.startsWith("http");
+  const isExternalUrl = isSafeHttpUrl(url);
 
   if (error) {
     return (

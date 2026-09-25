@@ -1,6 +1,7 @@
 import type { ResearchAgentEnvType } from "@wildfires-org/turboplan-env";
 
 import { createRouter } from "../../src/app/router";
+import type { DocumentExtractionService } from "../../src/documents/extraction-service";
 import type { TargetApiClient } from "../../src/infra/target-api-client";
 import type { MemoryService } from "../../src/memory";
 import type { AgentRunner } from "../../src/runners/types";
@@ -36,6 +37,20 @@ export function createMemoryServiceStub(): MemoryService {
   };
 }
 
+export function createDocumentExtractionStub(): DocumentExtractionService {
+  return {
+    start: () => {},
+    stop: async () => {},
+    wake: () => {},
+    getStatus: () => ({
+      inFlight: false,
+      lastRunAt: null,
+      processed: 0,
+      failed: 0,
+    }),
+  };
+}
+
 export function createTestApp(
   runner: AgentRunner,
   repository: RunRepository,
@@ -54,7 +69,11 @@ export function createTestApp(
     repository,
     targetApiClient,
   );
-  const app = createRouter(TEST_ENV, runManager);
+  const app = createRouter(
+    TEST_ENV,
+    runManager,
+    createDocumentExtractionStub(),
+  );
   return { app, runManager };
 }
 

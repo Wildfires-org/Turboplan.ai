@@ -6,6 +6,7 @@ import {
   UploadErrorCode,
 } from "../types";
 import { generatePresignedUploadUrl } from "./r2-client";
+import { uniqueStorageName } from "./storage-key";
 
 // ============================================================================
 // Constants
@@ -138,7 +139,7 @@ export class UploadService {
       );
     }
 
-    const key = `uploads/${userId}/${Date.now()}-${sanitizedFilename}`;
+    const key = `uploads/${userId}/${uniqueStorageName(sanitizedFilename)}`;
 
     return generatePresignedUploadUrl(key, contentType, fileSize);
   }

@@ -6,6 +6,10 @@ import { upsertProjectContextEntries } from "@wildfires-org/turboplan-project-co
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
+import {
+  HTTP_URL_ONLY_MESSAGE,
+  isSafeHttpUrl,
+} from "@wildfires-org/turboplan-utils/server";
 
 /**
  * Upper bound on entries per call — keeps the sequential DB/timeline write
@@ -32,7 +36,11 @@ export const updateProjectContext = async ({
           z.object({
             label: z.string().min(1).max(200),
             content: z.string().min(1).max(50000),
-            url: z.string().url().optional(),
+            url: z
+              .string()
+              .url()
+              .refine(isSafeHttpUrl, HTTP_URL_ONLY_MESSAGE)
+              .optional(),
           }),
         )
         .min(1)

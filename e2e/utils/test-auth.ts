@@ -1,3 +1,5 @@
+import type { Browser } from "@playwright/test";
+
 /**
  * Test authentication utilities for e2e tests.
  * Allows creating test users and generating magic link URLs directly
@@ -114,3 +116,12 @@ export async function createUnverifiedTestUser(
     verificationUrl,
   };
 }
+
+/**
+ * Opens a browser context with no cookies. `browser.newContext()` inherits the
+ * project's `storageState`, so without this a "new user" context is actually
+ * signed in as the default test user.
+ */
+export const newAnonymousContext = (browser: Browser) => {
+  return browser.newContext({ storageState: { cookies: [], origins: [] } });
+};

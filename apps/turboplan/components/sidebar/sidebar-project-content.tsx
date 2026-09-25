@@ -206,6 +206,7 @@ export function SidebarProjectContent({
                   ) : (
                     <span
                       aria-hidden
+                      data-sidebar-keep=""
                       className={cn(
                         SKELETON_BAR_CLASS,
                         "size-6 shrink-0 rounded",

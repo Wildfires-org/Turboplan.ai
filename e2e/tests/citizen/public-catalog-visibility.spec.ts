@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { GOV_WORKSPACE, TEST_WORKSPACE } from "../../config/test-data";
 import { TurboplanDashboardPage, TurboplanProjectPage } from "../../pages";
+import { newAnonymousContext } from "../../utils";
 
 const LANDING_URL = process.env.LANDING_PAGE_URL || "http://localhost:3002";
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3001";
@@ -77,7 +78,7 @@ test.describe
       const officeCatalogUrl = `${LANDING_URL}/projects/${govProject.organization.slug}/${govProject.office.slug}/projects`;
       const projectHref = `/projects/${govProject.organization.slug}/${govProject.office.slug}/${govProject.slug}`;
 
-      const publicContext = await browser.newContext();
+      const publicContext = await newAnonymousContext(browser);
       const publicPage = await publicContext.newPage();
 
       await publicPage.goto(officeCatalogUrl);

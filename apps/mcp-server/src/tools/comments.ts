@@ -10,10 +10,13 @@ import {
   updateCommentVisibility,
 } from "@wildfires-org/turboplan-db/queries";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 
-import { assertEntityExists, assertPermission } from "../utils/permissions.js";
+import {
+  assertEntityExists,
+  assertPermission,
+  getMcpRBACService,
+} from "../utils/permissions.js";
 import { projectExists } from "../utils/queries.js";
 import type { McpUserContext } from "../utils/types.js";
 import { entityIdSchema, validateToolInput } from "../utils/validation.js";
@@ -70,7 +73,7 @@ export const registerCommentTools = (
           return denied;
         }
 
-        const rbacService = getRBACService();
+        const rbacService = getMcpRBACService();
         const moderatorCheck = await rbacService.checkPermission(
           user.userId,
           projectId as string,

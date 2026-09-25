@@ -8,7 +8,8 @@
     "build": "tsdown",
     "dev": "tsdown --watch --no-clean",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test $(find tests -name '*.test.ts')"
   },
   "exports": {
     "./client": {
@@ -44,7 +45,7 @@
     "@wildfires-org/turboplan-utils": "workspace:*",
     "@wildfires-org/turboplan-workspace": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "drizzle-orm": "^0.42.0",
+    "drizzle-orm": "^0.45.2",
     "framer-motion": "^12.14.0",
     "hono": "^4.7.5",
     "lucide-react": "^0.446.0",
@@ -67,6 +68,7 @@
     "react-dom": "19.1.7",
     "rollup-plugin-preserve-use-client": "^3.0.1",
     "tsdown": "^0.15.9",
+    "tsx": "^4.19.0",
     "typescript": "^5.3.3"
   }
 }

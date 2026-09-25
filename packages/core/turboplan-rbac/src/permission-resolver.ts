@@ -20,6 +20,21 @@ import { getHighestRole, roleHasPermission } from "./utils/roles";
  */
 export const NO_PERMISSION_REASON = "No permission found";
 
+/**
+ * Grant reason for READ derived only from a membership on a child entity
+ * (e.g. a project member reading its parent office/organization).
+ */
+export const UPWARD_READ_REASON = "Upward read access from child entity";
+
+/**
+ * True when the permission comes from a real role on the entity itself —
+ * direct, inherited from a parent, or platform admin — and not merely from
+ * upward READ via a child membership. Use it where "can see the entity" is not
+ * enough, e.g. listing its staff.
+ */
+export const isMembershipGrant = (result: PermissionCheckResult): boolean =>
+  result.allowed && result.reason !== UPWARD_READ_REASON;
+
 export interface PermissionResolverConfig {
   entityHierarchyService: EntityHierarchyService;
   membershipService: MembershipService;
@@ -216,7 +231,7 @@ export class PermissionResolver {
     if (action === Action.READ && (await context.upwardRead())) {
       return {
         granted: true,
-        reason: "Upward read access from child entity",
+        reason: UPWARD_READ_REASON,
         effectiveRole: MemberRole.VIEWER,
       };
     }

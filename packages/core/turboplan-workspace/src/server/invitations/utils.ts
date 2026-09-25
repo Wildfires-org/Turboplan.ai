@@ -12,8 +12,9 @@ import { getUser } from "@wildfires-org/turboplan-db/queries";
 
 import type { InvitationEntityType } from "./types";
 
-// Default invitation expiration in days
-export const DEFAULT_EXPIRATION_DAYS = 7;
+// Default invitation expiration in days. Kept short: the link is a bearer
+// credential that creates (and signs in) the invited account.
+export const DEFAULT_EXPIRATION_DAYS = 3;
 
 /**
  * Generate a secure random token for invitation URLs (the raw value that goes

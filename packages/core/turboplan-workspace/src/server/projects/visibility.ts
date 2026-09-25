@@ -35,3 +35,32 @@ export const isDraftHiddenFromUser = (
   }
   return isGovOrg || !hasRbacRead;
 };
+
+interface ListedProject {
+  id: string;
+  creatorEmail: string | null;
+}
+
+/**
+ * Merge an office's public project list (shown to any signed-in user of a
+ * publicly listed org) with the projects the user reaches through RBAC,
+ * de-duplicated by id and keeping the public list's order first.
+ *
+ * A project the user knows only from the public list is someone else's: its
+ * creator's email is dropped (`null`, rendered as "Unknown"). Projects the user
+ * can access keep it.
+ */
+export const mergePublicAndAccessibleProjects = <T extends ListedProject>(
+  publicProjects: T[],
+  accessibleProjects: T[],
+): T[] => {
+  const accessibleIds = new Set(accessibleProjects.map((p) => p.id));
+  const publicIds = new Set(publicProjects.map((p) => p.id));
+
+  return [
+    ...publicProjects.map((p) =>
+      accessibleIds.has(p.id) ? p : { ...p, creatorEmail: null },
+    ),
+    ...accessibleProjects.filter((p) => !publicIds.has(p.id)),
+  ];
+};

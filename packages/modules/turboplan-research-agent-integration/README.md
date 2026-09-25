@@ -18,8 +18,7 @@ Two agent skills are supported:
 Mounted in `apps/server` when the feature flag is enabled:
 
 - `bootstrapperRouter` → `/api/ai/research-agent/bootstrapper` (authenticated, RBAC-checked)
-- `catalogerRouter` → `/api/ai/research-agent/cataloger`
-- `catalogerAdminRouter` → `/api/admin/cataloger`
+- `catalogerRouter` and `catalogerAdminRouter` → `/api/admin/cataloger` (platform admins only, via `adminMiddleware`). Never mount the cataloger outside `/api/admin`: runs create GOVERNMENT organizations and public template projects.
 - Webhook routers (per-run `x-webhook-secret` auth, no shared API key) → `/api/webhooks/research-agent/bootstrapper` and `/api/webhooks/research-agent/cataloger`. Each router applies `webhookLoggerMiddleware` itself, immediately after its secret check — never before it.
 
 ## Configuration

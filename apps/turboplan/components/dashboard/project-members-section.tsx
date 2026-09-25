@@ -67,6 +67,7 @@ export function ProjectMembersSection({
         open={showInviteForm}
         onOpenChange={handleInviteDialogChange}
         entityName={project.name}
+        searchScope={{ entityType: EntityType.PROJECT, entityId: project.id }}
         onSendInvitations={handleSendInvitations}
         isSubmitting={isSendingInvites}
         existingEmails={existingEmails}

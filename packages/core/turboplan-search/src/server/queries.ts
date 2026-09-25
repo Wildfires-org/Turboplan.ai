@@ -8,12 +8,13 @@
 // Searches across organizations, offices, and projects with similarity ranking.
 // ============================================================================
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import {
   OfficeStatus,
   OrganizationStatus,
   ProjectStatus,
+  PUBLICLY_HIDDEN_OWNERSHIP_STATUSES,
   PUBLICLY_LISTED_ORG_TYPES,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
@@ -261,6 +262,7 @@ const searchProjects = async (
         eq(project.isPublic, true),
         eq(project.status, ProjectStatus.ACTIVE),
         eq(project.isTemplate, false),
+        notInArray(project.ownershipStatus, PUBLICLY_HIDDEN_OWNERSHIP_STATUSES),
         inArray(organization.type, PUBLICLY_LISTED_ORG_TYPES),
         eq(organization.status, OrganizationStatus.ACTIVE),
         eq(office.status, OfficeStatus.ACTIVE),
@@ -313,6 +315,7 @@ const searchTemplates = async (
         eq(project.isPublic, true),
         eq(project.status, ProjectStatus.ACTIVE),
         eq(project.isTemplate, true),
+        notInArray(project.ownershipStatus, PUBLICLY_HIDDEN_OWNERSHIP_STATUSES),
         inArray(organization.type, PUBLICLY_LISTED_ORG_TYPES),
         eq(organization.status, OrganizationStatus.ACTIVE),
         eq(office.status, OfficeStatus.ACTIVE),

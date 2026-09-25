@@ -15,10 +15,20 @@ export interface RBACUserContext {
 }
 
 /**
+ * How the request was authenticated. `pat` is a long-lived personal access
+ * token; `session` is a short-lived JWT minted from an interactive login. PATs
+ * are deliberately weaker: no PAT management, no admin routes, and no
+ * platform-admin RBAC bypass.
+ */
+export type AuthMethod = "pat" | "session";
+
+/**
  * Extended Hono context variables that RBAC middleware uses and sets
  */
 export interface RBACContextVariables {
   user: RBACUserContext;
+  /** Set by the auth middleware; absent means a session token. */
+  authMethod?: AuthMethod;
   permissionResult?: PermissionCheckResult;
 }
 

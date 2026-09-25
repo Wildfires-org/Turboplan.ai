@@ -10,6 +10,7 @@ interface UseLayerVisibilityResult {
   toggleLayerVisibility: (layerId: string) => void;
   showLayer: (layerId: string) => void;
   hideLayer: (layerId: string) => void;
+  setVisibleLayers: (layerIds: Set<string>) => void;
   showAllLayers: (layers: GeospatialLayer[]) => void;
   hideAllLayers: () => void;
 }
@@ -52,6 +53,10 @@ export function useLayerVisibility(
     });
   }, []);
 
+  const setVisibleLayers = useCallback((layerIds: Set<string>) => {
+    setVisibleLayerIds(new Set(layerIds));
+  }, []);
+
   const showAllLayers = useCallback((layers: GeospatialLayer[]) => {
     const allLayerIds = layers
       .filter((layer) => !layer.error && layer.data)
@@ -68,6 +73,7 @@ export function useLayerVisibility(
     toggleLayerVisibility,
     showLayer,
     hideLayer,
+    setVisibleLayers,
     showAllLayers,
     hideAllLayers,
   };

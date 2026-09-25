@@ -36,6 +36,7 @@ const LoadingSkeleton = ({ label }: { label: string }) => (
           <SidebarMenuItem key={i}>
             <SidebarMenuButton aria-hidden className="h-11" tabIndex={-1}>
               <span
+                data-sidebar-keep=""
                 className={cn(SKELETON_BAR_CLASS, "size-4 shrink-0 rounded")}
               />
               <span className="flex flex-1 items-center group-data-[collapsible=icon]:hidden">

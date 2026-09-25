@@ -16,7 +16,7 @@ interface OrgAvatarProps {
 
 export function OrgAvatar({ name, logoUrl, className }: OrgAvatarProps) {
   return (
-    <Avatar className={cn("size-8 rounded-sm", className)}>
+    <Avatar data-sidebar-keep="" className={cn("size-8 rounded-sm", className)}>
       {logoUrl && (
         <AvatarImage
           src={logoUrl}

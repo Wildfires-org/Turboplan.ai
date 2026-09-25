@@ -30,6 +30,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  isSafeHttpUrl,
   SuggestionPills,
 } from "@wildfires-org/turboplan-utils";
 import { useEmptyStateSuggestions } from "@wildfires-org/turboplan-workspace/client";
@@ -82,9 +83,12 @@ const DocumentCardWithActions = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
+            disabled={!isSafeHttpUrl(document.url)}
             onClick={(e) => {
               e.stopPropagation();
-              window.open(document.url, "_blank");
+              if (isSafeHttpUrl(document.url)) {
+                window.open(document.url, "_blank");
+              }
             }}
           >
             <Download className="mr-2 size-4" />

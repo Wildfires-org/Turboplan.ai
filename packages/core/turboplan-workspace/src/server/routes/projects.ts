@@ -2,7 +2,12 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { assertProjectCreationAllowed } from "@wildfires-org/turboplan-billing/server";
-import { OwnershipStatus, office, project } from "@wildfires-org/turboplan-db";
+import {
+  isOwnershipStatusPubliclyVisible,
+  OwnershipStatus,
+  office,
+  project,
+} from "@wildfires-org/turboplan-db";
 import {
   db,
   runWithWorkerConnection,
@@ -16,15 +21,14 @@ import {
 import {
   OrganizationType,
   PUBLICLY_LISTED_ORG_TYPES,
-  UserRole,
 } from "@wildfires-org/turboplan-db/types";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
   type RBACContext,
   requirePermission,
 } from "@wildfires-org/turboplan-rbac/hono";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import {
   computeChanges,
   createTimelineRecord,
@@ -35,6 +39,7 @@ import { generateUniqueSlug } from "@wildfires-org/turboplan-utils/server";
 
 import { getOfficeBySlug } from "../offices/queries";
 import { getOrganizationById } from "../organizations/queries";
+import { resolveProjectCreationFlags } from "../projects/creation-policy";
 import {
   createProject,
   deleteProject,
@@ -53,7 +58,10 @@ import {
   projectFiltersSchema,
   updateProjectSchema,
 } from "../projects/validation";
-import { isDraftHiddenFromUser } from "../projects/visibility";
+import {
+  isDraftHiddenFromUser,
+  mergePublicAndAccessibleProjects,
+} from "../projects/visibility";
 import { projectMembersRouter } from "./project-members";
 import { projectModulesRouter } from "./project-modules";
 import { projectSubmissionsRouter } from "./project-submissions";
@@ -109,7 +117,7 @@ projectsRouter.get("/", async (c) => {
 
     // The permission check and the org lookup both only need the resolved
     // office — run them in parallel (one round-trip instead of two).
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const [permissionResult, org] = await Promise.all([
       rbacService.checkPermission(
         user.userId,
@@ -190,12 +198,16 @@ projectsRouter.get("/", async (c) => {
         }),
         getUserAccessibleProjects(user.userId, officeRecord.id),
       ]);
-      // Merge and deduplicate by project ID
-      const seen = new Set(publicProjects.map((p) => p.id));
-      projects = [
-        ...publicProjects,
-        ...userProjects.filter((p) => !seen.has(p.id)),
-      ];
+      // Applications under review stay out of the public half of the list.
+      const visiblePublicProjects = publicProjects.filter((p) =>
+        isOwnershipStatusPubliclyVisible(p.ownershipStatus),
+      );
+      // Merge and deduplicate by project ID; public-only entries lose the
+      // creator's email.
+      projects = mergePublicAndAccessibleProjects(
+        visiblePublicProjects,
+        userProjects,
+      );
     } else {
       projects = await getUserAccessibleProjects(user.userId, officeRecord.id);
     }
@@ -284,7 +296,7 @@ projectsRouter.post("/", async (c) => {
     }
 
     // Verify user has CREATE permission for the office (requires owner/editor role)
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       officeRecord.id,
@@ -312,20 +324,36 @@ projectsRouter.post("/", async (c) => {
       projectData.name,
     );
 
-    // Only citizen-submission flows should start as DRAFT. Projects created by
-    // government / planning users are owned work from the start, not pending
-    // submissions — default them to ACCEPTED so the draft-visibility filter
-    // doesn't hide them from other office members.
-    // Prefer userRole from the auth context (set from the API token); fall back
-    // to a profile lookup for tokens that don't carry it (e.g. e2e tests).
-    const userRole =
-      user.userRole ??
-      (await getProfileByUserId(user.userId))?.userRole ??
-      undefined;
-    const ownershipStatus =
-      userRole === UserRole.CITIZEN
-        ? OwnershipStatus.DRAFT
-        : OwnershipStatus.ACCEPTED;
+    const hasOfficeCreate = permissionResult.allowed;
+    const wantsPublicOrTemplate =
+      projectData.isPublic === true || projectData.isTemplate === true;
+    const hasOfficeManageMembers =
+      hasOfficeCreate &&
+      wantsPublicOrTemplate &&
+      (
+        await rbacService.checkPermission(
+          user.userId,
+          officeRecord.id,
+          EntityType.OFFICE,
+          Action.MANAGE_MEMBERS,
+        )
+      ).allowed;
+
+    // The role only matters for staff creations (citizen → DRAFT, others →
+    // ACCEPTED). Prefer userRole from the auth context (set from the API
+    // token); fall back to a profile lookup for tokens that don't carry it
+    // (e.g. e2e tests).
+    const userRole = hasOfficeCreate
+      ? (user.userRole ?? (await getProfileByUserId(user.userId))?.userRole)
+      : undefined;
+    const { ownershipStatus, isPublic, isTemplate } =
+      resolveProjectCreationFlags({
+        hasOfficeCreate,
+        hasOfficeManageMembers,
+        userRole,
+        requestedIsPublic: projectData.isPublic,
+        requestedIsTemplate: projectData.isTemplate,
+      });
 
     // Billing gate: the org's plan caps active projects (e.g. Starter allows
     // one). Pure count check — nothing is consumed, so there is nothing to
@@ -352,6 +380,8 @@ projectsRouter.post("/", async (c) => {
       slug,
       officeId: officeRecord.id,
       ownershipStatus,
+      isPublic,
+      isTemplate,
       // Bringing an existing project skips the AI research phase.
       ...(hasExistingProject ? { isResearchPhaseCompleted: true } : {}),
     });
@@ -450,7 +480,7 @@ projectsRouter.get("/:id", async (c) => {
     }
 
     // Check RBAC permission
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       id,
@@ -481,6 +511,7 @@ projectsRouter.get("/:id", async (c) => {
       // offices (government + environmental planning).
       const isPublicListedOrgProject =
         proj.isPublic &&
+        isOwnershipStatusPubliclyVisible(proj.ownershipStatus) &&
         orgType !== null &&
         PUBLICLY_LISTED_ORG_TYPES.includes(orgType);
       if (!isPublicListedOrgProject) {
@@ -591,7 +622,7 @@ projectsRouter.put(
         updateData.isTemplate !== projectRecord.isTemplate;
 
       if (changesPublicVisibility || changesTemplateFlag) {
-        const elevated = await getRBACService().checkPermission(
+        const elevated = await getRBACServiceForRequest(c).checkPermission(
           user.userId,
           id,
           EntityType.PROJECT,
@@ -603,6 +634,37 @@ projectsRouter.put(
               error: "Forbidden",
               reason:
                 "Changing public/template visibility requires MANAGE_MEMBERS",
+            },
+            403,
+          );
+        }
+      }
+
+      // Turning isPublic / isTemplate ON presents the project under the
+      // office's name, so it takes MANAGE_MEMBERS on the office itself — the
+      // same bar project creation uses for these flags. Project ownership alone
+      // is not enough: the creator of a project is always its owner, so an
+      // office editor could otherwise create it and then publish it with a
+      // second request. Turning them OFF only needs project MANAGE_MEMBERS.
+      const enablesPublicOrTemplate =
+        (changesPublicVisibility && updateData.isPublic === true) ||
+        (changesTemplateFlag && updateData.isTemplate === true);
+      if (enablesPublicOrTemplate) {
+        const officeElevated = await getRBACServiceForRequest(
+          c,
+        ).checkPermission(
+          user.userId,
+          projectRecord.officeId,
+          EntityType.OFFICE,
+          Action.MANAGE_MEMBERS,
+          { email: user.email },
+        );
+        if (!officeElevated.allowed) {
+          return c.json(
+            {
+              error: "Forbidden",
+              reason:
+                "Publishing a project or listing it as a template requires MANAGE_MEMBERS on its office",
             },
             403,
           );

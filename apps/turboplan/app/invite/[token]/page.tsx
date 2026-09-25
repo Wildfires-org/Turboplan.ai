@@ -20,6 +20,7 @@ import { useSession } from "@wildfires-org/turboplan-auth/client";
 import { Button } from "@wildfires-org/turboplan-utils";
 
 import { acceptInvitationWithAutoSignup } from "./actions";
+import { buildInviteLoginUrl } from "./login-url";
 
 type InvitationStatus =
   | "loading"
@@ -173,7 +174,10 @@ export default function InvitePage() {
     try {
       const result = await acceptInvitationWithAutoSignup(token);
 
-      if (result.status === "success" && result.redirectTo) {
+      if (
+        (result.status === "success" || result.status === "login_required") &&
+        result.redirectTo
+      ) {
         router.push(result.redirectTo);
         return;
       }
@@ -234,6 +238,18 @@ export default function InvitePage() {
       setIsAccepting(false);
     }
   };
+
+  const signedInEmail = session?.user?.email ?? null;
+  // Acceptance is bound to the invited address server-side; mirror that here
+  // so a different account is not offered a button that can only fail.
+  const isWrongAccount =
+    !!signedInEmail &&
+    !!invitation?.email &&
+    signedInEmail.trim().toLowerCase() !==
+      invitation.email.trim().toLowerCase();
+  const switchAccountHref = `/logout?callbackUrl=${encodeURIComponent(
+    buildInviteLoginUrl(token, invitation?.email),
+  )}`;
 
   const EntityIcon = invitation
     ? entityIcons[invitation.entityType]
@@ -379,7 +395,25 @@ export default function InvitePage() {
 
         {/* Action Buttons */}
         <div className="w-full space-y-3">
-          {session?.user ? (
+          {session?.user && isWrongAccount ? (
+            <>
+              <p className="text-sm text-center text-muted-foreground">
+                This invitation is for{" "}
+                <span className="font-medium text-foreground">
+                  {invitation?.email}
+                </span>
+                , but you are signed in as{" "}
+                <span className="font-medium text-foreground">
+                  {signedInEmail}
+                </span>
+                . Sign in with the invited account to accept it.
+              </p>
+              <Button asChild className="w-full" size="lg">
+                {/* Plain anchor: a full navigation, never prefetched. */}
+                <a href={switchAccountHref}>Sign in as {invitation?.email}</a>
+              </Button>
+            </>
+          ) : session?.user ? (
             <>
               <Button
                 onClick={handleAuthenticatedAccept}

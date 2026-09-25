@@ -8,6 +8,7 @@ import {
   getInvitationStatus,
   getTestOffice,
   getTestUserOrganization,
+  newAnonymousContext,
 } from "../../utils";
 
 /**
@@ -77,7 +78,7 @@ test.describe("Invitation Acceptance Flow", () => {
     expect(invitation).not.toBeNull();
 
     // Create a NEW browser context for the invitee (no auth state)
-    const inviteeContext = await browser.newContext();
+    const inviteeContext = await newAnonymousContext(browser);
     const inviteePage = await inviteeContext.newPage();
 
     try {
@@ -149,7 +150,7 @@ test.describe("Invitation Acceptance Flow", () => {
     expect(invitation).not.toBeNull();
 
     // Create a NEW browser context for the invitee
-    const inviteeContext = await browser.newContext();
+    const inviteeContext = await newAnonymousContext(browser);
     const inviteePage = await inviteeContext.newPage();
 
     try {
@@ -195,7 +196,7 @@ test.describe("Invitation Acceptance Flow", () => {
 
   test("invitation page shows error for invalid token", async ({ browser }) => {
     // Create a context for testing invalid invitation
-    const context = await browser.newContext();
+    const context = await newAnonymousContext(browser);
     const page = await context.newPage();
 
     try {
@@ -231,7 +232,7 @@ test.describe("Invitation Acceptance Flow", () => {
     expect(invitation).not.toBeNull();
 
     // First: Accept the invitation in one context
-    const firstContext = await browser.newContext();
+    const firstContext = await newAnonymousContext(browser);
     const firstPage = await firstContext.newPage();
 
     try {
@@ -249,7 +250,7 @@ test.describe("Invitation Acceptance Flow", () => {
     }
 
     // Second: Try to use the same invitation in another context
-    const secondContext = await browser.newContext();
+    const secondContext = await newAnonymousContext(browser);
     const secondPage = await secondContext.newPage();
 
     try {
@@ -300,7 +301,7 @@ test.describe("Invitation Acceptance Flow", () => {
     }
 
     // Create context for the existing user to log in and accept
-    const userContext = await browser.newContext();
+    const userContext = await newAnonymousContext(browser);
     const userPage = await userContext.newPage();
 
     try {
@@ -347,7 +348,7 @@ test.describe("Invitation Acceptance Flow", () => {
 
     expect(invitation).not.toBeNull();
 
-    const inviteeContext = await browser.newContext();
+    const inviteeContext = await newAnonymousContext(browser);
     const inviteePage = await inviteeContext.newPage();
 
     try {

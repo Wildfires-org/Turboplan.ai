@@ -55,13 +55,25 @@ export function PublicVisibilityDropdown({
 
   const isCitizen = useIsCitizen();
 
-  // Check if user has MANAGE_MEMBERS permission (owner-level access)
-  const { hasPermission, isChecking } = useEntityPermission({
-    userId,
-    entityType: EntityType.PROJECT,
-    entityId: project.id,
-    action: Action.MANAGE_MEMBERS,
-  });
+  // Changing visibility needs MANAGE_MEMBERS (owner) on the project; making it
+  // public additionally needs MANAGE_MEMBERS on the office, mirroring the
+  // server. Both checks share the per-entity SWR cache with other callers.
+  const { hasPermission: canManageProject, isChecking: isCheckingProject } =
+    useEntityPermission({
+      userId,
+      entityType: EntityType.PROJECT,
+      entityId: project.id,
+      action: Action.MANAGE_MEMBERS,
+    });
+  const { hasPermission: canManageOffice, isChecking: isCheckingOffice } =
+    useEntityPermission({
+      userId,
+      entityType: EntityType.OFFICE,
+      entityId: project.officeId,
+      action: Action.MANAGE_MEMBERS,
+    });
+  const hasPermission = canManageProject && (isPublic || canManageOffice);
+  const isChecking = isCheckingProject || isCheckingOffice;
 
   // Citizens should never see privacy controls regardless of their role
   if (isCitizen) {

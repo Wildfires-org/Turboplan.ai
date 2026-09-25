@@ -1,6 +1,11 @@
 import { eq } from "drizzle-orm";
 
-import { office, organization, project } from "@wildfires-org/turboplan-db";
+import {
+  isOwnershipStatusPubliclyVisible,
+  office,
+  organization,
+  project,
+} from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import {
   OrganizationType,
@@ -26,6 +31,7 @@ export const isPublicGovProjectReadAllowed = async (
       isPublic: project.isPublic,
       status: project.status,
       isTemplate: project.isTemplate,
+      ownershipStatus: project.ownershipStatus,
       hiddenModules: project.hiddenModules,
       privateModules: project.privateModules,
       orgType: organization.type,
@@ -41,6 +47,11 @@ export const isPublicGovProjectReadAllowed = async (
   }
 
   if (!result.isPublic || result.status === "archived" || result.isTemplate) {
+    return false;
+  }
+
+  // An application under review is never public, even with isPublic set.
+  if (!isOwnershipStatusPubliclyVisible(result.ownershipStatus)) {
     return false;
   }
 

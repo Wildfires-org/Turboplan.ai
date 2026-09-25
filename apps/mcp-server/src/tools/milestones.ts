@@ -14,6 +14,8 @@ import {
   DrizzleUserRepository,
   MilestoneService,
   TaskService,
+  validateAssigneeIds,
+  validateTaskReferences,
 } from "@wildfires-org/turboplan-tasks/server";
 import {
   computeChanges,
@@ -63,6 +65,20 @@ const milestoneExists = async (id: string) => {
     .where(eq(milestones.id, id))
     .limit(1);
   return result.length > 0 ? result[0] : null;
+};
+
+/** First reference error across a batch of nested tasks, or `null`. */
+const firstTaskReferenceError = async (
+  projectId: string,
+  nestedTasks: z.infer<typeof nestedTaskSchema>[],
+): Promise<string | null> => {
+  for (const nestedTask of nestedTasks) {
+    const error = await validateTaskReferences(projectId, nestedTask);
+    if (error) {
+      return error;
+    }
+  }
+  return null;
 };
 
 const getProjectIdFromMilestone = (
@@ -379,6 +395,21 @@ export const registerMilestoneTools = (
 
         const validated = validation.data;
 
+        // Validate the milestone's and every nested task's references before
+        // anything is inserted, so a bad id never leaves a partial milestone.
+        const referenceError =
+          (await validateAssigneeIds(validated.assigneeIds)) ??
+          (await firstTaskReferenceError(
+            projectId as string,
+            validated.tasks ?? [],
+          ));
+        if (referenceError) {
+          return {
+            isError: true,
+            content: [{ type: "text" as const, text: referenceError }],
+          };
+        }
+
         const now = new Date();
         const tomorrow = new Date(now);
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -633,6 +664,15 @@ export const registerMilestoneTools = (
         }
 
         const validated = validation.data;
+
+        const assigneeError = await validateAssigneeIds(validated.assigneeIds);
+        if (assigneeError) {
+          return {
+            isError: true,
+            content: [{ type: "text" as const, text: assigneeError }],
+          };
+        }
+
         const updateData: Record<string, unknown> = {};
 
         if (validated.title !== undefined) {

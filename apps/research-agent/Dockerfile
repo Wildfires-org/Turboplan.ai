@@ -15,6 +15,7 @@ COPY packages/core/turboplan-auth/package.json packages/core/turboplan-auth/pack
 COPY packages/core/turboplan-db/package.json packages/core/turboplan-db/package.json
 COPY packages/core/turboplan-env/package.json packages/core/turboplan-env/package.json
 COPY packages/core/turboplan-utils/package.json packages/core/turboplan-utils/package.json
+COPY packages/modules/turboplan-document-extraction/package.json packages/modules/turboplan-document-extraction/package.json
 
 RUN pnpm install --frozen-lockfile --filter @wildfires-org/research-agent...
 
@@ -23,6 +24,7 @@ COPY packages/core/turboplan-auth packages/core/turboplan-auth
 COPY packages/core/turboplan-db packages/core/turboplan-db
 COPY packages/core/turboplan-env packages/core/turboplan-env
 COPY packages/core/turboplan-utils packages/core/turboplan-utils
+COPY packages/modules/turboplan-document-extraction packages/modules/turboplan-document-extraction
 
 RUN pnpm --filter @wildfires-org/research-agent... build
 RUN pnpm deploy --legacy --filter @wildfires-org/research-agent --prod /prod/research-agent

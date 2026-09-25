@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@wildfires-org/turboplan-utils";
 
+import type { UserSearchScope } from "../hooks/use-user-search";
 import { MemberRole, type MemberRoleType } from "../types";
 import { type SelectedUserValue, UserSelector } from "./user-selector";
 
@@ -30,6 +31,8 @@ export interface TaskContext {
 interface AddMemberFormProps {
   onSubmit: (data: { email: string; role: MemberRoleType }) => Promise<void>;
   onCancel: () => void;
+  /** Entity the user search runs for (see UserSelector) */
+  searchScope: UserSearchScope;
   isSubmitting?: boolean;
   defaultRole?: MemberRoleType;
   /** Optional task context when inviting from a task/milestone */
@@ -53,6 +56,7 @@ interface AddMemberFormProps {
  *     await addMember(data);
  *   }}
  *   onCancel={() => setShowForm(false)}
+ *   searchScope={{ entityType: "project", entityId: projectId }}
  *   isSubmitting={isAdding}
  *   defaultRole="viewer"
  * />
@@ -61,6 +65,7 @@ interface AddMemberFormProps {
 export function AddMemberForm({
   onSubmit,
   onCancel,
+  searchScope,
   isSubmitting = false,
   defaultRole = MemberRole.VIEWER,
   taskContext,
@@ -107,6 +112,7 @@ export function AddMemberForm({
           <UserSelector
             value={selectedUsers}
             onChange={setSelectedUsers}
+            searchScope={searchScope}
             placeholder="Search by name or email..."
             maxSelections={1}
             allowInvite={true}

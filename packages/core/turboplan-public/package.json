@@ -35,9 +35,10 @@
     "@wildfires-org/turboplan-db": "workspace:*",
     "@wildfires-org/turboplan-env": "workspace:*",
     "@wildfires-org/turboplan-map": "workspace:*",
+    "@wildfires-org/turboplan-timeline-records": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
     "ai": "^6.0.191",
-    "drizzle-orm": "^0.42.0",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.6.3"
   },
   "devDependencies": {

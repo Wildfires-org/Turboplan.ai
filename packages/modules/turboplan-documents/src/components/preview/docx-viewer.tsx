@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { renderAsync } from "docx-preview";
 import { ExternalLink, Loader2 } from "lucide-react";
 
-import { Button } from "@wildfires-org/turboplan-utils";
+import { Button, isSafeHttpUrl } from "@wildfires-org/turboplan-utils";
 
 export interface DocxViewerProps {
   url: string;
@@ -118,7 +118,7 @@ export function DocxViewer({
     }
   }, [currentPage, isLoading]);
 
-  const isExternalUrl = url.startsWith("http");
+  const isExternalUrl = isSafeHttpUrl(url);
 
   if (error) {
     return (

@@ -34,7 +34,7 @@ export default function CatalogRequestDialog({
   const [hasError, setHasError] = useState(false);
 
   const { trigger, isMutating, data } = useSWRMutation(
-    "/api/ai/research-agent/cataloger/run",
+    "/api/admin/cataloger/run",
     postFetcher<{ runId: string; status: string }>,
   );
 

@@ -52,7 +52,11 @@ const deriveFilenameFromUrl = (url: string): string => {
   } catch {
     // Keep the raw segment if it isn't valid percent-encoding.
   }
-  const withoutPrefix = decoded.replace(/^\d+-/, "");
+  // Storage keys are `{timestamp}-{uuid}-{name}`; older keys omit the uuid.
+  const withoutPrefix = decoded.replace(
+    /^\d+-(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-)?/i,
+    "",
+  );
   return withoutPrefix || "Document";
 };
 

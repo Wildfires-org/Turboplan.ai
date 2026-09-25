@@ -1,12 +1,27 @@
 import Credentials from "next-auth/providers/credentials";
 
 import { getUserById } from "@wildfires-org/turboplan-db/queries";
+import { getCommonEnv } from "@wildfires-org/turboplan-env";
+
+import { authorizeLoginTicket, createLoginTicket } from "./login-ticket";
+
+/**
+ * Mints a login ticket for the magic-link provider. Call ONLY after the user's
+ * identity has been proven (magic-link token or invitation token validated),
+ * and pass the result straight to the in-process `signIn()` — never send it to
+ * the browser.
+ */
+export const createMagicLinkLoginTicket = (userId: string): string => {
+  return createLoginTicket(userId, getCommonEnv().AUTH_SECRET);
+};
 
 /**
  * Factory function to create the magic link credentials provider.
  *
- * This provider authenticates by userId after the magic link token
- * has been verified externally (in verifyMagicLink action).
+ * The provider's callback endpoint is publicly reachable, so it accepts ONLY a
+ * short-lived signed login ticket (see `createMagicLinkLoginTicket`), minted
+ * by server code after it has validated a magic-link or invitation token. A
+ * bare userId is refused.
  *
  * @returns NextAuth Credentials provider configured for magic link auth
  *
@@ -19,6 +34,12 @@ import { getUserById } from "@wildfires-org/turboplan-db/queries";
  *   providers: [createMagicLinkProvider()],
  *   // ...
  * });
+ *
+ * // In a server action, after validating the magic-link token
+ * await signIn("magic-link", {
+ *   ticket: createMagicLinkLoginTicket(user.id),
+ *   redirect: false,
+ * });
  * ```
  */
 export const createMagicLinkProvider = () => {
@@ -26,22 +47,14 @@ export const createMagicLinkProvider = () => {
     id: "magic-link",
     name: "Magic Link",
     credentials: {
-      userId: { type: "text" },
+      ticket: { type: "text" },
     },
-    async authorize(credentials) {
-      const { userId } = credentials as { userId: string };
-
-      if (!userId) return null;
-
-      // Get user by ID (token already validated in verifyMagicLink action)
-      const user = await getUserById(userId);
-      if (!user) return null;
-
-      // Return user object for session
-      return {
-        id: user.id,
-        email: user.email,
-      };
+    authorize: (credentials) => {
+      return authorizeLoginTicket(
+        credentials,
+        getCommonEnv().AUTH_SECRET,
+        getUserById,
+      );
     },
   });
 };

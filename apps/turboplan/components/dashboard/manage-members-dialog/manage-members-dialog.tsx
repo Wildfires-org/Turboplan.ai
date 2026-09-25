@@ -322,6 +322,7 @@ export const ManageMembersDialog = ({
               <AddMemberForm
                 onSubmit={handleAddMember}
                 onCancel={() => setShowAddForm(false)}
+                searchScope={{ entityType, entityId }}
                 isSubmitting={isAdding}
                 taskContext={taskContext}
                 seatBillingActive={seatBillingActive}

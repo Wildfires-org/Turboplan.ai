@@ -88,16 +88,19 @@ export const apiService = {
     return milestones;
   },
 
-  // Fetch available users
-  fetchUsers: async () => {
-    const { data, error } =
-      await apiClient.get<
-        Array<{
-          id: string;
-          email: string;
-          emailVerified: Date | null;
-        }>
-      >("/api/users");
+  // Fetch the users this project's tasks/milestones can be assigned to
+  fetchUsers: async (projectId: string) => {
+    if (!projectId?.trim()) {
+      throw new Error("Project ID is required and cannot be empty");
+    }
+
+    const { data, error } = await apiClient.get<
+      Array<{
+        id: string;
+        email: string;
+        emailVerified: Date | null;
+      }>
+    >(`/api/projects/${projectId}/assignable-users`);
 
     if (error) {
       throw new Error(`Failed to fetch users: ${error}`);

@@ -15,7 +15,10 @@ import {
   projectUsers,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
-import { getUser } from "@wildfires-org/turboplan-db/queries";
+import {
+  getProjectAssignableUsers,
+  getUser,
+} from "@wildfires-org/turboplan-db/queries";
 import {
   Action,
   EntityType,
@@ -23,13 +26,11 @@ import {
   VALID_MEMBER_ROLES,
 } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
   type RBACContext,
   requirePermission,
 } from "@wildfires-org/turboplan-rbac/hono";
-import {
-  getRBACService,
-  RBACService,
-} from "@wildfires-org/turboplan-rbac/server";
+import { RBACService } from "@wildfires-org/turboplan-rbac/server";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 
 import type { MemberWithInheritance, PendingInvitation } from "../../types";
@@ -37,6 +38,8 @@ import { ROLE_LEVEL } from "../constants";
 import { sendMemberAddedNotification } from "../invitations/email";
 import { getEntityInvitationsWithInviter } from "../invitations/queries";
 import { getInvitationService } from "../invitations/service";
+import { validateTaskAssignment } from "../invitations/task-assignment";
+import { taskAssignmentSchema } from "../invitations/validation";
 import { selectMembersFrom } from "../queries";
 import { seatLimitResponse } from "./seat-gate";
 
@@ -71,13 +74,6 @@ const resolveProjectOrgRow = async (
     .limit(1);
   return row;
 };
-
-const taskAssignmentSchema = z
-  .object({
-    taskId: z.string().optional(),
-    milestoneId: z.string().optional(),
-  })
-  .optional();
 
 const addMemberSchema = z.object({
   email: z.string().email(),
@@ -226,6 +222,29 @@ projectMembersRouter.get(
   },
 );
 
+// GET /:id/assignable-users - Users this project's tasks and milestones can be
+// assigned to: hierarchy members plus current assignees (RBAC: READ). Feeds the
+// task assignee picker and resolves assigneeIds to people; it replaces the old
+// global `GET /api/users` list, which exposed every account's email.
+projectMembersRouter.get(
+  "/:id/assignable-users",
+  requirePermission(EntityType.PROJECT, Action.READ, (c) => c.req.param("id")!),
+  async (c) => {
+    try {
+      const users = await getProjectAssignableUsers(c.req.param("id")!);
+      return c.json({
+        users: users.map((assignable) => ({
+          ...assignable,
+          emailVerified: null,
+        })),
+      });
+    } catch (error) {
+      console.error("Error fetching assignable users:", error);
+      return c.json({ error: "Failed to fetch assignable users" }, 500);
+    }
+  },
+);
+
 // POST /:id/members - Add member or send invitation (RBAC: MANAGE_MEMBERS)
 // Supports optional taskAssignment to assign user to a task/milestone
 projectMembersRouter.post(
@@ -254,6 +273,17 @@ projectMembersRouter.post(
 
       const { email, role, taskAssignment } = validationResult.data;
 
+      // The assignment is applied now (existing user) or at accept time
+      // (invitation), and its titles are emailed to the invitee — so both ids
+      // must name rows inside this project before anything else happens.
+      const taskAssignmentError = await validateTaskAssignment(
+        projectId,
+        taskAssignment,
+      );
+      if (taskAssignmentError) {
+        return c.json({ error: taskAssignmentError }, 400);
+      }
+
       // Look up user by email
       const users = await getUser(email);
 
@@ -278,7 +308,7 @@ projectMembersRouter.post(
         const userId = users[0].id;
 
         // Check if user already has a membership
-        const rbacService = getRBACService();
+        const rbacService = getRBACServiceForRequest(c);
         const existingMembership = await rbacService.getUserMembershipForEntity(
           userId,
           projectId,
@@ -312,11 +342,12 @@ projectMembersRouter.post(
             const { assignUserToTaskAndMilestone } = await import(
               "@wildfires-org/turboplan-db/queries"
             );
-            await assignUserToTaskAndMilestone(
+            await assignUserToTaskAndMilestone({
+              projectId,
               userId,
-              taskAssignment.taskId,
-              taskAssignment.milestoneId,
-            );
+              taskId: taskAssignment.taskId,
+              milestoneId: taskAssignment.milestoneId,
+            });
           } catch (error) {
             // Log but don't fail the member addition
             console.error("Failed to assign user to task:", error);
@@ -419,7 +450,7 @@ projectMembersRouter.patch(
       const { userId, role } = validationResult.data;
 
       // Fetch old role for timeline recording
-      const rbacService = getRBACService();
+      const rbacService = getRBACServiceForRequest(c);
       const oldMembership = await rbacService.getUserMembershipForEntity(
         userId,
         projectId,

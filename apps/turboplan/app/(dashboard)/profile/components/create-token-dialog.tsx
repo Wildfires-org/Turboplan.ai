@@ -25,31 +25,25 @@ import {
 import { useAccessTokens, useCreateToken } from "@/hooks/use-access-tokens";
 import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
 
-type ExpirationOption = "30d" | "90d" | "1y" | "never";
+// Tokens always expire; the server caps the lifetime at 365 days.
+type ExpirationOption = "30d" | "90d" | "1y";
 
 const EXPIRATION_OPTIONS: { value: ExpirationOption; label: string }[] = [
   { value: "30d", label: "30 days" },
   { value: "90d", label: "90 days" },
   { value: "1y", label: "1 year" },
-  { value: "never", label: "Never" },
 ];
 
-const getExpirationDate = (option: ExpirationOption): string | undefined => {
-  const now = new Date();
+const EXPIRATION_DAYS: Record<ExpirationOption, number> = {
+  "30d": 30,
+  "90d": 90,
+  "1y": 365,
+};
 
-  switch (option) {
-    case "30d":
-      now.setDate(now.getDate() + 30);
-      return now.toISOString();
-    case "90d":
-      now.setDate(now.getDate() + 90);
-      return now.toISOString();
-    case "1y":
-      now.setFullYear(now.getFullYear() + 1);
-      return now.toISOString();
-    case "never":
-      return undefined;
-  }
+const getExpirationDate = (option: ExpirationOption): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + EXPIRATION_DAYS[option]);
+  return date.toISOString();
 };
 
 export const CreateTokenDialog = () => {

@@ -22,14 +22,16 @@ import {
   VALID_MEMBER_ROLES,
 } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
   type RBACContext,
+  requireMemberPermission,
   requirePermission,
 } from "@wildfires-org/turboplan-rbac/hono";
+import { RBACService } from "@wildfires-org/turboplan-rbac/server";
 import {
-  getRBACService,
-  RBACService,
-} from "@wildfires-org/turboplan-rbac/server";
-import { deleteReplacedStorageFile } from "@wildfires-org/turboplan-upload/server";
+  deleteReplacedStorageFiles,
+  isAllowedStorageUrlUpdate,
+} from "@wildfires-org/turboplan-upload/server";
 import { generateUniqueSlug } from "@wildfires-org/turboplan-utils/server";
 
 import type { MemberWithInheritance, PendingInvitation } from "../../types";
@@ -99,7 +101,7 @@ officesRouter.get("/", async (c) => {
 
     if (!isPubliclyListedOrg) {
       // Check RBAC permission on the resolved organization
-      const rbacService = getRBACService();
+      const rbacService = getRBACServiceForRequest(c);
       const permissionResult = await rbacService.checkPermission(
         user.userId,
         org.id,
@@ -234,8 +236,21 @@ officesRouter.post("/", async (c) => {
 
     const officeData = validationResult.data;
 
+    // A new office has no current logos, so any bucket URL must be the
+    // caller's own upload (see the PUT route for why).
+    if (
+      [officeData.documentLogoUrl, officeData.documentFooterLogoUrl].some(
+        (url) => !isAllowedStorageUrlUpdate(url, null, { userId: user.userId }),
+      )
+    ) {
+      return c.json(
+        { error: "Logo URLs must reference your own uploads" },
+        400,
+      );
+    }
+
     // Verify user has CREATE permission for the organization (requires owner/editor role)
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       officeData.organizationId,
@@ -321,15 +336,25 @@ officesRouter.put(
 
       const updateData = validationResult.data;
 
-      // Clean up old document/footer logos from storage when replaced or removed.
-      await deleteReplacedStorageFile(
-        office.documentLogoUrl,
-        updateData.documentLogoUrl,
-      );
-      await deleteReplacedStorageFile(
-        office.documentFooterLogoUrl,
-        updateData.documentFooterLogoUrl,
-      );
+      // Logo fields may only point into our bucket at the caller's own
+      // uploads — otherwise the replaced-logo cleanup below could be aimed at
+      // another tenant's object. External links are unaffected.
+      const storageOwner = { userId: c.get("user").userId };
+      const logoFields = [
+        [updateData.documentLogoUrl, office.documentLogoUrl],
+        [updateData.documentFooterLogoUrl, office.documentFooterLogoUrl],
+      ] as const;
+      if (
+        logoFields.some(
+          ([next, current]) =>
+            !isAllowedStorageUrlUpdate(next, current, storageOwner),
+        )
+      ) {
+        return c.json(
+          { error: "Logo URLs must reference your own uploads" },
+          400,
+        );
+      }
 
       // Generate new slug if name is changing
       let newSlug: string | undefined;
@@ -338,6 +363,10 @@ officesRouter.put(
       }
 
       await updateOffice({ ...updateData, slug: newSlug });
+
+      // Clean up old document/footer logos once the row no longer points at
+      // them. Omitted fields (undefined) are left alone.
+      await deleteReplacedStorageFiles(logoFields, storageOwner);
 
       // Return updated office
       const updatedOffice = await getOfficeWithRelations(id);
@@ -376,10 +405,15 @@ officesRouter.delete(
   },
 );
 
-// GET /:id/members - List members with org inheritance (RBAC: READ)
+// GET /:id/members - List members with org inheritance (RBAC: READ from a role
+// on the office or its org — upward READ from a child project does not expose staff)
 officesRouter.get(
   "/:id/members",
-  requirePermission(EntityType.OFFICE, Action.READ, (c) => c.req.param("id")!),
+  requireMemberPermission(
+    EntityType.OFFICE,
+    Action.READ,
+    (c) => c.req.param("id")!,
+  ),
   async (c) => {
     try {
       const officeId = c.req.param("id")!;
@@ -529,7 +563,7 @@ officesRouter.post(
         const userId = users[0].id;
 
         // Check if user already has a membership
-        const rbacService = getRBACService();
+        const rbacService = getRBACServiceForRequest(c);
         const existingMembership = await rbacService.getUserMembershipForEntity(
           userId,
           officeId,

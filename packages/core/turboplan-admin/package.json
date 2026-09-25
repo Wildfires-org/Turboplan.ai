@@ -36,7 +36,7 @@
     "@wildfires-org/turboplan-utils": "workspace:*",
     "@wildfires-org/turboplan-workspace": "workspace:*",
     "@hono/zod-validator": "^0.8.0",
-    "drizzle-orm": "^0.42.0",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.6.3",
     "zod": "^4.4.3"
   },

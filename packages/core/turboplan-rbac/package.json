@@ -42,13 +42,13 @@
     "@wildfires-org/turboplan-api-client": "workspace:*",
     "@wildfires-org/turboplan-db": "workspace:*",
     "@wildfires-org/turboplan-env": "workspace:*",
-    "drizzle-orm": "^0.42.0",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.6.3",
     "postgres": "^3.4.4",
     "swr": "^2.2.5"
   },
   "peerDependencies": {
-    "next": ">=15.5.16",
+    "next": ">=15.5.25",
     "react": "^19.1.1"
   },
   "devDependencies": {

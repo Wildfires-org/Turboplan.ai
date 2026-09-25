@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 import { pinoLogger } from "hono-pino";
 import pino from "pino";
 
@@ -16,6 +17,7 @@ import {
   capturePosthogError,
   posthogMiddleware,
 } from "./middleware/posthog.js";
+import { requireSessionAuth } from "./middleware/session-only.js";
 import { captureTimelineAnalytics } from "./middleware/timeline-analytics.js";
 import { registerPrivateRoutes } from "./routes/privateRoutes.js";
 import { registerPublicRoutes } from "./routes/publicRoutes.js";
@@ -33,6 +35,26 @@ export async function createApiRouter() {
   const apiRouter = new Hono();
 
   apiRouter.onError(globalErrorHandler);
+
+  // Registered first so every response — including CORS preflights and error
+  // responses — carries the headers.
+  apiRouter.use(
+    "/*",
+    secureHeaders({
+      // The web app and landing page call this API from other origins, and
+      // may load API-served resources (e.g. images) directly.
+      crossOriginResourcePolicy: "cross-origin",
+      // JSON API — no documents here need opener isolation, and COOP on an
+      // auth redirect hop could sever popup/opener flows.
+      crossOriginOpenerPolicy: false,
+      xFrameOptions: "DENY",
+      // HSTS only in production — never pin localhost to HTTPS during dev.
+      strictTransportSecurity:
+        ENV.NODE_ENV === "production"
+          ? "max-age=63072000; includeSubDomains"
+          : false,
+    }),
+  );
 
   const redactPaths = [
     'req.headers["x-internal-secret"]',
@@ -73,7 +95,8 @@ export async function createApiRouter() {
 
   // PRIVATE ROUTES (user auth required)
   apiRouter.use("/api/*", authMiddleware);
-  apiRouter.use("/api/admin/*", adminMiddleware);
+  // Admin routes require an interactive session — never a long-lived PAT.
+  apiRouter.use("/api/admin/*", requireSessionAuth, adminMiddleware);
   await registerPrivateRoutes(apiRouter);
 
   return apiRouter;

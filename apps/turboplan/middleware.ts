@@ -16,6 +16,21 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
+// NextAuth sign-in endpoints. The app only signs in via server actions, whose
+// `signIn()` calls Auth() in-process (next-auth 5.0.0-beta.32, lib/actions.js)
+// and never reaches these routes over HTTP, so external POSTs are refused.
+const BLOCKED_AUTH_POST_PREFIXES = ["/api/auth/callback", "/api/auth/signin"];
+
+const isBlockedAuthPost = (request: NextRequest) => {
+  if (request.method !== "POST") {
+    return false;
+  }
+  const { pathname } = request.nextUrl;
+  return BLOCKED_AUTH_POST_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix),
+  );
+};
+
 // Create auth handler
 const { auth } = NextAuth(authConfig);
 
@@ -38,6 +53,10 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
     });
   }
 
+  if (isBlockedAuthPost(request)) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   // Handle CORS preflight requests immediately
   if (request.method === "OPTIONS") {
     return new NextResponse(null, {
@@ -50,7 +69,7 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
   // Type assertion needed as NextAuth expects AppRouteHandlerFnContext
   return authMiddleware(
     request,
-    event as unknown as { params: Record<string, string | string[]> },
+    event as unknown as Parameters<typeof authMiddleware>[1],
   );
 }
 

@@ -6,6 +6,15 @@ import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 
 import type { McpToolResult } from "./types.js";
 
+/**
+ * RBAC service for MCP tools. The MCP server only accepts personal access
+ * tokens, and PATs never get the platform-admin bypass — a leaked admin PAT
+ * must not unlock every entity. Use this instead of `getRBACService()` for any
+ * permission check in a tool.
+ */
+export const getMcpRBACService = () =>
+  getRBACService(undefined, { platformAdminBypass: false });
+
 const mkAccessDenied = (): McpToolResult => ({
   isError: true,
   content: [{ type: "text", text: "Access denied." }],
@@ -20,7 +29,7 @@ export const assertPermission = async (
   action: ActionType,
   email?: string,
 ): Promise<McpToolResult | null> => {
-  const rbacService = getRBACService();
+  const rbacService = getMcpRBACService();
   const result = await rbacService.checkPermission(
     userId,
     entityId,

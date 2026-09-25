@@ -259,6 +259,17 @@ Every script requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Beyond
 that, see the "Environment variables required" header comment at the top of each
 script — it is kept in step with the code.
 
+### Hyperdrive
+
+The API Worker and the web Worker both bind a Cloudflare Hyperdrive config
+(binding name `HYPERDRIVE`), which pools and multiplexes Postgres connections at
+the edge. The workflow creates or updates one config per environment and passes
+its id to the deploy script as `HYPERDRIVE_ID`; the script substitutes it for the
+`HYPERDRIVE_ID_PLACEHOLDER` in the app's `wrangler.jsonc`. At runtime both
+Workers prefer the Hyperdrive connection string over `POSTGRES_URL` and fall back
+to the raw secret when the binding is absent (local dev, or a deploy run without
+`HYPERDRIVE_ID`), so `POSTGRES_URL` stays required either way.
+
 ### GitHub Actions secrets
 
 Set under **Settings → Secrets and variables → Actions → Secrets**. The deploy

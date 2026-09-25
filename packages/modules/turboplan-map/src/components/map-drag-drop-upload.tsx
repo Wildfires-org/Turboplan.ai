@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import { AlertCircle, FileIcon, Upload } from "lucide-react";
 import { type FileRejection, useDropzone } from "react-dropzone";
@@ -50,6 +50,23 @@ export function MapDragDropUpload({
         }
       }
     }
+  }, []);
+
+  // react-dropzone only prevents the browser default inside its own zone, so a
+  // file dropped anywhere else on the page makes the browser navigate to it and
+  // the app looks like it reloaded. Swallow those drops while this is mounted.
+  useEffect(() => {
+    const preventNavigation = (event: DragEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("dragover", preventNavigation);
+    window.addEventListener("drop", preventNavigation);
+
+    return () => {
+      window.removeEventListener("dragover", preventNavigation);
+      window.removeEventListener("drop", preventNavigation);
+    };
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

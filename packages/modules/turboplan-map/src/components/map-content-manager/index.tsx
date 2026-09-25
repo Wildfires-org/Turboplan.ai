@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import useSWR, { mutate } from "swr";
 
@@ -42,8 +42,11 @@ export function MapContentManager({
   const [isSaving, setIsSaving] = useState(false);
 
   // Use layer visibility hook for multi-layer support
-  const { visibleLayerIds, toggleLayerVisibility, showLayer } =
+  const { visibleLayerIds, toggleLayerVisibility, setVisibleLayers } =
     useLayerVisibility();
+
+  // Identity of the layer set the default visibility was already applied for
+  const defaultsAppliedKeyRef = useRef<string | null>(null);
 
   const {
     isUploading,
@@ -75,13 +78,23 @@ export function MapContentManager({
     revalidateOnReconnect: false,
   });
 
-  // Auto-show default layers when they are first loaded
+  // Apply default visibility once per loaded layer set, so hiding the last
+  // visible layer is not immediately undone on the next render
   useEffect(() => {
-    if (layers && layers.length > 0 && visibleLayerIds.size === 0) {
-      const defaultVisible = getDefaultVisibleLayers(layers);
-      defaultVisible.forEach((id) => showLayer(id));
+    if (!layers || layers.length === 0) {
+      return;
     }
-  }, [layers, visibleLayerIds.size, showLayer]);
+
+    const layersKeyForDefaults = layers
+      .map((layer) => getLayerKey(layer))
+      .join("|");
+    if (defaultsAppliedKeyRef.current === layersKeyForDefaults) {
+      return;
+    }
+
+    defaultsAppliedKeyRef.current = layersKeyForDefaults;
+    setVisibleLayers(getDefaultVisibleLayers(layers));
+  }, [layers, setVisibleLayers]);
 
   const handleMapTypeChange = (newMapType: MapType) => {
     setMapType(newMapType.id);

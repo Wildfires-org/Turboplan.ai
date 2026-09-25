@@ -127,13 +127,12 @@ export async function registerPrivateRoutes(router: Hono) {
   // Conditionally add tasks router if feature is enabled
   if (isTasksPackageEnabled()) {
     try {
-      const { milestonesRouter, tasksRouter, usersRouter } = await import(
+      const { milestonesRouter, tasksRouter } = await import(
         "@wildfires-org/turboplan-tasks/server"
       );
 
       router.route("/api/tasks", tasksRouter);
       router.route("/api/milestones", milestonesRouter);
-      router.route("/api/users", usersRouter);
 
       // Add project-specific endpoints that route to the appropriate task routers
       router.route("/api/projects", milestonesRouter);
@@ -227,10 +226,12 @@ export async function registerPrivateRoutes(router: Hono) {
 
       // Proxy routers (TurboPlan Frontend → Research Agent)
       router.route("/api/ai/research-agent/bootstrapper", bootstrapperRouter);
-      router.route("/api/ai/research-agent/cataloger", catalogerRouter);
 
-      // Admin sub-route (composed into adminRouter, protected via /api/admin/*)
+      // Cataloger is platform-admin only (it creates GOVERNMENT orgs and public
+      // template projects), so both its routers are composed into adminRouter
+      // and protected via /api/admin/*. Webhook callbacks live separately.
       adminRouter.route("/cataloger", catalogerAdminRouter);
+      adminRouter.route("/cataloger", catalogerRouter);
     } catch (error) {
       throw featurePackageError(
         "Research agent",

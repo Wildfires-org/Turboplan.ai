@@ -1,6 +1,6 @@
 import { type DbInstance, getDB } from "@wildfires-org/turboplan-db/db-client";
 
-import { PermissionResolver } from "../permission-resolver";
+import { isMembershipGrant, PermissionResolver } from "../permission-resolver";
 import type {
   ActionType,
   AllowedActionsResult,
@@ -8,24 +8,37 @@ import type {
   MemberRoleType,
   PermissionCheckResult,
 } from "../types";
-import { MemberRole } from "../types";
+import { Action, MemberRole } from "../types";
 import { isAdmin } from "../utils/admin-server";
 import { DrizzleEntityHierarchyService } from "./entity-hierarchy.service";
 import { DrizzleMembershipService } from "./membership.service";
+
+export type RBACServiceOptions = {
+  /**
+   * Whether a platform admin is granted every action on every entity without
+   * holding a membership. Defaults to `true`. Pass `false` for credentials that
+   * must never carry admin powers (personal access tokens): the caller is then
+   * judged on their memberships alone.
+   */
+  platformAdminBypass?: boolean;
+};
 
 export class RBACService {
   private permissionResolver: PermissionResolver;
   private entityHierarchyService: DrizzleEntityHierarchyService;
   private membershipService: DrizzleMembershipService;
 
-  constructor(private db: DbInstance = getDB()) {
+  constructor(
+    private db: DbInstance = getDB(),
+    options: RBACServiceOptions = {},
+  ) {
     this.entityHierarchyService = new DrizzleEntityHierarchyService(db);
     this.membershipService = new DrizzleMembershipService(db);
 
     this.permissionResolver = new PermissionResolver({
       entityHierarchyService: this.entityHierarchyService,
       membershipService: this.membershipService,
-      adminCheck: isAdmin,
+      adminCheck: options.platformAdminBypass === false ? undefined : isAdmin,
     });
   }
 
@@ -46,6 +59,28 @@ export class RBACService {
       action,
       options,
     );
+  }
+
+  /**
+   * Whether the user holds a role on the entity itself — direct, inherited
+   * from a parent, or platform admin. Upward READ derived only from a child
+   * membership (e.g. being a member of one project in an office) does not
+   * count.
+   */
+  async hasMembershipAccess(
+    userId: string,
+    entityId: string,
+    entityType: EntityTypeType,
+    options?: { email?: string },
+  ): Promise<boolean> {
+    const result = await this.checkPermission(
+      userId,
+      entityId,
+      entityType,
+      Action.READ,
+      options,
+    );
+    return isMembershipGrant(result);
   }
 
   /**
@@ -237,6 +272,9 @@ export class RBACService {
   }
 }
 
-export function getRBACService(db: DbInstance = getDB()): RBACService {
-  return new RBACService(db);
+export function getRBACService(
+  db: DbInstance = getDB(),
+  options?: RBACServiceOptions,
+): RBACService {
+  return new RBACService(db, options);
 }

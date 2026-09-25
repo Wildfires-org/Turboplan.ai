@@ -19,13 +19,17 @@ import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
 import { Action, EntityType, MemberRole } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
+  NO_PERMISSION_REASON,
   type RBACContext,
   requirePermission,
 } from "@wildfires-org/turboplan-rbac/hono";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 
 import { generateUniqueProjectSlug } from "../projects/queries";
+import { getSubmissionReviewScope } from "../projects/submission-policy";
 import {
+  getPendingSubmission,
   SubmissionError,
   submitProjectForReview,
 } from "../projects/submissions";
@@ -153,17 +157,47 @@ const reviewProjectSchema = z.discriminatedUnion("action", [
 
 projectSubmissionsRouter.patch(
   "/:projectId/review",
-  // Reviewing a submission inserts projectUsers rows as OWNER (from ownerEmail +
-  // members[]). Minting owners is a membership operation, so it requires
-  // MANAGE_MEMBERS — an Editor (UPDATE) must not be able to grant ownership.
-  requirePermission(
-    EntityType.PROJECT,
-    Action.MANAGE_MEMBERS,
-    (c) => c.req.param("projectId")!,
-  ),
+  // Authorisation is resolved inside the handler: the reviewer must hold
+  // MANAGE_MEMBERS on the submission's TARGET office (or organization for
+  // legacy rows), never on the project — the project's own members are the
+  // applicants. Reviewing also mints project owners (ownerEmail + members[]),
+  // which is a membership operation, hence MANAGE_MEMBERS.
   async (c) => {
     try {
       const projectId = c.req.param("projectId")!;
+      const currentUser = c.get("user");
+
+      if (!currentUser?.userId) {
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+
+      // No pending submission answers with the same 403 as a denial so the
+      // route is not an oracle for which projects are under review.
+      const submission = await getPendingSubmission(projectId);
+      if (!submission) {
+        return c.json(
+          { error: "Forbidden", reason: NO_PERMISSION_REASON },
+          403,
+        );
+      }
+
+      const reviewScope = getSubmissionReviewScope(submission);
+      const permissionResult = await getRBACServiceForRequest(
+        c,
+      ).checkPermission(
+        currentUser.userId,
+        reviewScope.entityId,
+        reviewScope.entityType,
+        Action.MANAGE_MEMBERS,
+        { email: currentUser.email },
+      );
+
+      if (!permissionResult.allowed) {
+        return c.json(
+          { error: "Forbidden", reason: permissionResult.reason },
+          403,
+        );
+      }
 
       const body = await c.req.json();
       const validationResult = reviewProjectSchema.safeParse(body);
@@ -197,18 +231,6 @@ projectSubmissionsRouter.patch(
           { error: "Only submitted projects can be reviewed" },
           400,
         );
-      }
-
-      // Load the submission row to resolve the target organization, the
-      // destination office (on accept) and the source office (on reject).
-      const [submission] = await db
-        .select()
-        .from(projectSubmission)
-        .where(eq(projectSubmission.projectId, projectId))
-        .limit(1);
-
-      if (!submission) {
-        return c.json({ error: "Submission not found" }, 404);
       }
 
       // Resolve the destination office for an accepted submission. The project
@@ -261,7 +283,6 @@ projectSubmissionsRouter.patch(
         );
       }
 
-      const currentUser = c.get("user");
       const now = new Date();
 
       // Wrap all DB writes in a transaction for atomicity
@@ -300,7 +321,7 @@ projectSubmissionsRouter.patch(
         await tx
           .update(projectSubmission)
           .set({
-            reviewedBy: currentUser!.userId,
+            reviewedBy: currentUser.userId,
             reviewedAt: now,
             rejectionReason:
               validated.action === OwnershipStatus.REJECTED
@@ -308,7 +329,7 @@ projectSubmissionsRouter.patch(
                 : null,
             updatedAt: now,
           })
-          .where(eq(projectSubmission.projectId, projectId));
+          .where(eq(projectSubmission.id, submission.id));
 
         // Add owner and members when accepting a project
         if (validated.action === OwnershipStatus.ACCEPTED) {
@@ -376,7 +397,10 @@ projectSubmissionsRouter.patch(
         }
 
         // Restore the submitter when rejecting: undo the submit-time downgrade
-        // so they regain ownership and can edit / resubmit the draft.
+        // so they regain ownership and can edit / resubmit the draft. Submitting
+        // requires MANAGE_MEMBERS, so the submitter was an owner beforehand.
+        // Other members downgraded at submit time stay VIEWER — the restored
+        // owner can re-grant roles, and nothing is escalated implicitly.
         if (validated.action === OwnershipStatus.REJECTED) {
           await tx
             .update(projectUsers)
@@ -395,7 +419,7 @@ projectSubmissionsRouter.patch(
       if (action === OwnershipStatus.ACCEPTED) {
         await createTimelineRecord({
           projectId,
-          userId: currentUser!.userId,
+          userId: currentUser.userId,
           entityType: "project",
           entityId: projectId,
           entityName: existingProject.name,
@@ -437,7 +461,7 @@ projectSubmissionsRouter.patch(
 
         await createTimelineRecord({
           projectId,
-          userId: currentUser!.userId,
+          userId: currentUser.userId,
           entityType: "project",
           entityId: projectId,
           entityName: existingProject.name,
@@ -521,9 +545,12 @@ const submissionErrorToResponse = (
 
 projectSubmissionsRouter.post(
   "/:projectId/submit",
+  // Submitting hands the project to another organization and strips every
+  // member's role, so it is an owner-level (MANAGE_MEMBERS) operation — an
+  // Editor must not be able to give away an Owner's project.
   requirePermission(
     EntityType.PROJECT,
-    Action.UPDATE,
+    Action.MANAGE_MEMBERS,
     (c) => c.req.param("projectId")!,
   ),
   async (c) => {

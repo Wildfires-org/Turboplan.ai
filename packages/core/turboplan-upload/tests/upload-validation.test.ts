@@ -8,7 +8,11 @@ import {
   isOwnedUploadUrl,
   isStorageUrl,
 } from "../src/server/r2-client";
-import { assertAllowedContentType } from "../src/server/UploadService";
+import { uniqueStorageName } from "../src/server/storage-key";
+import {
+  assertAllowedContentType,
+  UploadService,
+} from "../src/server/UploadService";
 import {
   isAllowedUploadContentType,
   UploadError,
@@ -236,5 +240,31 @@ describe("assertAllowedContentType", () => {
         return true;
       },
     );
+  });
+});
+
+describe("storage key format", () => {
+  const UUID =
+    "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+
+  it("uniqueStorageName prefixes a timestamp and a full random UUID", () => {
+    const name = uniqueStorageName("report.pdf");
+    assert.match(name, new RegExp(`^\\d{13}-${UUID}-report\\.pdf$`));
+    assert.notStrictEqual(uniqueStorageName("report.pdf"), name);
+  });
+
+  it("presigned upload keys keep the uploads/{userId}/ prefix and carry a UUID", async () => {
+    const { key, publicUrl } = await new UploadService().generatePresignedUrl(
+      "letter.pdf",
+      "application/pdf",
+      1024,
+      USER_ID,
+    );
+    assert.match(
+      key,
+      new RegExp(`^uploads/${USER_ID}/\\d{13}-${UUID}-letter\\.pdf$`),
+    );
+    assert.strictEqual(publicUrl, `${PUBLIC_URL}/${key}`);
+    assert.ok(isOwnedUploadUrl(publicUrl, USER_ID));
   });
 });

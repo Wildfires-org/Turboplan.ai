@@ -29,6 +29,7 @@ export function SidebarOfficeContent() {
               <SidebarMenuItem key={i}>
                 <SidebarMenuButton aria-hidden className="h-11" tabIndex={-1}>
                   <span
+                    data-sidebar-keep=""
                     className={cn(
                       SKELETON_BAR_CLASS,
                       "size-5 shrink-0 rounded",

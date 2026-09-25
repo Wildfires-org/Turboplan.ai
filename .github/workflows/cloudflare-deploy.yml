@@ -18,10 +18,6 @@ concurrency:
   group: deploy-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
-env:
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -379,6 +375,9 @@ jobs:
       - name: Deploy
         id: deploy
         env:
+          # Cloudflare credentials are scoped to the steps that call wrangler/the CF API
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           REF_NAME: ${{ github.ref_name }}
           WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
           # Optional apex custom domain — when unset, production stays on workers.dev
@@ -506,6 +505,9 @@ jobs:
       - name: Setup Hyperdrive
         id: hyperdrive
         env:
+          # Cloudflare credentials are scoped to the steps that call wrangler/the CF API
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           REF_NAME: ${{ github.ref_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           DB_URL_SECRET: ${{ secrets.POSTGRES_URL }}
@@ -582,6 +584,9 @@ jobs:
       - name: Deploy
         id: deploy
         env:
+          # Cloudflare credentials are scoped to the steps that call wrangler/the CF API
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Optional custom domain — when unset, production stays on workers.dev
           PRODUCTION_API_DOMAIN: ${{ vars.PRODUCTION_API_DOMAIN }}
           # Secrets (set via wrangler secret put in deploy script)
@@ -746,6 +751,80 @@ jobs:
             echo "landing_url=https://turboplan-landing-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Setup Hyperdrive
+        id: hyperdrive
+        env:
+          # Cloudflare credentials are scoped to the steps that call wrangler/the CF API
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REF_NAME: ${{ github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DB_URL_SECRET: ${{ secrets.POSTGRES_URL }}
+          DB_URL_NEON: ${{ steps.neon-branch.outputs.db_url }}
+        run: |
+          set -euo pipefail
+
+          if [ "$REF_NAME" = "main" ]; then
+            CONFIG_NAME="turboplan-db-prod"
+            DB_URL="$DB_URL_SECRET"
+          elif [ "$REF_NAME" = "develop" ]; then
+            CONFIG_NAME="turboplan-db-staging"
+            DB_URL="$DB_URL_SECRET"
+          else
+            CONFIG_NAME="turboplan-db-pr-${PR_NUMBER}"
+            DB_URL="$DB_URL_NEON"
+          fi
+
+          if [ -z "$DB_URL" ]; then
+            echo "::error::No DB connection string resolved for ${CONFIG_NAME}"
+            exit 1
+          fi
+
+          # Match the config name as a whole field (avoid pr-28 matching pr-280),
+          # then take the 32-char hex id from that row only.
+          lookup_id() {
+            npx wrangler hyperdrive list \
+              | grep -E "(^|[^0-9A-Za-z-])${CONFIG_NAME}([^0-9A-Za-z-]|$)" \
+              | grep -oE '[0-9a-f]{32}' | head -1 || true
+          }
+
+          echo "Looking for existing Hyperdrive config: $CONFIG_NAME"
+          EXISTING_ID=$(lookup_id)
+
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Updating existing Hyperdrive config: $EXISTING_ID"
+            npx wrangler hyperdrive update "$EXISTING_ID" --connection-string="$DB_URL"
+            HID="$EXISTING_ID"
+          else
+            echo "Creating new Hyperdrive config: $CONFIG_NAME"
+            # The deploy-api job may be running this same step concurrently and
+            # win the race, so a create failure is not fatal — re-read the list.
+            CREATE_OUTPUT=$(npx wrangler hyperdrive create "$CONFIG_NAME" --connection-string="$DB_URL" || true)
+            echo "$CREATE_OUTPUT"
+            # Anchor on the JSON `"id": "<hex>"` field so we never capture the
+            # account id from an API error URL (/accounts/<hex>/...).
+            HID=$(echo "$CREATE_OUTPUT" \
+              | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f]{32}"' \
+              | grep -oE '[0-9a-f]{32}' | head -1 || true)
+            if [ -z "$HID" ]; then
+              echo "Create did not yield an id — re-checking the list once"
+              HID=$(lookup_id)
+            fi
+          fi
+
+          if [ -z "$HID" ]; then
+            echo "::error::Could not resolve a Hyperdrive id for ${CONFIG_NAME}"
+            exit 1
+          fi
+
+          # Validate the id exists before deploy injects it into wrangler.jsonc.
+          if ! npx wrangler hyperdrive get "$HID" >/dev/null 2>&1; then
+            echo "::error::Hyperdrive id ${HID} not found in account"
+            exit 1
+          fi
+
+          echo "hyperdrive_id=$HID" >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -803,6 +882,9 @@ jobs:
       - name: Deploy
         id: deploy
         env:
+          # Cloudflare credentials are scoped to the steps that call wrangler/the CF API
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Optional custom domain — when unset, production stays on workers.dev
           PRODUCTION_APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
           # Sentry webpack plugin pushes next build past Node's default ~2GB heap
@@ -830,6 +912,7 @@ jobs:
           JWT_SIGNING_SECRET: ${{ secrets.JWT_SIGNING_SECRET }}
           AUTH_COOKIE_DOMAIN: ${{ github.ref_name == 'main' && vars.PRODUCTION_COOKIE_DOMAIN || vars.WORKERS_SUBDOMAIN }}
           POSTGRES_URL: ${{ github.event_name == 'pull_request' && steps.neon-branch.outputs.db_url || secrets.POSTGRES_URL }}
+          HYPERDRIVE_ID: ${{ steps.hyperdrive.outputs.hyperdrive_id }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -917,6 +1000,9 @@ jobs:
       - name: Deploy
         id: deploy
         env:
+          # Cloudflare credentials are scoped to the steps that call wrangler/the CF API
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           MAP_SERVICE_API_KEY: ${{ secrets.MAP_SERVICE_API_KEY }}
           # Optional custom domain — when unset, production stays on workers.dev
           PRODUCTION_MAP_DOMAIN: ${{ vars.PRODUCTION_MAP_DOMAIN }}
@@ -1010,6 +1096,9 @@ jobs:
       - name: Deploy
         id: deploy
         env:
+          # Cloudflare credentials are scoped to the steps that call wrangler/the CF API
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Optional custom domain — when unset, production stays on workers.dev
           PRODUCTION_MCP_DOMAIN: ${{ vars.PRODUCTION_MCP_DOMAIN }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}

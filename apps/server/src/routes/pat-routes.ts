@@ -8,6 +8,9 @@ import {
   revokePAT,
 } from "@wildfires-org/turboplan-db/queries";
 
+import { requireSessionAuth } from "../middleware/session-only.js";
+import { resolvePatExpiry } from "../utils/pat-expiry.js";
+
 const MAX_ACTIVE_TOKENS_PER_USER = 25;
 const NAME_MAX_LENGTH = 255;
 const ACTOR_MAX_LENGTH = 100;
@@ -15,13 +18,17 @@ const SAFE_STRING_PATTERN = /^[\w\s\-.,()@]+$/;
 
 export const patRouter = new Hono();
 
+// PAT management needs an interactive session: a PAT that could list, mint or
+// revoke PATs would let a leaked token replicate itself past revocation.
+patRouter.use("*", requireSessionAuth);
+
 patRouter.post("/", async (c: Context) => {
   const user = c.get("user");
   if (!user?.userId) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  let body: { name: string; actor: string; expiresAt?: string };
+  let body: { name: string; actor: string; expiresAt?: unknown };
   try {
     body = await c.req.json();
   } catch {
@@ -59,13 +66,9 @@ patRouter.post("/", async (c: Context) => {
     );
   }
 
-  let expiresAt: Date | null = null;
-  if (body.expiresAt) {
-    const parsed = new Date(body.expiresAt);
-    if (Number.isNaN(parsed.getTime()) || parsed <= new Date()) {
-      return c.json({ error: "expiresAt must be a valid future date" }, 400);
-    }
-    expiresAt = parsed;
+  const expiry = resolvePatExpiry(body.expiresAt);
+  if (!expiry.ok) {
+    return c.json({ error: expiry.error }, 400);
   }
 
   const existing = await listPATsByUser(user.userId);
@@ -87,7 +90,7 @@ patRouter.post("/", async (c: Context) => {
     actor,
     tokenHash: hash,
     tokenPrefix: prefix,
-    expiresAt,
+    expiresAt: expiry.expiresAt,
   });
 
   return c.json({

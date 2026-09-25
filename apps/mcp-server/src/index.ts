@@ -9,6 +9,13 @@ import {
 } from "@wildfires-org/turboplan-db/queries";
 
 import { createServer } from "./server.js";
+import {
+  exceedsUploadCallLimit,
+  extractToolCall,
+  getToolCallCharge,
+  MAX_UPLOAD_CALLS_PER_REQUEST,
+  type ToolCall,
+} from "./utils/request-charges.js";
 import type { McpUserContext } from "./utils/types.js";
 
 type Env = {
@@ -281,63 +288,75 @@ export default Sentry.withSentry(
           return jsonResponse({ error: "Invalid JSON" }, 400);
         }
 
-        // Extract the tool name from a single JSON-RPC request object (null if
-        // it is not a tools/call).
-        const extractToolName = (element: unknown): string | null => {
-          if (typeof element !== "object" || element === null) {
-            return null;
-          }
-          const el = element as Record<string, unknown>;
-          if (el.method !== "tools/call") {
-            return null;
-          }
-          const name = (el.params as Record<string, unknown> | undefined)?.name;
-          return typeof name === "string" ? name : null;
-        };
-
         // JSON-RPC allows batches (an array of requests). Classifying only the
         // top-level object left a batch as toolName=null → the cheap READ
-        // bucket, so N writes cost one token. Inspect every element and treat
-        // the whole request as a write if ANY element calls a write tool.
+        // bucket, so N writes cost one token. Inspect every element.
         const elements = Array.isArray(parsedBody) ? parsedBody : [parsedBody];
         // Every tools/call in the batch, in order. Reporting only elements[0]
         // undercounted analytics for batched calls.
-        const toolNames = elements
-          .map(extractToolName)
-          .filter((name): name is string => name !== null);
+        const toolCalls = elements
+          .map(extractToolCall)
+          .filter((call): call is ToolCall => call !== null);
+        const toolNames = toolCalls.map((call) => call.name);
         const mcpMethod =
           typeof (elements[0] as Record<string, unknown> | null)?.method ===
           "string"
             ? String((elements[0] as Record<string, unknown>).method)
             : "unknown";
 
+        // The SDK dispatches batch elements concurrently; several uploads in
+        // one request would hold several files in isolate memory at once.
+        // Rejected before charging so the caller keeps its quota.
+        if (exceedsUploadCallLimit(toolCalls)) {
+          return jsonResponse(
+            {
+              jsonrpc: "2.0",
+              id: null,
+              error: {
+                code: -32600,
+                message: `At most ${MAX_UPLOAD_CALLS_PER_REQUEST} upload_* tool call per request. Send uploads as separate requests.`,
+              },
+            },
+            400,
+          );
+        }
+
         const isWriteTool = (name: string): boolean =>
           WRITE_TOOL_PREFIXES.some((prefix) => name.startsWith(prefix));
 
-        // Charge one limiter token PER tools/call element, not per HTTP
-        // request — otherwise a batch of N writes costs a single write token
-        // and bypasses the per-operation quota. Non-tools/call requests
-        // (initialize, tools/list, ...) charge one READ token.
-        const opCharges: boolean[] =
-          toolNames.length > 0 ? toolNames.map(isWriteTool) : [false];
-        for (const chargeIsWrite of opCharges) {
-          const opLimiter = chargeIsWrite
+        // Charge limiter tokens PER ITEM, not per HTTP request: each tools/call
+        // costs 1 token, bulk tools cost one per item they create (capped),
+        // so a batch or a bulk call cannot bypass the per-operation quota.
+        // Non-tools/call requests (initialize, tools/list, ...) charge one
+        // READ token. Stops at the first rejected token.
+        const opCharges: Array<{ isWrite: boolean; tokens: number }> =
+          toolCalls.length > 0
+            ? toolCalls.map((call) => ({
+                isWrite: isWriteTool(call.name),
+                tokens: getToolCallCharge(call),
+              }))
+            : [{ isWrite: false, tokens: 1 }];
+        for (const charge of opCharges) {
+          const opLimiter = charge.isWrite
             ? env.RATE_LIMITER_WRITE
             : env.RATE_LIMITER_READ;
-          const { success: opWithinLimit } = await opLimiter.limit({
-            key: authResult.user.userId,
-          });
-          if (!opWithinLimit) {
-            console.warn(
-              JSON.stringify({
-                event: "rate_limited",
-                userId: authResult.user.userId,
-                type: chargeIsWrite ? "write" : "read",
-                batchSize: toolNames.length,
-                timestamp: new Date().toISOString(),
-              }),
-            );
-            return jsonResponse({ error: "Rate limit exceeded" }, 429);
+          for (let i = 0; i < charge.tokens; i++) {
+            const { success: opWithinLimit } = await opLimiter.limit({
+              key: authResult.user.userId,
+            });
+            if (!opWithinLimit) {
+              console.warn(
+                JSON.stringify({
+                  event: "rate_limited",
+                  userId: authResult.user.userId,
+                  type: charge.isWrite ? "write" : "read",
+                  batchSize: toolNames.length,
+                  itemCharge: charge.tokens,
+                  timestamp: new Date().toISOString(),
+                }),
+              );
+              return jsonResponse({ error: "Rate limit exceeded" }, 429);
+            }
           }
         }
 

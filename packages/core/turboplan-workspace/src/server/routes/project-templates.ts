@@ -10,24 +10,27 @@ import {
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
   type RBACContext,
   requirePermission,
 } from "@wildfires-org/turboplan-rbac/hono";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 
 import { getOfficeBySlug } from "../offices/queries";
 import { getOrCreatePersonalWorkspace } from "../organizations/personal-workspace";
+import { resolveTemplateIsPublic } from "../projects/creation-policy";
 import {
   createProjectFromTemplate,
   createTemplateFromProject,
   getProjectById,
 } from "../projects/queries";
+import { getPubliclyRestrictedModules } from "../projects/template-copy-policy";
 import { createProjectFromTemplateSchema } from "../projects/validation";
 
 export const projectTemplatesRouter = new Hono<RBACContext>();
 
-// POST /:id/create-template - Create template from project (RBAC: UPDATE on source + CREATE on office)
+// POST /:id/create-template - Create template from project (RBAC: UPDATE on source + CREATE on office;
+// a public template additionally needs MANAGE_MEMBERS on the office, otherwise it is private)
 projectTemplatesRouter.post(
   "/:id/create-template",
   requirePermission(
@@ -51,7 +54,7 @@ projectTemplatesRouter.post(
       }
 
       // Check CREATE permission on the parent office
-      const rbacService = getRBACService();
+      const rbacService = getRBACServiceForRequest(c);
       const permissionResult = await rbacService.checkPermission(
         user.userId,
         sourceProject.officeId,
@@ -71,8 +74,12 @@ projectTemplatesRouter.post(
 
       // Parse optional overrides from request body
       let overrides: { name?: string; description?: string } | undefined;
+      let requestedIsPublic: boolean | undefined;
       try {
         const body = await c.req.json();
+        if (typeof body.isPublic === "boolean") {
+          requestedIsPublic = body.isPublic;
+        }
         if (body.name || body.description) {
           overrides = {
             name: body.name ? String(body.name) : undefined,
@@ -85,10 +92,28 @@ projectTemplatesRouter.post(
         // No body or invalid JSON — use defaults
       }
 
+      // Editors may save private templates; publishing one takes office
+      // MANAGE_MEMBERS (same bar as creating/updating a public project).
+      const hasOfficeManageMembers =
+        requestedIsPublic !== false &&
+        (
+          await rbacService.checkPermission(
+            user.userId,
+            sourceProject.officeId,
+            EntityType.OFFICE,
+            Action.MANAGE_MEMBERS,
+          )
+        ).allowed;
+      const isPublic = resolveTemplateIsPublic({
+        hasOfficeManageMembers,
+        requestedIsPublic,
+      });
+
       // Create template from project
       const newTemplate = await createTemplateFromProject(
         sourceId,
         user.userId,
+        isPublic,
         overrides,
       );
 
@@ -181,27 +206,34 @@ projectTemplatesRouter.post("/:id/create-from-template", async (c) => {
       return c.json({ error: "Source project is not a template" }, 400);
     }
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
 
-    // Private templates require explicit READ access
-    if (!sourceTemplate.isPublic) {
-      const sourceAccessResult = await rbacService.checkPermission(
-        user.userId,
-        templateId,
-        EntityType.PROJECT,
-        Action.READ,
+    // Private templates require explicit READ access. A public template may be
+    // cloned by anyone, but without READ the caller only gets the modules the
+    // public template view shows — hidden/private module content stays behind.
+    const sourceAccessResult = await rbacService.checkPermission(
+      user.userId,
+      templateId,
+      EntityType.PROJECT,
+      Action.READ,
+    );
+
+    if (!sourceAccessResult.allowed && !sourceTemplate.isPublic) {
+      return c.json(
+        {
+          error: "Forbidden",
+          reason: sourceAccessResult.reason,
+        },
+        403,
       );
-
-      if (!sourceAccessResult.allowed) {
-        return c.json(
-          {
-            error: "Forbidden",
-            reason: sourceAccessResult.reason,
-          },
-          403,
-        );
-      }
     }
+
+    const excludedModules = sourceAccessResult.allowed
+      ? []
+      : getPubliclyRestrictedModules(
+          sourceTemplate.hiddenModules,
+          sourceTemplate.privateModules,
+        );
 
     const body = await c.req.json();
     const validationResult = createProjectFromTemplateSchema.safeParse(body);
@@ -277,6 +309,7 @@ projectTemplatesRouter.post("/:id/create-from-template", async (c) => {
         {
           name,
           description,
+          excludedModules,
         },
       );
 
@@ -350,6 +383,7 @@ projectTemplatesRouter.post("/:id/create-from-template", async (c) => {
         // Save the chosen agency as the default submit target (not submitted now).
         intendedSubmissionOrganizationId: submitTo?.organizationId ?? null,
         intendedSubmissionOfficeId: submitTo?.officeId ?? null,
+        excludedModules,
       },
     );
 

@@ -8,6 +8,7 @@ import {
   getProfileByUserId,
   getUser,
   getUserByEmail,
+  getUserById,
   markEmailAsVerified,
 } from "@wildfires-org/turboplan-db/queries";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
@@ -15,6 +16,11 @@ import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { getOfficeById } from "../offices/queries";
 import { getProjectById } from "../projects/queries";
 import { sendInvitationEmail } from "./email";
+import {
+  decideAutoSignup,
+  InvitationEmailMismatchError,
+  isInvitationEmailMatch,
+} from "./policy";
 import {
   createInvitation as createInvitationRecord,
   getExistingInvitation,
@@ -153,7 +159,8 @@ export class InvitationService {
 
   /**
    * Accept an invitation
-   * Creates membership for the user in the target entity
+   * Creates membership for the user in the target entity. Throws
+   * InvitationEmailMismatchError when the user's email is not the invited one.
    */
   async acceptInvitation(
     token: string,
@@ -166,6 +173,13 @@ export class InvitationService {
     }
 
     const invitation = validation.invitation;
+
+    // Bind acceptance to the invited address: a forwarded/leaked link must not
+    // grant access to whichever account happens to redeem it.
+    const acceptingUser = await getUserById(userId);
+    if (!isInvitationEmailMatch(acceptingUser?.email, invitation.email)) {
+      throw new InvitationEmailMismatchError();
+    }
 
     // Check if user is already a member
     const rbacService = getRBACService();
@@ -234,6 +248,7 @@ export class InvitationService {
     if (invitation.taskAssignment) {
       await this.assignUserToTask(
         userId,
+        invitation.entityId,
         invitation.taskAssignment as TaskAssignment,
       );
     }
@@ -252,8 +267,9 @@ export class InvitationService {
 
   /**
    * Accept an invitation with auto-signup for unauthenticated users.
-   * Creates a new user account if needed, accepts the invitation, and returns
-   * the userId for the caller to complete sign-in.
+   * Only for emails with no account yet: creates the account, accepts the
+   * invitation, and returns the userId for the caller to complete sign-in.
+   * Returns `login_required` when an account already exists.
    *
    * This method handles all the business logic; the caller (server action)
    * handles the authentication/session creation.
@@ -279,9 +295,16 @@ export class InvitationService {
 
     const invitation = validation.invitation;
 
-    // 2. Check if user exists, create if not
+    // 2. Only an account created by THIS flow may be signed in here. An
+    // account registered after the invite was sent must sign in normally and
+    // accept while authenticated; otherwise a forwarded/leaked invitation
+    // link would be a login credential for that account.
     const email = invitation.email.toLowerCase().trim();
     const existingUser = await getUserByEmail(email);
+
+    if (decideAutoSignup(existingUser) === "login_required") {
+      return { status: "login_required", email };
+    }
 
     // Seat pre-check BEFORE creating an account: a seat-blocked accept must
     // not leave an orphaned, email-verified user behind. The accept-time gate
@@ -294,7 +317,6 @@ export class InvitationService {
       if (seatOrganizationId) {
         const seatDecision = await assertSeatAvailable({
           organizationId: seatOrganizationId,
-          userId: existingUser?.id,
         });
         if (!seatDecision.allowed) {
           return {
@@ -306,23 +328,11 @@ export class InvitationService {
       }
     }
 
-    let userId: string;
-
-    if (!existingUser) {
-      // Create new user with the invited email
-      const [newUser] = await createMagicLinkUser(email);
-      userId = newUser.id;
-
-      // Mark email as verified (clicking invitation email proves ownership)
-      await markEmailAsVerified(userId);
-    } else {
-      userId = existingUser.id;
-
-      if (!existingUser.emailVerified) {
-        // User exists but email not verified - verify it now
-        await markEmailAsVerified(userId);
-      }
-    }
+    // Create the user with the invited email. Clicking the emailed link
+    // proves ownership of the address, so mark it verified.
+    const [newUser] = await createMagicLinkUser(email);
+    const userId = newUser.id;
+    await markEmailAsVerified(userId);
 
     // 3. Accept the invitation (this adds membership)
     try {
@@ -425,8 +435,13 @@ export class InvitationService {
     return officeRow?.organizationId ?? null;
   }
 
+  /**
+   * `projectId` is the invitation's own entity: the stored ids are only ever
+   * applied inside the project the invitation grants access to.
+   */
   private async assignUserToTask(
     userId: string,
+    projectId: string,
     taskAssignment: TaskAssignment,
   ): Promise<void> {
     const { taskId, milestoneId } = taskAssignment;
@@ -439,7 +454,12 @@ export class InvitationService {
       const { assignUserToTaskAndMilestone } = await import(
         "@wildfires-org/turboplan-db/queries"
       );
-      await assignUserToTaskAndMilestone(userId, taskId, milestoneId);
+      await assignUserToTaskAndMilestone({
+        projectId,
+        userId,
+        taskId,
+        milestoneId,
+      });
     } catch (error) {
       // Log error but don't fail the invitation acceptance
       console.error("Failed to assign user to task:", error);

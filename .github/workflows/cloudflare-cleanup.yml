@@ -15,8 +15,6 @@ permissions:
   pull-requests: write
 
 env:
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
   PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
 
 jobs:
@@ -49,6 +47,10 @@ jobs:
         run: npm install -g wrangler
 
       - name: Delete preview workers
+        env:
+          # Cloudflare credentials are scoped to the steps that call wrangler/the CF API
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: ./scripts/cleanup-preview.sh "${{ env.PR_NUMBER }}"
 
   comment:

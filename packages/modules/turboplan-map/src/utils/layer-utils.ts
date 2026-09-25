@@ -7,8 +7,16 @@ import type { GeospatialLayer } from "../types";
 /**
  * Generates a unique key for a geospatial layer
  * This ensures consistent key generation across all components
+ *
+ * Prefers the database id so that two layers sharing a name and source file
+ * (e.g. the same file uploaded twice) stay distinct. Falls back to a
+ * name/source composite for layers that have not been saved yet (previews).
  */
 export function getLayerKey(layer: GeospatialLayer): string {
+  if (layer.id) {
+    return layer.id;
+  }
+
   return `${layer.name}-${layer.source}-${layer.layer || "default"}`;
 }
 

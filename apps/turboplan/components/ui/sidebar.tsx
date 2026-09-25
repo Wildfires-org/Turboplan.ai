@@ -576,8 +576,11 @@ const SidebarMenuItem = React.forwardRef<
 ));
 SidebarMenuItem.displayName = "SidebarMenuItem";
 
+// Collapsed (icon-only) buttons hide their label spans. Spans that act as the
+// icon itself - avatars, initials badges, skeleton icon squares - opt out with
+// `data-sidebar-keep`, or they would vanish along with the label.
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-lg p-3 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding,background-color,color] hover:bg-brandAlt-100 hover:text-brand-900 focus-visible:ring-2 active:bg-brandAlt-100 active:text-brand-900 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-brand-800 data-[active=true]:font-medium data-[active=true]:text-white data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] data-[active=true]:[&>svg]:text-white data-[state=open]:hover:bg-brandAlt-100 data-[state=open]:hover:text-brand-900 group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:[&>span]:hidden [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-lg p-3 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding,background-color,color] hover:bg-brandAlt-100 hover:text-brand-900 focus-visible:ring-2 active:bg-brandAlt-100 active:text-brand-900 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-brand-800 data-[active=true]:font-medium data-[active=true]:text-white data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] data-[active=true]:[&>svg]:text-white data-[state=open]:hover:bg-brandAlt-100 data-[state=open]:hover:text-brand-900 group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:[&>span:not([data-sidebar-keep])]:hidden [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {

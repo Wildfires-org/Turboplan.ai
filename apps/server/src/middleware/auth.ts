@@ -33,6 +33,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
       email: pat.email,
       userRole: pat.userRole ?? undefined,
     });
+    c.set("authMethod", "pat");
     await next();
     return;
   }
@@ -86,6 +87,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
     userId: payload.id,
     userRole: payload.userRole,
   });
+  c.set("authMethod", "session");
 
   await next();
 };

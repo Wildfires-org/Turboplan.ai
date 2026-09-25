@@ -7,8 +7,8 @@ import {
   type EntityTypeType,
   ROLE_PERMISSIONS,
 } from "@wildfires-org/turboplan-rbac";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 
+import { getMcpRBACService } from "../utils/permissions.js";
 import type { McpToolResult, McpUserContext } from "../utils/types.js";
 import { entityIdSchema, validateToolInput } from "../utils/validation.js";
 
@@ -31,7 +31,7 @@ const formatMembership = (m: {
 
 const handleListPermissions = (user: McpUserContext): Promise<McpToolResult> =>
   runWithWorkerConnection(async () => {
-    const rbacService = getRBACService();
+    const rbacService = getMcpRBACService();
     const memberships = await rbacService.getUserMemberships(user.userId);
 
     const grouped: Record<string, ReturnType<typeof formatMembership>[]> = {};
@@ -93,7 +93,7 @@ const handleCheckEntityPermission = (
       };
     }
 
-    const rbacService = getRBACService();
+    const rbacService = getMcpRBACService();
 
     const result = await rbacService.checkPermission(
       user.userId,
@@ -174,7 +174,7 @@ export const registerCapabilityTools = (
     "check_entity_permission",
     {
       description:
-        "Check your permissions for a specific entity. Returns your effective role (including roles inherited from parent entities and platform-admin access) and allowed actions, or 'read-only (public)' for public government entities.",
+        "Check your permissions for a specific entity. Returns your effective role (including roles inherited from parent entities) and allowed actions, or 'read-only (public)' for public government entities.",
       inputSchema: checkPermissionSchema,
     },
     (args) =>

@@ -2,7 +2,7 @@
 
 import { ExternalLink, FileSignature } from "lucide-react";
 
-import { Button } from "@wildfires-org/turboplan-utils";
+import { Button, safeExternalUrl } from "@wildfires-org/turboplan-utils";
 
 import { useMySigningRequest } from "../hooks/use-signing-requests";
 
@@ -12,8 +12,9 @@ interface SigningBannerProps {
 
 export const SigningBanner = ({ documentId }: SigningBannerProps) => {
   const { signingRequest, isLoading } = useMySigningRequest(documentId);
+  const signingUrl = safeExternalUrl(signingRequest?.signingUrl);
 
-  if (isLoading || !signingRequest || !signingRequest.signingUrl) {
+  if (isLoading || !signingUrl) {
     return null;
   }
 
@@ -25,10 +26,7 @@ export const SigningBanner = ({ documentId }: SigningBannerProps) => {
           Your signature has been requested on this document.
         </span>
       </div>
-      <Button
-        size="sm"
-        onClick={() => window.open(signingRequest.signingUrl!, "_blank")}
-      >
+      <Button size="sm" onClick={() => window.open(signingUrl, "_blank")}>
         <ExternalLink className="mr-1.5 size-3.5" />
         Sign Document
       </Button>

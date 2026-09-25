@@ -9,9 +9,16 @@ const sharedConfig = {
 };
 
 const buildTargets = {
-  app: {
+  server: {
     entryPoints: ["src/app/server.ts"],
     outfile: "dist/app/server.js",
+  },
+  // Separate bundle on purpose: worker_threads needs a real file on disk, and
+  // `run-extraction-in-worker.ts` resolves it as ../documents/extraction-worker.js
+  // relative to dist/app/server.js.
+  extractionWorker: {
+    entryPoints: ["src/documents/extraction-worker.ts"],
+    outfile: "dist/documents/extraction-worker.js",
   },
   agent: {
     entryPoints: ["src/agent-runtime/run.ts"],
@@ -19,22 +26,24 @@ const buildTargets = {
   },
 };
 
-const mode = process.argv[2] ?? "app";
+const buildModes = {
+  app: ["server", "extractionWorker"],
+  agent: ["agent"],
+  all: Object.keys(buildTargets),
+};
 
-if (mode === "all") {
-  await Promise.all(
-    Object.values(buildTargets).map((target) =>
-      build({
-        ...sharedConfig,
-        ...target,
-      }),
-    ),
-  );
-} else if (mode in buildTargets) {
-  await build({
-    ...sharedConfig,
-    ...buildTargets[mode],
-  });
-} else {
+const mode = process.argv[2] ?? "app";
+const targets = buildModes[mode];
+
+if (!targets) {
   throw new Error("Invalid build mode. Use: app | agent | all");
 }
+
+await Promise.all(
+  targets.map((name) =>
+    build({
+      ...sharedConfig,
+      ...buildTargets[name],
+    }),
+  ),
+);

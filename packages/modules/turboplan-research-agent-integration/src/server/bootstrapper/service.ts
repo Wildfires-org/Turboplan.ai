@@ -14,22 +14,23 @@ import { chat, type DBMessage } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import {
   createProjectDocument,
+  getProjectDocumentExtractionByIds,
   getProjectDocumentsByProjectId,
 } from "@wildfires-org/turboplan-db/queries";
 import type { ResearchAgentMessage as DbResearchAgentMessage } from "@wildfires-org/turboplan-db/schemas";
-import { extractDocumentText } from "@wildfires-org/turboplan-documents/server";
 import {
   getProjectContextByProjectId,
   insertProjectContext,
 } from "@wildfires-org/turboplan-project-context/server";
 import { createTimelineRecordOrThrow } from "@wildfires-org/turboplan-timeline-records/server";
 import { uploadFile } from "@wildfires-org/turboplan-upload/server";
+import {
+  isPrivateHost,
+  isPrivateIpAddress,
+} from "@wildfires-org/turboplan-utils/ssrf";
 import { getProjectById } from "@wildfires-org/turboplan-workspace/server";
 
-import {
-  deriveFilenameFromUrl,
-  isPreviewableDocumentUrl,
-} from "../../document-preview-utils";
+import { isPreviewableDocumentUrl } from "../../document-preview-utils";
 import {
   type ContextItem,
   DEFAULT_SUGGESTION_TEMPLATES,
@@ -45,13 +46,18 @@ import {
   type TaskItem,
   type TimelineItem,
 } from "../../types";
+import {
+  buildSafeDocumentFilename,
+  readBodyWithLimit,
+  resolveDocumentMimeType,
+} from "../document-utils";
 import { getResearchAgentClient } from "../external-client";
 import {
   getExistingMilestoneIds,
   getExistingTaskIds,
   getNewChatMessagesSince,
   getProjectFieldsByProjectId,
-  getResearchAgentMessageById,
+  getResearchAgentMessageByIdAndProjectId,
   insertMilestonesWithTasks,
   insertProjectFields,
   updateLastForwardedAt,
@@ -208,9 +214,13 @@ async function gatherProjectContextForResearchAgent(
 }
 
 /**
- * Extract text from the newest uploaded project documents and format them as
- * `## <originalFilename>\n<text>` blocks, capping the total at
- * {@link MAX_DOCUMENTS_TOTAL_CHARS}. Failed extractions are skipped and logged.
+ * Format the newest uploaded project documents as `## <originalFilename>\n<text>`
+ * blocks, capping the total at {@link MAX_DOCUMENTS_TOTAL_CHARS}.
+ *
+ * Text is NOT extracted here — it is read from `extracted_text` on the document
+ * row, written asynchronously by the research-agent service's extraction pass.
+ * Documents whose extraction has not finished (or failed, or is unsupported)
+ * are skipped and logged; nothing is downloaded or parsed on this Worker.
  * Never throws — any failure degrades to "N/A" so it can't fail or delay the
  * research run.
  */
@@ -225,6 +235,13 @@ async function gatherProjectDocumentsForResearchAgent(
 
     // Documents are returned newest-first; take the most recent few.
     const recentDocuments = documents.slice(0, MAX_DOCUMENTS);
+    const extractions = await getProjectDocumentExtractionByIds(
+      recentDocuments.map((doc) => doc.id),
+    );
+    const extractionById = new Map(
+      extractions.map((extraction) => [extraction.id, extraction]),
+    );
+
     const blocks: string[] = [];
     let totalChars = 0;
 
@@ -233,18 +250,15 @@ async function gatherProjectDocumentsForResearchAgent(
         break;
       }
 
-      const result = await extractDocumentText({
-        url: doc.url,
-        mimeType: doc.mimeType,
-      });
-      if (!result.ok) {
+      const extraction = extractionById.get(doc.id);
+      if (!extraction || extraction.extractionStatus !== "done") {
         console.error(
-          `[bootstrapper] Skipping document "${doc.originalFilename}" for research agent: ${result.reason}${result.message ? ` (${result.message})` : ""}`,
+          `[bootstrapper] Skipping document "${doc.originalFilename}" (${doc.id}) for research agent: extraction ${extraction?.extractionStatus ?? "missing"}${extraction?.extractionError ? ` (${extraction.extractionError})` : ""}`,
         );
         continue;
       }
 
-      const text = result.text.trim();
+      const text = (extraction.extractedText ?? "").trim();
       if (!text) {
         continue;
       }
@@ -579,7 +593,10 @@ async function validateAndFilterSaveRequest<T extends { saved: boolean }>(
   itemIndices: number[],
   dataKey: string,
 ): Promise<ValidatedSaveRequest<T>> {
-  const message = await getResearchAgentMessageById(messageId);
+  const message = await getResearchAgentMessageByIdAndProjectId(
+    messageId,
+    projectId,
+  );
   if (!message) throw new SaveError("Message not found", 404);
   if (message.type !== expectedType) {
     throw new SaveError(`Message is not a ${expectedType} message`, 400);
@@ -767,7 +784,7 @@ export async function reconcileSavedMilestonesInMessages(
 // Resolve document preview URL (on-demand blob upload)
 // ---------------------------------------------------------------------------
 
-const MAX_BLOB_DOWNLOAD_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_DOCUMENT_DOWNLOAD_SIZE = 50 * 1024 * 1024; // 50MB
 const BLOCKED_HOSTNAMES = new Set([
   "localhost",
   "localhost.localdomain",
@@ -789,85 +806,6 @@ const BLOCKED_HOSTNAME_SUFFIXES = [
   ".corp",
 ];
 
-function ipv4ToNumber(address: string): number | null {
-  const parts = address.split(".");
-  if (parts.length !== 4) return null;
-  let value = 0;
-  for (const part of parts) {
-    const octet = Number(part);
-    if (!Number.isInteger(octet) || octet < 0 || octet > 255) return null;
-    value = (value << 8) + octet;
-  }
-  return value >>> 0;
-}
-
-function isIpv4InCidr(address: string, cidr: string): boolean {
-  const [base, prefixString] = cidr.split("/");
-  const ip = ipv4ToNumber(address);
-  const network = ipv4ToNumber(base);
-  const prefix = Number(prefixString);
-  if (
-    ip === null ||
-    network === null ||
-    !Number.isInteger(prefix) ||
-    prefix < 0 ||
-    prefix > 32
-  ) {
-    return false;
-  }
-  const mask = prefix === 0 ? 0 : ((0xffffffff << (32 - prefix)) >>> 0) >>> 0;
-  return (ip & mask) === (network & mask);
-}
-
-function isBlockedIpv4(address: string): boolean {
-  const blockedCidrs = [
-    "0.0.0.0/8",
-    "10.0.0.0/8",
-    "100.64.0.0/10",
-    "127.0.0.0/8",
-    "169.254.0.0/16",
-    "172.16.0.0/12",
-    "192.0.0.0/24",
-    "192.0.2.0/24",
-    "192.168.0.0/16",
-    "198.18.0.0/15",
-    "198.51.100.0/24",
-    "203.0.113.0/24",
-    "224.0.0.0/4",
-    "240.0.0.0/4",
-  ];
-  return blockedCidrs.some((cidr) => isIpv4InCidr(address, cidr));
-}
-
-function isBlockedIpv6(address: string): boolean {
-  const normalized = address.toLowerCase();
-  if (
-    normalized === "::" ||
-    normalized === "::1" ||
-    normalized === "0:0:0:0:0:0:0:0" ||
-    normalized === "0:0:0:0:0:0:0:1"
-  ) {
-    return true;
-  }
-
-  const mappedIpv4 = normalized.includes(".")
-    ? normalized.slice(normalized.lastIndexOf(":") + 1)
-    : null;
-  if (mappedIpv4 && isIP(mappedIpv4) === 4) {
-    return isBlockedIpv4(mappedIpv4);
-  }
-
-  const firstHextet = Number.parseInt(normalized.split(":")[0] || "0", 16);
-  if (Number.isNaN(firstHextet)) return true;
-
-  // fc00::/7 (ULA), fe80::/10 (link-local), ff00::/8 (multicast)
-  return (
-    (firstHextet >= 0xfc00 && firstHextet <= 0xfdff) ||
-    (firstHextet >= 0xfe80 && firstHextet <= 0xfebf) ||
-    firstHextet >= 0xff00
-  );
-}
-
 function isBlockedHostname(hostname: string): boolean {
   const normalized = hostname.toLowerCase().replace(/\.$/, "");
   if (BLOCKED_HOSTNAMES.has(normalized)) {
@@ -878,7 +816,7 @@ function isBlockedHostname(hostname: string): boolean {
   );
 }
 
-async function isSafeExternalUrl(rawUrl: string): Promise<boolean> {
+export async function isSafeExternalUrl(rawUrl: string): Promise<boolean> {
   let parsed: URL;
   try {
     parsed = new URL(rawUrl);
@@ -890,17 +828,15 @@ async function isSafeExternalUrl(rawUrl: string): Promise<boolean> {
     return false;
   }
 
+  // The shared classifier covers IP literals (incl. IPv4-mapped, NAT64 and
+  // 6to4 IPv6 forms); the local list adds internal-looking hostnames.
   const hostname = parsed.hostname.toLowerCase();
-  if (!hostname || isBlockedHostname(hostname)) {
+  if (!hostname || isBlockedHostname(hostname) || isPrivateHost(hostname)) {
     return false;
   }
 
-  const ipVersion = isIP(hostname);
-  if (ipVersion === 4) {
-    return !isBlockedIpv4(hostname);
-  }
-  if (ipVersion === 6) {
-    return !isBlockedIpv6(hostname);
+  if (isIP(hostname.replace(/^\[|\]$/g, "")) !== 0) {
+    return true;
   }
 
   try {
@@ -908,21 +844,20 @@ async function isSafeExternalUrl(rawUrl: string): Promise<boolean> {
     if (resolved.length === 0) {
       return false;
     }
-    return resolved.every((entry) =>
-      entry.family === 4
-        ? !isBlockedIpv4(entry.address)
-        : !isBlockedIpv6(entry.address),
-    );
+    return resolved.every((entry) => !isPrivateIpAddress(entry.address));
   } catch {
     return false;
   }
 }
 
-async function fetchWithValidatedRedirect(
+export async function fetchWithValidatedRedirect(
   rawUrl: string,
   logPrefix: string,
 ): Promise<Response | null> {
-  const initialResponse = await fetch(rawUrl, { redirect: "manual" });
+  const initialResponse = await fetch(rawUrl, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(30_000),
+  });
   if (initialResponse.status < 300 || initialResponse.status >= 400) {
     return initialResponse;
   }
@@ -959,6 +894,87 @@ async function fetchWithValidatedRedirect(
 }
 
 // ---------------------------------------------------------------------------
+// Download an external document into public blob storage
+// ---------------------------------------------------------------------------
+
+type StoredDocument = {
+  url: string;
+  storedFilename: string;
+  originalFilename: string;
+  mimeType: string;
+  size: number;
+};
+
+/**
+ * Fetch an untrusted document URL and store it under `keyPrefix`. Only
+ * allowlisted document MIME types are stored, and the stored type is the
+ * allowlisted one — never the upstream header. The key's last segment is a
+ * sanitised filename behind a random infix. Returns null (after logging) when
+ * the document is unsafe, unreachable, too large or of an unsupported type.
+ */
+export async function downloadDocumentToStorage(
+  doc: { url: string; title: string },
+  keyPrefix: string,
+  logPrefix: string,
+): Promise<StoredDocument | null> {
+  if (!(await isSafeExternalUrl(doc.url))) {
+    console.error(`[${logPrefix}] Skipping unsafe URL: ${doc.url}`);
+    return null;
+  }
+
+  const response = await fetchWithValidatedRedirect(doc.url, logPrefix);
+  if (!response) {
+    return null;
+  }
+  if (!response.ok) {
+    await response.body?.cancel();
+    console.error(
+      `[${logPrefix}] Failed to fetch ${doc.url}: ${response.status}`,
+    );
+    return null;
+  }
+
+  const body = await readBodyWithLimit(response, MAX_DOCUMENT_DOWNLOAD_SIZE);
+  if (!body) {
+    console.error(`[${logPrefix}] Skipping ${doc.url}: exceeds 50MB limit`);
+    return null;
+  }
+
+  const upstreamType = response.headers.get("content-type");
+  const mimeType = resolveDocumentMimeType(upstreamType, body);
+  if (!mimeType) {
+    console.error(
+      `[${logPrefix}] Skipping ${doc.url}: unsupported content type ${upstreamType}`,
+    );
+    return null;
+  }
+
+  const originalFilename = buildSafeDocumentFilename(
+    doc.url,
+    doc.title,
+    mimeType,
+  );
+  const storedFilename = `${Date.now()}-${randomUUID()}-${originalFilename}`;
+  const { url } = await uploadFile(
+    `${keyPrefix}/${storedFilename}`,
+    body,
+    mimeType,
+  );
+
+  return {
+    url,
+    storedFilename,
+    originalFilename,
+    mimeType,
+    size: body.byteLength,
+  };
+}
+
+// The `uploads/{userId}/` prefix is what blob ownership checks rely on.
+const researchAgentKeyPrefix = (userId: string, projectId: string) =>
+  `uploads/${userId}/research-agent/${projectId}`;
+
+// ---------------------------------------------------------------------------
 // Cache a single document to blob storage (on-demand backfill)
 // ---------------------------------------------------------------------------
 
@@ -977,58 +993,18 @@ export async function resolveDocumentPreviewUrl(
   if (!isPreviewableDocumentUrl(doc.url)) {
     return { blobUrl: null };
   }
-  if (!(await isSafeExternalUrl(doc.url))) {
-    console.error(`[resolve-preview] Skipping unsafe URL: ${doc.url}`);
-    return { blobUrl: null };
-  }
 
   try {
-    const response = await fetchWithValidatedRedirect(
-      doc.url,
+    const stored = await downloadDocumentToStorage(
+      doc,
+      researchAgentKeyPrefix(userId, projectId),
       "resolve-preview",
     );
-    if (!response) {
-      return { blobUrl: null };
-    }
-    if (!response.ok) {
-      console.error(
-        `[resolve-preview] Failed to fetch ${doc.url}: ${response.status}`,
-      );
+    if (!stored) {
       return { blobUrl: null };
     }
 
-    const contentLength = response.headers.get("content-length");
-    if (contentLength && Number(contentLength) > MAX_BLOB_DOWNLOAD_SIZE) {
-      console.error(
-        `[resolve-preview] Skipping ${doc.url}: size ${contentLength} exceeds 50MB limit`,
-      );
-      return { blobUrl: null };
-    }
-
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > MAX_BLOB_DOWNLOAD_SIZE) {
-      console.error(
-        `[resolve-preview] Skipping ${doc.url}: downloaded size ${buffer.byteLength} exceeds 50MB limit`,
-      );
-      return { blobUrl: null };
-    }
-
-    const contentType =
-      response.headers.get("content-type") || "application/pdf";
-
-    const { originalFilename, needsExtension } = deriveFilenameFromUrl(
-      doc.url,
-      doc.title,
-    );
-    const ext = needsExtension
-      ? contentType.includes("word")
-        ? ".docx"
-        : ".pdf"
-      : "";
-    const filename = `uploads/${userId}/research-agent/${projectId}/${Date.now()}-${originalFilename}${ext}`;
-
-    const { url: blobUrl } = await uploadFile(filename, buffer, contentType);
-
+    const blobUrl = stored.url;
     // Update the message data with the new blobUrl
     const updatedDocs = [...documents];
     updatedDocs[documentIndex] = { ...updatedDocs[documentIndex], blobUrl };
@@ -1140,8 +1116,6 @@ export async function saveDocumentsToProject(
 
   const savedIndices: number[] = [];
   const skipped: string[] = [];
-  const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024; // 50MB
-
   for (const idx of indicesToSave) {
     const doc = documents[idx];
     try {
@@ -1180,18 +1154,33 @@ export async function saveDocumentsToProject(
           continue;
         }
 
-        const contentType =
-          headResponse.headers.get("content-type") || "application/pdf";
+        // Blobs cached before the MIME allowlist may carry an upstream type.
+        const upstreamType = headResponse.headers.get("content-type");
+        const mimeType = resolveDocumentMimeType(
+          upstreamType,
+          new Uint8Array(),
+        );
+        if (!mimeType) {
+          console.error(
+            `[save-documents] Skipping cached blob ${doc.blobUrl}: unsupported content type ${upstreamType}`,
+          );
+          skipped.push(doc.title);
+          continue;
+        }
         const size = Number(headResponse.headers.get("content-length") || 0);
 
-        const { originalFilename } = deriveFilenameFromUrl(doc.url, doc.title);
+        const originalFilename = buildSafeDocumentFilename(
+          doc.url,
+          doc.title,
+          mimeType,
+        );
 
         await createProjectDocument({
           projectId,
           userId,
           filename: doc.blobUrl.split("/").pop() || originalFilename,
           originalFilename,
-          mimeType: contentType,
+          mimeType,
           size,
           url: doc.blobUrl,
           source: "research",
@@ -1206,70 +1195,24 @@ export async function saveDocumentsToProject(
       }
 
       // No cached blob — download from the original URL and upload to blob storage.
-      if (!(await isSafeExternalUrl(doc.url))) {
-        console.error(`[save-documents] Skipping unsafe URL: ${doc.url}`);
-        skipped.push(doc.title);
-        continue;
-      }
-
-      const response = await fetchWithValidatedRedirect(
-        doc.url,
+      const stored = await downloadDocumentToStorage(
+        doc,
+        researchAgentKeyPrefix(userId, projectId),
         "save-documents",
       );
-      if (!response) {
+      if (!stored) {
         skipped.push(doc.title);
         continue;
       }
-      if (!response.ok) {
-        console.error(
-          `[save-documents] Failed to fetch ${doc.url}: ${response.status}`,
-        );
-        continue;
-      }
-
-      const contentLength = response.headers.get("content-length");
-      if (contentLength && Number(contentLength) > MAX_DOCUMENT_SIZE) {
-        console.error(
-          `[save-documents] Skipping ${doc.url}: size ${contentLength} bytes exceeds 50MB limit`,
-        );
-        skipped.push(doc.title);
-        continue;
-      }
-
-      const buffer = await response.arrayBuffer();
-      if (buffer.byteLength > MAX_DOCUMENT_SIZE) {
-        console.error(
-          `[save-documents] Skipping ${doc.url}: downloaded size ${buffer.byteLength} bytes exceeds 50MB limit`,
-        );
-        skipped.push(doc.title);
-        continue;
-      }
-
-      const contentType =
-        response.headers.get("content-type") || "application/pdf";
-      const size = buffer.byteLength;
-
-      const { originalFilename, needsExtension } = deriveFilenameFromUrl(
-        doc.url,
-        doc.title,
-      );
-      const ext = needsExtension
-        ? contentType.includes("word")
-          ? ".docx"
-          : ".pdf"
-        : "";
-      const filename = `uploads/${userId}/research-agent/${projectId}/${Date.now()}-${originalFilename}${ext}`;
-
-      const { url: blobUrl } = await uploadFile(filename, buffer, contentType);
 
       await createProjectDocument({
         projectId,
         userId,
-        filename: filename.split("/").pop() || originalFilename,
-        originalFilename,
-        mimeType: contentType,
-        size,
-        url: blobUrl,
+        filename: stored.storedFilename,
+        originalFilename: stored.originalFilename,
+        mimeType: stored.mimeType,
+        size: stored.size,
+        url: stored.url,
         source: "research",
         relevance: doc.relevance,
         context: doc.context,
@@ -1278,7 +1221,7 @@ export async function saveDocumentsToProject(
       });
 
       // Write blobUrl back so future preview won't re-upload
-      doc.blobUrl = blobUrl;
+      doc.blobUrl = stored.url;
 
       savedIndices.push(idx);
     } catch (err) {
@@ -1325,7 +1268,10 @@ export async function saveMilestonesToProject(
   selections: MilestoneTaskSelection[],
   userId: string,
 ) {
-  const message = await getResearchAgentMessageById(messageId);
+  const message = await getResearchAgentMessageByIdAndProjectId(
+    messageId,
+    projectId,
+  );
   if (!message) throw new SaveError("Message not found", 404);
   if (message.type !== ResearchAgentMessageType.MILESTONES) {
     throw new SaveError("Message is not a milestones message", 400);

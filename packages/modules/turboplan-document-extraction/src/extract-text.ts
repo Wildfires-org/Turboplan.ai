@@ -1,13 +1,20 @@
 import mammoth from "mammoth";
-import { extractText, getDocumentProxy } from "unpdf";
+import { getDocumentProxy } from "unpdf";
 
-import { DOC_MIME, DOCX_MIME, PDF_MIME } from "../document-mime";
+import { DOC_MIME, DOCX_MIME, PDF_MIME } from "./document-mime";
 
 /**
  * Maximum number of characters returned for a single document. Extracted text
  * longer than this is sliced and flagged with `truncated: true`.
  */
 export const MAX_EXTRACTED_CHARS = 40_000;
+
+/**
+ * Hard cap on how many PDF pages are read. Extraction stops here and flags
+ * `truncated: true` — a 512MB box cannot afford to walk a 10k-page scan even
+ * though each page is released right after it is read.
+ */
+export const MAX_PDF_PAGES = 400;
 
 const FETCH_TIMEOUT_MS = 30_000;
 const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024; // 50MB
@@ -113,7 +120,10 @@ const capText = (text: string): { text: string; truncated: boolean } => {
   return { text: text.slice(0, MAX_EXTRACTED_CHARS), truncated: true };
 };
 
-const fetchDocument = async (url: string): Promise<FetchResult> => {
+const fetchDocument = async (
+  url: string,
+  externalSignal?: AbortSignal,
+): Promise<FetchResult> => {
   // Reject unparseable and SSRF-prone URLs before opening any connection.
   try {
     new URL(url);
@@ -134,6 +144,18 @@ const fetchDocument = async (url: string): Promise<FetchResult> => {
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  // The caller's signal (worker threads use one to kill runaway jobs) aborts
+  // the same controller, so the 30s timeout still applies on top of it.
+  const abortFromCaller = () => controller.abort(externalSignal?.reason);
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      abortFromCaller();
+    } else {
+      externalSignal.addEventListener("abort", abortFromCaller, {
+        once: true,
+      });
+    }
+  }
 
   try {
     // Follow redirects manually so every hop is re-validated against the SSRF
@@ -253,20 +275,95 @@ const fetchDocument = async (url: string): Promise<FetchResult> => {
       chunk = await reader.read();
     }
 
-    return { ok: true, buffer: Buffer.concat(chunks) };
+    const buffer = Buffer.concat(chunks);
+    // Buffer.concat copied every chunk — drop the originals so only one copy
+    // of the document is alive when the extractor starts.
+    chunks.length = 0;
+    return { ok: true, buffer };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown fetch error";
     return { ok: false, reason: "fetch-failed", message };
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", abortFromCaller);
   }
 };
 
-const extractPdfText = async (buffer: Buffer): Promise<string> => {
-  const pdf = await getDocumentProxy(new Uint8Array(buffer));
-  const { text } = await extractText(pdf, { mergePages: true });
-  return text;
+/**
+ * View the fetched bytes without copying them — `new Uint8Array(buffer)` would
+ * duplicate the whole document, and a 50MB PDF cannot afford a second copy.
+ *
+ * pdf.js transfers (and thereby detaches) the ArrayBuffer it is handed, so the
+ * view is only safe when the Buffer owns its ArrayBuffer outright. Buffers
+ * under 4KB come out of Node's shared allocation pool, where detaching would
+ * take unrelated Buffers down with it; those get copied instead, which costs
+ * nothing at that size.
+ */
+const toPdfBytes = (buffer: Buffer): Uint8Array => {
+  const ownsWholeArrayBuffer =
+    buffer.byteOffset === 0 && buffer.byteLength === buffer.buffer.byteLength;
+
+  if (!ownsWholeArrayBuffer) {
+    return new Uint8Array(buffer);
+  }
+
+  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+};
+
+/**
+ * Page-by-page PDF text extraction. Mirrors unpdf's `extractText(pdf, {
+ * mergePages: true })` output (items joined by `str`, a newline wherever
+ * `hasEOL` is set, pages joined by "\n", then all whitespace collapsed), but
+ * releases each page as soon as it is read and stops once enough text has been
+ * collected — unpdf resolves every page in parallel and holds all of them.
+ */
+const extractPdfText = async (
+  buffer: Buffer,
+): Promise<{ text: string; truncated: boolean }> => {
+  const pdf = await getDocumentProxy(toPdfBytes(buffer));
+
+  try {
+    const pageLimit = Math.min(pdf.numPages, MAX_PDF_PAGES);
+    const pageTexts: string[] = [];
+    let accumulatedChars = 0;
+    let pagesRead = 0;
+
+    for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      try {
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item) => {
+            if (!("str" in item) || item.str == null) {
+              return "";
+            }
+            return item.hasEOL ? `${item.str}\n` : item.str;
+          })
+          .join("")
+          // Collapsing per page keeps the accumulator small; the final
+          // collapse below makes the result identical to unpdf's.
+          .replace(/\s+/g, " ");
+
+        pageTexts.push(pageText);
+        accumulatedChars += pageText.length;
+        pagesRead = pageNumber;
+      } finally {
+        page.cleanup();
+      }
+
+      if (accumulatedChars >= MAX_EXTRACTED_CHARS) {
+        break;
+      }
+    }
+
+    return {
+      text: pageTexts.join("\n").replace(/\s+/g, " "),
+      truncated: pagesRead < pdf.numPages,
+    };
+  } finally {
+    await pdf.destroy();
+  }
 };
 
 const ZIP_EOCD_SIGNATURE = 0x06054b50;
@@ -351,13 +448,16 @@ const extractDocxText = async (buffer: Buffer): Promise<string> => {
  * not supported. Never throws — all failure modes are returned as a discriminated
  * `ExtractionResult`.
  */
-export const extractDocumentText = async ({
-  url,
-  mimeType,
-}: {
-  url: string;
-  mimeType: string;
-}): Promise<ExtractionResult> => {
+export const extractDocumentText = async (
+  {
+    url,
+    mimeType,
+  }: {
+    url: string;
+    mimeType: string;
+  },
+  options?: { signal?: AbortSignal },
+): Promise<ExtractionResult> => {
   const normalizedMime = mimeType.toLowerCase().trim();
 
   if (normalizedMime === DOC_MIME) {
@@ -377,21 +477,21 @@ export const extractDocumentText = async ({
     };
   }
 
-  const fetched = await fetchDocument(url);
+  const fetched = await fetchDocument(url, options?.signal);
   if (!fetched.ok) {
     return fetched;
   }
 
   try {
-    const rawText =
+    const extracted =
       normalizedMime === PDF_MIME
         ? await extractPdfText(fetched.buffer)
-        : await extractDocxText(fetched.buffer);
+        : { text: await extractDocxText(fetched.buffer), truncated: false };
 
-    const normalized = normalizeWhitespace(rawText);
+    const normalized = normalizeWhitespace(extracted.text);
     const { text, truncated } = capText(normalized);
 
-    return { ok: true, text, truncated };
+    return { ok: true, text, truncated: truncated || extracted.truncated };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown extraction error";

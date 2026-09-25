@@ -25,6 +25,7 @@ export { mockGenerateTitles } from "./mock-generate-titles";
 export {
   createTestUserWithMagicLink,
   createUnverifiedTestUser,
+  newAnonymousContext,
   type TestUser,
 } from "./test-auth";
 export {
