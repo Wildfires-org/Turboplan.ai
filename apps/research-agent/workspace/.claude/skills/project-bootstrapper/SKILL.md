@@ -90,6 +90,8 @@ Search for and collect URLs to actual project documents:
 
 These are NEPA examples — or the equivalent documents in the project's framework.
 
+Each document `url` must be the file itself, not a page that describes it: open the page and use its attachment or download link, and list every attachment (appendices included) as its own document. See CLAUDE.md "Document Pages vs. Files" (CEQAnet is the worked example there).
+
 **⚠️ MANDATORY — SCRAPE EACH REFERENCE PROJECT'S FOLDER THIS RUN. NEVER SUBMIT A DOC SET FROM MEMORY ALONE.** For every reference (or existing) project whose documents you submit, you MUST `firecrawl_scrape` its Box/source folder and every relevant subfolder (Decision, Scoping, Proposed Action, Maps, EA/Appendices) **this run** to enumerate the current files — even when memory already lists file IDs for it. Memory file IDs are hints to *where* to look, not the authoritative document set: memories are routinely partial (they have dropped the Scoping Letter and Proposed Action before), and submitting straight from a cached list silently loses those documents. "Enough data" for a project = its full, freshly-scraped folder listing — not a memory snippet. If you have memory IDs for a project but do not scrape its folder this run, you are doing it wrong.
 
 When documents come from the same source project, group them using the `folder` field (the source project name) and `folderDescription` (the review type / level of environmental review). This enables folder-like grouping in the UI.

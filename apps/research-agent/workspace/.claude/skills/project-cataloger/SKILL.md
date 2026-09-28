@@ -186,7 +186,8 @@ These are US examples. For other jurisdictions, use the responsible authority's 
 ### 1. DOCUMENTS (Required: title, url, relevance, context)
 - Decision Memos, Scoping Letters, Environmental Assessments
 - **→ See CLAUDE.md "Document Schema Conventions" for title format, document types, relevance scoring, and context requirements. All four fields are required for every document.**
-- **DOCUMENT URL HARD RULE: Every document `url` must be a direct file — a path ending in `.pdf`, `.docx`, or `.doc`, OR a Box download URL (`index.php?rm=box_download_shared_file`). Never a web page, portal, or Box viewer/folder page.**
+- **DOCUMENT URL HARD RULE: Every document `url` must be a direct file — a path ending in `.pdf`, `.docx`, or `.doc`, a Box download URL (`index.php?rm=box_download_shared_file`), or another URL that serves the file itself (e.g. `files.ceqanet.lci.ca.gov/.../attachment/...`). Never a web page, portal, or Box viewer/folder page.**
+- If a page only describes the document, open it and use its attachment or download link — see CLAUDE.md "Document Pages vs. Files"
 - If no direct file URL exists, **omit the document entirely**
 - Never send the same URL twice in one request
 
@@ -228,7 +229,7 @@ For each project, use the minimum fetches needed:
 2. **Verify a document URL** if found — 1 call
 3. **Stop when you have** project name, office, framework, and at least 1 document URL
 
-* **Every document `url` must be a direct file** — a `.pdf`/`.docx`/`.doc` path or a Box download URL (`index.php?rm=box_download_shared_file`); never a web page, portal, or Box viewer/folder page
+* **Every document `url` must be a direct file** — a `.pdf`/`.docx`/`.doc` path, a Box download URL (`index.php?rm=box_download_shared_file`), or another URL that serves the file itself; never a web page, portal, or Box viewer/folder page
 * **No duplicate document URLs** — each URL must appear only once across the request
 * If a category has no verifiable examples after 2 fetch attempts, skip it
 
@@ -249,8 +250,9 @@ Before writing output files, confirm:
 **Key patterns:**
 - USFS: `fs.usda.gov/project/` → `firecrawl_scrape` the Box folder → construct `index.php?rm=box_download_shared_file` download URLs (never `/file/{id}` viewer URLs)
 - BLM: `eplanning.blm.gov/eplanning-ui/project/` → Documents tab
+- CEQAnet: `ceqanet.lci.ca.gov/{SCH#}[/{n}]` detail page → Attachments section → resolve each `/Attachment/{code}` link to its `files.ceqanet.lci.ca.gov/.../attachment/...` file URL (never submit the `ceqanet.lci.ca.gov` page)
 
-**CRITICAL: Every document `url` must be a direct file — a `.pdf`/`.docx`/`.doc` path or a Box download URL (`index.php?rm=box_download_shared_file`). Never use web page, portal, or Box viewer/folder URLs in the `url` field. No duplicates.**
+**CRITICAL: Every document `url` must be a direct file — a `.pdf`/`.docx`/`.doc` path, a Box download URL (`index.php?rm=box_download_shared_file`), or another URL that serves the file itself. Never use web page, portal, or Box viewer/folder URLs in the `url` field. No duplicates.**
 
 **Expansion limits:** max 10 projects/office, 5 offices/org, 100 total documents.
 
