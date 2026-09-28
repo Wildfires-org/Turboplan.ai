@@ -51,16 +51,21 @@ const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
 >(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.SubContent
-    ref={ref}
-    className={cn(
-      "z-50 min-w-[8rem] origin-[--radix-dropdown-menu-content-transform-origin] overflow-hidden p-1 text-popover-foreground",
-      GLASS_POPOVER_CLASS,
-      GLASS_POPPER_MOTION_CLASS,
-      className,
-    )}
-    {...props}
-  />
+  // Portalled: the parent menu's backdrop-filter and zoom transform make it
+  // the containing block for fixed descendants, so an inline submenu would be
+  // positioned inside it and clipped by its overflow-hidden.
+  <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.SubContent
+      ref={ref}
+      className={cn(
+        "z-50 min-w-[8rem] origin-[--radix-dropdown-menu-content-transform-origin] overflow-hidden p-1 text-popover-foreground",
+        GLASS_POPOVER_CLASS,
+        GLASS_POPPER_MOTION_CLASS,
+        className,
+      )}
+      {...props}
+    />
+  </DropdownMenuPrimitive.Portal>
 ));
 DropdownMenuSubContent.displayName =
   DropdownMenuPrimitive.SubContent.displayName;
