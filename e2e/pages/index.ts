@@ -15,5 +15,6 @@ export {
 } from "./turboplan-org-settings-dialog";
 export { TurboplanOrganizationPage } from "./turboplan-organization";
 export { TurboplanProjectPage } from "./turboplan-project";
+export { TurboplanProjectChatPage } from "./turboplan-project-chat";
 export { TurboplanRegisterPage } from "./turboplan-register";
 export { TurboplanSetupPage } from "./turboplan-setup";

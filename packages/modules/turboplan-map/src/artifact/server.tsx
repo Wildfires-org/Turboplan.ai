@@ -44,7 +44,11 @@ export const mapDocumentHandler = {
         const zipFile = zipAttachments[0];
 
         // Don't process the file here - just save blob URL for later loading
-        writer.write({ type: "data-artifact", data: { type: "map-delta" } });
+        writer.write({
+          type: "data-artifact",
+          data: { type: "map-delta" },
+          transient: true,
+        });
 
         // Save only blob URL - processing will happen when user opens the artifact
         return JSON.stringify({
@@ -56,7 +60,11 @@ export const mapDocumentHandler = {
         });
       } else if (hasGeoContext) {
         // Create placeholder for manual upload
-        writer.write({ type: "data-artifact", data: { type: "map-delta" } });
+        writer.write({
+          type: "data-artifact",
+          data: { type: "map-delta" },
+          transient: true,
+        });
 
         return JSON.stringify({
           blobUrl: null,
@@ -68,7 +76,11 @@ export const mapDocumentHandler = {
         });
       } else {
         // Create empty map artifact
-        writer.write({ type: "data-artifact", data: { type: "map-delta" } });
+        writer.write({
+          type: "data-artifact",
+          data: { type: "map-delta" },
+          transient: true,
+        });
 
         return JSON.stringify({
           blobUrl: null,
@@ -111,7 +123,11 @@ export const mapDocumentHandler = {
         // 3. Return the processed layers
 
         // For now, return a processing message
-        writer.write({ type: "data-artifact", data: { type: "map-delta" } });
+        writer.write({
+          type: "data-artifact",
+          data: { type: "map-delta" },
+          transient: true,
+        });
 
         return JSON.stringify({
           blobUrl: null,
@@ -122,7 +138,11 @@ export const mapDocumentHandler = {
         });
       } else {
         // Handle other types of updates (layer selection, map type changes, etc.)
-        writer.write({ type: "data-artifact", data: { type: "map-delta" } });
+        writer.write({
+          type: "data-artifact",
+          data: { type: "map-delta" },
+          transient: true,
+        });
 
         return JSON.stringify({
           blobUrl: null,

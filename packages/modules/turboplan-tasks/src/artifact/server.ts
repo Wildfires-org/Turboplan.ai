@@ -181,6 +181,7 @@ export const taskDocumentHandler = {
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "tasks-delta" },
       });
 
@@ -270,6 +271,7 @@ export const taskDocumentHandler = {
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "tasks-delta" },
       });
 

@@ -132,6 +132,7 @@ export const textDocumentHandler = createDocumentHandler<"text">({
 
         writer.write({
           type: "data-artifact",
+          transient: true,
           data: { type: "text-delta", content: textDelta },
         });
       }
@@ -172,6 +173,7 @@ export const textDocumentHandler = createDocumentHandler<"text">({
         draftContent += textDelta;
         writer.write({
           type: "data-artifact",
+          transient: true,
           data: { type: "text-delta", content: textDelta },
         });
       }

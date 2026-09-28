@@ -1,11 +1,18 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
@@ -65,12 +72,42 @@ interface ProjectChatViewProps {
   userId: string;
 }
 
+const NEW_CHAT_PATH_PATTERN = /\/chats\/new\/?$/;
+
 export const ProjectChatView = ({
   project,
   chat,
   isInitialChat,
   userId,
 }: ProjectChatViewProps) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  // A chat started at /chats/new swaps its URL to /chats/<id> with
+  // history.replaceState, which keeps the /chats/new router tree in that
+  // history entry. Back/forward then replays the cached /chats/new page: no
+  // chat under a /chats/<id> URL. Detected on mount only, since the swap
+  // itself happens later in the same mount.
+  const [staleChatPath] = useState(() =>
+    !chat && !NEW_CHAT_PATH_PATTERN.test(pathname) ? pathname : null,
+  );
+
+  useEffect(() => {
+    if (staleChatPath) {
+      router.replace(staleChatPath, { scroll: false });
+    }
+  }, [router, staleChatPath]);
+
+  if (staleChatPath) {
+    return (
+      <div className="flex h-full flex-col">
+        <span className="sr-only" role="status">
+          Loading messages...
+        </span>
+        <ChatMessagesSkeleton />
+      </div>
+    );
+  }
+
   return (
     <ResearchPanelProvider
       defaultOpen={

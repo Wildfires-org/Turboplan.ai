@@ -176,6 +176,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       body: { id, projectId },
       initialMessages,
       generateId: generateUUID,
+      // Runs after every request (success, abort and error alike).
       onFinish: () => {
         mutate(unstable_serialize(getChatHistoryPaginationKey));
 
@@ -183,6 +184,18 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         if (sidebarChatsKey) {
           mutate(sidebarChatsKey);
         }
+
+        // The server has stored the reply by now; refresh the cached messages
+        // so a remount (e.g. Back) is seeded with them.
+        mutate(`/api/chat/${id}/messages`);
+
+        // A stopped or failed document run never sends its "finish" delta, so
+        // the artifact would otherwise stay stuck in "streaming".
+        setArtifact((currentArtifact) =>
+          currentArtifact.status === "streaming"
+            ? { ...currentArtifact, status: "idle" }
+            : currentArtifact,
+        );
       },
       onError: (error) => {
         // Silently ignore duplicate request rejections (see inFlightChats in route.ts)

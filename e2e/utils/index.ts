@@ -21,6 +21,7 @@ export {
   type ParsedEmail,
   waitForEmail,
 } from "./ethereal-email";
+export { mockProjectChatApi } from "./mock-chat-api";
 export { mockGenerateTitles } from "./mock-generate-titles";
 export {
   createTestUserWithMagicLink,
@@ -28,6 +29,7 @@ export {
   newAnonymousContext,
   type TestUser,
 } from "./test-auth";
+export { createTestProjectChat } from "./test-chats";
 export {
   createGovernmentOrganization,
   createTestInvitation,

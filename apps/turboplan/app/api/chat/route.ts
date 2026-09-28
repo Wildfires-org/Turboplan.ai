@@ -525,6 +525,7 @@ export async function POST(request: Request) {
         if (chatProjectId && isTasksPackageEnabled() && !hasProjectAccess) {
           writer.write({
             type: "data-artifact",
+            transient: true,
             data: {
               type: "error",
               content:
