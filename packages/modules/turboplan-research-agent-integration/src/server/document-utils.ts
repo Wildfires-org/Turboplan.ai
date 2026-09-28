@@ -3,45 +3,127 @@
  * storage. Kept free of DB/network I/O so they can be unit-tested directly.
  */
 
-import { isBoxDownloadUrl } from "../document-preview-utils";
+import {
+  DOCUMENT_MIME_EXTENSIONS,
+  isBoxDownloadUrl,
+  isDocumentMimeType,
+} from "../document-preview-utils";
 
-// Same allowlist as the MCP document upload tool. Anything else (html, svg,
-// scripts, ...) must never reach the public bucket with its upstream type.
-const DOCUMENT_MIME_EXTENSIONS: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "application/msword": ".doc",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-    ".docx",
-};
-
-// Servers that do not label their files get one chance: a PDF magic number.
+// Servers that do not label their files get one chance: a magic number.
 const UNLABELLED_MIME_TYPES = new Set(["", "application/octet-stream"]);
+const PDF_MIME = "application/pdf";
+const DOC_MIME = "application/msword";
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
+const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04]; // "PK\x03\x04" (docx container)
+const OLE_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]; // legacy .doc
+const HTML_PREFIXES = ["<!doctype html", "<html"];
+const HTML_SNIFF_BYTES = 512;
 
 const MAX_FILENAME_LENGTH = 200;
+const FILE_EXTENSION_PATTERN = /\.[a-z0-9]{1,5}$/i;
 const FALLBACK_FILENAME = "document";
 
 const startsWithBytes = (bytes: Uint8Array, prefix: number[]): boolean =>
   prefix.every((byte, index) => bytes[index] === byte);
 
+/** Media type of a Content-Type header, lowercased, without parameters. */
+export const parseMediaType = (contentTypeHeader: string | null): string => {
+  return contentTypeHeader?.split(";")[0]?.trim().toLowerCase() ?? "";
+};
+
+/**
+ * Filename from a Content-Disposition header. Prefers the RFC 5987
+ * `filename*=` form over plain `filename=`. Returns null when absent.
+ */
+export const parseContentDispositionFilename = (
+  header: string | null,
+): string | null => {
+  if (!header) {
+    return null;
+  }
+
+  const extended = /filename\*\s*=\s*[\w!#$&+.^`|~-]*'[^']*'([^;]+)/i.exec(
+    header,
+  );
+  if (extended) {
+    const value = extended[1].trim();
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+
+  const plain = /filename\s*=\s*(?:"([^"]*)"|([^;]*))/i.exec(header);
+  const value = (plain?.[1] ?? plain?.[2] ?? "").trim();
+  return value || null;
+};
+
+/** Allowlisted document MIME type implied by a filename's extension. */
+export const getDocumentMimeTypeForFilename = (
+  filename: string | null,
+): string | null => {
+  const normalized = filename?.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  const match = Object.entries(DOCUMENT_MIME_EXTENSIONS).find(([, extension]) =>
+    normalized.endsWith(extension),
+  );
+  return match?.[0] ?? null;
+};
+
+// Error pages and login walls are often served with a document type; never
+// store markup as a PDF/Word file whatever the header claims.
+const looksLikeHtml = (body: Uint8Array): boolean => {
+  // Byte-wise decode: HTML markers are ASCII, and not every runtime's
+  // TextDecoder supports single-byte encodings.
+  const head = String.fromCharCode(...body.subarray(0, HTML_SNIFF_BYTES))
+    .replace(/^\u00ef\u00bb\u00bf/, "")
+    .trimStart()
+    .toLowerCase();
+  return HTML_PREFIXES.some((prefix) => head.startsWith(prefix));
+};
+
 /**
  * Resolve the MIME type to store for a downloaded document, or null when the
  * document must be rejected. Only allowlisted document types are returned.
+ * Unlabelled responses are accepted only when the body's magic number matches
+ * (PDF always; DOC/DOCX only when Content-Disposition names that extension).
  */
 export const resolveDocumentMimeType = (
   contentTypeHeader: string | null,
   body: Uint8Array,
+  contentDispositionHeader: string | null = null,
 ): string | null => {
-  const mimeType = contentTypeHeader?.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (looksLikeHtml(body)) {
+    return null;
+  }
 
-  if (Object.hasOwn(DOCUMENT_MIME_EXTENSIONS, mimeType)) {
+  const mimeType = parseMediaType(contentTypeHeader);
+  if (isDocumentMimeType(mimeType)) {
     return mimeType;
   }
 
-  if (UNLABELLED_MIME_TYPES.has(mimeType) && startsWithBytes(body, PDF_MAGIC)) {
-    return "application/pdf";
+  if (!UNLABELLED_MIME_TYPES.has(mimeType)) {
+    return null;
   }
 
+  if (startsWithBytes(body, PDF_MAGIC)) {
+    return PDF_MIME;
+  }
+
+  const dispositionType = getDocumentMimeTypeForFilename(
+    parseContentDispositionFilename(contentDispositionHeader),
+  );
+  if (dispositionType === DOCX_MIME && startsWithBytes(body, ZIP_MAGIC)) {
+    return DOCX_MIME;
+  }
+  if (dispositionType === DOC_MIME && startsWithBytes(body, OLE_MAGIC)) {
+    return DOC_MIME;
+  }
   return null;
 };
 
@@ -77,19 +159,28 @@ const lastPathSegment = (url: string): string => {
 
 /**
  * Build a filename for a downloaded document from its source URL, falling
- * back to the document title. The result is always a single key segment
- * (decoded `%2F` / `%5C` cannot add path segments) and ends with the
- * extension that matches the stored MIME type.
+ * back to the document title. A URL segment without a file extension (e.g.
+ * `/attachment/<opaque id>`) is treated as an identifier, not a name, so the
+ * title wins there. The result is always a single key segment (decoded `%2F` /
+ * `%5C` cannot add path segments) and ends with the extension that matches
+ * the stored MIME type.
  */
 export const buildSafeDocumentFilename = (
   url: string,
   title: string,
   mimeType: string,
 ): string => {
-  const extension = DOCUMENT_MIME_EXTENSIONS[mimeType] ?? "";
+  const extension = isDocumentMimeType(mimeType)
+    ? DOCUMENT_MIME_EXTENSIONS[mimeType]
+    : "";
+  const rawSegment = lastPathSegment(url);
+  const segmentName = sanitizeFilenameSegment(rawSegment);
+  const titleName = sanitizeFilenameSegment(title);
   const base =
-    sanitizeFilenameSegment(lastPathSegment(url)) ||
-    sanitizeFilenameSegment(title) ||
+    (FILE_EXTENSION_PATTERN.test(rawSegment)
+      ? segmentName
+      : titleName || segmentName) ||
+    titleName ||
     FALLBACK_FILENAME;
 
   if (!extension || base.toLowerCase().endsWith(extension)) {

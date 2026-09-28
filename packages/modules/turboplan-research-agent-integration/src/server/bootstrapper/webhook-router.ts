@@ -17,6 +17,7 @@ import type {
   ResearchAgentMessageTypeValue,
 } from "../../types";
 import { ResearchAgentChatStatus, ResearchAgentMessageType } from "../../types";
+import { annotateDocumentDownloadability } from "../document-probe";
 import {
   appendOrCreateRunArrayMessage,
   createResearchAgentMessage,
@@ -142,7 +143,10 @@ bootstrapperWebhookRouter.post(
         return c.json({ error: "Forbidden - Project ID mismatch" }, 403);
       }
 
-      const documentsWithState = documents.map((doc) => ({
+      // Probe extensionless URLs once, here, so the panel pill and both
+      // download paths read the same persisted answer.
+      const probedDocuments = await annotateDocumentDownloadability(documents);
+      const documentsWithState = probedDocuments.map((doc) => ({
         ...doc,
         saved: false,
       }));

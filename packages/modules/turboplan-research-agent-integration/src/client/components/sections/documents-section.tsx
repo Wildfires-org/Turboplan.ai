@@ -32,8 +32,10 @@ import {
 } from "@wildfires-org/turboplan-utils";
 
 import {
+  DOCUMENT_MIME_EXTENSIONS,
   isBoxDownloadUrl,
-  isPreviewableDocumentUrl,
+  isDocumentMimeType,
+  isDownloadableDocument,
 } from "../../../document-preview-utils";
 import type { DocumentItem } from "../../../types";
 import { useSectionSaveRegistration } from "../../contexts/save-to-project-context";
@@ -78,6 +80,10 @@ const getFileExtension = (doc: DocumentItem) => {
   }
   if (ext === "docx") {
     return "DOCX";
+  }
+  // Extensionless URL detected as a document by the server-side probe.
+  if (isDocumentMimeType(doc.contentType)) {
+    return DOCUMENT_MIME_EXTENSIONS[doc.contentType].slice(1).toUpperCase();
   }
   return null;
 };
@@ -157,7 +163,7 @@ const DocumentRow = ({
               {ext}
             </SectionPill>
           )}
-          {!doc.saved && !isPreviewableDocumentUrl(doc.url) && (
+          {!doc.saved && !isDownloadableDocument(doc) && (
             <SectionPill
               tone="warning"
               icon={<ExternalLink className="size-3" />}
@@ -242,7 +248,7 @@ export function DocumentsSection({
       return;
     }
 
-    if (!isPreviewableDocumentUrl(doc.url)) {
+    if (!isDownloadableDocument(doc)) {
       setRedirectUrl(doc.url);
       return;
     }
@@ -250,7 +256,7 @@ export function DocumentsSection({
     const requestId = ++previewRequestIdRef.current;
     setPreviewDocIndex(index);
 
-    if (doc.blobUrl || !isPreviewableDocumentUrl(doc.url) || !projectId) {
+    if (doc.blobUrl || !isDownloadableDocument(doc) || !projectId) {
       setPreviewUrl(doc.blobUrl ?? doc.url);
       return;
     }
@@ -515,6 +521,7 @@ export function DocumentsSection({
           filename={documents[previewDocIndex].title}
           url={documents[previewDocIndex].url}
           previewUrl={previewUrl}
+          mimeType={documents[previewDocIndex].contentType}
           open
           onOpenChange={(open) => {
             if (!open) {

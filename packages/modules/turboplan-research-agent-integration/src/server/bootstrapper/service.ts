@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { lookup as dnsLookup } from "node:dns/promises";
-import { isIP } from "node:net";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -24,13 +22,9 @@ import {
 } from "@wildfires-org/turboplan-project-context/server";
 import { createTimelineRecordOrThrow } from "@wildfires-org/turboplan-timeline-records/server";
 import { uploadFile } from "@wildfires-org/turboplan-upload/server";
-import {
-  isPrivateHost,
-  isPrivateIpAddress,
-} from "@wildfires-org/turboplan-utils/ssrf";
 import { getProjectById } from "@wildfires-org/turboplan-workspace/server";
 
-import { isPreviewableDocumentUrl } from "../../document-preview-utils";
+import { isDownloadableDocument } from "../../document-preview-utils";
 import {
   type ContextItem,
   DEFAULT_SUGGESTION_TEMPLATES,
@@ -66,6 +60,7 @@ import {
   updateResearchAgentMessageData,
   upsertSuggestionsMessage,
 } from "../repository";
+import { describeUrlForLog, safeFetch } from "../safe-fetch";
 
 // ---------------------------------------------------------------------------
 // Format chat messages for research agent context
@@ -785,113 +780,7 @@ export async function reconcileSavedMilestonesInMessages(
 // ---------------------------------------------------------------------------
 
 const MAX_DOCUMENT_DOWNLOAD_SIZE = 50 * 1024 * 1024; // 50MB
-const BLOCKED_HOSTNAMES = new Set([
-  "localhost",
-  "localhost.localdomain",
-  "metadata",
-  "metadata.google.internal",
-  "host.docker.internal",
-  "gateway.docker.internal",
-  "kubernetes",
-  "kubernetes.default",
-  "kubernetes.default.svc",
-]);
-const BLOCKED_HOSTNAME_SUFFIXES = [
-  ".localhost",
-  ".local",
-  ".localdomain",
-  ".internal",
-  ".lan",
-  ".home",
-  ".corp",
-];
-
-function isBlockedHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase().replace(/\.$/, "");
-  if (BLOCKED_HOSTNAMES.has(normalized)) {
-    return true;
-  }
-  return BLOCKED_HOSTNAME_SUFFIXES.some((suffix) =>
-    normalized.endsWith(suffix),
-  );
-}
-
-export async function isSafeExternalUrl(rawUrl: string): Promise<boolean> {
-  let parsed: URL;
-  try {
-    parsed = new URL(rawUrl);
-  } catch {
-    return false;
-  }
-
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return false;
-  }
-
-  // The shared classifier covers IP literals (incl. IPv4-mapped, NAT64 and
-  // 6to4 IPv6 forms); the local list adds internal-looking hostnames.
-  const hostname = parsed.hostname.toLowerCase();
-  if (!hostname || isBlockedHostname(hostname) || isPrivateHost(hostname)) {
-    return false;
-  }
-
-  if (isIP(hostname.replace(/^\[|\]$/g, "")) !== 0) {
-    return true;
-  }
-
-  try {
-    const resolved = await dnsLookup(hostname, { all: true, verbatim: true });
-    if (resolved.length === 0) {
-      return false;
-    }
-    return resolved.every((entry) => !isPrivateIpAddress(entry.address));
-  } catch {
-    return false;
-  }
-}
-
-export async function fetchWithValidatedRedirect(
-  rawUrl: string,
-  logPrefix: string,
-): Promise<Response | null> {
-  const initialResponse = await fetch(rawUrl, {
-    redirect: "manual",
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (initialResponse.status < 300 || initialResponse.status >= 400) {
-    return initialResponse;
-  }
-
-  const location = initialResponse.headers.get("location");
-  if (!location) {
-    console.error(
-      `[${logPrefix}] Blocking redirect for ${rawUrl}: missing location header`,
-    );
-    return null;
-  }
-
-  let redirectUrl: string;
-  try {
-    redirectUrl = new URL(location, rawUrl).toString();
-  } catch {
-    console.error(
-      `[${logPrefix}] Blocking redirect for ${rawUrl}: invalid location ${location}`,
-    );
-    return null;
-  }
-
-  if (!(await isSafeExternalUrl(redirectUrl))) {
-    console.error(
-      `[${logPrefix}] Blocking unsafe redirect target: ${redirectUrl}`,
-    );
-    return null;
-  }
-
-  return fetch(redirectUrl, {
-    redirect: "manual",
-    signal: AbortSignal.timeout(30_000),
-  });
-}
+const DOCUMENT_DOWNLOAD_TIMEOUT_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Download an external document into public blob storage
@@ -917,34 +806,39 @@ export async function downloadDocumentToStorage(
   keyPrefix: string,
   logPrefix: string,
 ): Promise<StoredDocument | null> {
-  if (!(await isSafeExternalUrl(doc.url))) {
-    console.error(`[${logPrefix}] Skipping unsafe URL: ${doc.url}`);
-    return null;
-  }
-
-  const response = await fetchWithValidatedRedirect(doc.url, logPrefix);
+  const source = describeUrlForLog(doc.url);
+  const response = await safeFetch(doc.url, {
+    logPrefix,
+    timeoutMs: DOCUMENT_DOWNLOAD_TIMEOUT_MS,
+  });
   if (!response) {
     return null;
   }
   if (!response.ok) {
     await response.body?.cancel();
     console.error(
-      `[${logPrefix}] Failed to fetch ${doc.url}: ${response.status}`,
+      `[${logPrefix}] Failed to fetch ${source}: ${response.status}`,
     );
     return null;
   }
 
   const body = await readBodyWithLimit(response, MAX_DOCUMENT_DOWNLOAD_SIZE);
   if (!body) {
-    console.error(`[${logPrefix}] Skipping ${doc.url}: exceeds 50MB limit`);
+    console.error(`[${logPrefix}] Skipping ${source}: exceeds 50MB limit`);
     return null;
   }
 
+  // The stored type always comes from the actual response, never from the
+  // probe result persisted on the document: the body decides.
   const upstreamType = response.headers.get("content-type");
-  const mimeType = resolveDocumentMimeType(upstreamType, body);
+  const mimeType = resolveDocumentMimeType(
+    upstreamType,
+    body,
+    response.headers.get("content-disposition"),
+  );
   if (!mimeType) {
     console.error(
-      `[${logPrefix}] Skipping ${doc.url}: unsupported content type ${upstreamType}`,
+      `[${logPrefix}] Skipping ${source}: unsupported content type ${upstreamType}`,
     );
     return null;
   }
@@ -990,7 +884,7 @@ export async function resolveDocumentPreviewUrl(
     return { blobUrl: null };
   }
 
-  if (!isPreviewableDocumentUrl(doc.url)) {
+  if (!isDownloadableDocument(doc)) {
     return { blobUrl: null };
   }
 
@@ -1120,7 +1014,7 @@ export async function saveDocumentsToProject(
     const doc = documents[idx];
     try {
       // Non-downloadable document (e.g. HTML page) — save as link reference only.
-      if (!isPreviewableDocumentUrl(doc.url)) {
+      if (!isDownloadableDocument(doc)) {
         await createProjectDocument({
           projectId,
           userId,

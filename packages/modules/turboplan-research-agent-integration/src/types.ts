@@ -50,6 +50,13 @@ export type DocumentItem = {
   folder?: string;
   folderDescription?: string;
   saved: boolean;
+  /**
+   * Set by the server when it probed an extensionless URL. Absent on URLs with
+   * a document extension and on documents stored before probing existed.
+   */
+  isDownloadable?: boolean;
+  /** Allowlisted document MIME type detected by the probe, if downloadable. */
+  contentType?: string;
 };
 
 export type DocumentsMessageData = {

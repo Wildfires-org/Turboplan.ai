@@ -3,6 +3,9 @@ import { describe, it } from "node:test";
 
 import {
   buildSafeDocumentFilename,
+  getDocumentMimeTypeForFilename,
+  parseContentDispositionFilename,
+  parseMediaType,
   readBodyWithLimit,
   resolveDocumentMimeType,
 } from "../src/server/document-utils";
@@ -12,17 +15,70 @@ const DOCX =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_BYTES = new TextEncoder().encode("%PDF-1.7");
 const HTML_BYTES = new TextEncoder().encode("<html>");
+const DOC = "application/msword";
+const ZIP_BYTES = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14]);
+const OLE_BYTES = new Uint8Array([
+  0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0x00,
+]);
+const BINARY_BYTES = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
+
+describe("parseMediaType", () => {
+  it("drops parameters, whitespace and case", () => {
+    assert.equal(parseMediaType(" Application/PDF ; charset=binary"), PDF);
+    assert.equal(parseMediaType("text/html;charset=utf-8"), "text/html");
+    assert.equal(parseMediaType(null), "");
+    assert.equal(parseMediaType(""), "");
+  });
+});
+
+describe("parseContentDispositionFilename", () => {
+  it("reads quoted, bare and RFC 5987 filenames", () => {
+    assert.equal(
+      parseContentDispositionFilename('attachment; filename="Plan A.pdf"'),
+      "Plan A.pdf",
+    );
+    assert.equal(
+      parseContentDispositionFilename("inline; filename=report.docx; size=1"),
+      "report.docx",
+    );
+    assert.equal(
+      parseContentDispositionFilename(
+        "attachment; filename=\"fallback.bin\"; filename*=UTF-8''Plan%20%C3%A9.pdf",
+      ),
+      "Plan é.pdf",
+    );
+  });
+
+  it("returns null when there is no filename", () => {
+    assert.equal(parseContentDispositionFilename(null), null);
+    assert.equal(parseContentDispositionFilename("attachment"), null);
+    assert.equal(
+      parseContentDispositionFilename('attachment; filename=""'),
+      null,
+    );
+  });
+});
+
+describe("getDocumentMimeTypeForFilename", () => {
+  it("maps document extensions only", () => {
+    assert.equal(getDocumentMimeTypeForFilename("A.PDF"), PDF);
+    assert.equal(getDocumentMimeTypeForFilename("a.doc"), DOC);
+    assert.equal(getDocumentMimeTypeForFilename("a.docx"), DOCX);
+    assert.equal(getDocumentMimeTypeForFilename("a.html"), null);
+    assert.equal(getDocumentMimeTypeForFilename(null), null);
+  });
+});
 
 describe("resolveDocumentMimeType", () => {
   it("accepts allowlisted document types, ignoring parameters and case", () => {
-    assert.equal(resolveDocumentMimeType(PDF, HTML_BYTES), PDF);
+    assert.equal(resolveDocumentMimeType(PDF, BINARY_BYTES), PDF);
     assert.equal(
-      resolveDocumentMimeType("Application/PDF; charset=binary", HTML_BYTES),
+      resolveDocumentMimeType("Application/PDF; charset=binary", BINARY_BYTES),
       PDF,
     );
-    assert.equal(resolveDocumentMimeType(DOCX, HTML_BYTES), DOCX);
+    assert.equal(resolveDocumentMimeType(DOCX, BINARY_BYTES), DOCX);
     assert.equal(
-      resolveDocumentMimeType("application/msword", HTML_BYTES),
+      resolveDocumentMimeType("application/msword", BINARY_BYTES),
       "application/msword",
     );
   });
@@ -48,6 +104,52 @@ describe("resolveDocumentMimeType", () => {
     assert.equal(resolveDocumentMimeType(null, HTML_BYTES), null);
     assert.equal(
       resolveDocumentMimeType("application/octet-stream", HTML_BYTES),
+      null,
+    );
+  });
+
+  it("never stores HTML, whatever the header claims", () => {
+    for (const markup of [
+      "<!DOCTYPE html><html>",
+      "\n  <html lang=en>",
+      "\ufeff<!doctype html>",
+    ]) {
+      const body = new TextEncoder().encode(markup);
+      assert.equal(resolveDocumentMimeType(PDF, body), null);
+      assert.equal(resolveDocumentMimeType(DOCX, body), null);
+      assert.equal(resolveDocumentMimeType(null, body), null);
+    }
+  });
+
+  it("accepts unlabelled Word files only with a matching filename and magic", () => {
+    const docxDisposition = 'attachment; filename="plan.docx"';
+    const docDisposition = 'attachment; filename="plan.doc"';
+    assert.equal(
+      resolveDocumentMimeType(
+        "application/octet-stream",
+        ZIP_BYTES,
+        docxDisposition,
+      ),
+      DOCX,
+    );
+    assert.equal(resolveDocumentMimeType(null, OLE_BYTES, docDisposition), DOC);
+    // Right filename, wrong bytes.
+    assert.equal(
+      resolveDocumentMimeType(
+        "application/octet-stream",
+        BINARY_BYTES,
+        docxDisposition,
+      ),
+      null,
+    );
+    // Right bytes, no filename.
+    assert.equal(
+      resolveDocumentMimeType("application/octet-stream", ZIP_BYTES),
+      null,
+    );
+    // A labelled non-document type is not rescued by the filename.
+    assert.equal(
+      resolveDocumentMimeType("application/zip", ZIP_BYTES, docxDisposition),
       null,
     );
   });
@@ -97,12 +199,31 @@ describe("buildSafeDocumentFilename", () => {
       "x.html.pdf",
     );
     assert.equal(
-      buildSafeDocumentFilename("https://gov.example/report", "T", DOCX),
+      buildSafeDocumentFilename("https://gov.example/report", "", DOCX),
       "report.docx",
     );
     assert.equal(
       buildSafeDocumentFilename("https://gov.example/REPORT.PDF", "T", PDF),
       "REPORT.PDF",
+    );
+  });
+
+  it("names extensionless URLs after the title, with the type's extension", () => {
+    assert.equal(
+      buildSafeDocumentFilename(
+        "https://files.ceqanet.lci.ca.gov/299729-1/attachment/ypeMi0A1PIyl-Q6sPERUenDuNb3gT",
+        "Draft Initial Study",
+        PDF,
+      ),
+      "Draft Initial Study.pdf",
+    );
+    assert.equal(
+      buildSafeDocumentFilename(
+        "https://gov.example/download?id=7",
+        "Plan",
+        DOCX,
+      ),
+      "Plan.docx",
     );
   });
 
@@ -161,7 +282,7 @@ describe("buildSafeDocumentFilename", () => {
 
   it("bounds the filename length", () => {
     const name = buildSafeDocumentFilename(
-      `https://gov.example/${"a".repeat(500)}`,
+      `https://gov.example/${"a".repeat(500)}.pdf`,
       "T",
       PDF,
     );
