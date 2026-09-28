@@ -4,11 +4,10 @@ import { getAppName } from "@wildfires-org/turboplan-env";
 
 import { BaseLayout, preventAutoLink } from "./base-layout";
 import {
-  CardMascot,
+  BrandCard,
   CtaButton,
   Disclaimer,
   FallbackUrl,
-  GradientCard,
   GreetingPill,
 } from "./email-card";
 
@@ -56,7 +55,7 @@ export function ProjectInvitationEmail({
       preview={`${inviterName} invited you to join ${projectName} on ${appName}`}
       label="Project Invitation"
     >
-      <GradientCard>
+      <BrandCard>
         <GreetingPill>Hello</GreetingPill>
 
         <Text style={inviteText}>
@@ -93,9 +92,7 @@ export function ProjectInvitationEmail({
         </Text>
 
         <CtaButton href={inviteUrl} label="Accept Invitation" />
-
-        <CardMascot />
-      </GradientCard>
+      </BrandCard>
 
       <Disclaimer>
         This invitation was sent to {inviteeEmail}. If you weren't expecting

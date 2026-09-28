@@ -4,16 +4,15 @@ import { Img, Section, Text } from "@react-email/components";
 
 import { getBeaverUrl, getHandIconUrl } from "./email-images";
 
-interface GradientCardProps {
+interface BrandCardProps {
   children: ReactNode;
 }
 
 /**
- * Gradient card wrapper shared across all email templates.
- * Uses a solid backgroundColor fallback for clients without gradient support (Outlook).
+ * Solid brand-green card wrapper shared across all email templates.
  */
-export const GradientCard = ({ children }: GradientCardProps) => {
-  return <Section style={gradientCard}>{children}</Section>;
+export const BrandCard = ({ children }: BrandCardProps) => {
+  return <Section style={brandCard}>{children}</Section>;
 };
 
 interface GreetingPillProps {
@@ -55,43 +54,52 @@ interface CtaButtonProps {
 }
 
 /**
- * White CTA button with green text and a trailing arrow.
+ * White CTA button with green text and a trailing arrow, with the beaver
+ * mascot beside it sitting flush on the card's bottom edge. Must be the last
+ * element in the card. Uses a two-cell table instead of negative margins,
+ * which Gmail and Outlook strip. The mascot is hidden on narrow screens.
  * Keeps the className="cta-link" + nested span pattern for dark-mode defense.
  */
 export const CtaButton = ({ href, label }: CtaButtonProps) => {
   return (
-    <table role="presentation" cellPadding="0" cellSpacing="0" style={ctaTable}>
+    <table
+      role="presentation"
+      cellPadding="0"
+      cellSpacing="0"
+      width="100%"
+      style={ctaTable}
+    >
       <tr>
-        <td align="center" style={ctaButtonTd}>
-          <a href={href} style={ctaLink} className="cta-link">
-            <span style={ctaSpan} className="cta-link">
-              {label}
-              <span style={ctaArrow}>&rarr;</span>
-            </span>
-          </a>
+        <td style={ctaCell}>
+          <table
+            role="presentation"
+            cellPadding="0"
+            cellSpacing="0"
+            width="100%"
+          >
+            <tr>
+              <td align="center" style={ctaButtonTd}>
+                <a href={href} style={ctaLink} className="cta-link">
+                  <span style={ctaSpan} className="cta-link">
+                    {label}
+                    <span style={ctaArrow}>&rarr;</span>
+                  </span>
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+        <td width="107" className="card-mascot" style={mascotCell}>
+          <Img
+            src={getBeaverUrl()}
+            width="107"
+            height="109"
+            alt="Beaver mascot"
+            style={mascotImage}
+          />
         </td>
       </tr>
     </table>
-  );
-};
-
-/**
- * Right-aligned beaver mascot anchored to the card's bottom-right corner,
- * overlapping the CTA button like in the design. Clients that strip negative
- * margins (Outlook, some Gmail variants) degrade to the mascot stacked
- * below the button.
- */
-export const CardMascot = () => {
-  return (
-    <Section style={mascotSection}>
-      <Img
-        src={getBeaverUrl()}
-        width="107"
-        height="109"
-        alt="Beaver mascot"
-        style={mascotImage}
-      />
-    </Section>
   );
 };
 
@@ -128,16 +136,13 @@ export const FallbackUrl = ({ url }: FallbackUrlProps) => {
 };
 
 // Styles
-const gradientCard = {
-  backgroundColor: "#22aa76",
-  background:
-    "linear-gradient(153.85deg, #22aa76 6.71%, #49f3a1 29.27%, #2cbcff 54.46%, #ffdf2c 104.83%)",
+const brandCard = {
+  backgroundColor: "#3ccf88",
   borderRadius: "12px",
   // No bottom padding so the mascot sits flush with the card's bottom edge
   padding: "42px 42px 0",
   textAlign: "center" as const,
   marginBottom: "30px",
-  border: "1px solid rgba(255, 255, 255, 0.2)",
   overflow: "hidden" as const,
 };
 
@@ -172,7 +177,12 @@ const pillText = {
 
 const ctaTable = {
   width: "100%",
-  margin: "0 0 36px",
+  margin: "0",
+};
+
+const ctaCell = {
+  verticalAlign: "bottom" as const,
+  paddingBottom: "28px",
 };
 
 const ctaButtonTd = {
@@ -201,16 +211,17 @@ const ctaArrow = {
   marginLeft: "10px",
 };
 
-const mascotSection = {
-  textAlign: "right" as const,
+const mascotCell = {
+  width: "107px",
+  paddingLeft: "12px",
+  verticalAlign: "bottom" as const,
   // Kill the baseline descender gap so the mascot touches the card edge
   fontSize: "0",
   lineHeight: "0",
 };
 
 const mascotImage = {
-  display: "inline-block",
-  margin: "-104px 17px 0 0",
+  display: "block",
 };
 
 const disclaimer = {

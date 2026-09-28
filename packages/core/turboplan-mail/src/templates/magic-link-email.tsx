@@ -4,11 +4,10 @@ import { getAppName } from "@wildfires-org/turboplan-env";
 
 import { BaseLayout, preventAutoLink } from "./base-layout";
 import {
-  CardMascot,
+  BrandCard,
   CtaButton,
   Disclaimer,
   FallbackUrl,
-  GradientCard,
   GreetingPill,
 } from "./email-card";
 
@@ -51,17 +50,15 @@ export function MagicLinkEmail({ magicLinkUrl, type }: MagicLinkEmailProps) {
 
   return (
     <BaseLayout preview={content.preview} label={content.label}>
-      <GradientCard>
+      <BrandCard>
         <GreetingPill>{content.greeting}</GreetingPill>
 
         <Text style={bodyText}>{content.body}</Text>
 
-        <CtaButton href={magicLinkUrl} label={content.buttonText} />
-
-        <CardMascot />
-
         <Text style={expiryText}>{content.expiry}</Text>
-      </GradientCard>
+
+        <CtaButton href={magicLinkUrl} label={content.buttonText} />
+      </BrandCard>
 
       <Disclaimer>
         If you didn't request this email, you can safely ignore it.
@@ -78,7 +75,7 @@ const bodyText = {
   lineHeight: "20px",
   color: "rgba(255, 255, 255, 0.8)",
   textAlign: "center" as const,
-  margin: "0 0 36px",
+  margin: "0 0 12px",
 };
 
 const expiryText = {
@@ -86,5 +83,5 @@ const expiryText = {
   color: "rgba(255, 255, 255, 0.7)",
   textAlign: "center" as const,
   lineHeight: "16px",
-  margin: "12px 0 36px",
+  margin: "0 0 12px",
 };

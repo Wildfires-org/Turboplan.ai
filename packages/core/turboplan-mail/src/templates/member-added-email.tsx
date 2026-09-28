@@ -4,11 +4,10 @@ import { getAppName } from "@wildfires-org/turboplan-env";
 
 import { BaseLayout, preventAutoLink } from "./base-layout";
 import {
-  CardMascot,
+  BrandCard,
   CtaButton,
   Disclaimer,
   FallbackUrl,
-  GradientCard,
   GreetingPill,
 } from "./email-card";
 
@@ -74,7 +73,7 @@ export function MemberAddedEmail({
       preview={`${inviterName} added you to ${entityName} on ${appName}`}
       label={getUpdateLabel(entityType)}
     >
-      <GradientCard>
+      <BrandCard>
         <GreetingPill>
           {memberName ? `Hello, ${memberName}!` : "Hello"}
         </GreetingPill>
@@ -94,9 +93,7 @@ export function MemberAddedEmail({
         </Text>
 
         <CtaButton href={entityUrl} label={getOpenLabel(entityType)} />
-
-        <CardMascot />
-      </GradientCard>
+      </BrandCard>
 
       <Disclaimer>
         This notification was sent to {memberEmail} because you were added to{" "}
