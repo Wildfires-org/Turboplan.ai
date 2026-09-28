@@ -14,4 +14,5 @@ from "New chat" no longer comes back empty on Back either.
 Document artifacts are more reliable too: a stopped or failed document no
 longer leaves the artifact stuck loading, the panel always opens once a
 document passes 400 characters, and streamed document text is no longer stored
-a second time inside the chat message.
+a second time inside the chat message. An open document no longer reappears
+open in the next chat you visit, in this or any other project.

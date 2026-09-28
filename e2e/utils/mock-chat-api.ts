@@ -34,11 +34,33 @@ const UI_MESSAGE_STREAM_HEADERS = {
  * Chunk shapes follow ai@6 `uiMessageChunkSchema` (strict objects, so no
  * extra fields), ending with a bare `finish` like app/api/chat/route.ts does.
  */
-const buildTextReplyStream = (messageId: string, text: string): string => {
+/** A text document the mocked reply streams into the artifact panel. */
+type MockArtifact = { title: string; content: string };
+
+/**
+ * The transient `data-artifact` chunks `createDocument` writes while streaming
+ * a text document: kind, id, title, clear, the text, then finish.
+ */
+const buildArtifactChunks = ({ title, content }: MockArtifact) =>
+  [
+    { type: "kind", content: "text" },
+    { type: "id", content: randomUUID() },
+    { type: "title", content: title },
+    { type: "clear", content: "" },
+    { type: "text-delta", content },
+    { type: "finish", content: "" },
+  ].map((data) => ({ type: "data-artifact", data, transient: true }));
+
+const buildTextReplyStream = (
+  messageId: string,
+  text: string,
+  artifact?: MockArtifact,
+): string => {
   const textPartId = "text-0";
   const chunks = [
     { type: "start", messageId },
     { type: "start-step" },
+    ...(artifact ? buildArtifactChunks(artifact) : []),
     { type: "text-start", id: textPartId },
     { type: "text-delta", id: textPartId, delta: text },
     { type: "text-end", id: textPartId },
@@ -52,7 +74,8 @@ const buildTextReplyStream = (messageId: string, text: string): string => {
 /**
  * Mock the project chat network for one chat so no model is ever called:
  *
- * - `POST /api/chat` answers every send with `replyText` as a UI message stream.
+ * - `POST /api/chat` answers every send with `replyText` as a UI message stream,
+ *   preceded by a streamed text document when `artifact` is given.
  * - `GET /api/chat/[chatId]/messages` is stateful like the real server: `[]`
  *   until a mocked POST completes, then the persisted user + assistant rows.
  *
@@ -61,7 +84,11 @@ const buildTextReplyStream = (messageId: string, text: string): string => {
  */
 export const mockProjectChatApi = async (
   page: Page,
-  { chatId, replyText }: { chatId: string; replyText: string },
+  {
+    chatId,
+    replyText,
+    artifact,
+  }: { chatId: string; replyText: string; artifact?: MockArtifact },
 ): Promise<void> => {
   const persistedMessages = new Map<string, MockDbMessage>();
 
@@ -103,7 +130,7 @@ export const mockProjectChatApi = async (
       await route.fulfill({
         status: 200,
         headers: UI_MESSAGE_STREAM_HEADERS,
-        body: buildTextReplyStream(assistantMessageId, replyText),
+        body: buildTextReplyStream(assistantMessageId, replyText, artifact),
       });
     },
   );

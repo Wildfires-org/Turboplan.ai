@@ -105,6 +105,50 @@ test.describe("Project chat - messages after navigating away", () => {
     await expectSameDocument(page);
   });
 
+  test("does not reopen a document artifact in the next chat", async ({
+    page,
+  }) => {
+    const [documentChat, otherChat] = await Promise.all(
+      ["Draft", "Other"].map((prefix) =>
+        createTestProjectChat({
+          userId: workspace.userId,
+          projectId: project.id,
+          title: `${prefix} ${shortId()}`,
+        }),
+      ),
+    );
+    // Past the 400-character threshold at which the panel opens by itself.
+    await mockProjectChatApi(page, {
+      chatId: documentChat.id,
+      replyText: ASSISTANT_REPLY,
+      artifact: {
+        title: "Permit checklist",
+        content: "Streambed alteration agreement. ".repeat(20),
+      },
+    });
+    // The other chat only loads its (empty) messages, so it needs no mock.
+
+    const chatPage = new TurboplanProjectChatPage(page);
+    await chatPage.goto({
+      orgSlug: workspace.orgSlug,
+      officeSlug: workspace.officeSlug,
+      projectSlug: project.slug,
+      chatId: documentChat.id,
+    });
+
+    await chatPage.sendMessage(USER_MESSAGE);
+    await expect(page.getByTestId("artifact")).toBeVisible();
+
+    await chatPage.goToMembersViaSidebar();
+    await expect(chatPage.getComposer()).toBeHidden();
+
+    await chatPage.openChatViaSidebar(otherChat.title);
+    await page.waitForURL(new RegExp(`/chats/${otherChat.id}$`));
+    await chatPage.expectComposerReady();
+
+    await expect(page.getByTestId("artifact")).toBeHidden();
+  });
+
   test("shows the latest exchange after reopening the chat from the sidebar", async ({
     page,
   }) => {
