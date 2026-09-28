@@ -45,6 +45,9 @@ describe("getModelProviderEnv", () => {
 
 describe("toOpenRouterModel", () => {
   it("maps the model IDs this repo ships to OpenRouter slugs", () => {
+    expect(toOpenRouterModel("claude-opus-5-5")).toBe(
+      "anthropic/claude-opus-5.5",
+    );
     expect(toOpenRouterModel("claude-sonnet-4-6")).toBe(
       "anthropic/claude-sonnet-4.6",
     );
