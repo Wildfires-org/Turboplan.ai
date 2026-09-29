@@ -28,6 +28,8 @@ Each flag reads two environment variables — `NEXT_PUBLIC_IS_*` (for Next.js cl
 
 There is also a generic `isPackageEnabled(packageName)` that throws on unknown package names.
 
+`isBillingEnforcementEnabled()` gates billing limits (credits, active projects, seats) via `IS_BILLING_ENFORCEMENT_ENABLED` / `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`. Unlike the package flags it defaults to **on**: it is `true` whenever the billing package is enabled, unless either variable is explicitly `false` or `0`.
+
 ## Setup
 
 Add the dependency:

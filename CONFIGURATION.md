@@ -234,6 +234,14 @@ runtime from catalog lookup keys in
 Stripe objects with
 `pnpm --filter @wildfires-org/turboplan-billing sync:stripe -- --apply`.
 
+`IS_BILLING_ENFORCEMENT_ENABLED` (and `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`)
+switches off billing *limits* — the credit hard-stop, the active-project cap and
+the seat cap — while plans, pricing, checkout, Stripe sync and credit metering
+keep working. Unlike the module flags it defaults to **on**: only an explicit
+`false` or `0` in either name disables it, and it has no effect unless billing
+itself is enabled. CI reads it from the `FF_IS_BILLING_ENFORCEMENT_ENABLED` repo
+variable, falling back to `true`.
+
 ## Deployment
 
 Cloudflare Workers is the only supported deployment target.

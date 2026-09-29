@@ -6,7 +6,10 @@ import {
   type Subscription,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
-import { isBillingPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
+import {
+  isBillingEnforcementEnabled,
+  isBillingPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
 
 import {
   CATALOG,
@@ -189,7 +192,8 @@ export const shouldBlockUsage = (
  * Gate a metered AI call. Throws CreditsExhaustedError (402) when the org's
  * plan hard-stops at its allowance and the pool is used up. Plans with
  * metered overage never block — usage beyond the allowance bills per credit.
- * No-op when the billing package is disabled.
+ * No-op when billing enforcement is disabled (billing package off, or
+ * `IS_BILLING_ENFORCEMENT_ENABLED=false`).
  *
  * `amount` reserves headroom for a known flat-cost call (e.g. research agent,
  * image generation) so it can't land the org meaningfully past a hard stop in
@@ -200,7 +204,7 @@ export const assertCreditsAvailable = async (
   organizationId: string,
   amount = 0,
 ): Promise<void> => {
-  if (!isBillingPackageEnabled()) {
+  if (!isBillingEnforcementEnabled()) {
     return;
   }
 

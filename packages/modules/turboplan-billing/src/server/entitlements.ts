@@ -14,7 +14,10 @@ import {
   subscription,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
-import { isBillingPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
+import {
+  isBillingEnforcementEnabled,
+  isBillingPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
 
 import {
   allowancePlanKey,
@@ -132,13 +135,13 @@ const projectLimitForPlan = (plan: PlanKey): number | null => {
  * `requiresUpgrade` (limit reached). Per-org and count-based — nothing is
  * consumed and nothing needs refunding.
  *
- * Returns the open-source default (never gated) when the billing package is
- * disabled.
+ * Returns the open-source default (never gated) when billing enforcement is
+ * disabled (billing package off, or `IS_BILLING_ENFORCEMENT_ENABLED=false`).
  */
 export const getProjectCreationEntitlement = async (
   organizationId: string,
 ): Promise<ProjectCreationEntitlement> => {
-  if (!isBillingPackageEnabled()) {
+  if (!isBillingEnforcementEnabled()) {
     return {
       requiresUpgrade: false,
       plan: "starter",
@@ -306,7 +309,8 @@ export type SeatAvailabilityDecision = {
  * i.e. Starter) are capped at their included count. Viewers never consume a
  * seat, so viewer invites are unlimited on every plan.
  *
- * No-op (always allowed) when the billing package is disabled.
+ * No-op (always allowed) when billing enforcement is disabled (billing package
+ * off, or `IS_BILLING_ENFORCEMENT_ENABLED=false`).
  *
  * Check-then-act by design: concurrent seat adds can briefly overshoot the
  * cap (bounded by in-flight requests; later attempts are blocked). Accepted.
@@ -325,7 +329,7 @@ export const assertSeatAvailable = async ({
   userId?: string;
   addedBillableSeats?: number;
 }): Promise<SeatAvailabilityDecision> => {
-  if (!isBillingPackageEnabled()) {
+  if (!isBillingEnforcementEnabled()) {
     return {
       allowed: true,
       plan: "starter",
