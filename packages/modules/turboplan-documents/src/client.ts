@@ -41,4 +41,9 @@ export type {
   UseProjectDocumentsReturn,
 } from "./types";
 // Non-hook helpers
+export {
+  EXTRACTION_STALE_AFTER_MS,
+  getMsUntilExtractionStale,
+  isExtractionStale,
+} from "./types";
 export { uploadBlobToProject } from "./upload-blob-to-project";

@@ -41,14 +41,25 @@ export function PdfViewer({
     const container = scrollRef.current;
     if (!container) return;
 
+    // Whole pixels only, and ignore 1px jitter: every width change re-renders
+    // each page canvas, so sub-pixel noise would make the preview flicker.
+    const updateWidth = (width: number) => {
+      const nextWidth = Math.floor(width);
+      setContainerWidth((current) =>
+        current !== null && Math.abs(current - nextWidth) <= 1
+          ? current
+          : nextWidth,
+      );
+    };
+
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width);
+        updateWidth(entry.contentRect.width);
       }
     });
 
     observer.observe(container);
-    setContainerWidth(container.clientWidth);
+    updateWidth(container.clientWidth);
 
     return () => observer.disconnect();
   }, []);
@@ -147,7 +158,12 @@ export function PdfViewer({
   }
 
   return (
-    <div ref={scrollRef} className="size-full overflow-y-auto">
+    // Stable gutter: the vertical scrollbar appearing must not shrink the
+    // measured width, or the pages resize, the scrollbar goes, and it loops.
+    <div
+      ref={scrollRef}
+      className="size-full overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]"
+    >
       <Document
         file={url}
         onLoadSuccess={onDocumentLoadSuccess}

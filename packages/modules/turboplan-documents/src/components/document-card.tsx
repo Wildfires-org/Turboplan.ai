@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { Loader2, User } from "lucide-react";
 
@@ -11,7 +11,10 @@ import {
   generateInitials,
 } from "@wildfires-org/turboplan-utils";
 
-import type { ProjectDocumentExtractionStatus } from "../types";
+import {
+  getMsUntilExtractionStale,
+  type ProjectDocumentExtractionStatus,
+} from "../types";
 import { formatDateTime, getFileTypeLabel } from "./utils";
 
 interface DocumentCardBase {
@@ -103,6 +106,7 @@ export function DocumentCardEditable({
             <ExtractionStatusChip
               status={document.extractionStatus}
               error={document.extractionError}
+              createdAt={document.createdAt}
             />
           )}
           <span className="rounded-full bg-slate-900/[0.05] px-2 py-0.5 text-[11px] font-medium text-gray-700 ring-1 ring-inset ring-slate-900/[0.06]">
@@ -179,13 +183,61 @@ export function DocumentCardReadOnly({
 const EXTRACTION_CHIP_CLASS =
   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset";
 
+/**
+ * Whether a pending document has waited past the stale threshold. Re-renders
+ * once when the threshold passes, so the spinner does not run forever.
+ */
+function useIsExtractionStale(isPending: boolean, createdAt: string) {
+  const [isStale, setIsStale] = useState(
+    () => isPending && getMsUntilExtractionStale(createdAt) === 0,
+  );
+
+  useEffect(() => {
+    if (!isPending) {
+      setIsStale(false);
+      return;
+    }
+    const delay = getMsUntilExtractionStale(createdAt);
+    if (delay === 0) {
+      setIsStale(true);
+      return;
+    }
+    setIsStale(false);
+    if (!Number.isFinite(delay)) {
+      return;
+    }
+    const timer = setTimeout(() => setIsStale(true), delay);
+    return () => clearTimeout(timer);
+  }, [isPending, createdAt]);
+
+  return isStale;
+}
+
 function ExtractionStatusChip({
   status,
   error,
+  createdAt,
 }: {
   status?: ProjectDocumentExtractionStatus;
   error?: string | null;
+  createdAt: string;
 }) {
+  const isStale = useIsExtractionStale(status === "pending", createdAt);
+
+  if (status === "pending" && isStale) {
+    return (
+      <span
+        title="The assistant can read this document once text extraction finishes."
+        className={cn(
+          EXTRACTION_CHIP_CLASS,
+          "bg-slate-900/[0.04] text-gray-700 ring-slate-900/[0.06]",
+        )}
+      >
+        Waiting for text extraction
+      </span>
+    );
+  }
+
   if (status === "pending") {
     return (
       <span

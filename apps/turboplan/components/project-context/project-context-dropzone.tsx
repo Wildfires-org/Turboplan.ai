@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AlertCircle,
@@ -8,6 +8,7 @@ import {
   Clock,
   FileText,
   FileWarning,
+  Info,
   Layers,
   Loader2,
   Upload,
@@ -37,10 +38,12 @@ import {
   type DropRowTone,
   formatGisResult,
   formatMegabytes,
+  getDocumentDedupeKey,
   getDropRowStatus,
   getDropRowTypeLabel,
+  getExtractionPollInterval,
   getGisResultPhase,
-  hasPendingExtraction,
+  getNextStaleDelay,
 } from "@/lib/project-context-drop";
 import { cn } from "@/lib/utils";
 
@@ -53,14 +56,11 @@ interface ProjectContextDropzoneProps {
   className?: string;
 }
 
-// Poll the documents list while a dropped document waits for its text; the
-// extraction worker picks new documents up within a few seconds.
-const EXTRACTION_POLL_INTERVAL_MS = 4000;
-
 const GIS_ALLOWED_TYPES = [...GIS_ARCHIVE_MIME_TYPES];
 
 const TONE_CHIP: Record<DropRowTone, ChipTone> = {
   progress: "info",
+  neutral: "neutral",
   success: "brand",
   warning: "neutral",
   error: "danger",
@@ -132,10 +132,25 @@ export function ProjectContextDropzone({
     projectId,
     source: "upload",
     refreshInterval: (latestDocuments) =>
-      hasPendingExtraction(rowsRef.current, latestDocuments ?? [])
-        ? EXTRACTION_POLL_INTERVAL_MS
-        : 0,
+      getExtractionPollInterval(rowsRef.current, latestDocuments ?? []),
   });
+  const documentsRef = useRef(uploadedDocuments);
+  documentsRef.current = uploadedDocuments;
+
+  // Staleness is time-based: re-render when the next pending row goes stale
+  // so it swaps its spinner for the static "waiting" state.
+  const [, setStaleTick] = useState(0);
+  const nextStaleDelay = getNextStaleDelay(rows, uploadedDocuments);
+  useEffect(() => {
+    if (nextStaleDelay === null) {
+      return;
+    }
+    const timer = setTimeout(
+      () => setStaleTick((tick) => tick + 1),
+      nextStaleDelay,
+    );
+    return () => clearTimeout(timer);
+  }, [nextStaleDelay]);
   const { upload: uploadToStorage } = useFileUpload({
     maxSize: GIS_ARCHIVE_MAX_FILE_SIZE,
     allowedTypes: GIS_ALLOWED_TYPES,
@@ -236,6 +251,14 @@ export function ProjectContextDropzone({
 
       setRows((current) => [...queued.map(({ row }) => row), ...current]);
 
+      // Documents already in the project (same name + size) are not uploaded
+      // again; the set also catches the same file twice in one drop.
+      const documentKeys = new Set(
+        documentsRef.current.map((doc) =>
+          getDocumentDedupeKey(doc.originalFilename, doc.size),
+        ),
+      );
+
       // One file at a time: GIS processing is heavy, and a steady sequence
       // is easier to follow in the list than everything spinning at once.
       for (const { row, file } of queued) {
@@ -243,13 +266,19 @@ export function ProjectContextDropzone({
           continue;
         }
         if (row.kind === "document") {
+          const key = getDocumentDedupeKey(file.name, file.size);
+          if (documentKeys.has(key)) {
+            updateRow(row.id, { phase: "duplicate" });
+            continue;
+          }
+          documentKeys.add(key);
           await importDocument(row, file);
         } else {
           await importGisArchive(row, file);
         }
       }
     },
-    [getRejection, importDocument, importGisArchive],
+    [getRejection, importDocument, importGisArchive, updateRow],
   );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -439,6 +468,9 @@ function StatusIcon({
   }
   if (tone === "error" || tone === "warning") {
     return <AlertCircle aria-hidden />;
+  }
+  if (tone === "neutral") {
+    return <Info aria-hidden />;
   }
   if (phase === "queued") {
     return <Clock aria-hidden />;

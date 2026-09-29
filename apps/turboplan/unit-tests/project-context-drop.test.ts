@@ -1,14 +1,25 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 
+import { isExtractionStale } from "@wildfires-org/turboplan-documents/types";
+
 import {
   type DropRow,
+  EXTRACTION_POLL_INTERVAL_MS,
   formatGisResult,
+  getDocumentDedupeKey,
   getDropRowStatus,
   getDropRowTypeLabel,
+  getExtractionPollInterval,
   getGisResultPhase,
+  getNextStaleDelay,
   hasPendingExtraction,
 } from "../lib/project-context-drop";
+
+// Fixed clock: FRESH was created 10s ago, STALE 3 minutes ago.
+const NOW = Date.parse("2026-09-29T12:00:00.000Z");
+const FRESH = new Date(NOW - 10_000).toISOString();
+const STALE = new Date(NOW - 3 * 60_000).toISOString();
 
 const makeRow = (overrides: Partial<DropRow> = {}): DropRow => ({
   id: "drop-1",
@@ -32,9 +43,11 @@ const makeResult = (
 
 describe("getDropRowStatus for documents", () => {
   it("shows extraction progress while the document is pending", () => {
-    const status = getDropRowStatus(makeRow(), [
-      { id: "doc-1", extractionStatus: "pending" },
-    ]);
+    const status = getDropRowStatus(
+      makeRow(),
+      [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
+      NOW,
+    );
     assert.strictEqual(status.label, "Extracting text");
     assert.strictEqual(status.isFinished, false);
   });
@@ -47,7 +60,7 @@ describe("getDropRowStatus for documents", () => {
 
   it("finishes when the text is extracted", () => {
     const status = getDropRowStatus(makeRow(), [
-      { id: "doc-1", extractionStatus: "done" },
+      { id: "doc-1", extractionStatus: "done", createdAt: FRESH },
     ]);
     assert.strictEqual(status.tone, "success");
     assert.strictEqual(status.isFinished, true);
@@ -58,6 +71,7 @@ describe("getDropRowStatus for documents", () => {
       {
         id: "doc-1",
         extractionStatus: "failed",
+        createdAt: FRESH,
         extractionError: "Scanned PDF",
       },
     ]);
@@ -88,13 +102,19 @@ describe("hasPendingExtraction", () => {
   it("is true only while a registered document waits for its text", () => {
     const rows = [makeRow(), makeRow({ id: "drop-2", phase: "uploading" })];
     assert.strictEqual(
-      hasPendingExtraction(rows, [
-        { id: "doc-1", extractionStatus: "pending" },
-      ]),
+      hasPendingExtraction(
+        rows,
+        [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
+        NOW,
+      ),
       true,
     );
     assert.strictEqual(
-      hasPendingExtraction(rows, [{ id: "doc-1", extractionStatus: "done" }]),
+      hasPendingExtraction(
+        rows,
+        [{ id: "doc-1", extractionStatus: "done", createdAt: FRESH }],
+        NOW,
+      ),
       false,
     );
   });
@@ -134,6 +154,102 @@ describe("getDropRowTypeLabel", () => {
     assert.strictEqual(
       getDropRowTypeLabel(makeRow({ name: "a.png", kind: "unsupported" })),
       "Unsupported file",
+    );
+  });
+});
+
+describe("duplicate documents", () => {
+  it("keys documents by file name and size", () => {
+    assert.strictEqual(getDocumentDedupeKey("plan.pdf", 1024), "plan.pdf:1024");
+    assert.notStrictEqual(
+      getDocumentDedupeKey("plan.pdf", 1024),
+      getDocumentDedupeKey("plan.pdf", 2048),
+    );
+  });
+
+  it("shows a skipped duplicate as finished, not as an error", () => {
+    const status = getDropRowStatus(makeRow({ phase: "duplicate" }), []);
+    assert.strictEqual(status.label, "Already in project");
+    assert.strictEqual(status.tone, "neutral");
+    assert.strictEqual(status.isFinished, true);
+  });
+});
+
+describe("stale extraction", () => {
+  const pending = (createdAt: string) => [
+    { id: "doc-1", extractionStatus: "pending" as const, createdAt },
+  ];
+
+  it("marks only pending documents older than the threshold as stale", () => {
+    assert.strictEqual(
+      isExtractionStale({ extractionStatus: "pending", createdAt: FRESH }, NOW),
+      false,
+    );
+    assert.strictEqual(
+      isExtractionStale({ extractionStatus: "pending", createdAt: STALE }, NOW),
+      true,
+    );
+    assert.strictEqual(
+      isExtractionStale({ extractionStatus: "done", createdAt: STALE }, NOW),
+      false,
+    );
+    assert.strictEqual(
+      isExtractionStale({ extractionStatus: "pending", createdAt: "bad" }, NOW),
+      false,
+    );
+  });
+
+  it("keeps spinning while pending is fresh", () => {
+    const status = getDropRowStatus(makeRow(), pending(FRESH), NOW);
+    assert.strictEqual(status.label, "Extracting text");
+    assert.strictEqual(status.isFinished, false);
+  });
+
+  it("shows a static waiting state once pending is stale", () => {
+    const status = getDropRowStatus(makeRow(), pending(STALE), NOW);
+    assert.strictEqual(status.label, "Waiting for text extraction");
+    assert.strictEqual(status.tone, "neutral");
+    assert.strictEqual(status.isFinished, true);
+  });
+
+  it("polls only while a pending document is fresh", () => {
+    const rows = [makeRow()];
+    assert.strictEqual(
+      getExtractionPollInterval(rows, pending(FRESH), NOW),
+      EXTRACTION_POLL_INTERVAL_MS,
+    );
+    assert.strictEqual(getExtractionPollInterval(rows, pending(STALE), NOW), 0);
+    assert.strictEqual(
+      getExtractionPollInterval(
+        rows,
+        [{ id: "doc-1", extractionStatus: "done", createdAt: FRESH }],
+        NOW,
+      ),
+      0,
+    );
+    assert.strictEqual(getExtractionPollInterval([], pending(FRESH), NOW), 0);
+  });
+
+  it("keeps polling when one pending document is stale and another fresh", () => {
+    const rows = [makeRow(), makeRow({ id: "drop-2", documentId: "doc-2" })];
+    const documents = [
+      ...pending(STALE),
+      { id: "doc-2", extractionStatus: "pending" as const, createdAt: FRESH },
+    ];
+    assert.strictEqual(
+      getExtractionPollInterval(rows, documents, NOW),
+      EXTRACTION_POLL_INTERVAL_MS,
+    );
+  });
+
+  it("schedules a re-render for when the next fresh row goes stale", () => {
+    assert.strictEqual(
+      getNextStaleDelay([makeRow()], pending(FRESH), NOW),
+      2 * 60_000 - 10_000,
+    );
+    assert.strictEqual(
+      getNextStaleDelay([makeRow()], pending(STALE), NOW),
+      null,
     );
   });
 });

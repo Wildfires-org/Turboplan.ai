@@ -25,6 +25,41 @@ export type ProjectDocumentExtractionStatus =
   | "unsupported";
 
 /**
+ * A document still "pending" this long after upload is not being extracted
+ * right now (the extraction worker is down or busy). The UI stops showing a
+ * spinner and stops polling for it.
+ */
+export const EXTRACTION_STALE_AFTER_MS = 2 * 60 * 1000;
+
+type ExtractionTiming = {
+  extractionStatus?: ProjectDocumentExtractionStatus;
+  createdAt: string;
+};
+
+/** Milliseconds until a pending document counts as stale (0 once it does). */
+export const getMsUntilExtractionStale = (
+  createdAt: string,
+  now: number = Date.now(),
+): number => {
+  const created = Date.parse(createdAt);
+  if (Number.isNaN(created)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.max(0, created + EXTRACTION_STALE_AFTER_MS - now);
+};
+
+/** Pending for longer than {@link EXTRACTION_STALE_AFTER_MS}. */
+export const isExtractionStale = (
+  document: ExtractionTiming,
+  now: number = Date.now(),
+): boolean => {
+  return (
+    document.extractionStatus === "pending" &&
+    getMsUntilExtractionStale(document.createdAt, now) === 0
+  );
+};
+
+/**
  * Project document data structure
  */
 export interface ProjectDocument {
