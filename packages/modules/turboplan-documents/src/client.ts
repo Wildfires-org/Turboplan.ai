@@ -34,6 +34,7 @@ export { useProjectDocuments } from "./hooks/use-project-documents";
 // Types
 export type {
   ProjectDocument,
+  ProjectDocumentExtractionStatus,
   ProjectDocumentSource,
   ProjectDocumentUploader,
   UseProjectDocumentsOptions,

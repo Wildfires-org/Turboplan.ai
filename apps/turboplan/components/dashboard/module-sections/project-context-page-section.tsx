@@ -19,17 +19,25 @@ import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 import { StartResearchButton } from "@wildfires-org/turboplan-research-agent-integration/client";
 import { Button } from "@wildfires-org/turboplan-utils";
 
+import { ProjectContextDropzone } from "@/components/project-context/project-context-dropzone";
+import { ProjectGisLayersPanel } from "@/components/project-context/project-gis-layers-panel";
 import { PANEL_CLASS, PANEL_TITLE_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
 interface ProjectContextPageSectionProps {
   projectId: string;
   userId: string;
+  /** Documents module enabled (resolved on the server) */
+  isDocumentsEnabled: boolean;
+  /** Map module enabled (resolved on the server) */
+  isMapEnabled: boolean;
 }
 
 export function ProjectContextPageSection({
   projectId,
   userId,
+  isDocumentsEnabled,
+  isMapEnabled,
 }: ProjectContextPageSectionProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { addEntry, isMutating } = useProjectContext({ projectId });
@@ -39,10 +47,21 @@ export function ProjectContextPageSection({
     entityId: projectId,
     action: Action.UPDATE,
   });
+  const { hasPermission: canDelete } = useEntityPermission({
+    userId,
+    entityType: EntityType.PROJECT,
+    entityId: projectId,
+    action: Action.DELETE,
+  });
   const { documents: researchedDocuments } = useProjectDocuments({
     projectId,
     source: "research",
   });
+  const { documents: uploadedDocuments } = useProjectDocuments({
+    projectId,
+    source: "upload",
+  });
+  const canDropFiles = canEdit && (isDocumentsEnabled || isMapEnabled);
 
   const handleAddContext = async (data: {
     label: string;
@@ -65,15 +84,56 @@ export function ProjectContextPageSection({
           <div>
             <h3 className={PANEL_TITLE_CLASS}>Project Context</h3>
             <p className="text-[13px] leading-5 text-gray-550">
+              Everything the assistant should know about this project.
+            </p>
+          </div>
+          <StartResearchButton
+            projectId={projectId}
+            canEdit={canEdit}
+            appearance="glass"
+          />
+        </div>
+
+        {canDropFiles && (
+          <ProjectContextDropzone
+            projectId={projectId}
+            acceptsDocuments={isDocumentsEnabled}
+            acceptsGisLayers={isMapEnabled}
+          />
+        )}
+      </section>
+
+      {isDocumentsEnabled && uploadedDocuments.length > 0 && (
+        <section className={cn(PANEL_CLASS, "space-y-4")}>
+          <div>
+            <h3 className={PANEL_TITLE_CLASS}>Documents</h3>
+            <p className="text-[13px] leading-5 text-gray-550">
+              Uploaded plans, permits and reports. Their text is read by the
+              assistant once extracted.
+            </p>
+          </div>
+          <DocumentsSectionUI
+            projectId={projectId}
+            userId={userId}
+            source="upload"
+            showExtractionStatus
+          />
+        </section>
+      )}
+
+      {isMapEnabled && (
+        <ProjectGisLayersPanel projectId={projectId} canDelete={canDelete} />
+      )}
+
+      <section className={cn(PANEL_CLASS, "space-y-4")}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className={PANEL_TITLE_CLASS}>Notes and references</h3>
+            <p className="text-[13px] leading-5 text-gray-550">
               Key information and references for this project.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <StartResearchButton
-              projectId={projectId}
-              canEdit={canEdit}
-              appearance="glass"
-            />
+          {canEdit && (
             <Button
               variant="brand"
               size="sm"
@@ -82,10 +142,10 @@ export function ProjectContextPageSection({
               <Plus aria-hidden />
               Add context
             </Button>
-          </div>
+          )}
         </div>
 
-        <ProjectContextList projectId={projectId} readOnly={false} />
+        <ProjectContextList projectId={projectId} readOnly={!canEdit} />
       </section>
 
       {researchedDocuments.length > 0 && (

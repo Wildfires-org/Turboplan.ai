@@ -98,6 +98,31 @@ const assertSafeProcessUrl = (raw: string): void => {
   }
 };
 
+const USER_FACING_STATUSES = new Set([400, 413]);
+const MAX_USER_FACING_DETAIL_LENGTH = 500;
+
+// Extract the FastAPI `detail` string from a map-server error body when the
+// status is one whose message is meant for the user.
+const getUserFacingDetail = (status: number, body: string): string | null => {
+  if (!USER_FACING_STATUSES.has(status)) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(body);
+    const detail =
+      parsed && typeof parsed === "object" && "detail" in parsed
+        ? parsed.detail
+        : null;
+    if (typeof detail !== "string" || detail.length === 0) {
+      return null;
+    }
+    return detail.slice(0, MAX_USER_FACING_DETAIL_LENGTH);
+  } catch {
+    return null;
+  }
+};
+
 // Layer upload endpoint
 router.post("/layers/upload", async (c) => {
   try {
@@ -385,6 +410,18 @@ router.post("/process", async (c) => {
         status: response.status,
         body: errorText,
       });
+
+      // 400/413 are caller-side problems (no GIS data in the ZIP, broken
+      // archive, too large). The map-server writes those messages for users
+      // and never echoes internals into them, so pass them through.
+      const userFacingDetail = getUserFacingDetail(response.status, errorText);
+      if (userFacingDetail) {
+        return c.json(
+          { error: userFacingDetail },
+          response.status === 413 ? 413 : 400,
+        );
+      }
+
       return c.json(
         { error: `Map processing service error: ${response.status}` },
         502,

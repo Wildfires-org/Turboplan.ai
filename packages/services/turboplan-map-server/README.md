@@ -2,7 +2,7 @@
 
 Pure-Python FastAPI service for processing GIS data with [Fiona](https://github.com/Toblerity/Fiona). It is consumed by `@wildfires-org/turboplan-map` (via the `MAP_SERVICE_URL` env var in the main server).
 
-This service provides endpoints for processing GIS data including Shapefiles and File Geodatabases, with automatic CRS transformation to WGS84. It comes with a health check endpoint (`/api/health`) that can be used to verify the service status.
+This service provides endpoints for processing GIS data (Shapefiles, File Geodatabases, GeoPackages, GeoJSON and KML) delivered in a ZIP, with automatic CRS transformation to WGS84. It comes with a health check endpoint (`/api/health`) that can be used to verify the service status.
 
 It can be deployed as a Docker container (see `Dockerfile` and `wrangler.jsonc` for Cloudflare Containers) or to [Vercel](https://vercel.com/) serverless functions.
 
@@ -59,10 +59,12 @@ The project is configured to use [black](https://github.com/psf/black), [autofla
 
 ## Features
 
-- **GIS ingestion**: Shapefiles (.shp) and File Geodatabases (.gdb)
+- **GIS ingestion**: Shapefiles (.shp), File Geodatabases (.gdb), GeoPackages (.gpkg, every vector layer), GeoJSON (.geojson, or .json that contains a FeatureCollection) and KML (.kml, when the GDAL build has a KML driver; otherwise the file is reported as unsupported)
+- **Nested ZIPs**: Datasets are found in any folder of the archive; `__MACOSX/` and hidden files are ignored
+- **Readable errors**: Lists the supported formats when a ZIP has no GIS data, names the file for corrupt layers, and explains a missing `.prj` / unconvertible coordinate system
 - **Fiona & GDAL**: Reliable geospatial IO
 - **CRS transform**: Auto-converts to WGS84 (EPSG:4326)
-- **ZIP support**: Automatic extraction
+- **ZIP support**: Automatic extraction with zip-slip and decompression-bomb guards
 - **CORS**: Configurable allowed origins for browser apps
 - **URL ingestion**: Download ZIP from URL
 - **Web-optimized output**: Rounded coords, simple geometry simplification, trimmed properties
@@ -84,7 +86,7 @@ Sample response:
 {
     "status": "OK",
     "message": "GIS Fiona Server running",
-    "supportedFormats": [".shp", ".gdb"],
+    "supportedFormats": [".shp", ".gdb", ".gpkg", ".geojson", ".json", ".kml"],
     "processor": "Fiona (Python 3.12)",
     "runtime": "Serverless Functions",
     "timestamp": "2024-12-03T08:30:45.123Z",

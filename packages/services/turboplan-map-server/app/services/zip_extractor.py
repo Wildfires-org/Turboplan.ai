@@ -2,7 +2,7 @@
 
 import zipfile
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List, Optional
 
 from app.core.exceptions import InvalidZipFileError
 
@@ -12,6 +12,17 @@ from app.core.exceptions import InvalidZipFileError
 MAX_ENTRIES = 10_000
 MAX_SINGLE_FILE_SIZE = 200 * 1024 * 1024      # 200MB uncompressed per entry
 MAX_TOTAL_UNCOMPRESSED = 500 * 1024 * 1024    # 500MB uncompressed total
+
+# Single-file vector formats recognised inside an archive. `.json` is handled
+# separately (only when it sniffs as GeoJSON) and `.gdb` is a folder.
+GIS_FILE_SUFFIXES = {
+    '.shp': 'shapefile',
+    '.gpkg': 'geopackage',
+    '.geojson': 'geojson',
+    '.kml': 'kml',
+}
+GEOJSON_SNIFF_BYTES = 64 * 1024
+MACOS_METADATA_DIR = '__MACOSX'
 
 
 class ZipExtractorService:
@@ -90,32 +101,75 @@ class ZipExtractorService:
 
     def find_gis_files(self, directory: Path) -> List[Dict[str, str]]:
         """
-        Find GIS files in directory.
+        Find GIS datasets anywhere under ``directory`` (nested folders included).
+
+        Recognised: File Geodatabase folders (``.gdb``), Shapefiles (``.shp``),
+        GeoPackages (``.gpkg``), GeoJSON (``.geojson``, or ``.json`` that looks
+        like GeoJSON) and KML (``.kml``). macOS resource forks (``__MACOSX/``)
+        and hidden files/folders are ignored, as is anything inside a ``.gdb``
+        folder (it belongs to the geodatabase).
 
         Args:
             directory: Directory to search in
 
         Returns:
-            List of GIS file info dictionaries with path, type, and name
+            List of GIS file info dictionaries with ``path``, ``type``,
+            ``name`` (file stem) and ``display_name`` (path inside the archive)
         """
         gis_files = []
 
-        # Find .gdb directories
-        for gdb_dir in directory.rglob('*.gdb'):
-            if gdb_dir.is_dir():
-                gis_files.append({
-                    'path': str(gdb_dir),
-                    'type': 'gdb',
-                    'name': gdb_dir.stem
-                })
+        for path in sorted(directory.rglob('*')):
+            relative = path.relative_to(directory)
+            if self._is_ignored(relative):
+                continue
 
-        # Find .shp files
-        for shp_file in directory.rglob('*.shp'):
-            if shp_file.is_file():
-                gis_files.append({
-                    'path': str(shp_file),
-                    'type': 'shapefile',
-                    'name': shp_file.stem
-                })
+            file_type = self._detect_type(path)
+            if not file_type:
+                continue
+
+            gis_files.append({
+                'path': str(path),
+                'type': file_type,
+                'name': path.stem,
+                'display_name': relative.as_posix(),
+            })
 
         return gis_files
+
+    @staticmethod
+    def _is_ignored(relative: Path) -> bool:
+        """Skip resource forks, hidden entries and geodatabase internals."""
+        parts = relative.parts
+        if any(part == MACOS_METADATA_DIR or part.startswith('.') for part in parts):
+            return True
+        # Anything below a .gdb folder is part of that geodatabase.
+        return any(part.lower().endswith('.gdb') for part in parts[:-1])
+
+    def _detect_type(self, path: Path) -> Optional[str]:
+        suffix = path.suffix.lower()
+
+        if path.is_dir():
+            return 'gdb' if suffix == '.gdb' else None
+
+        if not path.is_file():
+            return None
+
+        if suffix == '.json':
+            return 'geojson' if self._looks_like_geojson(path) else None
+
+        return GIS_FILE_SUFFIXES.get(suffix)
+
+    @staticmethod
+    def _looks_like_geojson(path: Path) -> bool:
+        """
+        ``.json`` is also used for plain metadata files, so only treat it as
+        GIS data when the first bytes look like GeoJSON. Cheap sniff instead of
+        a full parse: the file may be hundreds of megabytes.
+        """
+        try:
+            with open(path, 'rb') as f:
+                head = f.read(GEOJSON_SNIFF_BYTES)
+        except OSError:
+            return False
+        compact = b''.join(head.split())
+        return b'"type":"FeatureCollection"' in compact or b'"type":"Feature"' in compact

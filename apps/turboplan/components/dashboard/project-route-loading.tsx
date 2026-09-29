@@ -5,6 +5,10 @@ import type { ReactNode } from "react";
 import { useParams, usePathname } from "next/navigation";
 import type { User } from "next-auth";
 
+import {
+  isDocumentsPackageEnabled,
+  isMapPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
 import type { Project } from "@wildfires-org/turboplan-workspace/types";
 
 import { ProjectChatRouteLoading } from "@/components/chat/project-chat-route-loading";
@@ -238,7 +242,12 @@ const SubviewBody = ({
         );
       case "context":
         return (
-          <ProjectContextPageSection projectId={project.id} userId={userId} />
+          <ProjectContextPageSection
+            projectId={project.id}
+            userId={userId}
+            isDocumentsEnabled={isDocumentsPackageEnabled()}
+            isMapEnabled={isMapPackageEnabled()}
+          />
         );
       case "members":
         if (organizationId) {

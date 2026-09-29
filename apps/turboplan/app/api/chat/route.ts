@@ -39,6 +39,10 @@ import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 
 import { auth } from "@/app/(auth)/auth";
 import { triggerResearchAgent } from "@/app/self-service/helpers";
+import {
+  buildDroppedFilesNote,
+  buildZipAttachmentNote,
+} from "@/lib/ai/attachment-notes";
 import { buildSystemPromptArgs } from "@/lib/ai/build-system-prompt-args";
 import { generateTitleFromUserMessage } from "@/lib/ai/generate-title";
 import { createDocument } from "@/lib/ai/tools/create-document";
@@ -423,7 +427,15 @@ export async function POST(request: Request) {
     // Only images and PDFs can be sent to the model — Anthropic rejects other
     // file types (e.g. docx) with a 400. Unsupported file parts are dropped
     // from `parts` (which convertToModelMessages actually consumes) and
-    // replaced with a text note; ZIP files get a geospatial hint instead.
+    // replaced with a text note; ZIP files get a geospatial hint instead. In
+    // project chats the client has already mirrored Word files into project
+    // documents and GIS ZIPs into the project map, and the notes say so.
+    const attachmentNoteContext = {
+      isProjectChat: Boolean(chatProjectId) && hasProjectAccess,
+      canReadProjectDocuments: promptArgs.activeTools.includes(
+        "readProjectDocuments",
+      ),
+    };
     const isModelReadableType = (contentType?: string) =>
       Boolean(
         contentType?.startsWith("image/") || contentType === "application/pdf",
@@ -473,19 +485,19 @@ export async function POST(request: Request) {
         (part) => !isModelReadableType(part.mediaType) && !isZipPart(part),
       );
 
-      const noteLines: string[] = [];
-      if (zipParts.length > 0) {
-        const zipFileNames = zipParts.map(filePartName).join(", ");
-        noteLines.push(
-          `[System: User has uploaded ZIP file(s): ${zipFileNames} - these contain geospatial data ready for map visualization]`,
-        );
-      }
-      if (droppedParts.length > 0) {
-        const droppedNames = droppedParts.map(filePartName).join(", ");
-        noteLines.push(
-          `[System: User attached document(s) the model cannot read directly: ${droppedNames}]`,
-        );
-      }
+      const noteLines = [
+        buildZipAttachmentNote(
+          zipParts.map(filePartName),
+          attachmentNoteContext,
+        ),
+        buildDroppedFilesNote(
+          droppedParts.map((part) => ({
+            name: filePartName(part),
+            mediaType: part.mediaType,
+          })),
+          attachmentNoteContext,
+        ),
+      ].filter((line): line is string => Boolean(line));
 
       let updatedParts = message.parts?.filter(
         (part) =>

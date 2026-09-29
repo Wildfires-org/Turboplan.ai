@@ -10,6 +10,13 @@ from app.services.gis_file_processor import GISFileProcessorService
 from app.core.exceptions import NoGISFilesFoundError
 
 
+SUPPORTED_FORMATS_MESSAGE = (
+    'Supported formats: Shapefile (.shp with its .shx, .dbf and .prj), '
+    'File Geodatabase (.gdb folder), GeoPackage (.gpkg), '
+    'GeoJSON (.geojson or .json) and KML (.kml).'
+)
+
+
 class GISProcessor:
     """Orchestrator for processing GIS files from URLs.
     
@@ -80,7 +87,9 @@ class GISProcessor:
         gis_files = self.zip_extractor.find_gis_files(extract_path)
         
         if not gis_files:
-            raise NoGISFilesFoundError('No GIS files found (.shp or .gdb)')
+            raise NoGISFilesFoundError(
+                f'No GIS data found in the ZIP. {SUPPORTED_FORMATS_MESSAGE}'
+            )
         
         # Process all GIS files
         results = []

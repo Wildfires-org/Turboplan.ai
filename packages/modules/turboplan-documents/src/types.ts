@@ -15,6 +15,16 @@ export interface ProjectDocumentUploader {
 export type ProjectDocumentSource = "upload" | "research";
 
 /**
+ * Text extraction lifecycle: "pending" until the extraction worker runs, then
+ * "done", "failed" (see `extractionError`) or "unsupported".
+ */
+export type ProjectDocumentExtractionStatus =
+  | "pending"
+  | "done"
+  | "failed"
+  | "unsupported";
+
+/**
  * Project document data structure
  */
 export interface ProjectDocument {
@@ -29,6 +39,8 @@ export interface ProjectDocument {
   source: ProjectDocumentSource;
   folder?: string | null;
   folderDescription?: string | null;
+  extractionStatus?: ProjectDocumentExtractionStatus;
+  extractionError?: string | null;
   createdAt: string;
   uploader: ProjectDocumentUploader | null;
 }
@@ -40,6 +52,13 @@ export interface UseProjectDocumentsOptions {
   projectId: string;
   /** Only fetch documents of this origin. Omit to fetch all. */
   source?: ProjectDocumentSource;
+  /**
+   * Poll the list every N ms (0 or omitted: no polling). A function receives
+   * the latest list and is re-evaluated after every poll.
+   */
+  refreshInterval?:
+    | number
+    | ((documents: ProjectDocument[] | undefined) => number);
 }
 
 /**

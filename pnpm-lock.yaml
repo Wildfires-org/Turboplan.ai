@@ -811,6 +811,9 @@ importers:
       react-dom:
         specifier: 19.1.7
         version: 19.1.7(react@19.1.7)
+      react-dropzone:
+        specifier: ^14.3.8
+        version: 14.3.8(react@19.1.7)
       react-hook-form:
         specifier: ^7.75.0
         version: 7.75.0(react@19.1.7)

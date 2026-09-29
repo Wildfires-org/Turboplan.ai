@@ -1,14 +1,50 @@
 """GIS file processing service using Fiona."""
 
 import json
+import logging
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 import fiona
 from fiona.crs import CRS
+from fiona.env import Env
 from fiona.transform import transform_geom
 
 from app.services.geometry_optimizer import GeometryOptimizerService
 from app.core.exceptions import GISFileProcessingError, LayerProcessingError, GeometryTransformError
+
+logger = logging.getLogger(__name__)
+
+# Longitude/latitude bounds. A layer without a CRS whose coordinates fall
+# outside them is almost certainly projected (metres/feet) with its .prj lost.
+LON_LAT_LIMITS = (-180.0, -90.0, 180.0, 90.0)
+
+
+def enable_kml_driver() -> Optional[str]:
+    """
+    Fiona ships with KML switched off in `supported_drivers` even when the
+    bundled GDAL can read it. Turn it on (read-only) when GDAL provides it and
+    return the driver name, or None when this GDAL build has no KML support.
+    """
+    try:
+        with Env() as env:
+            available = env.drivers()
+    except Exception:  # pragma: no cover - GDAL environment failure
+        logger.exception('Could not list GDAL drivers')
+        return None
+
+    for driver in ('LIBKML', 'KML'):
+        if driver in available:
+            fiona.supported_drivers.setdefault(driver, 'r')
+            return driver
+    return None
+
+
+KML_DRIVER = enable_kml_driver()
+
+
+class UnreadableLayerError(Exception):
+    """A layer that cannot be turned into WGS84 GeoJSON; message is user-facing."""
 
 
 class GISFileProcessorService:
@@ -34,28 +70,49 @@ class GISFileProcessorService:
         Returns:
             List of results for each layer
         """
+        if gis_file['type'] == 'kml' and not KML_DRIVER:
+            return [self._create_error_result(
+                gis_file, None,
+                f'{self._display_name(gis_file)}: KML is not supported by this '
+                'server. Convert it to GeoJSON or GeoPackage and upload again.'
+            )]
+
         results = []
         
         try:
             # List layers in the data source
             layers = fiona.listlayers(gis_file['path'])
-            
-            for layer_name in layers:
-                layer_result = self._process_layer(gis_file, layer_name, len(layers))
-                results.append(layer_result)
-                
         except Exception as file_error:
             # If we can't even list layers, return error for the whole file
-            results.append(self._create_error_result(
-                gis_file, None, str(file_error)
-            ))
-        
+            logger.warning('Could not open %s: %s', gis_file['path'], file_error)
+            return [self._create_error_result(
+                gis_file, None,
+                f'Could not read {self._display_name(gis_file)}: the file is '
+                'corrupt, incomplete (e.g. a shapefile missing its .shx or '
+                '.dbf) or not a supported GIS format.'
+            )]
+
+        for layer_name in layers:
+            layer_result = self._process_layer(gis_file, layer_name, len(layers))
+            if layer_result is not None:
+                results.append(layer_result)
+
         return results
     
-    def _process_layer(self, gis_file: Dict[str, str], layer_name: str, total_layers: int) -> Dict[str, Any]:
-        """Process a single layer from a GIS file."""
+    def _process_layer(self, gis_file: Dict[str, str], layer_name: str, total_layers: int) -> Optional[Dict[str, Any]]:
+        """
+        Process a single layer from a GIS file.
+
+        Returns None for layers without geometry (e.g. GeoPackage attribute
+        tables), which have nothing to put on a map.
+        """
         try:
             with fiona.open(gis_file['path'], layer=layer_name) as src:
+                if src.schema.get('geometry') in (None, 'None'):
+                    return None
+
+                self._check_crs(src, gis_file, layer_name)
+
                 # Extract layer metadata
                 layer_info = self._extract_layer_info(src)
                 
@@ -73,10 +130,71 @@ class GISFileProcessorService:
                     gis_file, layer_name, layer_info, geojson, total_layers
                 )
                 
-        except Exception as layer_error:
+        except UnreadableLayerError as layer_error:
             return self._create_error_result(
                 gis_file, layer_name, str(layer_error)
             )
+        except Exception as layer_error:
+            logger.warning(
+                'Could not read layer %s of %s: %s',
+                layer_name, gis_file['path'], layer_error,
+            )
+            return self._create_error_result(
+                gis_file, layer_name,
+                f'Could not read layer "{layer_name}" in '
+                f'{self._display_name(gis_file)}: the data is corrupt or '
+                'uses an unsupported format.'
+            )
+
+    def _check_crs(self, src, gis_file: Dict[str, str], layer_name: str) -> None:
+        """
+        Fail the layer with an understandable message when its coordinates
+        cannot be placed on a WGS84 map.
+
+        - No CRS (typically a shapefile without its .prj): accepted as-is when
+          the bounds fit longitude/latitude, rejected otherwise.
+        - A CRS that PROJ cannot transform to WGS84: rejected.
+        """
+        where = f'{self._display_name(gis_file)} (layer "{layer_name}")'
+
+        if not src.crs:
+            if self._bounds_look_like_lon_lat(src.bounds):
+                return
+            raise UnreadableLayerError(
+                f'{where} has no coordinate system and its coordinates are '
+                'not longitude/latitude. If it is a shapefile, include its '
+                '.prj file in the ZIP.'
+            )
+
+        if src.crs == self.target_crs:
+            return
+
+        try:
+            min_x, min_y, _, _ = src.bounds
+            transform_geom(src.crs, self.target_crs, {
+                'type': 'Point', 'coordinates': (min_x, min_y),
+            })
+        except Exception as crs_error:
+            logger.warning('Unsupported CRS in %s: %s', gis_file['path'], crs_error)
+            raise UnreadableLayerError(
+                f'{where} uses a coordinate system that cannot be converted '
+                'to WGS84 (EPSG:4326). Re-export it in a standard coordinate '
+                'system and upload again.'
+            ) from crs_error
+
+    @staticmethod
+    def _bounds_look_like_lon_lat(bounds) -> bool:
+        try:
+            min_x, min_y, max_x, max_y = bounds
+        except (TypeError, ValueError):
+            return True  # Empty layer: nothing to misplace.
+        lo_x, lo_y, hi_x, hi_y = LON_LAT_LIMITS
+        return lo_x <= min_x <= max_x <= hi_x and lo_y <= min_y <= max_y <= hi_y
+
+    @staticmethod
+    def _display_name(gis_file: Dict[str, str]) -> str:
+        """Name of the dataset inside the uploaded archive, for messages."""
+        return gis_file.get('display_name') or Path(gis_file['path']).name
     
     def _extract_layer_info(self, src) -> Dict[str, Any]:
         """Extract metadata from a Fiona data source."""

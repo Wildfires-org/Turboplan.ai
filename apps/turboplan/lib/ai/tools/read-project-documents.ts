@@ -42,6 +42,11 @@ const MAX_DOCUMENTS_PER_CALL = 10;
  */
 const MAX_REQUESTED_DOCUMENT_IDS = 100;
 
+/** Upper bound on requested filenames per call. */
+const MAX_REQUESTED_FILENAMES = 20;
+
+const normalizeFilename = (filename: string) => filename.trim().toLowerCase();
+
 /**
  * Mirrors `MAX_EXTRACTED_CHARS` in
  * `@wildfires-org/turboplan-document-extraction` — the cap the extractor
@@ -84,8 +89,15 @@ export const readProjectDocuments = async ({
         .array(z.string().uuid())
         .max(MAX_REQUESTED_DOCUMENT_IDS)
         .optional(),
+      filenames: z
+        .array(z.string().min(1).max(255))
+        .max(MAX_REQUESTED_FILENAMES)
+        .optional()
+        .describe(
+          "Original filenames of documents to read, e.g. a file the user just attached in the chat. Matched case-insensitively; the newest document with that name is read. Can be combined with documentIds.",
+        ),
     }),
-    execute: async ({ documentIds }) => {
+    execute: async ({ documentIds, filenames }) => {
       // Re-assert READ permission at execution time — activeTools gating is a
       // convenience, this is the authoritative check before reading.
       const rbac = getRBACService();
@@ -99,11 +111,46 @@ export const readProjectDocuments = async ({
         return { error: "Access denied." };
       }
 
+      const skipped: SkippedEntry[] = [];
+
+      // Resolve filenames to ids of this project's documents (newest match
+      // wins — the listing is ordered newest first). A name that matches
+      // nothing is usually a chat attachment whose registration has not
+      // finished yet.
+      const idsFromFilenames: string[] = [];
+      // Keyed by normalized name so case/whitespace variants count once.
+      const requestedFilenames = new Map(
+        (filenames ?? []).map((filename) => [
+          normalizeFilename(filename),
+          filename,
+        ]),
+      );
+      if (requestedFilenames.size > 0) {
+        const listed = await getProjectDocumentsByProjectId(projectId);
+        for (const [normalized, filename] of requestedFilenames) {
+          const match = listed.find(
+            (record) =>
+              normalizeFilename(record.originalFilename) === normalized,
+          );
+          if (match) {
+            idsFromFilenames.push(match.id);
+          } else {
+            skipped.push({
+              filename,
+              reason: "not-found",
+              message:
+                "No project document with this filename yet. A file attached moments ago may still be registering; try again shortly.",
+            });
+          }
+        }
+      }
+
       // Dedupe — a repeated id must not consume extra document slots or
       // duplicate the document in the output.
-      const requestedIds = [...new Set(documentIds ?? [])];
+      const requestedIds = [
+        ...new Set([...(documentIds ?? []), ...idsFromFilenames]),
+      ];
 
-      const skipped: SkippedEntry[] = [];
       let orderedRecords: Awaited<
         ReturnType<typeof getProjectDocumentExtractionByIds>
       > = [];
@@ -146,6 +193,10 @@ export const readProjectDocuments = async ({
           });
         }
         orderedRecords = orderedRecords.slice(0, MAX_DOCUMENTS_PER_CALL);
+      } else if (requestedFilenames.size > 0) {
+        // Only filenames were requested and none matched: report them as
+        // skipped rather than falling back to reading every document.
+        totalDocuments = 0;
       } else {
         // No ids: list the project's documents (query order, newest first) to
         // establish the order and the cap, then read the stored text only for

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { User } from "lucide-react";
+import { Loader2, User } from "lucide-react";
 
 import {
   Avatar,
@@ -11,6 +11,7 @@ import {
   generateInitials,
 } from "@wildfires-org/turboplan-utils";
 
+import type { ProjectDocumentExtractionStatus } from "../types";
 import { formatDateTime, getFileTypeLabel } from "./utils";
 
 interface DocumentCardBase {
@@ -30,12 +31,16 @@ interface DocumentCardUploader {
 
 export interface EditableDocumentCardData extends DocumentCardBase {
   uploader?: DocumentCardUploader | null;
+  extractionStatus?: ProjectDocumentExtractionStatus;
+  extractionError?: string | null;
 }
 
 interface DocumentCardEditableProps {
   document: EditableDocumentCardData;
   actions?: ReactNode;
   onClick?: () => void;
+  /** Show whether the document's text has been extracted for the AI. */
+  showExtractionStatus?: boolean;
 }
 
 interface DocumentCardReadOnlyProps {
@@ -47,6 +52,7 @@ export function DocumentCardEditable({
   document,
   actions,
   onClick,
+  showExtractionStatus = false,
 }: DocumentCardEditableProps) {
   return (
     <div
@@ -93,6 +99,12 @@ export function DocumentCardEditable({
         </div>
 
         <div className="flex shrink-0 items-start gap-2">
+          {showExtractionStatus && (
+            <ExtractionStatusChip
+              status={document.extractionStatus}
+              error={document.extractionError}
+            />
+          )}
           <span className="rounded-full bg-slate-900/[0.05] px-2 py-0.5 text-[11px] font-medium text-gray-700 ring-1 ring-inset ring-slate-900/[0.06]">
             {getFileTypeLabel(document.mimeType)}
           </span>
@@ -162,4 +174,62 @@ export function DocumentCardReadOnly({
       {cardContent}
     </a>
   );
+}
+
+const EXTRACTION_CHIP_CLASS =
+  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset";
+
+function ExtractionStatusChip({
+  status,
+  error,
+}: {
+  status?: ProjectDocumentExtractionStatus;
+  error?: string | null;
+}) {
+  if (status === "pending") {
+    return (
+      <span
+        className={cn(
+          EXTRACTION_CHIP_CLASS,
+          "bg-blue-50 text-blue-700 ring-blue-700/10",
+        )}
+      >
+        <Loader2
+          aria-hidden
+          className="size-3 animate-spin motion-reduce:animate-none"
+        />
+        Extracting text
+      </span>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <span
+        title={error ?? undefined}
+        className={cn(
+          EXTRACTION_CHIP_CLASS,
+          "bg-error-50 text-error-700 ring-error-700/10",
+        )}
+      >
+        Text extraction failed
+      </span>
+    );
+  }
+
+  if (status === "unsupported") {
+    return (
+      <span
+        title={error ?? undefined}
+        className={cn(
+          EXTRACTION_CHIP_CLASS,
+          "bg-slate-900/[0.04] text-gray-700 ring-slate-900/[0.06]",
+        )}
+      >
+        No readable text
+      </span>
+    );
+  }
+
+  return null;
 }

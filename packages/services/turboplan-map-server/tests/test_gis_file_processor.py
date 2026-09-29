@@ -31,7 +31,9 @@ class TestGISFileProcessorService:
         
         assert len(results) == 1
         assert results[0]['success'] is False
-        assert results[0]['error'] == "Cannot read file"
+        # The raw library error stays in the logs; the user sees the file name.
+        assert results[0]['error'].startswith("Could not read file.shp")
+        assert "Cannot read file" not in results[0]['error']
         assert results[0]['name'] == 'test_file'
     
     @patch('fiona.listlayers')
@@ -140,7 +142,8 @@ class TestGISFileProcessorService:
         
         assert len(results) == 1
         assert results[0]['success'] is False
-        assert results[0]['error'] == "Cannot open layer"
+        assert 'layer "layer1" in file.shp' in results[0]['error']
+        assert "Cannot open layer" not in results[0]['error']
     
     def test_process_single_feature_null_geometry(self):
         """Test that features with null geometry are skipped."""

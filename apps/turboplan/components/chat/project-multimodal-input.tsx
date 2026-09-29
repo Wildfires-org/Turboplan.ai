@@ -26,7 +26,9 @@ import {
   ALLOWED_MIME_TYPES,
   MAX_FILE_SIZE,
 } from "@wildfires-org/turboplan-documents/client";
+import { processAndSaveGisZip } from "@wildfires-org/turboplan-map/client";
 import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
+import { classifyProjectFile } from "@wildfires-org/turboplan-upload/types";
 import { Button, Textarea } from "@wildfires-org/turboplan-utils";
 
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
@@ -46,6 +48,14 @@ type UploadedFile = { file: File; attachment: Attachment; pathname: string };
 const isProjectDocument = (file: File): boolean =>
   Object.keys(ALLOWED_MIME_TYPES).includes(file.type) &&
   file.size <= MAX_FILE_SIZE;
+
+// ZIPs are treated as GIS archives: their layers go straight onto the project
+// map. A ZIP without GIS data surfaces the map service's explanation.
+const isGisArchive = (file: File): boolean =>
+  classifyProjectFile(file) === "gis-zip";
+
+const pluralizeLayers = (count: number) =>
+  `${count} GIS layer${count === 1 ? "" : "s"}`;
 
 // Dragging text or a link also fires drag events — only files should open the
 // dropzone overlay.
@@ -227,6 +237,79 @@ function PureProjectMultimodalInput({
     [projectId],
   );
 
+  // Save the layers of attached GIS ZIPs (already stored in R2 by the chat
+  // upload) to the project map. One toast per archive, updated in place, since
+  // processing a large archive can take a while. Never blocks or fails the
+  // chat attachment.
+  const persistGisArchives = useCallback(
+    async (uploads: Array<UploadedFile>) => {
+      if (!projectId) {
+        return;
+      }
+
+      const seenFiles = new Set<File>();
+      const archiveUploads = uploads.filter(({ file }) => {
+        if (seenFiles.has(file) || !isGisArchive(file)) {
+          return false;
+        }
+        seenFiles.add(file);
+        return true;
+      });
+
+      await Promise.all(
+        archiveUploads.map(async ({ file, attachment }) => {
+          const toastId = toast.loading(
+            `Adding GIS layers from ${file.name} to the project map…`,
+          );
+
+          try {
+            const result = await processAndSaveGisZip({
+              projectId,
+              url: attachment.url,
+              fileName: file.name,
+            });
+
+            if (result.added > 0) {
+              toast.success(
+                `Added ${pluralizeLayers(result.added)} to project map`,
+                {
+                  id: toastId,
+                  description:
+                    result.failed > 0
+                      ? `${pluralizeLayers(result.failed)} could not be added: ${result.errors.join(" ")}`
+                      : undefined,
+                },
+              );
+              return;
+            }
+
+            if (result.skipped > 0 && result.failed === 0) {
+              toast.info(
+                `GIS layers from ${file.name} are already on the project map`,
+                {
+                  id: toastId,
+                },
+              );
+              return;
+            }
+
+            toast.error(`Could not add GIS layers from ${file.name}`, {
+              id: toastId,
+              description: result.errors.join(" ") || undefined,
+            });
+          } catch (error) {
+            toast.error(`Could not add GIS layers from ${file.name}`, {
+              id: toastId,
+              description:
+                error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }),
+      );
+    },
+    [projectId],
+  );
+
   // Shared upload path for both the paperclip file picker and drag-and-drop.
   const processFiles = useCallback(
     async (files: Array<File>) => {
@@ -253,14 +336,17 @@ function PureProjectMultimodalInput({
         // duration of the (slow) project-document persistence below.
         setUploadQueue([]);
 
-        await persistProjectDocuments(successfulUploads);
+        await Promise.all([
+          persistProjectDocuments(successfulUploads),
+          persistGisArchives(successfulUploads),
+        ]);
       } catch (error) {
         console.error("Error uploading files!", error);
       } finally {
         setUploadQueue([]);
       }
     },
-    [setAttachments, uploadFile, persistProjectDocuments],
+    [setAttachments, uploadFile, persistProjectDocuments, persistGisArchives],
   );
 
   const handleFileChange = useCallback(

@@ -21,6 +21,45 @@ interface CreateDocumentProps {
   projectContext?: string;
 }
 
+type DocumentAttachment = {
+  url: string;
+  name?: string;
+  contentType?: string;
+};
+
+// Messages sent through the v6 `sendMessage` path carry files as `file` parts
+// and leave the legacy `experimental_attachments` empty; accept both so
+// document handlers (e.g. the map handler looking for ZIPs) see the files.
+const getUserMessageAttachments = (
+  userMessage?: UIMessage,
+): Array<DocumentAttachment> => {
+  if (!userMessage) {
+    return [];
+  }
+
+  const legacyAttachments =
+    (
+      userMessage as UIMessage & {
+        experimental_attachments?: Array<DocumentAttachment>;
+      }
+    ).experimental_attachments ?? [];
+
+  const fileAttachments = (userMessage.parts ?? []).flatMap((part) =>
+    part.type === "file"
+      ? [{ url: part.url, name: part.filename, contentType: part.mediaType }]
+      : [],
+  );
+
+  const seenUrls = new Set<string>();
+  return [...legacyAttachments, ...fileAttachments].filter((attachment) => {
+    if (seenUrls.has(attachment.url)) {
+      return false;
+    }
+    seenUrls.add(attachment.url);
+    return true;
+  });
+};
+
 export const createDocument = async ({
   session,
   writer,
@@ -130,16 +169,7 @@ export const createDocument = async ({
         session,
         projectId,
         chatId,
-        attachments:
-          (
-            userMessage as UIMessage & {
-              experimental_attachments?: {
-                url: string;
-                name?: string;
-                contentType?: string;
-              }[];
-            }
-          )?.experimental_attachments ?? [],
+        attachments: getUserMessageAttachments(userMessage),
       });
 
       writer.write({

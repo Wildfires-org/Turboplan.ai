@@ -28,18 +28,12 @@ import {
   isOwnedUploadUrl,
   isStorageUrl,
 } from "@wildfires-org/turboplan-upload/server";
+import {
+  isProjectDocumentMimeType,
+  PROJECT_DOCUMENT_MAX_FILE_SIZE,
+} from "@wildfires-org/turboplan-upload/types";
 
 import { removeProjectDocument } from "../projects/documents";
-
-// Allowed MIME types for document uploads
-const ALLOWED_MIME_TYPES = [
-  "application/pdf",
-  "application/msword", // .doc
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-];
-
-// Maximum file size: 50MB
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 // Zod validation schemas
 const createDocumentSchema = z.object({
@@ -49,14 +43,17 @@ const createDocumentSchema = z.object({
   mimeType: z
     .string()
     .refine(
-      (type) => ALLOWED_MIME_TYPES.includes(type),
+      (type) => isProjectDocumentMimeType(type),
       "File type not allowed. Only PDF and Word documents are supported.",
     ),
   size: z
     .number()
     .int()
     .positive()
-    .max(MAX_FILE_SIZE, `File size exceeds maximum allowed (50MB)`),
+    .max(
+      PROJECT_DOCUMENT_MAX_FILE_SIZE,
+      "File size exceeds maximum allowed (50MB)",
+    ),
   // User-registered documents must live in our own storage bucket. Anything
   // else lets a project editor point the document extractor at an arbitrary
   // host (SSRF, including DNS-rebinding, which hostname checks cannot stop).

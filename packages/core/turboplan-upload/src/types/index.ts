@@ -286,3 +286,5 @@ export interface UseFileUploadReturn {
    */
   reset: () => void;
 }
+
+export * from "./project-files";

@@ -6,6 +6,11 @@ import useSWR from "swr";
 
 import { ApiClient, fetcher } from "@wildfires-org/turboplan-api-client";
 import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
+import {
+  isProjectDocumentMimeType,
+  PROJECT_DOCUMENT_MAX_FILE_SIZE,
+  PROJECT_DOCUMENT_MIME_TYPES,
+} from "@wildfires-org/turboplan-upload/types";
 
 import type {
   ProjectDocument,
@@ -15,15 +20,7 @@ import type {
 
 const apiClient = new ApiClient();
 
-// Allowed MIME types for document uploads
-const ALLOWED_MIME_TYPES = [
-  "application/pdf",
-  "application/msword", // .doc
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-];
-
-// Maximum file size: 50MB
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = Object.keys(PROJECT_DOCUMENT_MIME_TYPES);
 
 /**
  * Hook for managing project documents
@@ -31,6 +28,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 export function useProjectDocuments({
   projectId,
   source,
+  refreshInterval = 0,
 }: UseProjectDocumentsOptions): UseProjectDocumentsReturn {
   const url = source
     ? `/api/project-documents?projectId=${encodeURIComponent(projectId)}&source=${encodeURIComponent(source)}`
@@ -46,7 +44,7 @@ export function useProjectDocuments({
   } = useSWR<ProjectDocument[]>(url, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
-    refreshInterval: 0,
+    refreshInterval,
   });
 
   // Use the upload hook from turboplan-upload
@@ -57,7 +55,7 @@ export function useProjectDocuments({
     error: uploadError,
     reset: resetUpload,
   } = useFileUpload({
-    maxSize: MAX_FILE_SIZE,
+    maxSize: PROJECT_DOCUMENT_MAX_FILE_SIZE,
     allowedTypes: ALLOWED_MIME_TYPES,
   });
 
@@ -67,14 +65,14 @@ export function useProjectDocuments({
   const uploadDocument = useCallback(
     async (file: File) => {
       // Validate file type
-      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      if (!isProjectDocumentMimeType(file.type)) {
         throw new Error(
           "File type not allowed. Only PDF and Word documents are supported.",
         );
       }
 
       // Validate file size
-      if (file.size > MAX_FILE_SIZE) {
+      if (file.size > PROJECT_DOCUMENT_MAX_FILE_SIZE) {
         throw new Error("File size exceeds maximum allowed (50MB)");
       }
 

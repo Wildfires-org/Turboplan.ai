@@ -37,10 +37,15 @@ export type {
   UnitDetectionResult,
 } from "./types";
 export { analyzeLayerStatus } from "./utils/layer-status";
-// Utils
 export {
   getDefaultVisibleLayers,
   getDisplayableLayers,
   getFailedLayers,
   getLayerKey,
 } from "./utils/layer-utils";
+// Utils
+export type { GisZipSaveResult } from "./utils/save-gis-layers";
+export {
+  processAndSaveGisZip,
+  saveGisLayersToProject,
+} from "./utils/save-gis-layers";

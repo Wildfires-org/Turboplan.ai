@@ -50,6 +50,7 @@ import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./utils";
 type DocumentCardWithActionsProps = {
   document: ProjectDocument;
   readOnly: boolean;
+  showExtractionStatus: boolean;
   isDeleting: string | null;
   canModify: boolean;
   onPreview: (doc: ProjectDocument) => void;
@@ -60,6 +61,7 @@ type DocumentCardWithActionsProps = {
 const DocumentCardWithActions = ({
   document,
   readOnly,
+  showExtractionStatus,
   isDeleting,
   canModify,
   onPreview,
@@ -68,6 +70,7 @@ const DocumentCardWithActions = ({
 }: DocumentCardWithActionsProps) => (
   <DocumentCardEditable
     document={document}
+    showExtractionStatus={showExtractionStatus}
     onClick={() => onPreview(document)}
     actions={
       <DropdownMenu>
@@ -166,6 +169,7 @@ const groupDocumentsByFolder = (
 type DocumentCardsGridProps = {
   documents: ProjectDocument[];
   readOnly: boolean;
+  showExtractionStatus: boolean;
   isDeleting: string | null;
   canModifyDocument: (doc: ProjectDocument) => boolean;
   onPreview: (doc: ProjectDocument) => void;
@@ -176,6 +180,7 @@ type DocumentCardsGridProps = {
 const DocumentCardsGrid = ({
   documents,
   readOnly,
+  showExtractionStatus,
   isDeleting,
   canModifyDocument,
   onPreview,
@@ -196,6 +201,7 @@ const DocumentCardsGrid = ({
             key={document.id}
             document={document}
             readOnly={readOnly}
+            showExtractionStatus={showExtractionStatus}
             isDeleting={isDeleting}
             canModify={canModifyDocument(document)}
             onPreview={onPreview}
@@ -231,6 +237,7 @@ const DocumentCardsGrid = ({
                 key={document.id}
                 document={document}
                 readOnly={readOnly}
+                showExtractionStatus={showExtractionStatus}
                 isDeleting={isDeleting}
                 canModify={canModifyDocument(document)}
                 onPreview={onPreview}
@@ -259,6 +266,7 @@ const DocumentCardsGrid = ({
                 key={document.id}
                 document={document}
                 readOnly={readOnly}
+                showExtractionStatus={showExtractionStatus}
                 isDeleting={isDeleting}
                 canModify={canModifyDocument(document)}
                 onPreview={onPreview}
@@ -293,6 +301,8 @@ export interface DocumentsSectionUIProps {
   isResearchPhaseCompleted?: boolean;
   /** Callback when a suggestion pill is clicked */
   onSuggestionClick?: (content: string) => void;
+  /** Show each document's text extraction status */
+  showExtractionStatus?: boolean;
 }
 
 /**
@@ -312,6 +322,7 @@ export function DocumentsSectionUI({
   variant = "default",
   isResearchPhaseCompleted,
   onSuggestionClick,
+  showExtractionStatus = false,
 }: DocumentsSectionUIProps) {
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [renameDoc, setRenameDoc] = useState<ProjectDocument | null>(null);
@@ -526,6 +537,7 @@ export function DocumentsSectionUI({
             <DocumentCardsGrid
               documents={documents}
               readOnly={readOnly}
+              showExtractionStatus={showExtractionStatus}
               isDeleting={isDeleting}
               canModifyDocument={canModifyDocument}
               onPreview={setPreviewDoc}

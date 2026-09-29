@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import {
+  isDocumentsPackageEnabled,
+  isMapPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
+
 import { AccessError } from "@/components/access-error";
 import { ProjectContextPageSection } from "@/components/dashboard/module-sections/project-context-page-section";
 import { ProjectPageFrame } from "@/components/dashboard/project-page-frame";
@@ -85,6 +90,8 @@ export default async function ProjectContextPage({ params }: ProjectPageProps) {
       <ProjectContextPageSection
         projectId={project.id}
         userId={session.user.id}
+        isDocumentsEnabled={isDocumentsPackageEnabled()}
+        isMapEnabled={isMapPackageEnabled()}
       />
     </ProjectPageFrame>
   );
