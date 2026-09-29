@@ -26,6 +26,102 @@ const allowedHostnames = [
 // require `R2_PUBLIC_URL` to point at the bucket's public URL.
 const remotePatterns = allowedHostnames.map((hostname) => ({ hostname }));
 
+const isProduction = process.env.NODE_ENV === "production";
+
+// Origin of an absolute URL, or null for relative/invalid values (e.g. a
+// PostHog host of "/ingest" is already covered by 'self').
+const toOrigin = (url: string | undefined) => {
+  if (!url) {
+    return null;
+  }
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+};
+
+const r2Origins = (process.env.R2_PUBLIC_URL ?? "")
+  .split(",")
+  .map((url) => toOrigin(url.trim()))
+  .filter((origin): origin is string => Boolean(origin));
+
+const cspSources = (...sources: Array<string | null | false>) =>
+  sources.filter(Boolean).join(" ");
+
+// Report-only for now: violations surface in the browser console without
+// breaking anything. Tighten and promote to an enforced policy once clean.
+// Host lists are env-driven where the host is deployment-specific; values are
+// baked in at build time, like the image remotePatterns above.
+const contentSecurityPolicyReportOnly = [
+  "default-src 'self'",
+  // Next.js needs inline scripts (no nonce pipeline yet); dev needs eval for
+  // React Refresh.
+  `script-src ${cspSources("'self'", "'unsafe-inline'", !isProduction && "'unsafe-eval'")}`,
+  // Next.js, Leaflet and framer-motion all write inline styles.
+  "style-src 'self' 'unsafe-inline'",
+  `img-src ${cspSources(
+    "'self'",
+    "data:",
+    "blob:",
+    "https://avatar.vercel.sh",
+    "https://*.blob.vercel-storage.com",
+    ...r2Origins,
+    // Public images can come from any of our r2.dev buckets (e.g. org logos
+    // written by the MCP server), not only the ones listed in R2_PUBLIC_URL.
+    "https://*.r2.dev",
+    "https://*.tile.openstreetmap.org",
+    "https://*.tile.opentopomap.org",
+    "https://server.arcgisonline.com",
+  )}`,
+  "font-src 'self' data:",
+  `connect-src ${cspSources(
+    "'self'",
+    toOrigin(process.env.NEXT_PUBLIC_SERVER_URL),
+    toOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST),
+    ...r2Origins,
+    // Browser PUTs to presigned R2 upload URLs.
+    "https://*.r2.cloudflarestorage.com",
+    !isProduction && "ws:",
+  )}`,
+  // Documenso signing is embedded from a per-organization host configured at
+  // runtime, so any https origin is allowed.
+  "frame-src 'self' https:",
+  // react-pdf worker is bundled same-origin; some libraries spawn blob workers.
+  "worker-src 'self' blob:",
+  "media-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+].join("; ");
+
+const securityHeaders = [
+  // HSTS only in production — never pin localhost to HTTPS during dev.
+  ...(isProduction
+    ? [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains",
+        },
+      ]
+    : []),
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(self)",
+  },
+  // Enforced now so clickjacking protection is real while the full policy
+  // below is still report-only.
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+  {
+    key: "Content-Security-Policy-Report-Only",
+    value: contentSecurityPolicyReportOnly,
+  },
+];
+
 const nextConfig: NextConfig = {
   // Next.js built-in TS/ESLint checks OOM during build — run `pnpm typecheck` separately instead
   eslint: { ignoreDuringBuilds: true },
@@ -57,6 +153,10 @@ const nextConfig: NextConfig = {
     remotePatterns,
     qualities: [25, 50, 75, 80, 100],
   },
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   // PostHog same-origin proxy — browser events go to /ingest so ad-blockers
   // don't drop them. skipTrailingSlashRedirect keeps PostHog API paths intact.
   skipTrailingSlashRedirect: true,
@@ -72,7 +172,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     // `unpdf` (PDF text extraction, server-only, reached via
     // turboplan-documents) uses `import.meta` in a form webpack cannot analyse
     // statically, so every compile logs "Critical dependency: Accessing
@@ -88,6 +188,19 @@ const nextConfig: NextConfig = {
       ...(config.ignoreWarnings ?? []),
       { module: /unpdf/, message: /import\.meta/ },
     ];
+
+    if (isServer) {
+      // `@streamdown/code` statically imports every shiki grammar (~23 MB of
+      // JSON). markdown.tsx only loads it client-side after mount, but webpack
+      // would still bundle it into the server build; alias it away there so the
+      // Worker bundle stays under the memory/size limits. The dynamic import in
+      // markdown.tsx never executes during SSR.
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "@streamdown/code": false,
+      };
+    }
+
     return config;
   },
 };

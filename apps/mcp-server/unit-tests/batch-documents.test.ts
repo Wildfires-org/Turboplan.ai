@@ -13,6 +13,7 @@ process.env.IS_PROJECT_CONTEXT_PACKAGE_ENABLED = "false";
 const {
   uploadDocumentsFromUrlsSchema,
   processUrlDocument,
+  readBodyWithLimit,
   MAX_DOCUMENTS_PER_BATCH,
 } = await import("../src/tools/documents.js");
 
@@ -150,5 +151,122 @@ describe("processUrlDocument per-item error reporting", () => {
       return;
     }
     assert.strictEqual(result.error, "File exceeds 50MB size limit.");
+  });
+});
+
+const streamResponse = (
+  chunks: Uint8Array[],
+  headers: Record<string, string> = {},
+): Response =>
+  new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(chunk);
+        }
+        controller.close();
+      },
+    }),
+    { headers },
+  );
+
+describe("readBodyWithLimit", () => {
+  const bytes = (...values: number[]) => new Uint8Array(values);
+
+  it("reads a body with an accurate content-length", async () => {
+    const result = await readBodyWithLimit(
+      streamResponse([bytes(1, 2), bytes(3)], { "content-length": "3" }),
+      10,
+    );
+    assert.deepStrictEqual(Array.from(result ?? []), [1, 2, 3]);
+  });
+
+  it("reads a body without a content-length", async () => {
+    const result = await readBodyWithLimit(
+      streamResponse([bytes(1), bytes(2, 3), bytes(4)]),
+      10,
+    );
+    assert.deepStrictEqual(Array.from(result ?? []), [1, 2, 3, 4]);
+  });
+
+  it("handles a content-length that undercounts the body", async () => {
+    const result = await readBodyWithLimit(
+      streamResponse([bytes(1, 2), bytes(3, 4), bytes(5)], {
+        "content-length": "2",
+      }),
+      10,
+    );
+    assert.deepStrictEqual(Array.from(result ?? []), [1, 2, 3, 4, 5]);
+  });
+
+  it("handles a content-length that overcounts the body", async () => {
+    const result = await readBodyWithLimit(
+      streamResponse([bytes(1, 2)], { "content-length": "8" }),
+      10,
+    );
+    assert.deepStrictEqual(Array.from(result ?? []), [1, 2]);
+  });
+
+  it("returns null once the streamed body exceeds the cap", async () => {
+    const result = await readBodyWithLimit(
+      streamResponse([bytes(1, 2, 3), bytes(4, 5, 6)]),
+      5,
+    );
+    assert.strictEqual(result, null);
+  });
+});
+
+describe("processUrlDocument download budget", () => {
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("rejects a file larger than the remaining per-call budget", async () => {
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response("data", {
+          status: 200,
+          headers: {
+            "content-type": "application/pdf",
+            "content-length": String(20 * 1024 * 1024),
+          },
+        }),
+      );
+
+    const result = await processUrlDocument(
+      PROJECT_ID,
+      { url: "https://example.test/mid.pdf", originalFilename: "mid.pdf" },
+      USER,
+      10 * 1024 * 1024,
+    );
+
+    assert.strictEqual(result.success, false);
+    if (result.success) {
+      return;
+    }
+    assert.ok(result.error.includes("remaining download budget"));
+  });
+
+  it("enforces the budget on streamed bytes when content-length is absent", async () => {
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response(new Uint8Array(2048), {
+          status: 200,
+          headers: { "content-type": "application/pdf" },
+        }),
+      );
+
+    const result = await processUrlDocument(
+      PROJECT_ID,
+      { url: "https://example.test/stream.pdf", originalFilename: "s.pdf" },
+      USER,
+      1024,
+    );
+
+    assert.strictEqual(result.success, false);
+    if (result.success) {
+      return;
+    }
+    assert.ok(result.error.includes("remaining download budget"));
   });
 });

@@ -173,6 +173,7 @@ export class CrudExecutor {
     analysisResult: AIAnalysisResult,
     documentId: string,
     session: Session,
+    projectId?: string,
   ): Promise<void> {
     // Create milestones
     for (const newMilestone of analysisResult.newMilestones) {
@@ -189,6 +190,8 @@ export class CrudExecutor {
           ? new Date(newMilestone.dueDate)
           : new Date(),
         documentId,
+        // Without it the milestone (and its tasks) resolve to no project.
+        projectId,
         userId: session.user?.id ?? "",
       };
 
@@ -272,6 +275,7 @@ export class OperationsExecutor {
     analysisResult: AIAnalysisResult,
     documentId: string,
     session: Session,
+    projectId?: string,
   ): Promise<void> {
     console.log("Executing AI analysis result:", {
       milestoneChanges: analysisResult.milestoneChanges.length,
@@ -289,6 +293,7 @@ export class OperationsExecutor {
       analysisResult,
       documentId,
       session,
+      projectId,
     );
 
     console.log("All operations completed successfully");

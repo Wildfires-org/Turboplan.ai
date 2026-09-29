@@ -42,6 +42,7 @@ import { toast } from "@/components/toast";
 import { useFilteredPaginatedList } from "@/hooks/use-filtered-paginated-list";
 import { useOfficeStatus } from "@/hooks/use-office-status";
 import { useOffices } from "@/hooks/use-offices";
+import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
 
 // ── Filter options ──────────────────────────────────────────────────────
@@ -188,7 +189,7 @@ export function OfficesSection({
   return (
     <div className="space-y-2">
       {/* Sticky tabs + search + filters */}
-      <div className="sticky top-[120px] z-20 -mx-6 bg-[#F9FAFB] px-6 pb-2 pt-4">
+      <div className={STICKY_TOOLBAR_CLASS}>
         <OrgTabNav
           orgSlug={organizationSlug}
           isMember={isMember}

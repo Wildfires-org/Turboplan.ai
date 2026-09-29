@@ -183,7 +183,7 @@ export function AddProjectDialog({
     <>
       <AlertDialog open={open} onOpenChange={onOpenChange}>
         <AlertDialogContent
-          className={cn("max-w-md min-w-[620px]", contentClassName)}
+          className={cn("max-w-[620px] p-6 sm:p-7", contentClassName)}
         >
           <AlertDialogHeader className="flex flex-row items-center gap-3">
             <div className="flex-1">
@@ -194,14 +194,14 @@ export function AddProjectDialog({
                 Add a project to this office.
               </AlertDialogDescription>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="size-8 p-0"
+            <button
+              type="button"
+              aria-label="Close"
+              className="glass press flex size-8 shrink-0 items-center justify-center self-start rounded-full text-foreground hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
               onClick={() => onOpenChange(false)}
             >
               <X className="size-4" />
-            </Button>
+            </button>
           </AlertDialogHeader>
 
           <form
@@ -247,10 +247,10 @@ export function AddProjectDialog({
               />
             </ModeTabs>
 
-            <AlertDialogFooter className="gap-2">
+            <AlertDialogFooter className="gap-2 sm:space-x-0">
               <Button
                 type="button"
-                variant="ghost"
+                variant="glass"
                 onClick={() => onOpenChange(false)}
                 disabled={form.formState.isSubmitting}
               >
@@ -258,16 +258,12 @@ export function AddProjectDialog({
               </Button>
               <Button
                 type="submit"
+                variant="brand"
                 disabled={
                   form.formState.isSubmitting ||
                   isEnhancing ||
                   isMissingRequiredField
                 }
-                className={cn(
-                  isMissingRequiredField &&
-                    !form.formState.isSubmitting &&
-                    "bg-gray-300 text-white hover:bg-gray-300",
-                )}
               >
                 {form.formState.isSubmitting ? (
                   <>

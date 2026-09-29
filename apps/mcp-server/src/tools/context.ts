@@ -13,7 +13,11 @@ import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/
 import { assertEntityExists, assertPermission } from "../utils/permissions.js";
 import { projectExists } from "../utils/queries.js";
 import type { McpUserContext } from "../utils/types.js";
-import { entityIdSchema, validateToolInput } from "../utils/validation.js";
+import {
+  entityIdSchema,
+  httpUrlSchema,
+  validateToolInput,
+} from "../utils/validation.js";
 
 export const MAX_CONTEXT_ENTRIES_PER_BATCH = 20;
 
@@ -22,7 +26,7 @@ export const MAX_CONTEXT_ENTRIES_PER_BATCH = 20;
 export const contextEntrySchema = z.object({
   label: z.string().min(1).max(200),
   content: z.string().min(1).max(50000),
-  url: z.string().url().optional(),
+  url: httpUrlSchema.optional(),
 });
 
 // The exact array schema the add_project_context_entries handler validates.
@@ -132,7 +136,7 @@ export const registerContextTools = (
             projectId: entityIdSchema,
             label: z.string().min(1).max(200),
             content: z.string().min(1).max(50000),
-            url: z.string().url().optional(),
+            url: httpUrlSchema.optional(),
           }),
           { projectId, label, content, url },
         );
@@ -371,7 +375,7 @@ export const registerContextTools = (
             contextId: entityIdSchema,
             label: z.string().min(1).max(200).optional(),
             content: z.string().min(1).max(50000).optional(),
-            url: z.string().url().nullable().optional(),
+            url: httpUrlSchema.nullable().optional(),
           }),
           { projectId, contextId, label, content, url },
         );

@@ -74,27 +74,32 @@ export const createDocument = async ({
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "kind", content: kind },
       });
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "id", content: id },
       });
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "title", content: title },
       });
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "clear", content: "" },
       });
 
       if (userContext) {
         writer.write({
           type: "data-artifact",
+          transient: true,
           data: { type: "debug-user-context", content: userContext },
         });
       }
@@ -102,6 +107,7 @@ export const createDocument = async ({
       if (projectContext) {
         writer.write({
           type: "data-artifact",
+          transient: true,
           data: { type: "debug-project-context", content: projectContext },
         });
       }
@@ -138,6 +144,7 @@ export const createDocument = async ({
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "finish", content: "" },
       });
 

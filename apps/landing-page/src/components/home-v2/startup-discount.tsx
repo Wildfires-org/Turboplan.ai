@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { CATALOG } from "@wildfires-org/turboplan-billing/types";
 
+import { PAGE_CONTAINER, PAGE_GUTTER } from "@/components/home-v2/ui/layout";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { cn } from "@/lib/utils";
 import { events } from "@/types/analytics";
@@ -35,8 +36,13 @@ export function StartupDiscount() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-6 font-inter lg:px-8">
-      <div className="flex flex-col items-start justify-between gap-6 rounded-[1.3rem] border border-brandAlt-200 bg-brandAlt-100 p-6 shadow-ecard sm:p-8 lg:flex-row lg:items-center lg:gap-10 lg:p-10">
+    <div className={cn(PAGE_GUTTER, "w-full font-inter")}>
+      <div
+        className={cn(
+          PAGE_CONTAINER,
+          "flex flex-col items-start justify-between gap-6 rounded-[28px] border border-brandAlt-200 bg-brandAlt-100 p-6 shadow-ecard sm:p-8 lg:flex-row lg:items-center lg:gap-10 lg:p-10",
+        )}
+      >
         <div className="flex flex-col items-start gap-3">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 font-heading text-[11px] font-medium uppercase leading-[14px] tracking-[0.88px] text-brand-800 shadow-ebutton">
             <Sparkles className="size-3" />
@@ -47,7 +53,7 @@ export function StartupDiscount() {
             {program.headline}
           </span>
 
-          <p className="max-w-[640px] text-body-sm font-medium text-egray-600">
+          <p className="max-w-[640px] text-body-sm font-medium text-egray-700">
             {program.description}
           </p>
 
@@ -69,18 +75,10 @@ export function StartupDiscount() {
         <button
           type="button"
           onClick={handleCta}
-          className={cn(
-            "group/cta relative inline-flex w-full shrink-0 items-center justify-center gap-2 overflow-hidden rounded-2xl bg-brandAlt-600 px-7 py-3.5 sm:w-auto",
-            "text-body-md font-medium text-white",
-            "transition-all duration-300 ease-out-expo",
-            "hover:-translate-y-px hover:shadow-ebutton active:translate-y-0",
-          )}
+          className="btn-primary press inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl px-7 text-body-md font-medium sm:w-auto"
         >
-          <span className="pointer-events-none absolute left-[15%] top-1/2 aspect-square w-[250%] -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-brand-deco opacity-0 transition-all duration-500 ease-out-expo group-hover/cta:scale-100 group-hover/cta:opacity-100" />
-          <span className="relative z-10 flex items-center gap-2">
-            {ctaLabel}
-            <ArrowUpRight className="size-4" />
-          </span>
+          {ctaLabel}
+          <ArrowUpRight className="size-4" />
         </button>
       </div>
     </div>

@@ -288,6 +288,8 @@ app display name is separate and env-driven (`APP_NAME` /
 - **Security** — please report vulnerabilities privately. See
   [SECURITY.md](./SECURITY.md); do not open a public issue.
 - **Changelog** — release history lives in [CHANGELOG.md](./CHANGELOG.md).
+- **CI** — every pull request runs typecheck, lint, format check and unit
+  tests; see [ci.yml](./.github/workflows/ci.yml).
 
 Working with an AI coding agent? See [AGENTS.md](./AGENTS.md) for a
 tool-agnostic summary of the build commands, conventions, and architecture

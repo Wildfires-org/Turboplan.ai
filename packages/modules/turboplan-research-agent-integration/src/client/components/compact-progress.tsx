@@ -41,7 +41,7 @@ export const CompactProgress = ({
       initial={{ opacity: 0, y: 40, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-xl border border-purple-100 dark:border-purple-800/30 bg-gradient-to-r from-purple-50/60 to-violet-50/40 dark:from-purple-950/20 dark:to-violet-950/10 px-4 py-3 mb-1.5"
+      className="mb-1.5 rounded-2xl border border-white/90 bg-white/80 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(21,102,71,0.25)] dark:border-white/10 dark:bg-slate-950/70"
     >
       <button
         type="button"
@@ -54,23 +54,23 @@ export const CompactProgress = ({
         />
         <div className="flex-1 min-w-0 flex items-center gap-2">
           {isCompleted ? (
-            <Check className="size-3.5 text-emerald-600 shrink-0" />
+            <Check className="size-3.5 shrink-0 text-brand-800" />
           ) : (
-            <FileText className="size-3 text-muted-foreground shrink-0" />
+            <FileText className="size-3 shrink-0 text-gray-550" />
           )}
-          <span className="text-xs font-medium text-purple-600 dark:text-purple-300 truncate">
+          <span className="truncate text-xs font-medium text-brand-800 dark:text-brand-300">
             {currentStep}
           </span>
           {elapsedTime && (
-            <span className="text-xs font-medium tabular-nums text-purple-500 dark:text-purple-400 shrink-0">
+            <span className="shrink-0 text-xs font-medium tabular-nums text-brand-800 dark:text-brand-300">
               {elapsedTime}
             </span>
           )}
         </div>
         {isExpanded ? (
-          <ArrowDownLeft className="size-4 shrink-0 text-purple-500" />
+          <ArrowDownLeft className="size-4 shrink-0 text-brand-700" />
         ) : (
-          <ArrowUpRight className="size-4 shrink-0 text-purple-500" />
+          <ArrowUpRight className="size-4 shrink-0 text-brand-700" />
         )}
       </button>
 
@@ -92,7 +92,7 @@ export const CompactProgress = ({
                 return (
                   <span
                     key={msg.id}
-                    className="text-xs text-muted-foreground/70 leading-5"
+                    className="text-xs leading-5 text-gray-550"
                   >
                     &lsaquo; {data.step}
                   </span>

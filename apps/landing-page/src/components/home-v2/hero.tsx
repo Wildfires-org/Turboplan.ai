@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Flame,
   type LucideIcon,
@@ -11,14 +11,18 @@ import {
   TreePine,
   Zap,
 } from "lucide-react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { PROJECT_DESCRIPTION_PARAM } from "@/consts/urlParams";
+import { cn } from "@/lib/utils";
 import { routing } from "@/utils/routing";
+import { FeatureShowcase } from "./feature-showcase";
+import { PAGE_CONTAINER, PAGE_GUTTER } from "./ui/layout";
+import { EASE_OUT } from "./ui/motion";
 import { QuickStartPills } from "./ui/quick-start-pills";
 import { ScrollReveal } from "./ui/scroll-reveal";
 import { SearchInput } from "./ui/search-input";
+import { EYEBROW_CLASS, EYEBROW_ICON_CLASS } from "./ui/section-header";
 import { useTypewriterHeading } from "./ui/typewriter-heading";
 
 interface ContentPair {
@@ -51,17 +55,16 @@ const CONTENT_PAIRS: ContentPair[] = [
   },
 ];
 
-const LOGOS = [
-  { name: "Wildfires", src: "/images/logos/wildfires.svg" },
-  { name: "USFS", src: "/images/logos/usfs.svg" },
-  { name: "Partner 3", src: "/images/logos/partner-3.svg" },
-  { name: "Partner 4", src: "/images/logos/partner-4.svg" },
-  { name: "Partner 5", src: "/images/logos/partner-5.svg" },
-  { name: "Partner 6", src: "/images/logos/partner-6.svg" },
-  { name: "Partner 7", src: "/images/logos/partner-7.svg" },
-];
-
 const CURSOR_BLINK_RATE = 530;
+
+// Showcase enters just after the pills (0.25s) in the hero sequence.
+const SHOWCASE_REVEAL_DELAY = 0.35;
+
+const SPARKLE_TRANSITION = {
+  type: "spring",
+  duration: 0.5,
+  bounce: 0.2,
+} as const;
 
 const getPromptTextarea = () =>
   document.getElementById("project-prompt-input")?.querySelector("textarea");
@@ -71,21 +74,28 @@ export function Hero() {
   const params = useSearchParams();
 
   const headingWords = CONTENT_PAIRS.map((p) => p.heading);
+  // Sizing copies only need each distinct word once (keys must be unique).
+  const uniqueHeadingWords = [...new Set(headingWords)];
   const { displayText, currentIndex } = useTypewriterHeading(headingWords);
+  const prefersReducedMotion = useReducedMotion();
 
   const [promptValue, setPromptValue] = useState(
     params.get(PROJECT_DESCRIPTION_PARAM) || "",
   );
 
-  // Blinking cursor
+  // Blinking cursor — static (always visible) under reduced motion.
   const [showCursor, setShowCursor] = useState(true);
   useEffect(() => {
+    if (prefersReducedMotion) {
+      setShowCursor(true);
+      return;
+    }
     const interval = setInterval(
       () => setShowCursor((p) => !p),
       CURSOR_BLINK_RATE,
     );
     return () => clearInterval(interval);
-  }, []);
+  }, [prefersReducedMotion]);
 
   // Track index changes for sparkle animation
   const [sparkleKey, setSparkleKey] = useState(0);
@@ -130,11 +140,16 @@ export function Hero() {
   const EyebrowIcon = CONTENT_PAIRS[currentIndex].Icon;
 
   return (
-    <section className="bg-brandAlt-100">
-      {/* Outer wrapper */}
+    <section className={PAGE_GUTTER}>
+      {/* Bottom padding is shorter than SECTION_Y: the logo marquee's own
+          padding and hairline complete the gap. */}
       <div className="flex flex-col items-center">
-        {/* Top content block */}
-        <div className="flex w-full max-w-[1280px] flex-col items-center px-6 pb-12 pt-12 text-center sm:pb-16 sm:pt-16 lg:px-28 lg:pb-[88px] lg:pt-[88px]">
+        <div
+          className={cn(
+            PAGE_CONTAINER,
+            "flex flex-col items-center pb-10 pt-12 text-center sm:pb-12 sm:pt-16 lg:pb-16 lg:pt-[88px]",
+          )}
+        >
           <ScrollReveal delay={0} direction="up" distance={30}>
             <div className="flex flex-col items-center gap-[18px]">
               {/* Eyebrow — synced with heading index */}
@@ -142,20 +157,30 @@ export function Hero() {
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={CONTENT_PAIRS[currentIndex].eyebrow}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-heading text-[12px] font-medium uppercase leading-[16px] tracking-[0.96px] text-brand-600"
+                    initial={
+                      prefersReducedMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, transform: "translateY(6px)" }
+                    }
+                    animate={{ opacity: 1, transform: "translateY(0px)" }}
+                    exit={
+                      prefersReducedMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, transform: "translateY(-6px)" }
+                    }
+                    transition={{ duration: 0.2, ease: EASE_OUT }}
+                    className={EYEBROW_CLASS}
                   >
-                    <EyebrowIcon className="size-3.5" />
+                    <EyebrowIcon className={EYEBROW_ICON_CLASS} />
                     {CONTENT_PAIRS[currentIndex].eyebrow}
                   </motion.span>
                 </AnimatePresence>
               </div>
 
-              {/* H1 — two lines */}
-              <h1 className="min-h-[100px] font-heading text-[36px] font-normal leading-[1.15] tracking-[-2px] text-[#1A1A1A] md:min-h-[120px] md:text-[48px] md:tracking-[-2.8px] lg:min-h-[140px] lg:text-[60px] lg:tracking-[-3.6px]">
+              {/* H1 — no fixed min-height: every heading word is laid out
+                  invisibly in the same grid cell as the live text, so the
+                  block always reserves the longest wrap at any width. */}
+              <h1 className="font-heading text-[36px] font-normal leading-[1.15] tracking-[-2px] text-[#1A1A1A] md:text-[48px] md:tracking-[-2.8px] lg:text-[60px] lg:tracking-[-3.6px]">
                 {/* Stable accessible name — the typewriter below mutates every
                     few ms and would spam screen readers. */}
                 <span className="sr-only">
@@ -164,28 +189,21 @@ export function Hero() {
                 <span aria-hidden="true" className="block">
                   Accelerate your
                 </span>
-                <span aria-hidden="true" className="inline">
-                  <motion.span
-                    key={sparkleKey}
-                    initial={{ scale: 1.3, rotate: 25 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 400,
-                      damping: 15,
-                      duration: 0.5,
-                    }}
-                    className="mr-2 inline-flex align-middle text-brand-600 lg:mr-3"
-                  >
-                    <Sparkles className="size-[28px] md:size-[35px] lg:size-[42px]" />
-                  </motion.span>
-                  <span className="text-brand-600">
-                    {displayText}
+                <span aria-hidden="true" className="grid">
+                  {uniqueHeadingWords.map((word) => (
                     <span
-                      className={`ml-[1px] inline-block w-[3px] bg-brand-600 transition-opacity duration-100 ${
-                        showCursor ? "opacity-100" : "opacity-0"
-                      }`}
-                      style={{ height: "0.75em" }}
+                      key={word}
+                      className="invisible col-start-1 row-start-1"
+                    >
+                      <HeadingLine text={word} />
+                    </span>
+                  ))}
+                  <span className="col-start-1 row-start-1">
+                    <HeadingLine
+                      text={displayText}
+                      sparkleKey={sparkleKey}
+                      isCursorVisible={showCursor}
+                      prefersReducedMotion={Boolean(prefersReducedMotion)}
                     />
                   </span>
                 </span>
@@ -215,29 +233,61 @@ export function Hero() {
             <QuickStartPills onSelect={handleQuickStart} />
           </ScrollReveal>
 
-          {/* Pills → Logos — staggered fade-in per logo */}
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-6 sm:mt-16 sm:gap-8 md:gap-10 lg:mt-[84px] lg:gap-12">
-            {LOGOS.map((logo, i) => (
-              <ScrollReveal
-                key={logo.name}
-                delay={0.35 + i * 0.07}
-                direction="up"
-                distance={12}
-              >
-                <div className="transition-opacity duration-300 hover:opacity-80">
-                  <Image
-                    src={logo.src}
-                    alt={logo.name}
-                    width={120}
-                    height={32}
-                    className="h-6 w-auto object-contain sm:h-7 lg:h-8"
-                  />
-                </div>
-              </ScrollReveal>
-            ))}
+          {/* Pills → Product showcase. Joins the hero's entrance sequence
+              right after the pills; `text-left` resets the hero's centered
+              text for the app mockups inside. */}
+          <div className="mt-10 w-full text-left sm:mt-12 lg:mt-16">
+            <FeatureShowcase revealDelay={SHOWCASE_REVEAL_DELAY} />
           </div>
         </div>
       </div>
     </section>
   );
 }
+
+interface HeadingLineProps {
+  text: string;
+  sparkleKey?: number;
+  isCursorVisible?: boolean;
+  prefersReducedMotion?: boolean;
+}
+
+// Sparkle + accent word + cursor. The invisible sizing copies render it
+// static (no sparkleKey), so only the live line animates.
+const HeadingLine = ({
+  text,
+  sparkleKey,
+  isCursorVisible = true,
+  prefersReducedMotion = false,
+}: HeadingLineProps) => {
+  const isLive = sparkleKey !== undefined;
+
+  return (
+    <>
+      {/* Sparkle settles in on each word change — occasional marketing
+          motion, so a gentle spring; off under reduced motion. */}
+      <motion.span
+        key={sparkleKey}
+        initial={
+          !isLive || prefersReducedMotion
+            ? false
+            : { transform: "scale(1.3) rotate(25deg)" }
+        }
+        animate={{ transform: "scale(1) rotate(0deg)" }}
+        transition={SPARKLE_TRANSITION}
+        className="mr-2 inline-flex align-middle text-brand-700 lg:mr-3"
+      >
+        <Sparkles className="size-[28px] md:size-[35px] lg:size-[42px]" />
+      </motion.span>
+      <span className="text-brand-700">
+        {text}
+        <span
+          className={cn(
+            "ml-[1px] inline-block h-[0.75em] w-[3px] bg-brand-700 transition-opacity duration-100",
+            isCursorVisible ? "opacity-100" : "opacity-0",
+          )}
+        />
+      </span>
+    </>
+  );
+};

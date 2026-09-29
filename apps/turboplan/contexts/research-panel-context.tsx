@@ -24,8 +24,15 @@ const ResearchPanelContext = createContext<ResearchPanelContextType>({
   handleResizeStart: () => {},
 });
 
-export function ResearchPanelProvider({ children }: { children: ReactNode }) {
-  const { value: isOpen, toggle, setValue: setOpen } = useBoolean(false);
+export function ResearchPanelProvider({
+  children,
+  defaultOpen = false,
+}: {
+  children: ReactNode;
+  /** Open on first render (no mount animation / layout shift). */
+  defaultOpen?: boolean;
+}) {
+  const { value: isOpen, toggle, setValue: setOpen } = useBoolean(defaultOpen);
 
   const { width, isDragging, handleResizeStart } = useResizablePanel({
     storageKey: "research-panel-width",

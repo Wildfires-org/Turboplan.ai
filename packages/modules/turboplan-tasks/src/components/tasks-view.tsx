@@ -10,7 +10,7 @@ import { CardView } from "./card-view";
 import { GanttView } from "./gantt-view";
 import { TasksEmpty } from "./tasks-empty";
 import { TasksError } from "./tasks-error";
-import { TasksLoader } from "./tasks-loader";
+import { TasksListSkeleton } from "./tasks-list-skeleton";
 import { TasksTable } from "./tasks-table";
 
 export const TasksView: React.FC<TasksViewProps> = ({
@@ -41,16 +41,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   onRetry = () => {},
 }) => {
   if (loading) {
-    // Determine loading message based on context
-    let loadingMessage = "Loading your project tasks...";
-
-    if (!isCurrentVersion) {
-      loadingMessage = "Loading document version...";
-    } else if (milestones.length === 0) {
-      loadingMessage = "Setting up your project structure...";
-    }
-
-    return <TasksLoader message={loadingMessage} />;
+    return <TasksListSkeleton withHeader={false} />;
   }
 
   if (error) {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import { AlertCircle, FileIcon, Upload } from "lucide-react";
 import { type FileRejection, useDropzone } from "react-dropzone";
@@ -52,6 +52,23 @@ export function MapDragDropUpload({
     }
   }, []);
 
+  // react-dropzone only prevents the browser default inside its own zone, so a
+  // file dropped anywhere else on the page makes the browser navigate to it and
+  // the app looks like it reloaded. Swallow those drops while this is mounted.
+  useEffect(() => {
+    const preventNavigation = (event: DragEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("dragover", preventNavigation);
+    window.addEventListener("drop", preventNavigation);
+
+    return () => {
+      window.removeEventListener("dragover", preventNavigation);
+      window.removeEventListener("drop", preventNavigation);
+    };
+  }, []);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     onDropRejected,
@@ -84,7 +101,7 @@ export function MapDragDropUpload({
         <div className="flex flex-col items-center justify-center space-y-4">
           {isUploading ? (
             <>
-              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-white dark:bg-blue-900">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
               </div>
               <div className="space-y-2">
@@ -106,7 +123,7 @@ export function MapDragDropUpload({
             </>
           ) : (
             <>
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-white dark:bg-gray-800">
                 {isDragActive ? (
                   <FileIcon className="w-8 h-8 text-blue-500" />
                 ) : (

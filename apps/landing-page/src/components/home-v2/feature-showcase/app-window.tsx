@@ -35,7 +35,7 @@ const RAIL_MODULES: { key: ModuleKey; Icon: typeof MapIcon }[] = [
 
 function AppRail({ active }: { active: ModuleKey }) {
   return (
-    <div className="flex w-[52px] shrink-0 flex-col items-center gap-1.5 border-r border-egray-100 bg-egray-50 py-2.5">
+    <div className="flex w-[52px] shrink-0 flex-col items-center gap-1.5 border-r border-white/70 bg-white/40 pb-2.5 pt-1.5">
       <span className="mb-1 flex size-8 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-egray-100">
         <Image
           src="/images/beaver_right.png"
@@ -71,9 +71,6 @@ function AppRail({ active }: { active: ModuleKey }) {
           <Icon className="size-4" />
         </span>
       ))}
-      <span className="mt-auto flex size-8 items-center justify-center rounded-full bg-neutral-black font-heading text-[11px] font-semibold text-white">
-        N
-      </span>
     </div>
   );
 }
@@ -83,7 +80,7 @@ function AppRail({ active }: { active: ModuleKey }) {
 // name itself is the bold final crumb (overview), never duplicated.
 function AppTopBar({ crumb }: { crumb?: string }) {
   return (
-    <div className="flex h-11 shrink-0 items-center gap-1.5 border-b border-egray-100 bg-white px-4 font-inter text-[12px] leading-none">
+    <div className="flex h-11 shrink-0 items-center gap-1.5 border-b border-egray-100/80 bg-white/60 px-4 font-inter text-[12px] leading-none">
       <span className="shrink-0 text-egray-500">USDA Forest Service</span>
       <span className="text-egray-300">/</span>
       <span className="hidden shrink-0 text-egray-500 sm:inline">
@@ -121,7 +118,7 @@ export function AppWindow({
   contentClassName?: string;
 }) {
   return (
-    <div className="flex h-full w-full overflow-hidden rounded-2xl border border-egray-100 bg-white shadow-[0_24px_48px_-24px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.06)]">
+    <div className="flex h-full w-full overflow-hidden rounded-2xl border border-white/85 bg-white/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <AppRail active={active} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppTopBar crumb={crumb} />

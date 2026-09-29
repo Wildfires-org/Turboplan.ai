@@ -2,11 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AccessError } from "@/components/access-error";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { OfficeBannerActions } from "@/components/dashboard/office-banner-actions";
+import { OfficePageFrame } from "@/components/dashboard/office-page-frame";
 import { ProjectsCardSection } from "@/components/dashboard/projects-card-section";
-import { StickyEntityBanner } from "@/components/dashboard/sticky-entity-banner";
-import { SidebarOfficeRegistrar } from "@/components/sidebar/sidebar-office-registrar";
 import {
   getCachedSession,
   getValidatedOfficeBySlug,
@@ -89,45 +86,19 @@ export default async function OfficeDashboardPage({
 
   const { organization, office } = data;
 
-  // Create breadcrumbs with organization and office names
-  const breadcrumbs = [
-    {
-      label: organization.name,
-      href: AppUrls.organization(organization.slug),
-      isActive: false,
-      entity: { type: "organization" as const, data: organization },
-    },
-    {
-      label: office.name,
-      isActive: true,
-    },
-  ];
-
   return (
-    <>
-      <SidebarOfficeRegistrar />
-      <div className="flex flex-col shrink-0 min-h-screen">
-        <DashboardHeader breadcrumbs={breadcrumbs} userId={session.user.id} />
-        <StickyEntityBanner
-          logoUrl={office.logoUrl ?? organization.logoUrl}
-          title={office.name}
-          description={office.description}
-          actions={
-            <OfficeBannerActions
-              organizationSlug={organization.slug}
-              office={office}
-            />
-          }
-        />
-        <div className="flex-1 container mx-auto px-6">
-          <ProjectsCardSection
-            user={session.user}
-            organizationSlug={organization.slug}
-            officeSlug={office.slug}
-            autoOpenCreateProject={autoOpenCreateProject}
-          />
-        </div>
-      </div>
-    </>
+    <OfficePageFrame
+      organization={organization}
+      office={office}
+      userId={session.user.id}
+      tab="projects"
+    >
+      <ProjectsCardSection
+        user={session.user}
+        organizationSlug={organization.slug}
+        officeSlug={office.slug}
+        autoOpenCreateProject={autoOpenCreateProject}
+      />
+    </OfficePageFrame>
   );
 }

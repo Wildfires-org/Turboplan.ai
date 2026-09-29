@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 
-import { getRBACService } from "../services/rbac.service";
 import type { ActionType, EntityTypeType } from "../types";
 import { EntityType } from "../types";
+import { getRBACServiceForRequest } from "../utils/hono-middleware";
 import type { RBACContext } from "../utils/hono-types";
 
 const UUID_RE =
@@ -33,7 +33,7 @@ permissionsRouter.get("/", async (c) => {
       );
     }
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const result = await rbacService.checkPermission(
       user.userId,
       entityId,
@@ -88,7 +88,7 @@ permissionsRouter.get("/actions", async (c) => {
       return c.json({ error: "Invalid entityId" }, 400);
     }
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const result = await rbacService.getAllowedActions(
       user.userId,
       entityId,

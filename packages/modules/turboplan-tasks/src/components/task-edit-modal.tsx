@@ -14,6 +14,8 @@ import { DocumentCardEditable } from "@wildfires-org/turboplan-documents/client"
 import {
   AlertDialog,
   AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
   Button,
   cn,
   DropdownMenu,
@@ -32,6 +34,7 @@ import type {
 } from "../types";
 import { TaskStatus } from "../types";
 import { AssigneeDisplay } from "./assignee-display";
+import { getStatusTone } from "./status-chip";
 
 // Form data type that includes assignees for UI state
 interface TaskFormData {
@@ -76,12 +79,13 @@ const statusLabels = {
   [TaskStatus.DELAYED]: "Delayed",
 };
 
+// Same tinted chips as the task table (contrast-safe at 12px).
 const statusBadgeColors = {
-  [TaskStatus.DRAFT]: "bg-gray-100 text-gray-500",
-  [TaskStatus.NOT_STARTED]: "bg-gray-900 text-white",
-  [TaskStatus.IN_PROGRESS]: "bg-blue-50 text-blue-500",
-  [TaskStatus.COMPLETED]: "bg-green-50 text-green-500",
-  [TaskStatus.DELAYED]: "bg-orange-50 text-orange-500",
+  [TaskStatus.DRAFT]: `ring-1 ring-inset ${getStatusTone(TaskStatus.NOT_STARTED).className}`,
+  [TaskStatus.NOT_STARTED]: `ring-1 ring-inset ${getStatusTone(TaskStatus.NOT_STARTED).className}`,
+  [TaskStatus.IN_PROGRESS]: `ring-1 ring-inset ${getStatusTone(TaskStatus.IN_PROGRESS).className}`,
+  [TaskStatus.COMPLETED]: `ring-1 ring-inset ${getStatusTone(TaskStatus.COMPLETED).className}`,
+  [TaskStatus.DELAYED]: `ring-1 ring-inset ${getStatusTone(TaskStatus.DELAYED).className}`,
 };
 
 export const TaskEditModal: React.FC<TaskEditModalProps> = ({
@@ -378,9 +382,16 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           }
         }}
       >
-        <AlertDialogContent className="max-w-[800px] border-0 p-0 gap-0 overflow-hidden rounded-2xl shadow-[0px_20px_40px_0px_rgba(0,7,26,0.08)]">
+        <AlertDialogContent className="max-w-[800px] gap-0 overflow-hidden rounded-[24px] p-0">
+          {/* The visible title is an editable input; name the dialog for AT. */}
+          <AlertDialogTitle className="sr-only">
+            {formData.title || "Task"}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="sr-only">
+            Task details, documents and timeline
+          </AlertDialogDescription>
           {/* Header with cover image */}
-          <div className="relative h-20 w-full bg-gray-200 overflow-hidden">
+          <div className="relative h-20 w-full overflow-hidden bg-brandAlt-200">
             {coverImageUrl ? (
               <img
                 src={coverImageUrl}
@@ -388,7 +399,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-r from-gray-300 to-gray-200" />
+              <div className="size-full bg-gradient-to-r from-brandAlt-300 to-brandAlt-200" />
             )}
             {/* Breadcrumb overlay */}
             {breadcrumbText && (
@@ -414,7 +425,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
                       onClick={() => setShowDeleteConfirm(true)}
-                      className="text-red-600 focus:text-red-600"
+                      className="text-error-700 focus:text-error-700"
                     >
                       Delete task
                     </DropdownMenuItem>
@@ -451,10 +462,11 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 
               {/* Description label + Save button */}
               <div className="flex items-center justify-between mt-4 mb-2">
-                <span className="text-sm text-gray-500">Task description</span>
+                <span className="text-sm text-gray-600">Task description</span>
                 {!readOnly && (
                   <Button
                     size="sm"
+                    variant="brand"
                     onClick={handleSaveDescription}
                     disabled={isLoading || !formData.title.trim()}
                     className="h-8 px-4 text-sm"
@@ -480,7 +492,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                 placeholder="Add task description or context..."
                 rows={3}
                 disabled={isLoading || readOnly}
-                className="bg-gray-50 border border-gray-200 rounded-lg resize-none text-sm"
+                className="resize-none rounded-xl text-sm"
               />
 
               {/* Metadata row */}
@@ -496,7 +508,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                     size="icon"
                     onClick={handleAddAssignee}
                     disabled={!onOpenAssignmentDialog || !task}
-                    className="h-7 w-7 rounded-full border border-dashed border-gray-300 text-gray-400 hover:text-gray-600"
+                    aria-label="Assign members"
+                    className="size-7 rounded-full border border-dashed border-brand-800/30 text-brand-800 hover:bg-brand-50 hover:text-brand-900"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
@@ -550,7 +563,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                   )}
 
                   {/* Date range badge */}
-                  <div className="relative inline-flex items-center gap-0 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600">
+                  <div className="relative inline-flex items-center gap-0 rounded-full bg-slate-900/[0.04] px-3 py-1.5 text-xs font-medium tabular-nums text-gray-700 ring-1 ring-inset ring-slate-900/[0.08]">
                     <Calendar className="h-3 w-3 mr-1.5" />
                     <button
                       type="button"
@@ -610,7 +623,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             </div>
 
             {/* Divider */}
-            <div className="border-t border-gray-200" />
+            <div className="border-t border-brandAlt-200/70" />
 
             {/* Documents Section (collapsible) */}
             {!isCreatingNew && (
@@ -635,7 +648,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                     <div className="mt-3 flex flex-col isolate pb-1.5">
                       {/* Linked documents */}
                       {linkedDocuments.length > 0 && (
-                        <div className="relative z-[2] -mb-1.5 rounded-lg bg-[#F8F9F9] border border-[#EAEBEE] p-4 overflow-hidden">
+                        <div className="relative z-[2] -mb-1.5 overflow-hidden rounded-xl border border-white/90 bg-brandAlt-100/70 p-4">
                           <div className="grid grid-cols-2 gap-4">
                             {linkedDocuments.map((doc) => (
                               <DocumentCardEditable
@@ -649,7 +662,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                                         e.stopPropagation();
                                         handleUnlinkDocument(doc.id);
                                       }}
-                                      className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500"
+                                      aria-label="Remove from task"
+                                      className="rounded-md p-1 text-gray-500 hover:bg-error-50 hover:text-error-700"
                                       title="Remove from task"
                                     >
                                       <X className="h-4 w-4" />
@@ -686,8 +700,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                       {linkedDocuments.length === 0 &&
                         unlinkedDocuments.length === 0 && (
                           <div className="flex flex-col items-center gap-2 py-6 text-center">
-                            <FileText className="h-8 w-8 text-gray-300" />
-                            <p className="text-sm text-gray-500">
+                            <FileText className="size-8 text-brand-800/40" />
+                            <p className="text-sm text-gray-600">
                               No documents linked to this task.
                             </p>
                           </div>
@@ -702,21 +716,21 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                           className={cn(
                             "relative z-[1] flex h-[52px] items-center justify-center rounded-b-xl border-l border-r border-b border-dashed pt-1.5 transition-colors",
                             isDragging
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-[#3F9EFF]",
+                              ? "border-brand-700 bg-brand-50"
+                              : "border-brand-800/25",
                           )}
                         >
                           {isUploading ? (
-                            <span className="text-sm text-[#9299A1]">
+                            <span className="text-sm text-gray-600">
                               Uploading...
                             </span>
                           ) : (
-                            <span className="text-sm text-[#9299A1]">
+                            <span className="text-sm text-gray-600">
                               or drag your files here,{" "}
                               <button
                                 type="button"
                                 onClick={handleBrowseClick}
-                                className="text-[#2768F7] hover:underline"
+                                className="rounded font-medium text-brand-800 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
                               >
                                 browse
                               </button>
@@ -737,7 +751,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                 </div>
 
                 {/* Divider */}
-                <div className="border-t border-gray-200" />
+                <div className="border-t border-brandAlt-200/70" />
               </>
             )}
 
@@ -776,15 +790,17 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
         <AlertDialogContent className="max-w-sm">
           <div className="flex flex-col gap-4">
             <div>
-              <h3 className="text-lg font-semibold">Delete task</h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <AlertDialogTitle className="text-lg font-semibold">
+                Delete task
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-1 text-sm text-gray-600">
                 Are you sure you want to delete this task? This action cannot be
                 undone.
-              </p>
+              </AlertDialogDescription>
             </div>
             <div className="flex justify-end gap-2">
               <Button
-                variant="outline"
+                variant="glass"
                 size="sm"
                 onClick={() => setShowDeleteConfirm(false)}
               >

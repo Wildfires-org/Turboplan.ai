@@ -108,7 +108,7 @@ export function ContextSection({
             >
               <div className="flex items-center gap-3">
                 {item.saved ? (
-                  <CheckCheck className="size-4 text-green-500 shrink-0" />
+                  <CheckCheck className="size-4 text-brand-700 shrink-0" />
                 ) : (
                   <Checkbox
                     checked={isIndexSelected(index)}
@@ -128,7 +128,7 @@ export function ContextSection({
               </div>
               <AccordionContent>
                 <div className="pl-7">
-                  <p className="text-xs text-neutral-400 leading-4">
+                  <p className="text-xs text-gray-550 leading-4">
                     {item.content}
                   </p>
                   {item.url && (
@@ -137,7 +137,7 @@ export function ContextSection({
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-sm border bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-800/50 dark:text-indigo-400 transition-colors"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-sm border bg-brand-50 border-brandAlt-200 text-brand-800 hover:bg-brand-100 dark:bg-brand-950/30 dark:border-white/10 dark:text-brand-300 transition-colors"
                       >
                         <ExternalLink className="size-3" />
                         {getHostname(item.url)}

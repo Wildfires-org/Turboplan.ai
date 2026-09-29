@@ -1,5 +1,10 @@
-import { ProjectChatPageFallback } from "@/components/chat/project-chat-page-shell";
+import { ProjectChatRouteLoading } from "@/components/chat/project-chat-route-loading";
+import { InertLoading } from "@/components/dashboard/inert-loading";
 
 export default function NewProjectChatLoading() {
-  return <ProjectChatPageFallback />;
+  return (
+    <InertLoading>
+      <ProjectChatRouteLoading />
+    </InertLoading>
+  );
 }

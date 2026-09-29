@@ -98,7 +98,7 @@ export function MessageEditor({
       <Textarea
         data-testid="message-editor"
         ref={textareaRef}
-        className="bg-transparent outline-none overflow-hidden resize-none !text-base rounded-xl w-full"
+        className="border-input bg-transparent shadow-none outline-none overflow-hidden resize-none !text-base rounded-xl w-full"
         value={draftContent}
         onChange={handleInput}
         onKeyDown={(event) => {

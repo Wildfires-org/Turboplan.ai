@@ -48,7 +48,11 @@ export function ContextSection({
       icon={<BookOpen className="size-4" aria-hidden />}
       subtitle={subtitle}
       controls={
-        <StartResearchButton projectId={projectId} canEdit={!readOnly} />
+        <StartResearchButton
+          projectId={projectId}
+          canEdit={!readOnly}
+          appearance="glass"
+        />
       }
       onToggleVisibility={onToggleVisibility}
       isHidden={isHidden}

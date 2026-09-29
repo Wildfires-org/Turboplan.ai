@@ -99,7 +99,7 @@ export const TasksTable: React.FC<TasksTableProps> = ({
           {/* Add Milestone Row - hidden in read-only mode */}
           {!isReadOnly && (
             <div
-              className="relative flex items-center border-t border-gray-200 dark:border-gray-700 overflow-hidden"
+              className="relative flex items-center border-t border-brandAlt-200/70 dark:border-gray-700 overflow-hidden"
               style={{ height: "52px" }}
             >
               {/* TASK Column */}
@@ -191,7 +191,7 @@ export const TasksTable: React.FC<TasksTableProps> = ({
         {/* Add Milestone Row - hidden in read-only mode */}
         {!isReadOnly && (
           <div
-            className="relative flex items-center border-t border-gray-200 dark:border-gray-700 overflow-hidden"
+            className="relative flex items-center border-t border-brandAlt-200/70 dark:border-gray-700 overflow-hidden"
             style={{ height: "52px" }}
           >
             {/* TASK Column */}
@@ -258,7 +258,7 @@ export const TasksTable: React.FC<TasksTableProps> = ({
       {/* Table Container */}
       <div
         ref={tableRef}
-        className="flex flex-col bg-white dark:bg-gray-900 h-full shadow-[50px_0_50px_-20px_rgba(0,0,0,0.05)] relative z-10"
+        className="relative z-10 flex h-full flex-col bg-white shadow-[50px_0_50px_-20px_rgba(15,23,42,0.05)] dark:bg-gray-900"
         style={{
           width: tableWidth,
           overflow: "hidden",

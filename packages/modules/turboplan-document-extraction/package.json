@@ -1,0 +1,36 @@
+{
+  "name": "@wildfires-org/turboplan-document-extraction",
+  "description": "Server-only PDF/DOCX text extraction for TurboPlan",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./mime": {
+      "types": "./dist/document-mime.d.ts",
+      "import": "./dist/document-mime.js",
+      "default": "./dist/document-mime.js"
+    }
+  },
+  "dependencies": {
+    "mammoth": "^1.12.0",
+    "unpdf": "^1.6.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.1.4",
+    "@types/node": "^20.10.5",
+    "tsdown": "^0.15.9",
+    "typescript": "^5.3.3"
+  }
+}

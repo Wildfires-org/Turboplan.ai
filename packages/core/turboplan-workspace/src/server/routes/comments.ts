@@ -22,10 +22,10 @@ import {
 } from "@wildfires-org/turboplan-db/queries";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
   isPublicGovProjectReadAllowed,
   type RBACContext,
 } from "@wildfires-org/turboplan-rbac/hono";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 
 /**
@@ -84,7 +84,7 @@ commentsRouter.get("/", async (c) => {
 
     // Check if user has READ permission on the project, with fallback allowing
     // any authenticated user to read comments from public government projects.
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       projectId,
@@ -118,10 +118,12 @@ commentsRouter.get("/", async (c) => {
     // Get comments with visibility filtering:
     // - Moderators see all comments
     // - Regular users see public + their own private comments
+    // - Non-members get the public projection (no commenter emails)
     const comments = await getCommentsByProjectId({
       projectId,
       currentUserId: user.userId,
       showAllPrivate: moderatorCheck.allowed,
+      publicView: !permissionResult.allowed,
     });
 
     return c.json(comments);
@@ -168,7 +170,7 @@ commentsRouter.post("/", async (c) => {
     const sanitizedContent = sanitizeContent(content);
 
     // Check if user has READ permission on the project (any member can comment)
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       projectId,
@@ -311,7 +313,7 @@ commentsRouter.patch("/:id", async (c) => {
     const requiredAction =
       isPublic || !isAuthor ? Action.MANAGE_MEMBERS : Action.READ;
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       existingComment.projectId,
@@ -389,7 +391,7 @@ commentsRouter.delete("/:id", async (c) => {
     const isAuthor = existingComment.userId === user.userId;
 
     if (!isAuthor) {
-      const rbacService = getRBACService();
+      const rbacService = getRBACServiceForRequest(c);
       const permissionResult = await rbacService.checkPermission(
         user.userId,
         existingComment.projectId,

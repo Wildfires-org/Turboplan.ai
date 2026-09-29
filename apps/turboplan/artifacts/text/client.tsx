@@ -20,6 +20,9 @@ interface TextArtifactMetadata {
   isRequestSignaturesOpen?: boolean;
 }
 
+// Streamed characters after which the artifact panel opens by itself.
+const AUTO_OPEN_CONTENT_LENGTH = 400;
+
 export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
   kind: "text",
   description: "Useful for text content, like drafting essays and emails.",
@@ -44,13 +47,18 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
 
     if (streamPart.type === "text-delta") {
       setArtifact((draftArtifact) => {
+        const content = draftArtifact.content + (streamPart.content as string);
+        // Open once, on the delta that crosses the threshold. A fixed window
+        // could be skipped by one long delta (a table row, a URL).
+        const hasCrossedAutoOpenThreshold =
+          draftArtifact.content.length <= AUTO_OPEN_CONTENT_LENGTH &&
+          content.length > AUTO_OPEN_CONTENT_LENGTH;
+
         return {
           ...draftArtifact,
-          content: draftArtifact.content + (streamPart.content as string),
+          content,
           isVisible:
-            draftArtifact.status === "streaming" &&
-            draftArtifact.content.length > 400 &&
-            draftArtifact.content.length < 450
+            draftArtifact.status === "streaming" && hasCrossedAutoOpenThreshold
               ? true
               : draftArtifact.isVisible,
           status: "streaming",

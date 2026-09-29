@@ -45,14 +45,14 @@ export function DocumentsUploadEmptyState({
     <div className="flex flex-col items-center justify-center py-8 text-center">
       <div
         className={cn(
-          "mb-4 flex h-16 w-16 items-center justify-center rounded-full",
-          isDragActive ? "bg-blue-100" : "bg-gray-200",
+          "mb-4 flex size-16 items-center justify-center rounded-full border border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(21,102,71,0.18)]",
+          isDragActive ? "bg-brand-50" : "bg-white/55",
         )}
       >
         {isDragActive ? (
-          <File className="size-8 text-blue-500" />
+          <File className="size-7 text-brand-800" />
         ) : (
-          <Upload className="size-8 text-muted-foreground" />
+          <Upload className="size-7 text-brand-800" />
         )}
       </div>
       <h3 className="mb-2 text-base font-medium text-foreground">
@@ -72,14 +72,14 @@ export function DocumentsUploadingState({
 }: DocumentsUploadingStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-500" />
+      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-brand-50">
+        <div className="size-8 animate-spin rounded-full border-b-2 border-brand-800 motion-reduce:animate-none" />
       </div>
       <h3 className="mb-2 text-base font-medium">Uploading Document...</h3>
       {uploadProgress > 0 && (
         <div className="mb-2 h-2 w-64 overflow-hidden rounded-full bg-gray-200">
           <div
-            className="h-full bg-blue-500 transition-all duration-300"
+            className="h-full bg-brand-800 transition-all duration-300"
             style={{ width: `${uploadProgress}%` }}
           />
         </div>

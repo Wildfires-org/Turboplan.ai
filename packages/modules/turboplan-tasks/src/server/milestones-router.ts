@@ -21,7 +21,9 @@ import {
 } from "@wildfires-org/turboplan-timeline-records/server";
 
 import { TaskStatus } from "../types";
+import { projectIdOfMilestone } from "./milestone-project";
 import {
+  assigneesVisibleTo,
   requireProjectPermission,
   requireProjectPermissionFromMilestone,
   requireProjectReadAccess,
@@ -97,7 +99,7 @@ router.get(
 
     try {
       const milestones = await milestoneService.getAllMilestones(documentId);
-      return c.json({ milestones });
+      return c.json({ milestones: assigneesVisibleTo(c, milestones) });
     } catch (_error) {
       return c.json({ error: "Failed to fetch milestones" }, 500);
     }
@@ -123,7 +125,9 @@ router.get(
         return c.json({ error: "Milestone not found" }, 404);
       }
 
-      return c.json({ milestones: milestonesWithTasks });
+      return c.json({
+        milestones: assigneesVisibleTo(c, milestonesWithTasks),
+      });
     } catch (_error) {
       return c.json({ error: "Failed to fetch milestone with tasks" }, 500);
     }
@@ -145,7 +149,7 @@ router.get(
       const milestonesWithTasks =
         await milestoneService.getMilestonesByProjectId(projectId);
 
-      return c.json(milestonesWithTasks);
+      return c.json(assigneesVisibleTo(c, milestonesWithTasks));
     } catch (error) {
       console.error("Failed to fetch milestones for project:", error);
       return c.json({ error: "Failed to fetch milestones for project" }, 500);
@@ -164,7 +168,8 @@ router.get("/:id", requireProjectReadAccessFromMilestone(), async (c) => {
       return c.json({ error: "Milestone not found" }, 404);
     }
 
-    return c.json({ milestone });
+    const [visibleMilestone] = assigneesVisibleTo(c, [milestone]);
+    return c.json({ milestone: visibleMilestone });
   } catch (_error) {
     return c.json({ error: "Failed to fetch milestone" }, 500);
   }
@@ -192,7 +197,7 @@ router.get(
         documentId,
         statusParam as TaskStatus,
       );
-      return c.json({ milestones });
+      return c.json({ milestones: assigneesVisibleTo(c, milestones) });
     } catch (_error) {
       return c.json({ error: "Failed to fetch milestones by status" }, 500);
     }
@@ -241,22 +246,23 @@ router.post(
         order: data.order,
         startDate: data.startDate ? new Date(data.startDate) : tomorrow,
         dueDate: data.dueDate ? new Date(data.dueDate) : nextWeek,
+        // `documentId` is the project the guard authorised; record it as the
+        // milestone's project too, so the row resolves without the fallback.
         documentId,
+        projectId: documentId,
         userId,
       };
 
       const milestone = await milestoneService.createMilestone(milestoneInput);
 
-      if (milestone.projectId) {
-        await createTimelineRecord({
-          projectId: milestone.projectId,
-          userId,
-          entityType: "milestone",
-          entityId: milestone.id,
-          entityName: milestone.title,
-          action: "created",
-        });
-      }
+      await createTimelineRecord({
+        projectId: documentId,
+        userId,
+        entityType: "milestone",
+        entityId: milestone.id,
+        entityName: milestone.title,
+        action: "created",
+      });
 
       return c.json({ milestone }, 201);
     } catch (error) {
@@ -314,19 +320,18 @@ router.post(
         startDate: data.startDate ? new Date(data.startDate) : new Date(),
         dueDate: data.dueDate ? new Date(data.dueDate) : new Date(),
         documentId,
+        projectId: documentId,
         userId,
       });
 
-      if (milestone.projectId) {
-        await createTimelineRecord({
-          projectId: milestone.projectId,
-          userId,
-          entityType: "milestone",
-          entityId: milestone.id,
-          entityName: milestone.title,
-          action: "created",
-        });
-      }
+      await createTimelineRecord({
+        projectId: documentId,
+        userId,
+        entityType: "milestone",
+        entityId: milestone.id,
+        entityName: milestone.title,
+        action: "created",
+      });
 
       return c.json({ milestone }, 201);
     } catch (error) {
@@ -368,7 +373,7 @@ router.put(
         return c.json({ error: "Milestone not found" }, 404);
       }
 
-      if (milestone.projectId && userId) {
+      if (userId) {
         const changes = computeChanges(
           existingMilestone as unknown as Record<string, unknown>,
           milestone as unknown as Record<string, unknown>,
@@ -376,7 +381,7 @@ router.put(
         );
         if (changes.length > 0) {
           await createTimelineRecord({
-            projectId: milestone.projectId,
+            projectId: projectIdOfMilestone(milestone),
             userId,
             entityType: "milestone",
             entityId: milestone.id,
@@ -421,9 +426,9 @@ router.delete(
         return c.json({ error: "Milestone not found" }, 404);
       }
 
-      if (existingMilestone?.projectId && userId) {
+      if (existingMilestone && userId) {
         await createTimelineRecord({
-          projectId: existingMilestone.projectId,
+          projectId: projectIdOfMilestone(existingMilestone),
           userId,
           entityType: "milestone",
           entityId: id,
@@ -456,9 +461,9 @@ router.patch(
         return c.json({ error: "Milestone not found" }, 404);
       }
 
-      if (milestone.projectId && userId) {
+      if (userId) {
         await createTimelineRecord({
-          projectId: milestone.projectId,
+          projectId: projectIdOfMilestone(milestone),
           userId,
           entityType: "milestone",
           entityId: milestone.id,
@@ -499,9 +504,9 @@ router.patch(
         return c.json({ error: "Milestone not found" }, 404);
       }
 
-      if (milestone.projectId && userId) {
+      if (userId) {
         await createTimelineRecord({
-          projectId: milestone.projectId,
+          projectId: projectIdOfMilestone(milestone),
           userId,
           entityType: "milestone",
           entityId: milestone.id,
@@ -542,9 +547,9 @@ router.patch(
         return c.json({ error: "Milestone not found" }, 404);
       }
 
-      if (milestone.projectId && userId) {
+      if (userId) {
         await createTimelineRecord({
-          projectId: milestone.projectId,
+          projectId: projectIdOfMilestone(milestone),
           userId,
           entityType: "milestone",
           entityId: milestone.id,

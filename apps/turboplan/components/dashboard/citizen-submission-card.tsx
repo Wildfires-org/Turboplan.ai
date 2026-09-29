@@ -90,9 +90,9 @@ export function CitizenSubmissionCard({
         </>
       }
       footer={
-        <span className="inline-flex items-center gap-1.5 text-[10px] text-gray-400">
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-550">
           Submitted by:
-          <span className="inline-flex items-center gap-1 text-gray-600">
+          <span className="inline-flex items-center gap-1 text-foreground">
             {project.creatorAvatarUrl ? (
               <Image
                 src={project.creatorAvatarUrl}
@@ -102,7 +102,7 @@ export function CitizenSubmissionCard({
                 className="rounded-full"
               />
             ) : (
-              <span className="flex size-3.5 items-center justify-center rounded-full bg-gray-300 text-[8px] font-medium text-gray-600">
+              <span className="flex size-3.5 items-center justify-center rounded-full bg-brandAlt-200 text-[8px] font-medium text-brand-900">
                 {(
                   project.creatorFirstName?.[0] ||
                   project.creatorEmail?.[0] ||

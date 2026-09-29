@@ -20,6 +20,11 @@ export {
   projectFieldDefs,
   taskFieldDefs,
 } from "./server/field-definitions";
+// Public (no project role) view
+export {
+  getPubliclyHiddenEntityTypes,
+  toPublicTimelineRecord,
+} from "./server/public-view";
 export {
   configureRecorder,
   configureRecorderAnalytics,

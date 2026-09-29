@@ -14,12 +14,12 @@ export const ResultItem = ({
   excerpt?: string;
 }) => {
   return (
-    <div className="py-1 border-l-2 border-muted pl-3">
+    <div className="border-l-2 border-brand-700/25 py-1 pl-3">
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        className="glass inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-brand-900 transition-colors hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
         onClick={(e) => e.stopPropagation()}
       >
         <span className="truncate max-w-[200px]">{title}</span>

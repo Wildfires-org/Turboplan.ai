@@ -5,8 +5,9 @@ import { useState } from "react";
 
 import Link from "next/link";
 
-import { Card } from "@wildfires-org/turboplan-utils";
+import { Card, GLASS_CARD_CLASS } from "@wildfires-org/turboplan-utils";
 
+import { CHIP_BASE_CLASS, CHIP_TONE_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 import type { DragHandleProps } from "./dashboard/sortable-module";
 import { SectionVisibilityDropdown } from "./section-visibility-dropdown";
@@ -72,7 +73,7 @@ export function SectionCard({
   const showVisibilityDropdown = onTogglePublicVisibility || onToggleVisibility;
 
   const linkClassName =
-    "inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-blue-600 transition-colors hover:text-blue-700";
+    "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md text-xs font-medium text-brand-800 transition-colors hover:text-brand-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700";
 
   const renderActionLink = () => {
     if (!actionLink) {
@@ -99,9 +100,9 @@ export function SectionCard({
   };
 
   return (
-    <Card className={cn("overflow-hidden rounded-2xl border bg-card")}>
+    <Card className={cn(GLASS_CARD_CLASS, "overflow-hidden")}>
       {/* Header row mirrors Figma: icon + title + count on the left, action link + controls on the right, separated from the body by a divider */}
-      <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3.5">
+      <div className="flex items-center justify-between gap-3 border-b border-white/75 px-4 py-3.5 dark:border-white/10">
         {/* Left cluster - drag region (entire cluster draggable when enabled and not readOnly) */}
         <div
           className={cn(
@@ -118,19 +119,19 @@ export function SectionCard({
             type="button"
             onClick={handleClick}
             aria-expanded={isOpen}
-            className="flex min-w-0 cursor-pointer items-center gap-2 text-left"
+            className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
           >
-            <h2 className="truncate text-sm font-bold leading-[21px] text-foreground">
+            <h2 className="whitespace-nowrap text-sm font-bold leading-[21px] text-foreground">
               {title}
             </h2>
             {count !== undefined && count > 0 && (
-              <span className="flex size-5 items-center justify-center rounded-full bg-neutral-400 px-2 py-1 text-xs font-medium leading-4 text-white">
+              <span className={cn(CHIP_BASE_CLASS, CHIP_TONE_CLASS.neutral)}>
                 {count}
               </span>
             )}
           </button>
           {subtitle && (
-            <span className="shrink-0 whitespace-nowrap text-xs font-medium text-muted-foreground">
+            <span className="min-w-0 truncate whitespace-nowrap text-xs font-medium text-gray-550">
               {subtitle}
             </span>
           )}

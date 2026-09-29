@@ -1,5 +1,7 @@
 import React from "react";
 
+import { Check } from "lucide-react";
+
 import {
   cn,
   DropdownMenu,
@@ -9,7 +11,22 @@ import {
 } from "@wildfires-org/turboplan-utils";
 
 import { TaskStatus } from "../types";
-import { getStatusIcon, getStatusText } from "../utils";
+import { getStatusText } from "../utils";
+import { getStatusTone } from "./status-chip";
+
+const StatusOptionIcon = ({ status }: { status: TaskStatus }) => {
+  const { icon: Icon, className } = getStatusTone(status);
+  return (
+    <span
+      className={cn(
+        "flex size-5 items-center justify-center rounded-full ring-1 ring-inset [&_svg]:size-3",
+        className,
+      )}
+    >
+      <Icon aria-hidden />
+    </span>
+  );
+};
 
 // Draft is the pre-initiation state and is not offered as a manual target.
 const SELECTABLE_STATUSES = [
@@ -44,11 +61,14 @@ export const StatusDropdown: React.FC<StatusDropdownProps> = ({
             }}
             className={cn(
               "flex items-center gap-2 text-sm",
-              option === status && "bg-gray-100 dark:bg-gray-800",
+              option === status && "font-medium text-brand-900",
             )}
           >
-            <span>{getStatusIcon(option)}</span>
-            <span>{getStatusText(option)}</span>
+            <StatusOptionIcon status={option} />
+            <span className="flex-1">{getStatusText(option)}</span>
+            {option === status && (
+              <Check aria-hidden className="size-4 text-brand-800" />
+            )}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

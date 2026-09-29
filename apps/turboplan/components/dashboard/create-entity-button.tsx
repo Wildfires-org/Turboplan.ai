@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 
-import { Button } from "@wildfires-org/turboplan-utils";
+import { Button, type ButtonProps } from "@wildfires-org/turboplan-utils";
 
 interface CreateEntityButtonProps {
   children: React.ReactNode;
   onSuccess: () => void;
   className?: string;
-  variant?: "default" | "outline" | "ghost" | "destructive" | "secondary";
-  size?: "default" | "sm" | "lg" | "icon";
+  variant?: ButtonProps["variant"];
+  size?: ButtonProps["size"];
   renderDialog: (props: {
     open: boolean;
     onOpenChange: (open: boolean) => void;

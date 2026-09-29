@@ -33,19 +33,21 @@ export function MessageReasoning({
   return (
     <div className="flex flex-col">
       {isLoading ? (
-        <div className="flex flex-row gap-2 items-center">
+        <div className="flex flex-row items-center gap-2 text-[13px] text-gray-550">
           <div className="font-medium">Reasoning</div>
-          <div className="animate-spin">
+          <div className="animate-spin text-brand-800">
             <LoaderIcon />
           </div>
         </div>
       ) : (
-        <div className="flex flex-row gap-2 items-center">
+        <div className="flex flex-row items-center gap-2 text-[13px] text-gray-550">
           <div className="font-medium">Reasoned for a few seconds</div>
           <button
             data-testid="message-reasoning-toggle"
             type="button"
-            className="cursor-pointer"
+            aria-label={isExpanded ? "Hide reasoning" : "Show reasoning"}
+            aria-expanded={isExpanded}
+            className="press flex size-6 cursor-pointer items-center justify-center rounded-full hover:bg-white/70 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
             onClick={() => {
               setIsExpanded((prev) => {
                 const next = !prev;
@@ -86,7 +88,7 @@ export function MessageReasoning({
             transition={expandTransition}
             style={{ overflow: "hidden" }}
           >
-            <div className="mt-4 mb-2 pl-4 text-zinc-600 dark:text-zinc-400 border-l flex flex-col gap-4">
+            <div className="mb-2 mt-3 flex flex-col gap-4 border-l-2 border-brand-700/25 pl-4 text-[14px] text-gray-550 dark:text-slate-400">
               <Markdown>{reasoning}</Markdown>
             </div>
           </motion.div>

@@ -50,11 +50,13 @@ const anyUnresolved = (requested: string[], resolved: string[]): boolean => {
 /**
  * Check that every assignee names a real user.
  *
- * Assignment is intentionally *not* restricted to members of the project: the
- * picker is fed by `GET /api/users`, which lists every user in the deployment,
- * and narrowing it here would break that flow. Residual risk is small — an
- * assignee id is a user id the caller already held, and unlike a document id it
- * is never expanded into row data on the timeline.
+ * Assignment is intentionally *not* restricted to members of the project. The
+ * picker is fed by `GET /api/projects/:id/assignable-users` (hierarchy members
+ * plus existing assignees), but other flows — AI-generated plans resolving an
+ * email, invite-with-task-assignment — may legitimately name someone outside
+ * that list. Residual risk is small: an assignee id is a user id the caller
+ * already held, and unlike a document id it is never expanded into row data on
+ * the timeline.
  */
 export const validateAssigneeIds = async (
   assigneeIds: string[] | undefined,

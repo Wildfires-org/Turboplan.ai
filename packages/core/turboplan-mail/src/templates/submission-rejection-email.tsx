@@ -2,11 +2,10 @@ import { Text } from "@react-email/components";
 
 import { BaseLayout } from "./base-layout";
 import {
-  CardMascot,
+  BrandCard,
   CtaButton,
   Disclaimer,
   FallbackUrl,
-  GradientCard,
   GreetingPill,
 } from "./email-card";
 
@@ -38,7 +37,7 @@ export function SubmissionRejectionEmail({
       preview={`Your citizen submission "${projectName}" has been reviewed by ${organizationName}`}
       label="Citizen Submission Update"
     >
-      <GradientCard>
+      <BrandCard>
         <GreetingPill>Hello</GreetingPill>
 
         {/* Rejected Badge */}
@@ -72,9 +71,7 @@ export function SubmissionRejectionEmail({
         </Text>
 
         <CtaButton href={submissionUrl} label="Review Submission" />
-
-        <CardMascot />
-      </GradientCard>
+      </BrandCard>
 
       <Disclaimer>
         This email was sent to {citizenEmail}. If you weren't expecting this

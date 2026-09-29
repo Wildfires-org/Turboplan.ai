@@ -213,7 +213,7 @@ export function MapControls({ href, projectId }: MapControlsProps) {
     <>
       <div className="flex items-center gap-2">
         {href && (
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="glass" size="sm" asChild>
             <Link href={href}>
               Go to map
               <ArrowRight className="size-4 ml-2" />
@@ -221,14 +221,18 @@ export function MapControls({ href, projectId }: MapControlsProps) {
           </Button>
         )}
         {!status?.unitsBoundary.exists && (
-          <Button variant="outline" size="sm" onClick={handleOpenUnitDialog}>
+          <Button variant="glass" size="sm" onClick={handleOpenUnitDialog}>
             Add unit map
           </Button>
         )}
-        <Settings
-          className="size-4 cursor-pointer"
+        <button
+          type="button"
+          aria-label="Map settings"
           onClick={() => setIsSettingsOpen(true)}
-        />
+          className="flex size-8 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
+        >
+          <Settings aria-hidden className="size-4" />
+        </button>
       </div>
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -243,7 +247,7 @@ export function MapControls({ href, projectId }: MapControlsProps) {
           <div className="space-y-4 mt-4">
             {/* Layer Status Section */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <h3 className="text-[11px] font-medium uppercase tracking-[0.08em] text-gray-600 dark:text-gray-300">
                 Layer Status
               </h3>
               <LayerStatusItem
@@ -264,12 +268,12 @@ export function MapControls({ href, projectId }: MapControlsProps) {
             </div>
 
             {/* Remove All Section */}
-            <div className="flex flex-row items-center justify-between gap-2 bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-200 dark:border-red-800">
+            <div className="flex flex-row items-center justify-between gap-2 rounded-xl bg-error-50 p-4 ring-1 ring-inset ring-error-700/10 dark:bg-red-900/10">
               <div className="flex flex-col gap-1">
                 <h3 className="text-sm font-semibold text-red-900 dark:text-red-100">
                   Remove all maps and layers
                 </h3>
-                <p className="text-sm text-red-700 dark:text-red-300">
+                <p className="text-sm text-error-700 dark:text-red-300">
                   This will remove all maps and layers from the project.
                 </p>
               </div>

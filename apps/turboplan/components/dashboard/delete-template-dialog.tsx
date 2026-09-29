@@ -15,6 +15,7 @@ import {
 import type { ProjectWithCoverImage } from "@wildfires-org/turboplan-workspace/types";
 
 import { useDeleteTemplate } from "@/hooks/use-delete-template";
+import { DESTRUCTIVE_BUTTON_CLASS } from "@/lib/glass";
 
 interface DeleteTemplateDialogProps {
   template: ProjectWithCoverImage;
@@ -51,9 +52,9 @@ export function DeleteTemplateDialog({
             &rdquo;? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogFooter className="gap-2 sm:space-x-0">
           <Button
-            variant="outline"
+            variant="glass"
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
           >
@@ -61,6 +62,7 @@ export function DeleteTemplateDialog({
           </Button>
           <Button
             variant="destructive"
+            className={DESTRUCTIVE_BUTTON_CLASS}
             onClick={handleDelete}
             disabled={isDeleting}
           >

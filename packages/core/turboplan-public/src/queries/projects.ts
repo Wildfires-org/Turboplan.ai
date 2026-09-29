@@ -4,9 +4,14 @@
  * Database queries for fetching project data without authentication.
  */
 
-import { and, desc, eq, isNull, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNull, notInArray, type SQL } from "drizzle-orm";
 
-import { office, organization, project } from "@wildfires-org/turboplan-db";
+import {
+  office,
+  organization,
+  PUBLICLY_HIDDEN_OWNERSHIP_STATUSES,
+  project,
+} from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 
 export type PublicProjectFilters = {
@@ -39,6 +44,7 @@ function queryPublicEntries(
     eq(project.isPublic, true),
     eq(project.status, "active"),
     eq(project.isTemplate, isTemplate),
+    notInArray(project.ownershipStatus, PUBLICLY_HIDDEN_OWNERSHIP_STATUSES),
     isNull(project.deletedAt),
   ];
 
@@ -104,7 +110,9 @@ export async function getPublicTemplates(
 
 /**
  * Get a project by organization, office, and project slugs.
- * Does not filter by public status - caller should check.
+ * Does not filter by public status - caller should check. Applications under
+ * review (see PUBLICLY_HIDDEN_OWNERSHIP_STATUSES) are never returned, since
+ * every caller is a public read path.
  */
 export async function getProjectBySlugs(
   orgSlug: string,
@@ -143,6 +151,7 @@ export async function getProjectBySlugs(
         eq(organization.slug, orgSlug),
         eq(office.slug, officeSlug),
         eq(project.slug, projectSlug),
+        notInArray(project.ownershipStatus, PUBLICLY_HIDDEN_OWNERSHIP_STATUSES),
         isNull(project.deletedAt),
       ),
     )

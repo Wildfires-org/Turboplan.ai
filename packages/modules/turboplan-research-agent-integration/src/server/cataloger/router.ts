@@ -15,13 +15,13 @@ import type { RBACContext } from "@wildfires-org/turboplan-rbac/hono";
 
 import { catalogerRunRequestSchema } from "../schemas";
 import { handleRouteError } from "../utils";
-import {
-  createCatalogerRun,
-  getCatalogerRunById,
-  getCatalogerRunsByUserId,
-} from "./repository";
+import { createCatalogerRun, getCatalogerRunById } from "./repository";
 import { reconcileCatalogerExternalStatus, startCatalogerRun } from "./service";
 
+// Platform-admin only: mounted under /api/admin/cataloger (see apps/server
+// privateRoutes.ts) so adminMiddleware guards every route. Runs create GOVERNMENT
+// orgs and public template projects, so never mount this outside /api/admin.
+// Listing runs lives in admin-router.ts (GET /runs).
 const catalogerRouter = new Hono<RBACContext>();
 
 // POST /run — Start a cataloger run
@@ -153,26 +153,5 @@ catalogerRouter.get(
     }
   },
 );
-
-// GET /runs — List user's own runs
-catalogerRouter.get("/runs", async (c) => {
-  try {
-    const user = c.get("user");
-
-    const runs = await getCatalogerRunsByUserId(user.userId);
-
-    return c.json({
-      runs: runs.map((run) => ({
-        id: run.id,
-        status: run.status,
-        message: run.message?.slice(0, 200) ?? null,
-        entriesCount: run.entriesCount,
-        createdAt: run.createdAt?.toISOString(),
-      })),
-    });
-  } catch (error) {
-    return handleRouteError(c, "cataloger-runs-list", error);
-  }
-});
 
 export default catalogerRouter;

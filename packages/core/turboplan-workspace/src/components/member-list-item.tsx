@@ -83,8 +83,10 @@ export function MemberListItem({
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 border rounded-lg ${
-        isInherited ? "bg-muted/30" : ""
+      className={`flex items-center gap-3 rounded-xl p-3 ring-1 ring-inset ${
+        isInherited
+          ? "bg-brandAlt-100/60 ring-brandAlt-200/60"
+          : "bg-white ring-slate-900/[0.06] dark:bg-white/5 dark:ring-white/10"
       }`}
     >
       <Avatar>

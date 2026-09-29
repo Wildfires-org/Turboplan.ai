@@ -75,7 +75,18 @@ export class RunManager {
 
     try {
       if (await this.isBootstrapperRun(runId)) {
-        await this.notifyCompletion(finalState, targetApiUrl, webhookSecret);
+        // The target rejects webhooks once it has reconciled the run as
+        // finished, so a failed final notification is expected and must not
+        // skip persisting the result below.
+        await this.notifyCompletion(
+          finalState,
+          targetApiUrl,
+          webhookSecret,
+        ).catch((err) => {
+          logger.error(`Failed to notify completion of run ${runId}`, err, {
+            runId,
+          });
+        });
       }
       await this.saveRunResult(finalState);
     } catch (err) {

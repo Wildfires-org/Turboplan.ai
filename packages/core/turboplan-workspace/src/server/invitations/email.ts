@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import {
   milestones,
@@ -9,7 +9,11 @@ import {
   tasks,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
-import { getUserById } from "@wildfires-org/turboplan-db/queries";
+import {
+  getUserById,
+  milestoneInProject,
+  taskInProject,
+} from "@wildfires-org/turboplan-db/queries";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
 
@@ -18,9 +22,11 @@ import type { InvitationEntityType, TaskAssignment } from "./types";
 import { getEntityName, getInviterName } from "./utils";
 
 /**
- * Get task and milestone titles for email
+ * Get task and milestone titles for email, scoped to the invitation's project
+ * so a stored id can never surface another project's titles to the invitee.
  */
 async function getTaskAssignmentTitles(
+  projectId: string,
   taskAssignment: TaskAssignment,
 ): Promise<{ taskTitle?: string; milestoneTitle?: string }> {
   let taskTitle: string | undefined;
@@ -31,7 +37,9 @@ async function getTaskAssignmentTitles(
       const [task] = await db
         .select({ title: tasks.title })
         .from(tasks)
-        .where(eq(tasks.id, taskAssignment.taskId))
+        .where(
+          and(eq(tasks.id, taskAssignment.taskId), taskInProject(projectId)),
+        )
         .limit(1);
       taskTitle = task?.title;
     }
@@ -40,7 +48,12 @@ async function getTaskAssignmentTitles(
       const [milestone] = await db
         .select({ title: milestones.title })
         .from(milestones)
-        .where(eq(milestones.id, taskAssignment.milestoneId))
+        .where(
+          and(
+            eq(milestones.id, taskAssignment.milestoneId),
+            milestoneInProject(projectId),
+          ),
+        )
         .limit(1);
       milestoneTitle = milestone?.title;
     }
@@ -86,8 +99,10 @@ export async function sendInvitationEmail(
     (taskAssignment.taskId || taskAssignment.milestoneId)
   ) {
     // Fetch task/milestone titles for the email
-    const { taskTitle, milestoneTitle } =
-      await getTaskAssignmentTitles(taskAssignment);
+    const { taskTitle, milestoneTitle } = await getTaskAssignmentTitles(
+      invitation.entityId,
+      taskAssignment,
+    );
 
     await mailService.sendProjectInvitationEmail({
       to: invitation.email,

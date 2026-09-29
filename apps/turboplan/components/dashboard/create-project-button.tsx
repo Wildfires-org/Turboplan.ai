@@ -1,5 +1,7 @@
 "use client";
 
+import type { ButtonProps } from "@wildfires-org/turboplan-utils";
+
 import { AddProjectDialog } from "./add-project-dialog";
 import { CreateEntityButton } from "./create-entity-button";
 
@@ -9,8 +11,8 @@ interface CreateProjectButtonProps {
   officeSlug: string;
   onSuccess: () => void;
   className?: string;
-  variant?: "default" | "outline" | "ghost" | "destructive" | "secondary";
-  size?: "default" | "sm" | "lg" | "icon";
+  variant?: ButtonProps["variant"];
+  size?: ButtonProps["size"];
 }
 
 export function CreateProjectButton({

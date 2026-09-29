@@ -1,10 +1,21 @@
 import { z } from "zod";
 
+import {
+  HTTP_URL_ONLY_MESSAGE,
+  isSafeHttpUrl,
+} from "@wildfires-org/turboplan-utils/server";
+
 // Base schemas (internal, used to compose exported schemas)
+
+// Stored URLs are later opened as links, so only http(s) is accepted.
+const httpUrlSchema = z
+  .string()
+  .url("Valid URL is required")
+  .refine(isSafeHttpUrl, HTTP_URL_ONLY_MESSAGE);
 
 const documentSchema = z.object({
   title: z.string().min(1, "Document title is required"),
-  url: z.string().url("Valid URL is required"),
+  url: httpUrlSchema,
   relevance: z.number().int().min(0).max(100),
   context: z.string().min(1, "Document context is required"),
   folder: z.string().max(255).optional(),
@@ -42,7 +53,7 @@ const timelineItemSchema = z.object({
   resourceUrls: z
     .array(
       z.object({
-        url: z.string().url(),
+        url: httpUrlSchema,
         filename: z.string(),
         type: z.string().optional(),
       }),
@@ -54,7 +65,7 @@ const timelineItemSchema = z.object({
 const contextItemSchema = z.object({
   label: z.string().min(1, "Context label is required"),
   content: z.string().min(1, "Context content is required"),
-  url: z.string().url("Valid URL is required").optional(),
+  url: httpUrlSchema.optional(),
 });
 
 const catalogOfficeSchema = z.object({
@@ -125,7 +136,10 @@ export const catalogerCreateEntrySchema = z.object({
 // Proxy request schemas
 
 export const catalogerRunRequestSchema = z.object({
-  message: z.string().min(1, "Message is required"),
+  message: z
+    .string()
+    .min(1, "Message is required")
+    .max(10_000, "Message max 10000 chars"),
 });
 
 // Webhook request schemas

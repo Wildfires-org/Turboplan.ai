@@ -61,7 +61,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({
   const TooltipContent = ({ task }: { task: GanttTask }) => {
     const normalizedTask = task as NormalizedGanttTask;
     return (
-      <div className="bg-black rounded-lg text-white border-0 text-xs font-inter p-2 max-w-max flex flex-col">
+      <div className="flex max-w-max flex-col rounded-xl border-0 bg-slate-900 p-2.5 font-inter text-xs tabular-nums text-white shadow-[0_18px_48px_-20px_rgba(15,23,42,0.5)]">
         <div className="font-medium mb-1">{task.name}</div>
         <span>Start date: {convertDateToMonthDayYearString(task.start)}</span>
         <span>Due date: {convertDateToMonthDayYearString(task.end)}</span>
@@ -88,7 +88,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({
             opacity: 1;
           }
           .rowLines line {
-            stroke: #f3f4f6;
+            stroke: #e3efea;
           }
           .gridBody > .rows rect[data-ishighlighted="true"] {
             transition: fill 0.2s ease-in-out;
@@ -97,8 +97,8 @@ export const GanttChart: React.FC<GanttChartProps> = ({
           }
           @keyframes fadeInAndOutHighlightedBgColor {
             0% { fill: #fff; }
-            10% { fill: #fef3c7; }
-            90% { fill: #fef3c7; }
+            10% { fill: #eefcf6; }
+            90% { fill: #eefcf6; }
             100% { fill: #fff; }
           }
         `,
@@ -113,10 +113,10 @@ export const GanttChart: React.FC<GanttChartProps> = ({
         rowHeight={49}
         fontSize="10px"
         fontFamily="Inter, Helvetica Neue, sans-serif"
-        arrowColor={"#000"}
+        arrowColor={"#72767D"}
         columnWidth={columnWidth}
         barFill={55}
-        barCornerRadius={4}
+        barCornerRadius={8}
         TaskListHeader={() => null}
         TaskListTable={() => null}
         preStepsCount={preStepsCount}

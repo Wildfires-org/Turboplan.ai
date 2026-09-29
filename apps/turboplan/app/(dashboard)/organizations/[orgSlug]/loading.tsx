@@ -1,38 +1,42 @@
-import { Skeleton } from "@wildfires-org/turboplan-utils";
+"use client";
 
+import { useParams } from "next/navigation";
+
+import { InertLoading } from "@/components/dashboard/inert-loading";
+import { EntityPageFrameSkeleton } from "@/components/dashboard/office-page-frame";
+import { OfficeRouteLoading } from "@/components/dashboard/office-route-loading";
 import { OfficeSkeleton } from "@/components/dashboard/office-skeleton";
+import { SKELETON_BAR_CLASS, STICKY_TOOLBAR_CLASS } from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
+// This boundary also covers every office route while the office layout
+// resolves (hard loads, switching offices), so defer to the office loading
+// state there — it renders the real frame, tabs and toolbars.
 export default function OrganizationLoading() {
+  const params = useParams<{ officeSlug?: string }>();
+
+  if (params.officeSlug) {
+    return (
+      <InertLoading>
+        <OfficeRouteLoading />
+      </InertLoading>
+    );
+  }
+
   return (
-    <div className="flex flex-col shrink-0 min-h-screen">
-      {/* DashboardHeader skeleton */}
-      <header className="sticky top-0 z-30 flex shrink-0 h-16 items-center gap-4 border-b bg-background px-4 lg:px-6">
-        <Skeleton className="h-4 w-32" />
-      </header>
-
-      {/* EntityBanner skeleton */}
-      <div className="relative w-full">
-        <Skeleton className="h-[124px] w-full rounded-none" />
-        <div className="absolute left-8 top-[88px] z-10">
-          <Skeleton className="size-[72px] rounded-lg" />
+    <EntityPageFrameSkeleton crumbs={1}>
+      <div className="space-y-2">
+        <div className={STICKY_TOOLBAR_CLASS}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="glass h-10 w-72 rounded-full" />
+            <div className="glass-inset hidden h-10 w-[340px] rounded-xl sm:block" />
+          </div>
+          <div className="mt-6 flex h-9 items-center">
+            <span className={cn(SKELETON_BAR_CLASS, "h-9 w-32 rounded-full")} />
+          </div>
         </div>
-        <div className="border-b border-gray-300 bg-white px-8 pb-5 pt-[52px]">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="mt-3 h-4 w-72" />
-        </div>
+        <OfficeSkeleton />
       </div>
-
-      {/* Content area */}
-      <div className="flex-1 container mx-auto px-6">
-        <div className="flex items-center gap-4 border-b py-4">
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-20" />
-        </div>
-        <div className="py-6">
-          <OfficeSkeleton count={6} />
-        </div>
-      </div>
-    </div>
+    </EntityPageFrameSkeleton>
   );
 }

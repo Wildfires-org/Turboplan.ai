@@ -11,8 +11,9 @@ export function SidebarInitialsBadge({
 }: SidebarInitialsBadgeProps) {
   return (
     <span
+      data-sidebar-keep=""
       className={cn(
-        "flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white bg-emerald-400",
+        "flex size-5 shrink-0 items-center justify-center rounded bg-brand-800 text-[10px] font-semibold text-white",
         className,
       )}
     >

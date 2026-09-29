@@ -1,11 +1,17 @@
 "use client";
 
+import { X } from "lucide-react";
+
 import { CheckoutView } from "@wildfires-org/turboplan-billing/client";
 import { CATALOG } from "@wildfires-org/turboplan-billing/types";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 
+import {
+  MODAL_CLOSE_BUTTON_CLASS,
+  MODAL_SURFACE_CLASS,
+} from "@/components/catalog/catalog-layout";
 import DialogBase from "@/components/dialogs/dialog-base/dialog-base";
-import Cross from "@/components/icons/cross";
+import { cn } from "@/lib/utils";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -15,26 +21,31 @@ interface CheckoutModalProps {
 export function CheckoutModal({ isOpen, onOpenChange }: CheckoutModalProps) {
   return (
     <DialogBase
-      className="w-[calc(100%-24px)] max-w-[960px] rounded-lg bg-neutral-light border-[0.75px] border-neutral-grey"
+      className={cn(MODAL_SURFACE_CLASS, "w-[calc(100%-24px)] max-w-[960px]")}
       separator={false}
       triggerSlot={null}
       headerSlot={null}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
     >
-      <Cross
-        className="absolute right-7 top-7 cursor-pointer"
+      <button
+        type="button"
+        aria-label="Close"
+        className={MODAL_CLOSE_BUTTON_CLASS}
         onClick={(e) => {
           onOpenChange(false);
-          e?.stopPropagation();
+          e.stopPropagation();
         }}
-      />
-      <div className="flex w-full flex-col gap-6 overflow-y-auto p-6 md:p-8">
-        <header>
-          <h2 className="text-2xl font-medium text-neutral-black">
+      >
+        <X className="size-4" aria-hidden />
+      </button>
+      {/* 90vh = DialogBase max height, minus the 1.5px surface border. */}
+      <div className="flex max-h-[calc(90vh-3px)] w-full flex-col gap-6 overflow-y-auto p-6 sm:p-8">
+        <header className="pr-12">
+          <h2 className="font-heading text-[28px] font-normal leading-[1.15] tracking-[-0.04em] text-balance text-egray-900 sm:text-[32px]">
             Choose your plan
           </h2>
-          <p className="mt-1 text-sm text-gray-70">
+          <p className="mt-2 font-inter text-[15px] leading-[22px] text-egray-700">
             {CATALOG.billing.trial_days > 0
               ? `You won't be charged until your ${CATALOG.billing.trial_days}-day free trial ends.`
               : "A flat workspace price — seats beyond the included count bill separately."}

@@ -1,8 +1,11 @@
+import { ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 import type { PublicOrganization } from "@wildfires-org/turboplan-public/types";
 import { cn } from "@wildfires-org/turboplan-utils";
+
+import { CATALOG_CARD_LINK_CLASS } from "./catalog-layout";
 
 interface OrganizationCardProps {
   organization: PublicOrganization;
@@ -16,43 +19,53 @@ export function OrganizationCard({
   className,
 }: OrganizationCardProps) {
   const content = (
-    <li
-      role="listitem"
-      title={organization.name}
-      className={cn(
-        "flex items-center gap-4 p-5 border-b border-r border-neutral-grey/40 hover:bg-neutral-50 transition-colors cursor-pointer",
-        className,
-      )}
-    >
-      {/* Organization logo */}
+    <>
       {organization.logoUrl?.trim() ? (
-        <div className="w-12 h-12 shrink-0 relative">
+        <div className="relative size-12 shrink-0">
           <Image
             src={organization.logoUrl.trim()}
             alt={`${organization.name} logo`}
             fill
+            sizes="48px"
             className="object-contain"
           />
         </div>
       ) : (
-        <div className="w-12 h-12 bg-gray-150 flex items-center justify-center text-sm font-medium text-neutral-grey3 shrink-0">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brandAlt-100 font-heading text-sm font-medium text-brand-800">
           {organization.name.slice(0, 2).toUpperCase().replace(".", "")}
         </div>
       )}
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-neutral-black truncate">
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-inter text-[15px] font-medium leading-[20px] text-egray-900">
           {organization.name}
         </p>
-        <p className="text-xs text-neutral-grey3">
-          {organization.slug?.toUpperCase()}
+        <p className="mt-0.5 font-heading text-[12px] uppercase leading-[16px] tracking-[0.08em] text-egray-700">
+          {organization.slug}
         </p>
       </div>
-    </li>
+      {href && (
+        <ChevronRight
+          aria-hidden
+          className="size-5 shrink-0 text-egray-700 transition-transform duration-200 ease-out-expo group-hover:translate-x-0.5 motion-reduce:transition-none"
+        />
+      )}
+    </>
   );
 
-  if (href) {
-    return <Link href={href}>{content}</Link>;
-  }
+  const cardClassName = "flex items-center gap-4 p-5";
 
-  return content;
+  return (
+    <li title={organization.name} className={cn("list-none", className)}>
+      {href ? (
+        <Link
+          href={href}
+          className={cn(CATALOG_CARD_LINK_CLASS, cardClassName)}
+        >
+          {content}
+        </Link>
+      ) : (
+        <div className={cn("glass-card", cardClassName)}>{content}</div>
+      )}
+    </li>
+  );
 }

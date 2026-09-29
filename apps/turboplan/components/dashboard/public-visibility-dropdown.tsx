@@ -17,6 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  buttonVariants,
   cn,
   Tooltip,
   TooltipContent,
@@ -54,13 +55,25 @@ export function PublicVisibilityDropdown({
 
   const isCitizen = useIsCitizen();
 
-  // Check if user has MANAGE_MEMBERS permission (owner-level access)
-  const { hasPermission, isChecking } = useEntityPermission({
-    userId,
-    entityType: EntityType.PROJECT,
-    entityId: project.id,
-    action: Action.MANAGE_MEMBERS,
-  });
+  // Changing visibility needs MANAGE_MEMBERS (owner) on the project; making it
+  // public additionally needs MANAGE_MEMBERS on the office, mirroring the
+  // server. Both checks share the per-entity SWR cache with other callers.
+  const { hasPermission: canManageProject, isChecking: isCheckingProject } =
+    useEntityPermission({
+      userId,
+      entityType: EntityType.PROJECT,
+      entityId: project.id,
+      action: Action.MANAGE_MEMBERS,
+    });
+  const { hasPermission: canManageOffice, isChecking: isCheckingOffice } =
+    useEntityPermission({
+      userId,
+      entityType: EntityType.OFFICE,
+      entityId: project.officeId,
+      action: Action.MANAGE_MEMBERS,
+    });
+  const hasPermission = canManageProject && (isPublic || canManageOffice);
+  const isChecking = isCheckingProject || isCheckingOffice;
 
   // Citizens should never see privacy controls regardless of their role
   if (isCitizen) {
@@ -134,21 +147,14 @@ export function PublicVisibilityDropdown({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
+            {/* Published: brand-special gradient ring around a dark tile.
+                Private: plain glass icon button. Both are 36px. */}
             <div
               className={cn(
-                "relative rounded-md p-[3px]",
-                isPublic
-                  ? "bg-gradient-to-r from-[#49F3A1] via-[#2CBCFF] to-[#FFDF2C]"
-                  : "bg-transparent",
+                "relative rounded-xl",
+                isPublic &&
+                  "bg-[linear-gradient(115deg,#49F3A1_0.42%,#2CBCFF_53.83%,#FFDF2C_109.33%)] p-[2px]",
               )}
-              style={
-                isPublic
-                  ? {
-                      background:
-                        "linear-gradient(115deg, #49F3A1 0.42%, #2CBCFF 53.83%, #FFDF2C 109.33%)",
-                    }
-                  : undefined
-              }
             >
               <button
                 type="button"
@@ -158,19 +164,18 @@ export function PublicVisibilityDropdown({
                   isPublic ? "Make project private" : "Make project public"
                 }
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-[5px] transition-colors",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                  "press flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:size-4",
                   isPublic
-                    ? "bg-black text-white hover:bg-black/90"
-                    : "bg-neutral-100 text-black hover:bg-neutral-200",
+                    ? "size-8 rounded-[10px] bg-slate-900 text-white hover:bg-slate-800"
+                    : "glass size-9 rounded-xl text-foreground hover:bg-white/90",
                 )}
               >
                 {isUpdating ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <Loader2 className="animate-spin motion-reduce:animate-none" />
                 ) : isPublic ? (
-                  <Eye className="size-3.5" />
+                  <Eye />
                 ) : (
-                  <EyeOff className="size-3.5" />
+                  <EyeOff />
                 )}
               </button>
             </div>
@@ -198,7 +203,10 @@ export function PublicVisibilityDropdown({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancel}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirm}>
+            <AlertDialogAction
+              onClick={handleConfirm}
+              className={buttonVariants({ variant: "brand" })}
+            >
               {pendingVisibility ? "Make Public" : "Make Private"}
             </AlertDialogAction>
           </AlertDialogFooter>

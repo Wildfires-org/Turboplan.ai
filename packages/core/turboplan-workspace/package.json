@@ -9,6 +9,7 @@
     "dev": "tsdown --watch --no-clean",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test $(find tests -name '*.test.ts')",
     "seed:organizations": "tsx src/seed/organizations.ts"
   },
   "exports": {
@@ -44,7 +45,7 @@
     "@wildfires-org/turboplan-timeline-records": "workspace:*",
     "@wildfires-org/turboplan-upload": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
-    "drizzle-orm": "^0.42.0",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.6.3",
     "react-hook-form": "^7.75.0",
     "server-only": "^0.0.1",

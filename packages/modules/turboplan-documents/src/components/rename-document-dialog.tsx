@@ -103,7 +103,7 @@ export const RenameDocumentDialog = ({
             >
               <Input
                 id="document-name"
-                className="h-full min-w-0 flex-1 border-0 bg-transparent pr-0 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-100"
+                className="h-full min-w-0 flex-1 border-0 bg-transparent pr-0 shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-100"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 onFocus={(e) => e.currentTarget.select()}
@@ -124,13 +124,13 @@ export const RenameDocumentDialog = ({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={isRenaming}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!canSave}>
+            <Button type="submit" variant="brand" disabled={!canSave}>
               {isRenaming ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />

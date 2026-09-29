@@ -2,7 +2,9 @@
 
 import { MessageSquare } from "lucide-react";
 
+import { cn } from "../../../tailwind";
 import { AccordionSection } from "../accordion-section";
+import { Skeleton } from "../skeleton";
 import { CommentCard } from "./comment-card";
 import { CommentInput } from "./comment-input";
 import { type CommentData, type CommentPermissions } from "./types";
@@ -56,16 +58,35 @@ export function CommentsSection({
     <div className="space-y-6">
       {/* Loading state */}
       {isLoading && (
-        <div className="flex items-center justify-center py-8 text-muted-foreground">
-          <span className="text-sm">Loading comments...</span>
+        // Comment rows at CommentCard's metrics: 32px avatar, name line,
+        // body line, 24px action row.
+        <div role="status" aria-label="Loading comments" className="space-y-6">
+          {["w-3/4", "w-1/2"].map((bodyWidth) => (
+            <div key={bodyWidth} className="flex gap-3">
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="flex h-5 items-center">
+                  <Skeleton className="h-3 w-28" />
+                </span>
+                <span className="mt-1 flex h-5 items-center">
+                  <Skeleton className={cn("h-3", bodyWidth)} />
+                </span>
+                <span className="mt-2 flex h-6 items-center">
+                  <Skeleton className="h-3 w-16" />
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && comments.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-          <MessageSquare className="mb-2 h-8 w-8 opacity-50" />
-          <p className="text-sm">No comments yet</p>
+        <div className="flex flex-col items-center justify-center py-8 text-center text-slate-600">
+          <span className="mb-2 flex size-10 items-center justify-center rounded-full border border-white/85 bg-white/55 text-brand-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+            <MessageSquare aria-hidden className="size-5" />
+          </span>
+          <p className="text-sm font-medium text-foreground">No comments yet</p>
           {!readOnly && permissions.currentUserId && (
             <p className="mt-1 text-xs">Be the first to leave a comment!</p>
           )}

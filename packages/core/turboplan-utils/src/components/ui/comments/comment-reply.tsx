@@ -62,7 +62,7 @@ export function CommentReply({
   const displayName =
     comment.isAutoResponse && comment.autoResponderName
       ? comment.autoResponderName
-      : generateDisplayName(comment.author, comment.author.email);
+      : generateDisplayName(comment.author, "Unknown user");
 
   // For auto-responses, use first letter of responder name; otherwise use author initials
   const displayInitials =
@@ -98,7 +98,9 @@ export function CommentReply({
           {!comment.isAutoResponse && comment.author.avatarUrl && (
             <AvatarImage src={comment.author.avatarUrl} alt={displayName} />
           )}
-          <AvatarFallback className="text-xs">{displayInitials}</AvatarFallback>
+          <AvatarFallback className="bg-brand-800 text-xs text-white">
+            {displayInitials}
+          </AvatarFallback>
         </Avatar>
 
         {/* Content */}

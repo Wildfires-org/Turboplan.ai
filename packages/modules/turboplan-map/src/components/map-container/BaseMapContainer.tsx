@@ -84,13 +84,13 @@ export function BaseMapContainer({
   return (
     <div
       className={cn(
-        "relative bg-gray-100 dark:bg-gray-800 rounded-lg z-10 w-full h-full min-h-[400px]",
+        "relative isolate z-10 h-full min-h-[400px] w-full overflow-hidden rounded-xl bg-brandAlt-100 dark:bg-gray-800",
         className,
       )}
     >
       {showMapTypeSelector && (
         <div
-          className="absolute top-4 right-4"
+          className="absolute right-3 top-3"
           style={{ zIndex: ZINDEX.mapControl }}
         >
           <MapTypeSelector
@@ -102,7 +102,7 @@ export function BaseMapContainer({
 
       {showLayerSelector && onToggleLayer && visibleLayerIds && (
         <div
-          className="absolute top-4 right-16"
+          className="absolute right-[60px] top-3"
           style={{ zIndex: ZINDEX.mapControl }}
         >
           <LayerVisibilitySelector

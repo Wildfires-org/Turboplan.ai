@@ -47,7 +47,7 @@ const EDGE_FADE =
 const SLIDES_PER_ARROW_CLICK = 3;
 
 const ARROW_CLASSES =
-  "absolute top-1/2 z-10 hidden size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-egray-100 bg-white text-[#262626] shadow-[0_4px_6px_-4px_rgba(0,0,0,0.10),0_10px_15px_-3px_rgba(0,0,0,0.10)] opacity-0 transition-[opacity,background-color] duration-200 hover:bg-egray-50 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 sm:flex";
+  "glass press absolute top-1/2 z-10 hidden size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-[#262626] opacity-0 hover:bg-white/80 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 sm:flex";
 
 export function QuickStartPills({ onSelect }: QuickStartPillsProps) {
   const prefersReducedMotion = useReducedMotion();
@@ -98,22 +98,26 @@ export function QuickStartPills({ onSelect }: QuickStartPillsProps) {
 
   return (
     <div className="group relative w-full" data-testid="quick-start-pills">
+      {/* -my-4 / py-4 give the pills' shadow (8px below) and hover lift room
+          inside the overflow clip without changing the row's layout height. */}
       <div
         ref={emblaRef}
-        className="w-full overflow-hidden"
+        className="-my-4 w-full overflow-hidden"
         style={{ maskImage: EDGE_FADE, WebkitMaskImage: EDGE_FADE }}
       >
-        {/* pb-1 leaves room for the pills' hover shadow. */}
-        <div className="flex pb-1">
-          {/* transition-shadow only — Embla translates slides to wrap the
-              loop, and a transition on transform would animate that wrap
-              as a visible glide. */}
+        <div className="flex py-4">
+          {/* Never transition `transform` — Embla translates slides with it
+              to wrap the loop, and a transition would animate that wrap as a
+              visible glide. The hover lift (`translate`) and the `press`
+              scale are separate properties (Tailwind v4), so both compose
+              with Embla's transform, and `press` never transitions it. */}
+          {/* Pills get a tighter drop than `glass` so it fits the clip. */}
           {QUICK_START_EXAMPLES.map((tag) => (
             <button
               key={tag.label}
               type="button"
               onClick={() => handleSelect(tag)}
-              className="mr-3 inline-flex min-h-[44px] shrink-0 cursor-pointer items-center gap-1.5 rounded-[15px] border border-egray-100 bg-white px-3.5 py-2 font-inter text-[14px] font-normal leading-[20px] text-[#262626] transition-shadow duration-200 hover:shadow-[0_4px_6px_-4px_rgba(0,0,0,0.10),0_10px_15px_-3px_rgba(0,0,0,0.10)] sm:min-h-0 sm:py-1.5"
+              className="glass press mr-3 !shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_8px_-2px_rgba(21,102,71,0.14)] inline-flex min-h-[44px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-2 font-inter text-[14px] font-normal leading-[20px] text-[#262626] hover:-translate-y-px hover:bg-white/75 motion-reduce:hover:translate-y-0 sm:min-h-0 sm:py-1.5"
             >
               <span>{tag.emoji}</span>
               {tag.label}

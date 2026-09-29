@@ -28,11 +28,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Checkbox,
+  isSafeHttpUrl,
 } from "@wildfires-org/turboplan-utils";
 
 import {
+  DOCUMENT_MIME_EXTENSIONS,
   isBoxDownloadUrl,
-  isPreviewableDocumentUrl,
+  isDocumentMimeType,
+  isDownloadableDocument,
 } from "../../../document-preview-utils";
 import type { DocumentItem } from "../../../types";
 import { useSectionSaveRegistration } from "../../contexts/save-to-project-context";
@@ -77,6 +80,10 @@ const getFileExtension = (doc: DocumentItem) => {
   }
   if (ext === "docx") {
     return "DOCX";
+  }
+  // Extensionless URL detected as a document by the server-side probe.
+  if (isDocumentMimeType(doc.contentType)) {
+    return DOCUMENT_MIME_EXTENSIONS[doc.contentType].slice(1).toUpperCase();
   }
   return null;
 };
@@ -129,7 +136,7 @@ const DocumentRow = ({
     <div className="flex items-start gap-3">
       <div className="pt-0.5 shrink-0">
         {doc.saved ? (
-          <CheckCheck className="size-4 text-green-500" />
+          <CheckCheck className="size-4 text-brand-700" />
         ) : isSaveableDocument(doc) ? (
           <Checkbox
             checked={isSelected}
@@ -156,7 +163,7 @@ const DocumentRow = ({
               {ext}
             </SectionPill>
           )}
-          {!doc.saved && !isPreviewableDocumentUrl(doc.url) && (
+          {!doc.saved && !isDownloadableDocument(doc) && (
             <SectionPill
               tone="warning"
               icon={<ExternalLink className="size-3" />}
@@ -241,7 +248,7 @@ export function DocumentsSection({
       return;
     }
 
-    if (!isPreviewableDocumentUrl(doc.url)) {
+    if (!isDownloadableDocument(doc)) {
       setRedirectUrl(doc.url);
       return;
     }
@@ -249,7 +256,7 @@ export function DocumentsSection({
     const requestId = ++previewRequestIdRef.current;
     setPreviewDocIndex(index);
 
-    if (doc.blobUrl || !isPreviewableDocumentUrl(doc.url) || !projectId) {
+    if (doc.blobUrl || !isDownloadableDocument(doc) || !projectId) {
       setPreviewUrl(doc.blobUrl ?? doc.url);
       return;
     }
@@ -381,7 +388,7 @@ export function DocumentsSection({
                   <div className="flex items-start gap-3">
                     <div className="pt-0.5 shrink-0">
                       {folderState.allSaved ? (
-                        <CheckCheck className="size-4 text-green-500" />
+                        <CheckCheck className="size-4 text-brand-700" />
                       ) : (
                         <Checkbox
                           checked={
@@ -405,7 +412,7 @@ export function DocumentsSection({
                             {folder.name}
                           </span>
                           {folder.description && (
-                            <span className="text-xs text-neutral-400 leading-4 block mt-0.5">
+                            <span className="text-xs text-gray-550 leading-4 block mt-0.5">
                               {folder.description}
                             </span>
                           )}
@@ -449,7 +456,7 @@ export function DocumentsSection({
                           {hasMore && (
                             <button
                               type="button"
-                              className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700 font-medium mt-1"
+                              className="flex items-center gap-1 text-xs text-gray-550 hover:text-foreground font-medium mt-1"
                               onClick={() => toggleShowAllDocs(folder.name)}
                             >
                               {isExpanded ? (
@@ -514,6 +521,7 @@ export function DocumentsSection({
           filename={documents[previewDocIndex].title}
           url={documents[previewDocIndex].url}
           previewUrl={previewUrl}
+          mimeType={documents[previewDocIndex].contentType}
           open
           onOpenChange={(open) => {
             if (!open) {
@@ -559,7 +567,7 @@ export function DocumentsSection({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (redirectUrl) {
+                if (isSafeHttpUrl(redirectUrl)) {
                   window.open(redirectUrl, "_blank", "noopener,noreferrer");
                 }
                 setRedirectUrl(null);

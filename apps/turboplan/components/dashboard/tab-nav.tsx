@@ -5,6 +5,14 @@ import { Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import {
+  SEARCH_FIELD_CLASS,
+  SEARCH_INPUT_CLASS,
+  SEGMENT_ACTIVE_CLASS,
+  SEGMENT_CLASS,
+  SEGMENT_INACTIVE_CLASS,
+  SEGMENTED_TRACK_CLASS,
+} from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
 type Tab = {
@@ -34,8 +42,9 @@ export function TabNav({
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex items-center gap-1.5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      {/* Segmented glass control: active tab = white pill with a top highlight. */}
+      <nav aria-label="Sections" className={SEGMENTED_TRACK_CLASS}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.href === activeHref;
@@ -44,32 +53,31 @@ export function TabNav({
             <Link
               key={tab.key}
               href={tab.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border pl-2.5 pr-3 py-1.5 text-xs font-normal tracking-[0.12px] transition-colors",
-                active
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-gray-200 bg-white text-gray-800 hover:bg-gray-50",
+                SEGMENT_CLASS,
+                active ? SEGMENT_ACTIVE_CLASS : SEGMENT_INACTIVE_CLASS,
               )}
             >
-              <Icon className="size-[21px]" />
+              <Icon aria-hidden className="size-4" />
               {tab.label}
             </Link>
           );
         })}
-      </div>
+      </nav>
 
       {onSearchChange !== undefined && (
-        <div className="flex items-center gap-1.5 rounded-md border border-gray-200 p-2">
-          <Search className="size-[19px] text-gray-400" />
+        <label className={SEARCH_FIELD_CLASS}>
+          <Search aria-hidden className="size-4 shrink-0 text-gray-550" />
           <input
             aria-label={searchPlaceholder}
             type="text"
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-[332px] bg-transparent text-xs tracking-[0.12px] text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            className={SEARCH_INPUT_CLASS}
           />
-        </div>
+        </label>
       )}
     </div>
   );

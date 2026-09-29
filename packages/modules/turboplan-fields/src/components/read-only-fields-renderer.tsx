@@ -6,7 +6,7 @@ import { FieldLabel } from "./field-label";
 import { FieldValuesDisplay } from "./field-values-display";
 import { FieldsFieldItem, FieldsListLayout } from "./fields-list-layout";
 
-const fieldLabelColumnClassName = "w-44 shrink-0";
+const fieldLabelColumnClassName = "w-36 shrink-0 sm:w-44";
 
 export interface ReadOnlyField {
   id: string;

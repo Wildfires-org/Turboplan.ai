@@ -2,7 +2,8 @@
 
 export interface CommentAuthor {
   id: string;
-  email: string;
+  /** Null when served to viewers without a project role. */
+  email: string | null;
   firstName: string | null;
   lastName: string | null;
   avatarUrl: string | null;

@@ -136,3 +136,31 @@ export function validateContext(body: unknown): ValidationResult<ContextBody> {
 
   return { ok: true, data: result.data, error: null };
 }
+
+const MAX_EXTRACT_DOCUMENT_IDS = 100;
+
+const extractDocumentsBodySchema = z
+  .object({
+    documentIds: z
+      .array(z.string().trim().min(1, "documentIds entries cannot be empty"))
+      .max(
+        MAX_EXTRACT_DOCUMENT_IDS,
+        `documentIds exceeds ${MAX_EXTRACT_DOCUMENT_IDS} entries`,
+      )
+      .optional(),
+  })
+  .strict();
+
+type ExtractDocumentsBody = z.infer<typeof extractDocumentsBodySchema>;
+
+export function validateExtractDocumentsBody(
+  body: unknown,
+): ValidationResult<ExtractDocumentsBody> {
+  const result = extractDocumentsBodySchema.safeParse(body);
+
+  if (!result.success) {
+    return { ok: false, data: null, error: result.error.issues[0].message };
+  }
+
+  return { ok: true, data: result.data, error: null };
+}

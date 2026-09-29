@@ -23,20 +23,26 @@ type ResearchSavedCardProps = {
   totalSaved: number;
 };
 
-// Per-section accent colors come from the design's deco palette, which has no
-// matching Tailwind token — applied via inline style since the value is dynamic.
+// Per-section icon accents from the design's deco palette (icon only: text
+// stays on the neutral/brand scale so it keeps >= 4.5:1 contrast).
 const SECTION_CONFIG: Record<
   string,
-  { icon: typeof Tag; label: string; color: string }
+  { icon: typeof Tag; label: string; iconClass: string }
 > = {
-  fields: { icon: Tag, label: "Fields", color: "#5A14FF" },
-  documents: { icon: FileText, label: "Documents", color: "#10B981" },
-  milestones: { icon: Flag, label: "Milestones", color: "#1489FF" },
-  context: { icon: FileSymlink, label: "Relevant Context", color: "#4F55C4" },
-  timeline: { icon: Clock, label: "Timeline", color: "#E2D007" },
+  fields: { icon: Tag, label: "Fields", iconClass: "text-[#5A14FF]" },
+  documents: {
+    icon: FileText,
+    label: "Documents",
+    iconClass: "text-brand-800",
+  },
+  milestones: { icon: Flag, label: "Milestones", iconClass: "text-[#1489FF]" },
+  context: {
+    icon: FileSymlink,
+    label: "Relevant Context",
+    iconClass: "text-[#4F55C4]",
+  },
+  timeline: { icon: Clock, label: "Timeline", iconClass: "text-amber-600" },
 };
-
-const SAVED_GREEN = "#05B871";
 
 const formatItemNames = (names: string[], max = 3): string => {
   if (names.length <= max) {
@@ -45,20 +51,19 @@ const formatItemNames = (names: string[], max = 3): string => {
   return `${names.slice(0, max).join(", ")} +${names.length - max} more`;
 };
 
-type CountBadgeProps = {
+const CountBadge = ({
+  count,
+  className,
+}: {
   count: number;
-  color: string;
   className?: string;
-};
-
-const CountBadge = ({ count, color, className }: CountBadgeProps) => {
+}) => {
   return (
     <span
       className={cn(
-        "inline-flex min-w-4 items-center justify-center rounded-full px-1.5 text-[10px] font-medium leading-4 text-white",
+        "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-50 px-1.5 text-[11px] font-medium leading-4 text-brand-900 ring-1 ring-inset ring-brand-800/15",
         className,
       )}
-      style={{ backgroundColor: color }}
     >
       {count}
     </span>
@@ -78,24 +83,23 @@ export const ResearchSavedCard = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="flex w-full flex-col gap-3 rounded-lg border border-brandAlt-200 bg-brandAlt-100 p-3"
+        transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+        className="glass-card flex w-full flex-col gap-3 rounded-[20px] p-3"
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-1.5">
-            <CircleCheck className="size-4 text-[#05B871]" />
-            <span className="text-sm font-semibold text-[#05B871]">
+            <CircleCheck className="size-4 text-brand-800" />
+            <span className="text-sm font-medium text-brand-800">
               Research saved
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-brand-700">
+            <span className="text-[13px] text-gray-550">
               Items saved to project
             </span>
             <CountBadge
               count={totalSaved}
-              color={SAVED_GREEN}
-              className="size-5 px-2 text-xs"
+              className="bg-brand-800 text-white ring-0"
             />
           </div>
         </div>
@@ -109,21 +113,15 @@ export const ResearchSavedCard = ({
               return (
                 <div
                   key={section.sectionKey}
-                  className="flex items-center gap-2 rounded-md border border-neutral-100 bg-white py-2 pl-2 pr-3 shadow-sm"
+                  className="flex items-center gap-2 rounded-xl bg-white py-2 pl-2.5 pr-3 shadow-[0_1px_2px_rgba(15,23,42,0.06)] dark:bg-slate-900"
                 >
-                  <Icon
-                    className="size-4 shrink-0"
-                    style={{ color: config.color }}
-                  />
-                  <span
-                    className="text-[13px] font-semibold"
-                    style={{ color: config.color }}
-                  >
+                  <Icon className={cn("size-4 shrink-0", config.iconClass)} />
+                  <span className="text-[13px] font-medium text-foreground">
                     {config.label}
                   </span>
-                  <CountBadge count={section.savedCount} color={config.color} />
+                  <CountBadge count={section.savedCount} />
                   {section.itemNames.length > 0 && (
-                    <p className="ml-auto truncate text-xs tracking-[0.02em] text-neutral-400">
+                    <p className="ml-auto truncate text-xs text-gray-550">
                       {formatItemNames(section.itemNames)}
                     </p>
                   )}

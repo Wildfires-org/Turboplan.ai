@@ -12,7 +12,10 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 
-import { getProjectDocumentsByIds } from "@wildfires-org/turboplan-db/queries";
+import {
+  getProjectDocumentsByIds,
+  getTaskProjectId,
+} from "@wildfires-org/turboplan-db/queries";
 import { Action } from "@wildfires-org/turboplan-rbac";
 import type { RBACContext } from "@wildfires-org/turboplan-rbac/hono";
 import {
@@ -24,6 +27,7 @@ import type { FieldChange } from "@wildfires-org/turboplan-timeline-records/type
 
 import { TaskStatus } from "../types";
 import {
+  assigneesVisibleTo,
   requireProjectPermission,
   requireProjectPermissionFromTask,
   requireProjectReadAccess,
@@ -67,6 +71,7 @@ const resolveDocumentResourceUrls = async (
   }));
 };
 
+import { projectIdOfMilestone } from "./milestone-project";
 import { getTaskNotificationService } from "./notification-service";
 import { validateTaskReferences } from "./reference-validation";
 import {
@@ -151,7 +156,7 @@ router.get(
 
     try {
       const tasks = await taskService.getAllTasks(documentId);
-      return c.json({ tasks });
+      return c.json({ tasks: assigneesVisibleTo(c, tasks) });
     } catch (_error) {
       return c.json({ error: "Failed to fetch tasks" }, 500);
     }
@@ -169,7 +174,8 @@ router.get("/:id", requireProjectReadAccessFromTask(), async (c) => {
       return c.json({ error: "Task not found" }, 404);
     }
 
-    return c.json({ task });
+    const [visibleTask] = assigneesVisibleTo(c, [task]);
+    return c.json({ task: visibleTask });
   } catch (_error) {
     return c.json({ error: "Failed to fetch task" }, 500);
   }
@@ -184,7 +190,7 @@ router.get(
 
     try {
       const tasks = await taskService.getTasksByMilestone(milestoneId);
-      return c.json({ tasks });
+      return c.json({ tasks: assigneesVisibleTo(c, tasks) });
     } catch (_error) {
       return c.json({ error: "Failed to fetch tasks by milestone" }, 500);
     }
@@ -213,7 +219,7 @@ router.get(
         documentId,
         statusParam as TaskStatus,
       );
-      return c.json({ tasks });
+      return c.json({ tasks: assigneesVisibleTo(c, tasks) });
     } catch (_error) {
       return c.json({ error: "Failed to fetch tasks by status" }, 500);
     }
@@ -269,20 +275,17 @@ router.post(
         userId,
       });
 
-      const milestone = await milestoneService.getMilestoneById(
-        task.milestoneId,
-      );
-      if (milestone?.projectId) {
-        await createTimelineRecord({
-          projectId: milestone.projectId,
-          userId,
-          entityType: "task",
-          entityId: task.id,
-          entityName: task.title,
-          action: "created",
-          metadata: { milestoneId: task.milestoneId },
-        });
-      }
+      // The service checked the milestone belongs to `documentId`, the
+      // project the guard authorised.
+      await createTimelineRecord({
+        projectId: documentId,
+        userId,
+        entityType: "task",
+        entityId: task.id,
+        entityName: task.title,
+        action: "created",
+        metadata: { milestoneId: task.milestoneId },
+      });
 
       return c.json({ task }, 201);
     } catch (error) {
@@ -351,20 +354,17 @@ router.post(
         userId,
       });
 
-      const milestone = await milestoneService.getMilestoneById(
-        task.milestoneId,
-      );
-      if (milestone?.projectId) {
-        await createTimelineRecord({
-          projectId: milestone.projectId,
-          userId,
-          entityType: "task",
-          entityId: task.id,
-          entityName: task.title,
-          action: "created",
-          metadata: { milestoneId: task.milestoneId },
-        });
-      }
+      // The service checked the milestone belongs to `documentId`, the
+      // project the guard authorised.
+      await createTimelineRecord({
+        projectId: documentId,
+        userId,
+        entityType: "task",
+        entityId: task.id,
+        entityName: task.title,
+        action: "created",
+        metadata: { milestoneId: task.milestoneId },
+      });
 
       return c.json({ task }, 201);
     } catch (error) {
@@ -397,12 +397,15 @@ router.put(
         return c.json({ error: "Task not found" }, 404);
       }
 
-      // The task's own `documentId` is the project every incoming id must
-      // resolve inside — not anything the request body claims.
-      const referenceError = await validateTaskReferences(
-        existingTask.documentId,
-        data,
-      );
+      // The task's own project (the one the guard authorised) is where every
+      // incoming id must resolve — not anything the request body claims. Not
+      // `existingTask.documentId`: on legacy tasks that is a chat document.
+      const projectId = await getTaskProjectId(id);
+      if (!projectId) {
+        return c.json({ error: "Task not found" }, 404);
+      }
+
+      const referenceError = await validateTaskReferences(projectId, data);
       if (referenceError) {
         return c.json({ error: referenceError }, 400);
       }
@@ -421,33 +424,28 @@ router.put(
         return c.json({ error: "Task not found" }, 404);
       }
 
-      const milestone = await milestoneService.getMilestoneById(
-        task.milestoneId,
+      const changes = computeChanges(
+        existingTask as unknown as Record<string, unknown>,
+        task as unknown as Record<string, unknown>,
+        taskFieldDefs,
       );
-      if (milestone?.projectId) {
-        const changes = computeChanges(
-          existingTask as unknown as Record<string, unknown>,
-          task as unknown as Record<string, unknown>,
-          taskFieldDefs,
+      if (changes.length > 0) {
+        const resourceUrls = await resolveDocumentResourceUrls(
+          projectId,
+          changes,
         );
-        if (changes.length > 0) {
-          const resourceUrls = await resolveDocumentResourceUrls(
-            milestone.projectId,
-            changes,
-          );
 
-          await createTimelineRecord({
-            projectId: milestone.projectId,
-            userId,
-            entityType: "task",
-            entityId: task.id,
-            entityName: task.title,
-            action: "updated",
-            changes,
-            metadata: { milestoneId: task.milestoneId },
-            ...(resourceUrls.length > 0 ? { resourceUrls } : {}),
-          });
-        }
+        await createTimelineRecord({
+          projectId,
+          userId,
+          entityType: "task",
+          entityId: task.id,
+          entityName: task.title,
+          action: "updated",
+          changes,
+          metadata: { milestoneId: task.milestoneId },
+          ...(resourceUrls.length > 0 ? { resourceUrls } : {}),
+        });
       }
 
       // Send notifications to newly assigned users (if assignees changed)
@@ -465,7 +463,7 @@ router.put(
               taskTitle: task.title,
               taskDescription: task.description,
               milestoneId: task.milestoneId,
-              // projectId is fetched from milestone inside the notification service
+              projectId,
             })
             .catch((error) => {
               console.error("Failed to send assignment notifications:", error);
@@ -509,9 +507,9 @@ router.delete(
         const milestone = await milestoneService.getMilestoneById(
           existingTask.milestoneId,
         );
-        if (milestone?.projectId && userId) {
+        if (milestone && userId) {
           await createTimelineRecord({
-            projectId: milestone.projectId,
+            projectId: projectIdOfMilestone(milestone),
             userId,
             entityType: "task",
             entityId: id,
@@ -549,9 +547,9 @@ router.patch(
       const milestone = await milestoneService.getMilestoneById(
         task.milestoneId,
       );
-      if (milestone?.projectId && userId) {
+      if (milestone && userId) {
         await createTimelineRecord({
-          projectId: milestone.projectId,
+          projectId: projectIdOfMilestone(milestone),
           userId,
           entityType: "task",
           entityId: task.id,
@@ -596,9 +594,9 @@ router.patch(
       const milestone = await milestoneService.getMilestoneById(
         task.milestoneId,
       );
-      if (milestone?.projectId && userId) {
+      if (milestone && userId) {
         await createTimelineRecord({
-          projectId: milestone.projectId,
+          projectId: projectIdOfMilestone(milestone),
           userId,
           entityType: "task",
           entityId: task.id,
@@ -643,9 +641,9 @@ router.patch(
       const milestone = await milestoneService.getMilestoneById(
         task.milestoneId,
       );
-      if (milestone?.projectId && userId) {
+      if (milestone && userId) {
         await createTimelineRecord({
-          projectId: milestone.projectId,
+          projectId: projectIdOfMilestone(milestone),
           userId,
           entityType: "task",
           entityId: task.id,
@@ -690,9 +688,9 @@ router.patch(
       const milestone = await milestoneService.getMilestoneById(
         task.milestoneId,
       );
-      if (milestone?.projectId && userId) {
+      if (milestone && userId) {
         await createTimelineRecord({
-          projectId: milestone.projectId,
+          projectId: projectIdOfMilestone(milestone),
           userId,
           entityType: "task",
           entityId: task.id,
@@ -740,9 +738,9 @@ router.patch(
       }
 
       const newMilestone = await milestoneService.getMilestoneById(milestoneId);
-      if (newMilestone?.projectId && userId) {
+      if (newMilestone && userId) {
         await createTimelineRecord({
-          projectId: newMilestone.projectId,
+          projectId: projectIdOfMilestone(newMilestone),
           userId,
           entityType: "task",
           entityId: task.id,

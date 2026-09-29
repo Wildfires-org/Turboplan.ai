@@ -60,9 +60,10 @@ export function CreateTemplateDialog({
               </AlertDialogDescription>
             </div>
             <Button
-              variant="ghost"
-              size="sm"
-              className="-mr-2 -mt-2 size-8 aspect-square p-0"
+              variant="glass"
+              size="icon"
+              aria-label="Close"
+              className="-mr-2 -mt-2 size-8 text-foreground"
               onClick={() => onOpenChange(false)}
             >
               <X className="size-4" />
@@ -96,13 +97,17 @@ export function CreateTemplateDialog({
           <AlertDialogFooter className="gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || !name.trim()}>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isLoading || !name.trim()}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />

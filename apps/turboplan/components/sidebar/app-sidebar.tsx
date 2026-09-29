@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
+import { useIsClient } from "usehooks-ts";
 
 import { Button } from "@wildfires-org/turboplan-utils";
 
@@ -28,6 +29,7 @@ import { SidebarCitizenContent } from "./sidebar-citizen-content";
 import { SidebarOrgContent } from "./sidebar-org-content";
 import { SidebarOrgSwitcher } from "./sidebar-org-switcher";
 import { SidebarPinButton } from "./sidebar-pin-button";
+import { SidebarProjectContent } from "./sidebar-project-content";
 
 interface AppSidebarProps {
   defaultPinned?: boolean;
@@ -36,7 +38,11 @@ interface AppSidebarProps {
 export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
   const { user, profile } = useUser();
   const { content } = useSidebarContent();
-  const params = useParams<{ orgSlug?: string; officeSlug?: string }>();
+  const params = useParams<{
+    orgSlug?: string;
+    officeSlug?: string;
+    projectSlug?: string;
+  }>();
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const {
     sidebarRef,
@@ -47,6 +53,7 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
   } = useSidebarBehavior({ defaultPinned });
 
   const isCitizen = useIsCitizen();
+  const isClient = useIsClient();
   const appName = brand.name;
 
   const { orgSlug, officeSlug } = params;
@@ -55,29 +62,34 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
     <Sidebar
       ref={sidebarRef}
       collapsible="icon"
+      className="border-r border-white bg-white"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <SidebarHeader className="pt-4 pl-5 flex flex-row items-center justify-between bg-neutral-200">
-        <div className="flex items-center gap-2 overflow-hidden">
+      <SidebarHeader className="h-16 flex-row items-center gap-0 overflow-hidden bg-white px-2.5 py-0">
+        <div className="flex size-11 shrink-0 items-center justify-center">
           <Image
             src={brand.logo}
             alt={appName}
             width={32}
             height={32}
-            className="size-8 shrink-0"
+            priority
+            className="size-8 shrink-0 select-none"
+            draggable={false}
           />
-          <span className="font-semibold text-lg group-data-[collapsible=icon]:hidden">
+        </div>
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+          <span className="truncate whitespace-nowrap text-lg font-semibold transition-opacity duration-150 group-data-[state=expanded]:delay-150 group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0">
             {appName}
           </span>
         </div>
-        <div className="group-data-[collapsible=icon]:hidden">
+        <div className="ml-auto shrink-0 pr-1 group-data-[collapsible=icon]:hidden">
           <SidebarPinButton isPinned={isPinned} onToggle={handleTogglePin} />
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-neutral-200 !overflow-hidden">
-        <div className="flex flex-col gap-3 mt-2 shrink-0">
+      <SidebarContent className="bg-white !overflow-hidden">
+        <div className="mt-2 flex shrink-0 flex-col gap-3">
           {/* Org & Office switcher */}
           <SidebarGroup>
             <SidebarGroupContent>
@@ -90,11 +102,12 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
             <SidebarGroup>
               <SidebarGroupContent>
                 <Button
-                  className="w-full h-11 justify-center gap-2 overflow-hidden rounded-md bg-brandAlt-400 text-white hover:bg-brandAlt-500 group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:p-0"
+                  variant="brand"
+                  className="h-11 w-full justify-center gap-2 overflow-hidden group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:p-0"
                   onClick={() => setAddProjectOpen(true)}
                 >
                   <Plus className="size-5 shrink-0" />
-                  <span className="text-sm font-medium group-data-[collapsible=icon]:hidden">
+                  <span className="whitespace-nowrap text-sm font-medium group-data-[collapsible=icon]:hidden">
                     New project
                   </span>
                 </Button>
@@ -111,8 +124,15 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
         </div>
 
         <div className="flex-1 min-h-0 overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Registrars fill this from the route layouts (client effect);
+              until then (route loading) a project route shows the project
+              nav with a placeholder name instead of the org list. Client
+              only: the nav's feature flags can differ between server and
+              client, which would break hydration. */}
           {content ??
-            (isCitizen && orgSlug && officeSlug ? (
+            (params.projectSlug && isClient ? (
+              <SidebarProjectContent isResearchPhaseCompleted={false} />
+            ) : isCitizen && orgSlug && officeSlug ? (
               <SidebarCitizenContent
                 organizationSlug={orgSlug}
                 officeSlug={officeSlug}
@@ -124,7 +144,7 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
         <SidebarBottomNav />
       </SidebarContent>
 
-      <SidebarFooter className="bg-neutral-200 border-t border-neutral-300 py-0">
+      <SidebarFooter className="border-t border-neutral-100 bg-white py-0">
         {user && <NavUser user={user} profile={profile} />}
       </SidebarFooter>
     </Sidebar>

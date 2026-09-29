@@ -1,7 +1,8 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
+  isMembershipGrant,
   type RBACContext,
   requirePermission,
   requireProjectReadOrPublicGov,
@@ -17,6 +18,16 @@ import {
 } from "../service";
 
 export const timelineRouter = new Hono<RBACContext>();
+
+/**
+ * True when the READ guard let the caller in through the public-government
+ * fallback only (no role on the project). The guard leaves `permissionResult`
+ * unset in that case.
+ */
+const isPublicViewer = (c: Context<RBACContext>) => {
+  const permissionResult = c.get("permissionResult");
+  return !permissionResult || !isMembershipGrant(permissionResult);
+};
 
 // GET /:id/timeline — paginated timeline for a project
 timelineRouter.get(
@@ -37,7 +48,9 @@ timelineRouter.get(
         );
       }
 
-      const result = await getTimeline(projectId, parseResult.data);
+      const result = await getTimeline(projectId, parseResult.data, {
+        publicView: isPublicViewer(c),
+      });
       return c.json(result);
     } catch (error) {
       console.error("Failed to get timeline:", error);
@@ -55,7 +68,9 @@ timelineRouter.get(
   async (c) => {
     try {
       const projectId = c.req.param("id")!;
-      const stats = await getTimelineStats(projectId);
+      const stats = await getTimelineStats(projectId, {
+        publicView: isPublicViewer(c),
+      });
       return c.json(stats);
     } catch (error) {
       console.error("Failed to get timeline stats:", error);

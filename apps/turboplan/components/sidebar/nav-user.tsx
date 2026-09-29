@@ -66,7 +66,10 @@ export function NavUser({ user, profile }: NavUserProps) {
               size="lg"
               className="h-11 p-[6px] !transition-none data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
             >
-              <Avatar className="size-8 rounded-lg shrink-0">
+              <Avatar
+                data-sidebar-keep=""
+                className="size-8 rounded-lg shrink-0"
+              >
                 <AvatarImage
                   src={profile?.avatarUrl || ""}
                   alt={displayName || undefined}

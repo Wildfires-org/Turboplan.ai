@@ -31,7 +31,7 @@ export function SelectableMemberListItem({
 
   return (
     <label
-      className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+      className="flex cursor-pointer items-center gap-3 rounded-xl bg-white p-3 ring-1 ring-inset ring-slate-900/[0.06] transition-colors hover:bg-brandAlt-100 dark:bg-white/5 dark:ring-white/10"
       onClick={(e) => {
         e.preventDefault();
         onToggle(member.userId);
@@ -42,7 +42,7 @@ export function SelectableMemberListItem({
         checked={isSelected}
         onChange={() => onToggle(member.userId)}
         onClick={(e) => e.stopPropagation()}
-        className="size-4 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary"
+        className="size-4 rounded border-gray-300 dark:border-gray-600 text-brand-800 focus:ring-brand-700"
       />
 
       <Avatar>

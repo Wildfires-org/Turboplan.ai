@@ -9,8 +9,10 @@ import { HTTPException } from "hono/http-exception";
 
 import type { ResearchAgentEnvType } from "@wildfires-org/turboplan-env";
 
+import type { DocumentExtractionService } from "../documents/extraction-service";
 import { createAddContextHandler } from "../http/handlers/add-context";
 import { createCancelRunHandler } from "../http/handlers/cancel-run";
+import { createExtractDocumentsHandler } from "../http/handlers/extract-documents";
 import { createGetRunStatusHandler } from "../http/handlers/get-run-status";
 import { createResumeRunHandler } from "../http/handlers/resume-run";
 import { createRunAgentHandler } from "../http/handlers/run-agent";
@@ -25,6 +27,7 @@ import type { RunManager } from "../runs/run-manager";
 export const createRouter = (
   env: ResearchAgentEnvType,
   runManager: RunManager,
+  documentExtraction: DocumentExtractionService,
 ): Hono<ResearchAgentContext> => {
   const app = new Hono<ResearchAgentContext>();
 
@@ -50,6 +53,7 @@ export const createRouter = (
 
   // Middleware chain: guard → env → auth
   app.use("/api/agent/*", createOriginGuardMiddleware(env.ALLOWED_ORIGINS));
+  app.use("/api/documents/*", createOriginGuardMiddleware(env.ALLOWED_ORIGINS));
   app.use("/api/agent/*", async (c, next) => {
     c.set("env", env);
     await next();
@@ -61,8 +65,12 @@ export const createRouter = (
 
   // Health endpoints
   app.get("/health", async (c) => {
-    const components = await runManager.healthCheck();
-    const isHealthy = components.db !== "unavailable";
+    const runComponents = await runManager.healthCheck();
+    const isHealthy = runComponents.db !== "unavailable";
+    const components = {
+      ...runComponents,
+      documentExtraction: documentExtraction.getStatus(),
+    };
     return c.json(
       { status: isHealthy ? "ok" : "degraded", ts: Date.now(), components },
       isHealthy ? 200 : 503,
@@ -81,6 +89,12 @@ export const createRouter = (
   app.post("/api/agent/run/:runId/cancel", cancelRunHandler);
   app.post("/api/agent/run/:runId/add-context", addContextHandler);
   app.post("/api/agent/run/:runId/resume", resumeRunHandler);
+
+  // Document endpoints
+  app.post(
+    "/api/documents/extract",
+    createExtractDocumentsHandler(documentExtraction),
+  );
 
   // 404 handler
   app.notFound((c) => c.json({ error: "Not Found" }, 404));

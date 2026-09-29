@@ -17,7 +17,8 @@ export interface ITaskDataService {
   // Queries
   fetchMilestonesWithTasks(documentId: string): Promise<MilestoneWithTasks[]>;
   fetchProjectMilestones(projectId: string): Promise<MilestoneWithTasks[]>;
-  fetchUsers(): Promise<User[]>;
+  /** Users the project's tasks/milestones can be assigned to */
+  fetchUsers(projectId: string): Promise<User[]>;
 
   // Task Commands
   createTask(taskData: Partial<Task>): Promise<Task>;

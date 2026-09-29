@@ -164,6 +164,21 @@ curl -s -X POST "https://api.firecrawl.dev/v1/scrape" \
   -d '{"url": "THE_URL", "formats": ["markdown"]}' | jq -r '.data.markdown'
 ```
 
+### Document Pages vs. Files
+
+A document `url` must point at the file itself (PDF, DOC or DOCX), not at a landing, detail or listing page that describes it. When a search result or project page leads you to a page about a document, open that page and use its attachment or download link. Submit the final URL after redirects, and check it with the validator below.
+
+- **Several attachments** (main document plus appendices, maps, comment letters): submit each file as its own document, all sharing one `folder`.
+- **No file link at all:** omit the document — the app can only preview and store files. The bootstrapper may still cite the page as a project context item with its `url`.
+
+**Worked example — CEQAnet (California CEQA documents):**
+
+- `ceqanet.lci.ca.gov/Project/{SCH#}` lists every document filed under a State Clearinghouse number; `ceqanet.lci.ca.gov/{SCH#}` and `ceqanet.lci.ca.gov/{SCH#}/{n}` are detail pages for one document (NOE, NOP, NOC, IS/MND, EIR, NOD…). These are all HTML pages, never a document `url`.
+- The detail page's **Attachments** section has one button per file, labelled with the file name and a `PDF` badge, linking to `ceqanet.lci.ca.gov/{SCH#}[/{n}]/Attachment/{code}`. Each link redirects to the file at `https://files.ceqanet.lci.ca.gov/{id}-{n}/attachment/{token}` (`content-type: application/pdf`). That `files.ceqanet.lci.ca.gov` URL is the document `url`.
+- Tokens differ per file, so resolve every attachment link — in a single Bash call: `for u in <attachment links>; do curl -sIL -o /dev/null -w '%{url_effective} %{content_type}\n' "$u"; done`
+- Skip "Download All Attachments" (a zip) and "Download CSV". Documents filed before CEQAnet hosted attachments say so on the page and have no files.
+- CEQAnet pages are plain HTML: `WebFetch` works (ask it for the Attachments links); escalate to `firecrawl_scrape` if it fails.
+
 ### Consequences of Skipping Fetch
 
 If you include core data without `WebFetch` verification:
@@ -199,7 +214,7 @@ Before adding ANY URL to a documents array, verify ALL of the following:
 
 1. **Accessibility check** — the URL was confirmed accessible via `WebFetch`
 2. **Deduplication check** — the URL is not already present in the documents list
-3. **No fallback to web pages** — if no direct file URL exists, **omit the document entirely**
+3. **No fallback to web pages** — if a page only describes the document, use its attachment or download link (see "Document Pages vs. Files"); if no direct file URL exists, **omit the document entirely**
 
 ### Document URL Hard Validator (REQUIRED)
 
@@ -207,7 +222,7 @@ Before adding ANY URL to a documents array, verify ALL of the following:
 
 Before submitting any document URL, run this validator:
 
-1. **Redirect-resolved URL gate**: after redirects, final URL still has a valid extension
+1. **File gate**: after redirects, the response is the file itself — `content-type` is `application/pdf`, `application/msword` or `application/vnd.openxmlformats-officedocument.wordprocessingml.document`. Some hosts serve files from URLs without an extension (e.g. `files.ceqanet.lci.ca.gov/.../attachment/...`); these pass on content type. Submit the final redirect-resolved URL.
 2. **HTML placeholder reject gate**:
    - Reject if content type is `text/html`
    - Reject if fetched content contains placeholder text such as:
@@ -560,7 +575,7 @@ After completing your task, include a `---MEMORIES---` block at the end of your 
 
 - **Must be real, working URLs** — always verify by fetching with `WebFetch` before sending to API
 - **No duplicates** — each URL must appear only once in the documents array
-- **Prefer authoritative government sources**: `.gov` project pages, official document repositories (USFS Box, BLM ePlanning, NPS ParkPlanning)
+- **Prefer authoritative government sources**: `.gov` project pages, official document repositories (USFS Box, BLM ePlanning, NPS ParkPlanning, CEQAnet)
 - **Never fabricate URLs** — if you can't find a real document URL, omit the document entirely
 
 ### Source Attribution

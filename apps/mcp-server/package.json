@@ -24,7 +24,7 @@
     "@wildfires-org/turboplan-upload": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
     "@wildfires-org/turboplan-workspace": "workspace:*",
-    "drizzle-orm": "^0.42.0",
+    "drizzle-orm": "^0.45.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {

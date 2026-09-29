@@ -2,24 +2,21 @@
 
 import { useState } from "react";
 
-import { ChevronsRight, Download, WandSparkles } from "lucide-react";
+import { ChevronsRight, Download, Loader2, WandSparkles } from "lucide-react";
+import Image from "next/image";
 import type { User } from "next-auth";
 import { toast } from "sonner";
 
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
 import { OrganizationType } from "@wildfires-org/turboplan-db/types";
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Button,
-  Card,
   generateInitialsFromName,
-  ProjectImageHeader,
 } from "@wildfires-org/turboplan-utils";
 import type { Project } from "@wildfires-org/turboplan-workspace/types";
 
 import { CoverImageGallery } from "@/components/cover-image-gallery";
+import { EntityBannerShell } from "@/components/dashboard/entity-banner";
 import { ProjectDetails } from "@/components/dashboard/project-details";
 import { ProjectProgress } from "@/components/dashboard/project-progress";
 import { PublicVisibilityDropdown } from "@/components/dashboard/public-visibility-dropdown";
@@ -34,8 +31,15 @@ import {
 } from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCoverImage } from "@/hooks/use-cover-image";
+import {
+  GLASS_ICON_BUTTON_CLASS,
+  HEADER_ACTION_BUTTON_CLASS,
+} from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 const apiClient = new ApiClient();
+
+const DEFAULT_COVER_URL = "/images/project-header-default-background.jpg";
 
 export interface ProjectPageHeaderProps {
   project: Project;
@@ -69,6 +73,9 @@ export function ProjectPageHeader({
       initialCoverImageUrl: coverImage?.imageUrl,
     });
 
+  // next/image throws on blank src; normalize like EntityBanner does.
+  const safeOrgLogoUrl = organization.logoUrl?.trim() || null;
+
   const handleSurpriseMe = () => {
     setIsDrawerOpen(false);
     setIsModalOpen(true);
@@ -101,19 +108,22 @@ export function ProjectPageHeader({
     await handleImageSelect(imageId, imageUrl);
   };
 
-  const projectAvatar = (
-    <Avatar className="size-16 rounded-lg shadow-lg">
-      {organization.logoUrl && (
-        <AvatarImage
-          src={organization.logoUrl}
-          alt={`${project.name} organization logo`}
-          className="object-contain rounded-lg"
-        />
-      )}
-      <AvatarFallback className="bg-[#72DA9E] text-primary-foreground text-2xl font-semibold rounded-lg">
-        {generateInitialsFromName(project.name)}
-      </AvatarFallback>
-    </Avatar>
+  const projectAvatar = safeOrgLogoUrl ? (
+    <Image
+      src={safeOrgLogoUrl}
+      alt={`${project.name} organization logo`}
+      width={49}
+      height={55}
+      className="object-contain"
+    />
+  ) : (
+    // brand-800 fill: white initials at 4.6:1 (same tile as the sidebar badge).
+    <span
+      aria-hidden
+      className="flex size-full items-center justify-center bg-brand-800 text-[22px] font-semibold tracking-[-0.02em] text-white"
+    >
+      {generateInitialsFromName(project.name)}
+    </span>
   );
 
   // Right-side action cluster: Export + visibility eye. The `⋮` menu and
@@ -123,8 +133,16 @@ export function ProjectPageHeader({
     <>
       {/* TODO(TC-417): wire to a real project export handler once one exists.
           No export functionality exists in the codebase yet — placeholder. */}
-      <Button variant="outline" size="sm" disabled>
-        <Download className="mr-1.5 size-4" />
+      <Button
+        variant="glass"
+        size="sm"
+        disabled
+        className={cn(
+          HEADER_ACTION_BUTTON_CLASS,
+          "text-foreground disabled:text-gray-550 disabled:opacity-100",
+        )}
+      >
+        <Download aria-hidden />
         Export
       </Button>
       <PublicVisibilityDropdown project={project} userId={user?.id} />
@@ -133,53 +151,41 @@ export function ProjectPageHeader({
 
   return (
     <>
-      {/*
-        Full-bleed cover background. Positioned absolutely at the top of the
-        scrollable page body (just below the sticky breadcrumb) so the header
-        card and the top of the section content overlay it. The parent in
-        page.tsx provides the `relative` positioning context; the cover sits at
-        `z-0` while the header card and section modules are `z-10`, so content
-        paints above the cover and stays clickable (cover is
-        `pointer-events-none`). The tall (450px) cover fades to #F9FAFB via the
-        gradient so no forest shows behind the section cards.
-      */}
-      <ProjectImageHeader
-        projectName={project.name}
-        organizationLogoUrl={organization.logoUrl}
-        coverImageUrl={coverImageUrl}
-        isLoading={isLoading}
-        readOnly
-        showAvatar={false}
-        heightClassName="h-[450px]"
-        gradientOverlay
-        // eslint-disable-next-line tailwindcss/no-contradicting-classname
-        gradientClassName="from-transparent via-[#F9FAFB]/80 via-45% to-[#F9FAFB] to-70%"
-        className="absolute inset-x-0 top-0 z-0 pointer-events-none"
-      />
-      <div className="relative z-10 container mx-auto px-6 pt-9">
-        <Card className="rounded-xl border bg-card p-6 shadow-sm">
-          <ProjectDetails
-            project={project}
-            user={user}
-            organizationSlug={readOnly ? undefined : organization.slug}
-            officeSlug={readOnly ? undefined : office.slug}
-            isPersonalWorkspace={
-              organization.type === OrganizationType.PERSONAL
-            }
-            headerActions={readOnly ? null : undefined}
-            showMembers={!readOnly}
-            membersHref={membersHref}
-            avatar={projectAvatar}
-            extraActions={readOnly ? null : extraActions}
-            progressSlot={
-              <div className="mt-4">
-                <ProjectProgress project={project} user={user} hideActions />
+      <EntityBannerShell
+        coverImageUrl={coverImageUrl?.trim() || DEFAULT_COVER_URL}
+        logo={projectAvatar}
+        coverOverlay={
+          isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-950/35">
+              <div className="glass flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] text-foreground">
+                <Loader2
+                  aria-hidden
+                  className="size-3.5 animate-spin motion-reduce:animate-none"
+                />
+                Generating cover...
               </div>
-            }
-            onEditCover={readOnly ? undefined : () => setIsDrawerOpen(true)}
-          />
-        </Card>
-      </div>
+            </div>
+          )
+        }
+      >
+        <ProjectDetails
+          project={project}
+          user={user}
+          organizationSlug={readOnly ? undefined : organization.slug}
+          officeSlug={readOnly ? undefined : office.slug}
+          isPersonalWorkspace={organization.type === OrganizationType.PERSONAL}
+          headerActions={readOnly ? null : undefined}
+          showMembers={!readOnly}
+          membersHref={membersHref}
+          extraActions={readOnly ? null : extraActions}
+          progressSlot={
+            <div className="mt-4">
+              <ProjectProgress project={project} user={user} hideActions />
+            </div>
+          }
+          onEditCover={readOnly ? undefined : () => setIsDrawerOpen(true)}
+        />
+      </EntityBannerShell>
 
       {/* Cover edit Drawer — triggered from the ProjectDetails `⋮` menu. */}
       {!readOnly && (
@@ -189,26 +195,32 @@ export function ProjectPageHeader({
             open={isDrawerOpen}
             onOpenChange={setIsDrawerOpen}
           >
-            <DrawerContent className="h-screen top-0 right-0 left-auto mt-0 w-[500px] rounded-none">
-              <DrawerClose>
-                <div className="absolute top-4 right-4 z-50">
-                  <ChevronsRight className="size-6" />
-                </div>
+            <DrawerContent className="left-auto right-0 top-0 mt-0 h-screen w-full max-w-[500px] rounded-none rounded-l-[24px] border-0 border-l-[1.5px] border-white bg-white/[0.94] shadow-[0_32px_80px_-32px_rgba(15,40,30,0.38)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.94] [&>div:first-child]:hidden">
+              <DrawerClose
+                aria-label="Close cover gallery"
+                className={cn(
+                  GLASS_ICON_BUTTON_CLASS,
+                  "absolute right-4 top-4 z-50",
+                )}
+              >
+                <ChevronsRight aria-hidden className="size-4" />
               </DrawerClose>
               <ScrollArea className="h-screen">
                 <div className="mx-auto w-full p-5">
-                  <DrawerHeader>
-                    <DrawerTitle>Cover Gallery</DrawerTitle>
-                    <DrawerDescription>
+                  <DrawerHeader className="px-0 pr-10">
+                    <DrawerTitle className="text-[20px] font-medium tracking-[-0.02em]">
+                      Cover Gallery
+                    </DrawerTitle>
+                    <DrawerDescription className="text-gray-550">
                       Browse through generated images or select a default one.
                     </DrawerDescription>
                   </DrawerHeader>
                   <Button
-                    variant="outline"
-                    className="w-full mb-4"
+                    variant="glass"
+                    className="mb-4 w-full"
                     onClick={handleSurpriseMe}
                   >
-                    <WandSparkles className="size-4" />
+                    <WandSparkles aria-hidden />
                     Surprise me
                   </Button>
                   <CoverImageGallery
@@ -216,7 +228,7 @@ export function ProjectPageHeader({
                     currentCoverImageId={coverImageId}
                     onImageSelect={handleImageSelect}
                   />
-                  <p className="text-sm text-muted-foreground mt-4">
+                  <p className="mt-4 text-sm text-gray-550">
                     These images are generated through AI text-to-image
                     algorithms, no project data is shared in the process.
                   </p>

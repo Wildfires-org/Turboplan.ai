@@ -11,7 +11,6 @@ import { cn } from "@wildfires-org/turboplan-utils";
 import { CheckoutModal } from "@/components/checkout/checkout-modal";
 import { SignupModal } from "@/components/home/signup-modal";
 import Arrow from "@/components/icons/arrow";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useBillingAccess } from "@/hooks/use-billing-access";
@@ -166,18 +165,20 @@ export function ProjectPromptInput({
     setInputValue(newValue);
   };
 
+  // Focus ring is an outline, not a Tailwind ring: glass-inset owns
+  // box-shadow for its inner shadow, and a ring would override it.
   const baseInputClassName =
-    "w-full py-3 md:py-5 px-3 md:px-4 pr-12 md:pr-16 rounded-xl md:rounded-2xl border border-green-60 focus:border-green-70 focus-visible:outline-hidden focus-visible:ring-[6px] focus-visible:ring-green-10 focus-visible:ring-offset-[0px] placeholder-gray-500 resize-none overflow-hidden shadow-sm min-h-[46px] md:min-h-[66px] text-sm md:text-[15px] content-center";
+    "glass-inset border-0 bg-white w-full min-h-[52px] md:min-h-[64px] py-3 md:py-5 px-4 pr-14 md:pr-16 rounded-2xl font-inter text-[15px] text-egray-900 placeholder:text-egray-600 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-brand-700/40 resize-none overflow-hidden content-center";
 
   return (
     <div id="project-prompt-input" className={className}>
       {label && (
-        <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-3">
-          <MessageSquareTextIcon className="hidden md:inline w-3 h-3 md:w-4 md:h-4 mr-1 text-green-60" />
-          <span className="text-green-60 font-medium">{label}</span> or{" "}
+        <p className="mb-3 font-inter text-[13px] leading-[18px] text-egray-700 md:text-[14px]">
+          <MessageSquareTextIcon className="mr-1.5 hidden size-4 align-[-3px] text-brand-800 md:inline" />
+          <span className="font-medium text-brand-800">{label}</span> or{" "}
           <button
             type="button"
-            className="text-gray-600 underline hover:no-underline"
+            className="text-egray-700 underline underline-offset-2 hover:text-egray-900"
           >
             choose a template
           </button>
@@ -221,10 +222,10 @@ export function ProjectPromptInput({
             className={cn(baseInputClassName, inputClassName)}
           />
         )}
-        <Button
-          className="absolute right-2 md:right-3 bg-green-60 hover:bg-green-70 text-white rounded-lg h-8 w-8 md:h-10 md:w-10"
-          size="icon"
+        <button
+          className="btn-primary press absolute right-2 inline-flex size-9 items-center justify-center rounded-xl md:right-3 md:size-10"
           type="submit"
+          aria-label="Create project"
         >
           {isMutating || pendingSend ? (
             <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" />
@@ -235,22 +236,22 @@ export function ProjectPromptInput({
               className="h-4 w-4 md:h-5 md:w-5"
             />
           )}
-        </Button>
+        </button>
       </form>
 
       {quickStart && (
-        <div className="mt-4 -mx-4 md:mx-0">
-          <div className="overflow-x-auto scrollbar-hide px-4 md:px-0">
-            <div className="flex flex-nowrap gap-2 pb-2">
+        <div className="-mx-4 mt-3 md:mx-0">
+          <div className="no-scrollbar overflow-x-auto px-4 md:px-0">
+            <div className="flex flex-nowrap gap-2 py-1 md:flex-wrap">
               {Object.entries(quickStart).map(([option, optionValue]) => (
-                <Button
+                <button
+                  type="button"
                   key={option}
-                  variant="outline"
-                  className="rounded-full text-xs md:text-[15px] font-normal border-lightGray hover:bg-gray-50 px-2.5 md:px-3 py-0 h-7 md:h-8 whitespace-nowrap shrink-0"
+                  className="glass press inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3 font-inter text-[13px] text-egray-900 hover:bg-white/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 md:text-[14px]"
                   onClick={() => setInputValue(optionValue)}
                 >
                   {option}
-                </Button>
+                </button>
               ))}
             </div>
           </div>

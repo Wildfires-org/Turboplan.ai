@@ -11,12 +11,22 @@
  * owner's email never leaves the server (see `redactNonListedOrganization`).
  */
 
-import { and, eq, exists, inArray, isNull, or, type SQL } from "drizzle-orm";
+import {
+  and,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  notInArray,
+  or,
+  type SQL,
+} from "drizzle-orm";
 
 import {
   type OrganizationType,
   office,
   organization,
+  PUBLICLY_HIDDEN_OWNERSHIP_STATUSES,
   PUBLICLY_LISTED_ORG_TYPES,
   project,
 } from "@wildfires-org/turboplan-db";
@@ -26,6 +36,7 @@ const publicProjectConditions = () =>
   and(
     eq(project.isPublic, true),
     eq(project.status, "active"),
+    notInArray(project.ownershipStatus, PUBLICLY_HIDDEN_OWNERSHIP_STATUSES),
     isNull(project.deletedAt),
   );
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -11,7 +12,10 @@ import {
   type CommentData,
   type CommentPermissions,
   CommentsSection,
+  getCommentCount,
 } from "@wildfires-org/turboplan-utils";
+
+import { PublicModuleSection } from "./public-module-section";
 
 const { SERVER_URL, TURBOPLAN_URL } = getLandingPageEnv();
 
@@ -162,29 +166,37 @@ export function PublicCommentsSection({
     canModerate: false,
   };
 
-  return (
-    <div className="space-y-4">
-      <CommentsSection
-        comments={comments ?? []}
-        permissions={permissions}
-        readOnly={!isLoggedIn}
-        hideVisibilityIndicator={true}
-        onSubmit={isLoggedIn ? handleCreateComment : undefined}
-        onReply={isLoggedIn ? handleReply : undefined}
-        title="Comments"
-      />
+  const commentList = comments ?? [];
 
-      {!isLoggedIn && (
-        <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/50 py-4 text-sm text-muted-foreground">
-          <Link
-            href={`${TURBOPLAN_URL}/login`}
-            className="font-medium text-primary hover:underline"
-          >
-            Sign in
-          </Link>
-          <span>to leave a comment</span>
-        </div>
-      )}
-    </div>
+  return (
+    <PublicModuleSection
+      title="Comments"
+      icon={<MessageSquare />}
+      count={getCommentCount(commentList)}
+    >
+      <div className="space-y-4">
+        <CommentsSection
+          comments={commentList}
+          permissions={permissions}
+          readOnly={!isLoggedIn}
+          hideVisibilityIndicator={true}
+          onSubmit={isLoggedIn ? handleCreateComment : undefined}
+          onReply={isLoggedIn ? handleReply : undefined}
+          withAccordion={false}
+        />
+
+        {!isLoggedIn && (
+          <p className="flex flex-wrap items-center justify-center gap-x-1.5 rounded-xl bg-brandAlt-100 px-4 py-4 text-center font-inter text-[14px] leading-[20px] text-egray-700">
+            <Link
+              href={`${TURBOPLAN_URL}/login`}
+              className="font-medium text-brand-800 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
+            >
+              Sign in
+            </Link>
+            <span>to leave a comment</span>
+          </p>
+        )}
+      </div>
+    </PublicModuleSection>
   );
 }

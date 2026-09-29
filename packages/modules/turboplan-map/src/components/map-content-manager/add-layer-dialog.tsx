@@ -167,7 +167,7 @@ export function AddLayerDialog({
         {hasUnitLayer ? (
           <DialogFooter className="flex !justify-between">
             <Button
-              variant="outline"
+              variant="glass"
               onClick={handleModalClose}
               disabled={isSaving}
             >
@@ -177,7 +177,7 @@ export function AddLayerDialog({
               {step === 1 && (
                 <>
                   <Button
-                    variant="outline"
+                    variant="glass"
                     onClick={() =>
                       handleSaveToProject(projectLayerId, null, undefined)
                     }
@@ -186,6 +186,7 @@ export function AddLayerDialog({
                     {isSaving ? "Uploading..." : "Upload without Units"}
                   </Button>
                   <Button
+                    variant="brand"
                     onClick={() => handleStepChange(2)}
                     disabled={!projectLayerId}
                   >
@@ -195,10 +196,11 @@ export function AddLayerDialog({
               )}
               {step === 2 && (
                 <>
-                  <Button variant="outline" onClick={() => handleStepChange(1)}>
+                  <Button variant="glass" onClick={() => handleStepChange(1)}>
                     Back
                   </Button>
                   <Button
+                    variant="brand"
                     onClick={() =>
                       handleSaveToProject(
                         projectLayerId,
@@ -219,13 +221,14 @@ export function AddLayerDialog({
         ) : (
           <DialogFooter className="flex !justify-between">
             <Button
-              variant="outline"
+              variant="glass"
               onClick={handleModalClose}
               disabled={isSaving}
             >
               Cancel
             </Button>
             <Button
+              variant="brand"
               onClick={() =>
                 handleSaveToProject(projectLayerId, null, undefined)
               }

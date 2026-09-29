@@ -6,6 +6,7 @@ import { Paperclip, Send } from "lucide-react";
 
 import { cn } from "../../../tailwind";
 import { Button } from "../button";
+import { GLASS_INSET_CLASS } from "../glass-classes";
 
 export interface CommentInputProps {
   placeholder?: string;
@@ -70,7 +71,12 @@ export function CommentInput({
 
   return (
     <div className={cn("", className)}>
-      <div className="flex items-center gap-1 rounded-md border border-border bg-muted px-4 py-3">
+      <div
+        className={cn(
+          GLASS_INSET_CLASS,
+          "flex items-center gap-1 rounded-xl px-4 py-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-0 focus-within:outline-brand-700/40",
+        )}
+      >
         <input
           ref={inputRef}
           type="text"
@@ -82,7 +88,7 @@ export function CommentInput({
           placeholder={placeholder}
           disabled={isSubmitting}
           autoFocus={autoFocus}
-          className="min-w-0 flex-1 bg-transparent text-xs leading-4 text-foreground outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent text-xs leading-4 text-foreground outline-none placeholder:text-slate-500"
         />
         {showAttach && !showActions && (
           <button
@@ -118,7 +124,10 @@ export function CommentInput({
             variant="ghost"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="text-muted-foreground hover:text-foreground"
+            className={cn(
+              "text-slate-500 hover:text-foreground",
+              canSubmit && "text-brand-800 hover:text-brand-900",
+            )}
           >
             <Send className="h-4 w-4" />
             <span className="sr-only">

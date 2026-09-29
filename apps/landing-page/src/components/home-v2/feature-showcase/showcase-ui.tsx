@@ -26,9 +26,9 @@ export function Reveal({
           ? undefined
           : {
               opacity: 0,
-              animation:
-                "showcase-reveal 0.5s cubic-bezier(0.22,1,0.36,1) both",
-              animationDelay: `${index * 90}ms`,
+              animation: "showcase-reveal 0.4s var(--ease-out-expo) both",
+              // 60ms — inside the standards' 30–80ms stagger band.
+              animationDelay: `${index * 60}ms`,
             }
       }
     >
@@ -49,7 +49,7 @@ export function ProgressBar({ pct, reduce }: { pct: number; reduce: boolean }) {
           transform: reduce ? "scaleX(1)" : "scaleX(0)",
           animation: reduce
             ? "none"
-            : "showcase-progress 1s cubic-bezier(0.25,1,0.4,1) 0.35s both",
+            : "showcase-progress 1s var(--ease-out-expo) 0.35s both",
         }}
       />
     </div>

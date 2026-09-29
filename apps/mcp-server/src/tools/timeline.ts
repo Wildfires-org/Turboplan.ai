@@ -21,18 +21,16 @@ import { getProjectById } from "@wildfires-org/turboplan-workspace/server";
 import { assertEntityExists, assertPermission } from "../utils/permissions.js";
 import { projectExists } from "../utils/queries.js";
 import type { McpUserContext } from "../utils/types.js";
-import { entityIdSchema, validateToolInput } from "../utils/validation.js";
+import {
+  entityIdSchema,
+  httpUrlSchema,
+  validateToolInput,
+} from "../utils/validation.js";
 
 export const MAX_TIMELINE_EVENTS_PER_BATCH = 30;
 
 const resourceUrlSchema = z.object({
-  url: z
-    .string()
-    .url()
-    .refine((value) => /^https?:\/\//i.test(value), {
-      message: "Only http(s) URLs are allowed",
-    })
-    .describe("Direct link to the resource (http/https only)"),
+  url: httpUrlSchema.describe("Direct link to the resource (http/https only)"),
   filename: z
     .string()
     .min(1)

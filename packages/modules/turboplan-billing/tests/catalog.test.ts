@@ -22,8 +22,14 @@ const expectRejected = (
 
 describe("pricing catalog schema", () => {
   it("accepts the shipped catalog", () => {
-    const catalog = validateCatalog(loadCatalog());
-    assert.equal(catalog.product, "turboplan");
+    const source = loadCatalog();
+    const catalog = validateCatalog(source);
+    // catalog/brand.yaml is fork-owned (`merge=ours`) and is meant to diverge
+    // per deployment, so assert the declared brand round-trips through
+    // validation instead of pinning an upstream-specific slug.
+    assert.equal(typeof source.product, "string");
+    assert.notEqual(source.product, "");
+    assert.equal(catalog.product, source.product);
     assert.deepEqual(
       catalog.billing.plans.map((plan) => plan.id),
       ["starter", "pro", "max"],

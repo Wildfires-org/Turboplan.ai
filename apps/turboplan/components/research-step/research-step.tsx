@@ -53,8 +53,8 @@ export const ResearchStep = ({
       <button
         type="button"
         className={cn(
-          "flex items-center gap-2 py-1 px-2 -mx-2 rounded-md text-left transition-colors",
-          hasContent && "cursor-pointer hover:bg-muted/50",
+          "-mx-2 flex items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700",
+          hasContent && "cursor-pointer hover:bg-white/70",
         )}
         onClick={() => {
           if (hasContent) {
@@ -76,18 +76,18 @@ export const ResearchStep = ({
           }
         }}
       >
-        <Icon size={14} className="shrink-0 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground truncate max-w-[400px]">
+        <Icon size={14} className="shrink-0 text-brand-800" />
+        <span className="max-w-[400px] truncate text-xs text-gray-550">
           {label}
         </span>
         {!isComplete ? (
-          <div className="animate-spin shrink-0">
+          <div className="shrink-0 animate-spin text-brand-800">
             <LoaderIcon size={14} />
           </div>
         ) : (
           hasContent && (
             <motion.span
-              className="block shrink-0 text-muted-foreground"
+              className="block shrink-0 text-gray-550"
               animate={{ rotate: isExpanded ? 180 : 0 }}
               transition={expandTransition}
             >
@@ -109,7 +109,7 @@ export const ResearchStep = ({
           >
             <div className="pl-5 mt-1 mb-2 flex flex-col gap-1">
               {toolName === "webSearch" && typeof args?.query === "string" && (
-                <p className="text-xs text-muted-foreground/60 mb-1">
+                <p className="mb-1 text-xs text-gray-550">
                   Search query: &ldquo;{args.query}&rdquo;
                 </p>
               )}
@@ -123,7 +123,7 @@ export const ResearchStep = ({
                   />
                 ))}
               {toolName === "researchNotes" && (
-                <div className="border-l-2 border-muted pl-3">
+                <div className="border-l-2 border-brand-700/25 pl-3">
                   <ExpandableText
                     text={cleanExcerpt(
                       String(result?.content || args?.content || ""),

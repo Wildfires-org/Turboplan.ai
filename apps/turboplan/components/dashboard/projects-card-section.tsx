@@ -22,7 +22,6 @@ import { ApiClient } from "@wildfires-org/turboplan-api-client";
 import { OwnershipStatus } from "@wildfires-org/turboplan-db/types";
 import { EntityType } from "@wildfires-org/turboplan-rbac";
 import {
-  Button,
   calculateProgress,
   DropdownMenu,
   DropdownMenuContent,
@@ -50,7 +49,9 @@ import { StatusBadge } from "@/components/dashboard/status-badge";
 import { toast } from "@/components/toast";
 import { useFilteredPaginatedList } from "@/hooks/use-filtered-paginated-list";
 import { useProjects } from "@/hooks/use-projects";
+import { GLASS_ICON_BUTTON_CLASS, STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
+import { cn } from "@/lib/utils";
 
 // ── Constants ─────────────────────────────────────────────────────────
 
@@ -247,7 +248,7 @@ export function ProjectsCardSection({
   return (
     <div className="space-y-2">
       {/* Sticky tabs + search + filters */}
-      <div className="sticky top-[120px] z-20 -mx-6 bg-[#F9FAFB] px-6 pb-2 pt-4">
+      <div className={STICKY_TOOLBAR_CLASS}>
         <OfficeTabNav
           orgSlug={organizationSlug}
           officeSlug={officeSlug}
@@ -341,7 +342,7 @@ export function ProjectsCardSection({
                     </>
                   }
                   footer={
-                    <span className="inline-flex items-center gap-1.5 pt-1.5 text-[10px] text-gray-500">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-550">
                       {project.creatorAvatarUrl ? (
                         <Image
                           src={project.creatorAvatarUrl}
@@ -351,7 +352,7 @@ export function ProjectsCardSection({
                           className="rounded-full"
                         />
                       ) : (
-                        <span className="flex size-3.5 items-center justify-center rounded-full bg-gray-300 text-[8px] font-medium text-gray-600">
+                        <span className="flex size-3.5 items-center justify-center rounded-full bg-brandAlt-200 text-[8px] font-medium text-brand-900">
                           {(
                             project.creatorFirstName?.[0] ||
                             project.creatorEmail?.[0] ||
@@ -365,7 +366,7 @@ export function ProjectsCardSection({
                 />
 
                 {/* Dropdown overlay */}
-                <div className="absolute right-3 top-3 z-10">
+                <div className="absolute right-4 top-4 z-10">
                   <DropdownMenu
                     modal={true}
                     open={openDropdown === project.id}
@@ -374,20 +375,26 @@ export function ProjectsCardSection({
                     }
                   >
                     <DropdownMenuTrigger asChild>
-                      <Button
+                      <button
+                        type="button"
                         aria-label={`Actions for ${project.name}`}
-                        variant="ghost"
-                        size="sm"
-                        className="size-8 p-0 text-muted-foreground hover:text-foreground"
+                        className={cn(
+                          GLASS_ICON_BUTTON_CLASS,
+                          "bg-white/70 data-[state=open]:bg-white",
+                        )}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                         }}
                       >
                         <MoreVertical className="size-4" />
-                      </Button>
+                      </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent side="bottom" align="end">
+                    <DropdownMenuContent
+                      side="bottom"
+                      align="end"
+                      className="w-[200px] p-1.5"
+                    >
                       <DropdownMenuItem
                         onSelect={(e) => {
                           e.preventDefault();
@@ -418,7 +425,7 @@ export function ProjectsCardSection({
                             setOpenDropdown(null);
                             handleArchiveProject(project);
                           }}
-                          className="cursor-pointer text-destructive focus:text-destructive"
+                          className="cursor-pointer text-error-700 focus:bg-error-50 focus:text-error-700 data-[highlighted]:bg-error-50 data-[highlighted]:text-error-700"
                         >
                           <Archive className="mr-2 size-4" />
                           Archive Project
@@ -443,7 +450,7 @@ export function ProjectsCardSection({
                           setDeletingProject(project);
                           setOpenDropdown(null);
                         }}
-                        className="cursor-pointer text-destructive focus:text-destructive"
+                        className="cursor-pointer text-error-700 focus:bg-error-50 focus:text-error-700 data-[highlighted]:bg-error-50 data-[highlighted]:text-error-700"
                       >
                         <Trash2 className="mr-2 size-4" />
                         Delete Project
@@ -465,8 +472,9 @@ export function ProjectsCardSection({
               organizationSlug={organizationSlug}
               officeSlug={officeSlug}
               onSuccess={refreshProjects}
+              variant="brand"
             >
-              <Plus className="mr-2 size-4" />
+              <Plus aria-hidden />
               Create First Project
             </CreateProjectButton>
           }

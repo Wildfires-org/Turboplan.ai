@@ -26,9 +26,9 @@ export function FieldLabel({
 }: FieldLabelProps) {
   return (
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
-      <span className="truncate text-sm text-muted-foreground">
+      <span className="truncate text-[13px] leading-5 text-gray-550">
         {name}
-        {isRequired && <span className="ml-0.5 text-destructive">*</span>}
+        {isRequired && <span className="ml-0.5 text-error-700">*</span>}
       </span>
 
       {tooltip &&

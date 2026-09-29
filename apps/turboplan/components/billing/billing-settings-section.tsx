@@ -6,6 +6,7 @@ import { Skeleton } from "@wildfires-org/turboplan-utils";
 
 import { BillingView } from "@/components/billing/billing-view";
 import { OrgTabNav } from "@/components/dashboard/org-tab-nav";
+import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 
 interface BillingSettingsSectionProps {
   userId: string;
@@ -32,7 +33,7 @@ export function BillingSettingsSection({
 
   return (
     <div className="space-y-2">
-      <div className="sticky top-[120px] z-20 -mx-6 bg-[#F9FAFB] px-6 pb-2 pt-4">
+      <div className={STICKY_TOOLBAR_CLASS}>
         <OrgTabNav orgSlug={orgSlug} />
       </div>
 

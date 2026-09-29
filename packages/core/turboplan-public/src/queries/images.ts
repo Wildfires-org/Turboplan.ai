@@ -4,9 +4,12 @@
  * Database queries for fetching image data without authentication.
  */
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, notInArray } from "drizzle-orm";
 
-import { project } from "@wildfires-org/turboplan-db";
+import {
+  PUBLICLY_HIDDEN_OWNERSHIP_STATUSES,
+  project,
+} from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 
 /**
@@ -23,6 +26,7 @@ export async function getPublicProjectByImageId(imageId: string) {
         eq(project.isPublic, true),
         eq(project.status, "active"),
         eq(project.isTemplate, false),
+        notInArray(project.ownershipStatus, PUBLICLY_HIDDEN_OWNERSHIP_STATUSES),
         isNull(project.deletedAt),
       ),
     )

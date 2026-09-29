@@ -46,6 +46,12 @@ export const LoginForm = () => {
     // requestLoginLink auto-registers unknown emails, so this submission can be
     // a signup. Forward the landing-page attribution that rode in on the URL so
     // that signup is attributed like a self-service one.
+    // Where to land after the magic link (e.g. back to an invitation). The
+    // server only honours same-site relative paths.
+    const callbackUrl = searchParams.get("callbackUrl");
+    if (callbackUrl) {
+      formData.set("callbackUrl", callbackUrl);
+    }
     for (const param of ATTRIBUTION_PARAMS) {
       const value = searchParams.get(param);
       if (value) {

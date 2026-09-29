@@ -2,7 +2,6 @@
 
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface PaginationControlsProps {
@@ -12,6 +11,9 @@ interface PaginationControlsProps {
   className?: string;
 }
 
+const PAGE_BUTTON_CLASS =
+  "glass press inline-flex size-10 items-center justify-center rounded-xl font-inter text-[14px] font-medium text-egray-700 hover:bg-white/80 hover:text-egray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:pointer-events-none disabled:opacity-40";
+
 export default function PaginationControls({
   currentPage,
   totalPages,
@@ -19,53 +21,48 @@ export default function PaginationControls({
   className,
 }: PaginationControlsProps) {
   return (
-    <div
+    <nav
+      aria-label="Pagination"
       className={cn(
-        "flex items-center justify-between w-full gap-2",
+        "flex flex-wrap items-center justify-center gap-2",
         className,
       )}
     >
-      <Button
+      <button
         type="button"
-        variant="outline"
-        size="icon"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         aria-label="Previous page"
-        className="bg-white disabled:opacity-100 disabled:bg-neutral-100 disabled:text-neutral-grey3"
+        className={PAGE_BUTTON_CLASS}
       >
         <ArrowLeftIcon className="size-4" />
-      </Button>
+      </button>
 
-      <div className="flex items-center gap-4">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-          <button
-            type="button"
-            key={page}
-            onClick={() => onPageChange(page)}
-            className={cn(
-              "w-10 h-10 rounded-full text-sm font-medium transition-colors",
-              currentPage === page
-                ? "border border-green-60 text-green-60 bg-green-60/10"
-                : "text-gray-700 border border-gray-200 hover:text-neutral-black",
-            )}
-          >
-            {page}
-          </button>
-        ))}
-      </div>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        <button
+          type="button"
+          key={page}
+          onClick={() => onPageChange(page)}
+          aria-label={`Page ${page}`}
+          aria-current={currentPage === page ? "page" : undefined}
+          className={cn(
+            PAGE_BUTTON_CLASS,
+            "aria-[current=page]:bg-white aria-[current=page]:text-brand-800 aria-[current=page]:ring-1 aria-[current=page]:ring-brand-700/30",
+          )}
+        >
+          {page}
+        </button>
+      ))}
 
-      <Button
+      <button
         type="button"
-        variant="outline"
-        size="icon"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         aria-label="Next page"
-        className="bg-white disabled:opacity-100 disabled:bg-neutral-100 disabled:text-neutral-grey3"
+        className={PAGE_BUTTON_CLASS}
       >
         <ArrowRightIcon className="size-4" />
-      </Button>
-    </div>
+      </button>
+    </nav>
   );
 }

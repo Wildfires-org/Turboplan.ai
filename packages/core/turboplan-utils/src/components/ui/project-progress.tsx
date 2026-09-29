@@ -94,10 +94,10 @@ export function ProjectProgress({
   } = progress;
 
   return (
-    <div className={cn("flex w-full items-center gap-16", className)}>
+    <div className={cn("flex w-full items-center gap-4 sm:gap-16", className)}>
       {/* Progress bar with days-left + due date beside it (not full width) */}
-      <div className="flex min-w-0 flex-1 items-end gap-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5 pb-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-end sm:gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:pb-1">
           <div className="flex w-full items-center justify-between gap-4 whitespace-nowrap">
             <span className="text-sm text-neutral-900/60">Progress</span>
             <span
@@ -110,7 +110,7 @@ export function ProjectProgress({
             </span>
           </div>
 
-          <div className="h-2 w-full overflow-hidden rounded-sm bg-neutral-100">
+          <div className="h-2 w-full overflow-hidden rounded-sm bg-white shadow-[inset_0_1px_2px_rgba(15,23,42,0.08)] ring-1 ring-white">
             <div
               className={cn(
                 "h-full rounded-full transition-all duration-300",
@@ -121,7 +121,7 @@ export function ProjectProgress({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-[18px] whitespace-nowrap pb-1 text-xs">
+        <div className="flex shrink-0 items-center gap-[18px] whitespace-nowrap text-xs tabular-nums sm:pb-1">
           <span
             className={cn(
               isOverdue

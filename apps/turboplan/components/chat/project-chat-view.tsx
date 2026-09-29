@@ -1,11 +1,18 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
@@ -45,10 +52,17 @@ import {
   useResearchPanel,
 } from "@/contexts/research-panel-context";
 import { getSidebarChatsKey } from "@/hooks/use-sidebar-chats";
+import { EMPTY_STATE_TEXT_CLASS, EMPTY_STATE_TITLE_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
 import { RESEARCH_SAVED_TYPE } from "@/lib/research-saved-annotation";
-import { fetcher, generateUUID } from "@/lib/utils";
+import { cn, fetcher, generateUUID } from "@/lib/utils";
+import {
+  CHAT_COMPOSER_SHELL_CLASS,
+  CHAT_FORM_CLASS,
+  RESEARCH_PANE_CLASS,
+} from "./chat-classes";
 import { ProjectChatHeader } from "./project-chat-header";
+import { ChatMessagesSkeleton } from "./project-chat-page-shell";
 import { ProjectSetupBanner } from "./project-setup-banner";
 
 interface ProjectChatViewProps {
@@ -58,14 +72,51 @@ interface ProjectChatViewProps {
   userId: string;
 }
 
+const NEW_CHAT_PATH_PATTERN = /\/chats\/new\/?$/;
+const RESEARCH_START_POLL_TIMEOUT_MS = 30_000;
+
 export const ProjectChatView = ({
   project,
   chat,
   isInitialChat,
   userId,
 }: ProjectChatViewProps) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  // A chat started at /chats/new swaps its URL to /chats/<id> with
+  // history.replaceState, which keeps the /chats/new router tree in that
+  // history entry. Back/forward then replays the cached /chats/new page: no
+  // chat under a /chats/<id> URL. Detected on mount only, since the swap
+  // itself happens later in the same mount.
+  const [staleChatPath] = useState(() =>
+    !chat && !NEW_CHAT_PATH_PATTERN.test(pathname) ? pathname : null,
+  );
+
+  useEffect(() => {
+    if (staleChatPath) {
+      router.replace(staleChatPath, { scroll: false });
+    }
+  }, [router, staleChatPath]);
+
+  if (staleChatPath) {
+    return (
+      <div className="flex h-full flex-col">
+        <span className="sr-only" role="status">
+          Loading messages...
+        </span>
+        <ChatMessagesSkeleton />
+      </div>
+    );
+  }
+
   return (
-    <ResearchPanelProvider>
+    <ResearchPanelProvider
+      defaultOpen={
+        isResearchAgentPackageEnabled() &&
+        (chat?.isInitial ?? isInitialChat) &&
+        !project.isResearchPhaseCompleted
+      }
+    >
       <ProjectChatViewInner
         project={project}
         chat={chat}
@@ -148,9 +199,26 @@ const ProjectChatViewInner = ({
     entityId: project.id,
     action: Action.UPDATE,
   });
+  // The chat route starts the research agent server-side when the first message
+  // of the initial chat is sent — after this view already fetched an idle
+  // status. Poll until the run shows up (bounded, in case the start is rejected,
+  // e.g. no credits) instead of waiting for a focus revalidation.
+  const [isAwaitingResearchStart, setIsAwaitingResearchStart] = useState(false);
+  useEffect(() => {
+    if (!isAwaitingResearchStart) {
+      return;
+    }
+    const timeout = setTimeout(
+      () => setIsAwaitingResearchStart(false),
+      RESEARCH_START_POLL_TIMEOUT_MS,
+    );
+    return () => clearTimeout(timeout);
+  }, [isAwaitingResearchStart]);
+
   const { status: researchAgentStatus, isActive: researchAgentIsActive } =
     useResearchAgentStatus(
       researchEnabled && effectiveIsInitialChat ? project.id : null,
+      { awaitRunStart: isAwaitingResearchStart },
     );
   const {
     isResearchPhaseCompleted,
@@ -285,6 +353,10 @@ const ProjectChatViewInner = ({
       );
       window.history.replaceState(null, "", newUrl);
 
+      if (researchEnabled && effectiveIsInitialChat) {
+        setIsAwaitingResearchStart(true);
+      }
+
       // Optimistically inject the new chat into the sidebar SWR cache
       mutate(
         sidebarChatsKey,
@@ -310,6 +382,7 @@ const ProjectChatViewInner = ({
       project.id,
       sidebarChatsKey,
       userId,
+      researchEnabled,
       effectiveIsInitialChat,
     ],
   );
@@ -344,7 +417,7 @@ const ProjectChatViewInner = ({
       <div className="flex-1 flex min-w-0 min-h-0">
         <div className="flex flex-1 min-w-0 min-h-0">
           <div className="flex-1 min-w-0 flex flex-col">
-            <div className="shrink-0 border-b border-border min-h-[var(--header-min-height)]">
+            <div className="shrink-0">
               <ProjectChatHeader
                 selectedChat={displayChat}
                 isResearchPanelOpen={
@@ -378,23 +451,37 @@ const ProjectChatViewInner = ({
               }}
             >
               {isLoadingMessages ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="size-5 animate-spin" />
-                    <span>Loading messages...</span>
+                <div className="flex h-full flex-col">
+                  <span className="sr-only" role="status">
+                    Loading messages...
+                  </span>
+                  <ChatMessagesSkeleton />
+                  {/* Composer placeholder keeps the list height stable. */}
+                  <div className={CHAT_FORM_CLASS}>
+                    <div
+                      className={cn(CHAT_COMPOSER_SHELL_CLASS, "h-[59px]")}
+                    />
                   </div>
                 </div>
               ) : messagesError ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg inline-block">
-                      <p className="text-sm text-red-600 mb-2">
+                <div className="flex h-full items-center justify-center px-4">
+                  <div className="glass-card flex max-w-sm flex-col items-center gap-3 rounded-[20px] px-6 py-6 text-center">
+                    <span className="flex size-10 items-center justify-center rounded-2xl bg-error-50 text-error-700">
+                      <AlertCircle aria-hidden className="size-5" />
+                    </span>
+                    <div>
+                      <p className={EMPTY_STATE_TITLE_CLASS}>
+                        Couldn&apos;t load messages
+                      </p>
+                      <p className={cn(EMPTY_STATE_TEXT_CLASS, "mt-1")}>
                         {messagesError.message}
                       </p>
+                    </div>
+                    <div>
                       <Button
                         size="sm"
+                        variant="brand"
                         onClick={() => mutateMessages()}
-                        className="mt-2"
                         disabled={isLoadingMessages}
                       >
                         {isLoadingMessages ? (
@@ -435,7 +522,9 @@ const ProjectChatViewInner = ({
           </div>
 
           {effectiveIsInitialChat && researchEnabled && (
-            <AnimatePresence>
+            // initial={false}: a pane that is open on first render (research
+            // in progress) is already laid out by the loading state.
+            <AnimatePresence initial={false}>
               {isResearchPanelOpen && (
                 <motion.div
                   initial={{ width: 0, opacity: 0 }}
@@ -446,19 +535,19 @@ const ProjectChatViewInner = ({
                       ? { duration: 0 }
                       : { duration: 0.5, ease: [0.32, 0.72, 0, 1] }
                   }
-                  className="hidden md:flex shrink-0 border-l border-border flex-col bg-background overflow-hidden relative"
+                  className={RESEARCH_PANE_CLASS}
                 >
                   {/* Resize handle */}
                   <div
                     onMouseDown={handleResizeStart}
-                    className="absolute left-0 inset-y-0 w-1 cursor-col-resize z-10 hover:bg-ring transition-colors"
+                    className="absolute inset-y-0 left-0 z-10 w-1 cursor-col-resize transition-colors hover:bg-brand-700/30"
                   />
 
                   <div
                     className="relative flex flex-col flex-1 min-h-0"
                     style={{ width: researchPanelWidth }}
                   >
-                    <div className="absolute inset-x-0 top-0 z-10 border-b border-border pl-3 pr-4 py-4 min-h-[var(--header-min-height)] bg-background">
+                    <div className="absolute inset-x-0 top-0 z-10 min-h-[var(--header-min-height)] border-b border-slate-900/[0.06] bg-white/70 py-4 pl-3 pr-4 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
                       <ResearchPanelHeader
                         status={researchAgentStatus}
                         progressMessages={progressMessages}

@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, ne } from "drizzle-orm";
 
 import {
+  invitations,
   type Office,
   type Organization,
   OwnershipStatus,
@@ -17,6 +18,7 @@ import { MemberRole } from "@wildfires-org/turboplan-rbac";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 
 import { generateUniqueProjectSlug } from "./queries";
+import { SUBMITTED_PROJECT_VISIBILITY } from "./submission-policy";
 
 // Transaction handle type used by applySubmissionTx. Drizzle does not export a
 // dedicated tx type, so derive it from the db client's transaction callback.
@@ -130,7 +132,12 @@ interface ApplySubmissionTxArgs {
  * 1. Insert the projectSubmission record (capturing sourceOfficeId for revert).
  * 2. Physically MOVE the project into the destination office so government
  *    reviewers gain inherited RBAC over it; old slug is appended to slugHistory.
- * 3. Downgrade the submitter's project role OWNER -> VIEWER.
+ *    The project is forced private and non-template (see
+ *    SUBMITTED_PROJECT_VISIBILITY) — only agency staff may publish it later.
+ * 3. Downgrade EVERY direct project member (and every pending project
+ *    invitation) to VIEWER. Only the target organization's staff may manage
+ *    the application from here on; a co-owner left in place could otherwise
+ *    approve, publish or re-staff the application themselves.
  *
  * Returns the inserted submission row.
  */
@@ -166,6 +173,7 @@ export const applySubmissionTx = async (
       slug: newSlug,
       slugHistory: [...proj.slugHistory, proj.slug],
       ownershipStatus: OwnershipStatus.SUBMITTED,
+      ...SUBMITTED_PROJECT_VISIBILITY,
     })
     .where(eq(project.id, proj.id));
 
@@ -174,12 +182,47 @@ export const applySubmissionTx = async (
     .set({ role: MemberRole.VIEWER, updatedAt: now })
     .where(
       and(
-        eq(projectUsers.userId, submittedBy),
         eq(projectUsers.projectId, proj.id),
+        ne(projectUsers.role, MemberRole.VIEWER),
+      ),
+    );
+
+  await tx
+    .update(invitations)
+    .set({ role: MemberRole.VIEWER, updatedAt: now })
+    .where(
+      and(
+        eq(invitations.entityType, "project"),
+        eq(invitations.entityId, proj.id),
+        eq(invitations.status, "pending"),
+        ne(invitations.role, MemberRole.VIEWER),
       ),
     );
 
   return submission;
+};
+
+/**
+ * The submission currently awaiting review for a project: the newest row not
+ * yet reviewed. A project can accumulate several rows (reject -> resubmit,
+ * possibly to a different organization), so never pick an arbitrary one.
+ */
+export const getPendingSubmission = async (
+  projectId: string,
+): Promise<ProjectSubmission | null> => {
+  const [submission] = await db
+    .select()
+    .from(projectSubmission)
+    .where(
+      and(
+        eq(projectSubmission.projectId, projectId),
+        isNull(projectSubmission.reviewedAt),
+      ),
+    )
+    .orderBy(desc(projectSubmission.createdAt))
+    .limit(1);
+
+  return submission ?? null;
 };
 
 interface SubmitProjectForReviewArgs {

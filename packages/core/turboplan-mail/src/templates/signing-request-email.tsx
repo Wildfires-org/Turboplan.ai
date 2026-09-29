@@ -2,11 +2,10 @@ import { Section, Text } from "@react-email/components";
 
 import { BaseLayout } from "./base-layout";
 import {
-  CardMascot,
+  BrandCard,
   CtaButton,
   Disclaimer,
   FallbackUrl,
-  GradientCard,
   GreetingPill,
 } from "./email-card";
 
@@ -34,7 +33,7 @@ export function SigningRequestEmail({
       preview={`${requesterName} requested your signature on "${documentTitle}"`}
       label="Signature Request"
     >
-      <GradientCard>
+      <BrandCard>
         <GreetingPill>{greeting}</GreetingPill>
 
         <Text style={bodyText}>
@@ -53,9 +52,7 @@ export function SigningRequestEmail({
         </Section>
 
         <CtaButton href={signingUrl} label="Sign Document" />
-
-        <CardMascot />
-      </GradientCard>
+      </BrandCard>
 
       <Disclaimer>
         This notification was sent to {recipientEmail} because you are a member

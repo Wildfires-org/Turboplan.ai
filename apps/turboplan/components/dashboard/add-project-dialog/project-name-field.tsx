@@ -20,7 +20,7 @@ export function ProjectNameField({ form }: ProjectNameFieldProps) {
         disabled={form.formState.isSubmitting}
       />
       {form.formState.errors.name && (
-        <p className="text-sm text-red-500">
+        <p className="text-sm text-error-700">
           {form.formState.errors.name.message}
         </p>
       )}

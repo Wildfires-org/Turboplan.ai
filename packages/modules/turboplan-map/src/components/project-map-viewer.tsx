@@ -9,7 +9,7 @@ import useSWR from "swr";
 import { fetcher } from "@wildfires-org/turboplan-api-client";
 import { Button } from "@wildfires-org/turboplan-utils";
 
-import { getDefaultVisibleLayers } from "../client";
+import { getDefaultVisibleLayers, getLayerKey } from "../client";
 import { useLayerVisibility } from "../hooks/use-layer-visibility";
 import { useMapLayers } from "../hooks/use-map-layers";
 import { useMapType } from "../hooks/use-map-type";
@@ -44,20 +44,31 @@ export function ProjectMapViewer({
   const { layers, setLayers, validLayers } = useMapLayers();
 
   // Use layer visibility hook for multi-layer support
-  const { visibleLayerIds, toggleLayerVisibility, showLayer } =
+  const { visibleLayerIds, toggleLayerVisibility, setVisibleLayers } =
     useLayerVisibility();
 
-  // Update local state when data is fetched
+  // Identity of the layer set the default visibility was already applied for
+  const defaultsAppliedKeyRef = React.useRef<string | null>(null);
+
+  // Update local state when data is fetched, and apply default visibility once
+  // per loaded layer set so hiding the last visible layer is not undone
   React.useEffect(() => {
-    if (fetchedLayers && fetchedLayers.length > 0) {
-      setLayers(fetchedLayers);
-      // Use smart default: show only unit layers if available
-      if (visibleLayerIds.size === 0) {
-        const defaultVisible = getDefaultVisibleLayers(fetchedLayers);
-        defaultVisible.forEach((id) => showLayer(id));
-      }
+    if (!fetchedLayers || fetchedLayers.length === 0) {
+      return;
     }
-  }, [fetchedLayers, setLayers, showLayer, visibleLayerIds.size]);
+
+    setLayers(fetchedLayers);
+
+    const layersKeyForDefaults = fetchedLayers
+      .map((layer) => getLayerKey(layer))
+      .join("|");
+    if (defaultsAppliedKeyRef.current === layersKeyForDefaults) {
+      return;
+    }
+
+    defaultsAppliedKeyRef.current = layersKeyForDefaults;
+    setVisibleLayers(getDefaultVisibleLayers(fetchedLayers));
+  }, [fetchedLayers, setLayers, setVisibleLayers]);
 
   const { selectedMapType, handleMapTypeChange } = useMapType("openstreetmap");
 
@@ -65,21 +76,11 @@ export function ProjectMapViewer({
   if (isLoading) {
     return (
       <div className={`${className || "w-full h-full"}`}>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <div className="size-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-              <div className="animate-spin rounded-full size-8 border-b-2 border-blue-500" />
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                Loading Map Data
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Fetching geospatial layers...
-              </p>
-            </div>
-          </div>
-        </div>
+        <div
+          role="status"
+          aria-label="Loading map"
+          className="size-full bg-brandAlt-200/70 animate-pulse motion-reduce:animate-none dark:bg-slate-800/70"
+        />
       </div>
     );
   }

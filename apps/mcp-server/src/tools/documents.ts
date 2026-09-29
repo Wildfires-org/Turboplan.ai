@@ -4,13 +4,16 @@ import { z } from "zod";
 import { runWithWorkerConnection } from "@wildfires-org/turboplan-db/db-client";
 import {
   createProjectDocument,
-  deleteProjectDocument,
   getProjectDocumentById,
   getProjectDocumentsByProjectId,
 } from "@wildfires-org/turboplan-db/queries";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
-import { deleteFile, uploadFile } from "@wildfires-org/turboplan-upload/server";
+import {
+  uniqueStorageName,
+  uploadFile,
+} from "@wildfires-org/turboplan-upload/server";
+import { removeProjectDocument } from "@wildfires-org/turboplan-workspace/server";
 
 import { assertEntityExists, assertPermission } from "../utils/permissions.js";
 import { projectExists } from "../utils/queries.js";
@@ -56,32 +59,43 @@ const buildStoredFilename = (
   return `${sanitized}${ext}`;
 };
 
-// A timestamp alone is not collision-safe: concurrent uploads of files with
-// the same name can land in the same millisecond and silently overwrite each
-// other's R2 object. The random infix makes each stored key unique.
+// The shared helper appends a full random UUID: stored objects are served from
+// public URLs, so the key must be unguessable, and concurrent uploads of the
+// same name must not overwrite each other.
 const buildUniqueStoredFilename = (
   originalFilename: string,
   mimeType: string,
 ): string => {
-  const random = crypto.randomUUID().slice(0, 8);
-  return `${Date.now()}-${random}-${buildStoredFilename(originalFilename, mimeType)}`;
+  return uniqueStorageName(buildStoredFilename(originalFilename, mimeType));
 };
 
 // Reads the response body enforcing the size cap as bytes arrive, so a
 // response without a Content-Length header (or a lying one) cannot buffer
 // an unbounded payload into Worker memory. Returns null when the cap is hit.
-const readBodyWithLimit = async (
+//
+// Peak memory stays ~1x the body: with a trustworthy Content-Length the body
+// is written straight into one preallocated buffer; otherwise chunks are
+// concatenated once and each chunk is released as soon as it is copied.
+export const readBodyWithLimit = async (
   response: Response,
   maxBytes: number,
-): Promise<ArrayBuffer | null> => {
+): Promise<Uint8Array | null> => {
   if (!response.body) {
     const buffer = await response.arrayBuffer();
-    return buffer.byteLength > maxBytes ? null : buffer;
+    return buffer.byteLength > maxBytes ? null : new Uint8Array(buffer);
   }
 
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const declaredLength = Number(response.headers.get("content-length") ?? "");
+  let preallocated =
+    Number.isInteger(declaredLength) &&
+    declaredLength > 0 &&
+    declaredLength <= maxBytes
+      ? new Uint8Array(declaredLength)
+      : null;
+  let chunks: Array<Uint8Array | null> = [];
   let total = 0;
+
+  const reader = response.body.getReader();
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
@@ -90,25 +104,48 @@ const readBodyWithLimit = async (
     if (!value) {
       continue;
     }
-    total += value.byteLength;
-    if (total > maxBytes) {
+    if (total + value.byteLength > maxBytes) {
       await reader.cancel();
       return null;
     }
-    chunks.push(value);
+    if (preallocated && total + value.byteLength > preallocated.byteLength) {
+      // Content-Length undercounted (e.g. a decoded compressed body): fall
+      // back to collecting chunks, keeping what was already read.
+      chunks = [preallocated.subarray(0, total)];
+      preallocated = null;
+    }
+    if (preallocated) {
+      preallocated.set(value, total);
+    } else {
+      chunks.push(value);
+    }
+    total += value.byteLength;
+  }
+
+  if (preallocated) {
+    return total === preallocated.byteLength
+      ? preallocated
+      : preallocated.subarray(0, total);
   }
 
   const combined = new Uint8Array(total);
   let offset = 0;
-  for (const chunk of chunks) {
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i] as Uint8Array;
     combined.set(chunk, offset);
     offset += chunk.byteLength;
+    chunks[i] = null;
   }
-  return combined.buffer;
+  return combined;
 };
 
 export const MAX_DOCUMENTS_PER_BATCH = 8;
-const URL_DOWNLOAD_CONCURRENCY = 3;
+// Downloads run one at a time: each holds up to MAX_FILE_SIZE in memory and
+// the Worker isolate is capped at 128MB.
+const URL_DOWNLOAD_CONCURRENCY = 1;
+// Total bytes one upload_documents_from_urls call may download across all
+// of its URLs. Each item may use at most the budget that is left.
+export const MAX_BATCH_DOWNLOAD_BYTES = 60 * 1024 * 1024; // 60MB
 
 // Per-item shape shared by upload_document_from_url and the batch variant.
 export const urlDocumentSchema = z.object({
@@ -160,11 +197,20 @@ type UrlDocumentResult =
 // persists the row, and records a timeline entry — the exact per-item logic
 // shared by the singular and batch URL-upload tools. Callers are responsible
 // for the one-time project-exists and permission checks.
+// `maxBytes` lets the batch tool pass the remaining per-call download budget;
+// it never exceeds the per-file MAX_FILE_SIZE cap.
 export const processUrlDocument = async (
   projectId: string,
   item: UrlDocumentInput,
   user: McpUserContext,
+  maxBytes: number = MAX_FILE_SIZE,
 ): Promise<UrlDocumentResult> => {
+  const limit = Math.min(maxBytes, MAX_FILE_SIZE);
+  const sizeError =
+    limit < MAX_FILE_SIZE
+      ? `File exceeds the remaining download budget for this call (${Math.floor(limit / (1024 * 1024))}MB of ${MAX_BATCH_DOWNLOAD_BYTES / (1024 * 1024)}MB). Upload it in a separate call.`
+      : "File exceeds 50MB size limit.";
+
   // SSRF guard: validate the URL (and every redirect hop) against private,
   // loopback, link-local, and metadata ranges before fetching. HTTP is allowed
   // since document sources are not restricted to HTTPS, but non-http(s) schemes
@@ -193,13 +239,14 @@ export const processUrlDocument = async (
   }
 
   const contentLength = Number(response.headers.get("content-length") ?? "0");
-  if (contentLength > MAX_FILE_SIZE) {
-    return { success: false, error: "File exceeds 50MB size limit." };
+  if (contentLength > limit) {
+    await response.body?.cancel();
+    return { success: false, error: sizeError };
   }
 
-  const buffer = await readBodyWithLimit(response, MAX_FILE_SIZE);
+  const buffer = await readBodyWithLimit(response, limit);
   if (!buffer) {
-    return { success: false, error: "File exceeds 50MB size limit." };
+    return { success: false, error: sizeError };
   }
 
   const storedFilename = buildUniqueStoredFilename(
@@ -456,7 +503,7 @@ export const registerDocumentTools = (
     "upload_documents_from_urls",
     {
       description:
-        "Upload multiple documents to a project by fetching them from URLs in a single call. Supports PDF and Word files up to 50MB each. Files are downloaded server-side (in parallel, bounded concurrency) and stored in R2. Requires editor role or higher. Maximum 8 documents per call; duplicate URLs within the batch are rejected. Best-effort per item: one bad URL does not fail the others — returns per-item results.",
+        "Upload multiple documents to a project by fetching them from URLs in a single call. Supports PDF and Word files up to 50MB each. Files are downloaded server-side one at a time and stored in R2; the combined download size per call is capped at 60MB, so split larger sets across calls. Requires editor role or higher. Maximum 8 documents per call; duplicate URLs within the batch are rejected. Best-effort per item: one bad URL does not fail the others — returns per-item results.",
       inputSchema: {
         projectId: z.string().uuid().describe("Project UUID"),
         documents: z
@@ -537,9 +584,9 @@ export const registerDocumentTools = (
 
         const validated = validation.data;
 
-        // Bounded-concurrency downloads: chunk the items so at most
-        // URL_DOWNLOAD_CONCURRENCY fetch to keep total wall time in check on
-        // Workers. Per-item best-effort — a failed item is reported, not thrown.
+        // Sequential downloads (URL_DOWNLOAD_CONCURRENCY = 1) under a shared
+        // byte budget so one call cannot exceed isolate memory. Per-item
+        // best-effort — a failed item is reported, not thrown.
         const results: Array<{
           url: string;
           success: boolean;
@@ -552,6 +599,7 @@ export const registerDocumentTools = (
           };
           error?: string;
         }> = [];
+        let remainingBudget = MAX_BATCH_DOWNLOAD_BYTES;
 
         for (
           let i = 0;
@@ -562,9 +610,25 @@ export const registerDocumentTools = (
             i,
             i + URL_DOWNLOAD_CONCURRENCY,
           );
+          if (remainingBudget <= 0) {
+            for (const item of chunk) {
+              results.push({
+                url: item.url,
+                success: false,
+                error: `Download budget for this call (${MAX_BATCH_DOWNLOAD_BYTES / (1024 * 1024)}MB) is used up. Upload it in a separate call.`,
+              });
+            }
+            continue;
+          }
+          const budgetForChunk = remainingBudget;
           const settled = await Promise.allSettled(
             chunk.map((item) =>
-              processUrlDocument(projectId as string, item, user),
+              processUrlDocument(
+                projectId as string,
+                item,
+                user,
+                budgetForChunk,
+              ),
             ),
           );
 
@@ -572,6 +636,7 @@ export const registerDocumentTools = (
             const item = chunk[idx];
             if (outcome.status === "fulfilled") {
               if (outcome.value.success) {
+                remainingBudget -= outcome.value.document.size;
                 results.push({
                   url: item.url,
                   success: true,
@@ -867,13 +932,9 @@ export const registerDocumentTools = (
           return denied;
         }
 
-        try {
-          await deleteFile(existing.url);
-        } catch {
-          // Continue with DB deletion even if R2 deletion fails
-        }
-
-        await deleteProjectDocument(documentId as string);
+        // Row first, then the stored object only if it belongs to this row's
+        // uploader/project and no copied row (template clone) still uses it.
+        await removeProjectDocument(existing);
 
         await createTimelineRecord({
           projectId: existing.projectId,

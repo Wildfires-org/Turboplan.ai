@@ -34,8 +34,8 @@ publicTimelineRouter.get(
         return c.json({ error: "Project not found" }, 404);
       }
 
-      const hiddenModules = (p.hiddenModules as string[]) || [];
-      const privateModules = (p.privateModules as string[]) || [];
+      const hiddenModules = p.hiddenModules ?? [];
+      const privateModules = p.privateModules ?? [];
 
       const isModuleHiddenFromPublic = (moduleName: string) =>
         hiddenModules.includes(moduleName) ||
@@ -45,7 +45,10 @@ publicTimelineRouter.get(
         return c.json({ records: [], isHidden: true });
       }
 
-      const records = await getPublicTimelineRecords(p.id);
+      const records = await getPublicTimelineRecords(p.id, {
+        hiddenModules,
+        privateModules,
+      });
 
       return c.json({ records, isHidden: false });
     } catch (error) {

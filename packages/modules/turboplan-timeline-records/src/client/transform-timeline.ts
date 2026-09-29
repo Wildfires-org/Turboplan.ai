@@ -98,7 +98,7 @@ const getAuthorName = (record: EnrichedTimelineRecord): string => {
       .filter(Boolean)
       .join(" ");
   }
-  return record.authorEmail;
+  return record.authorEmail ?? "Unknown user";
 };
 
 const getAuthorInitials = (record: EnrichedTimelineRecord): string | null => {

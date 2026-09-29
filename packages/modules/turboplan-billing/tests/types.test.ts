@@ -78,43 +78,38 @@ describe("plan attribute helpers", () => {
   });
 });
 
+// catalog/brand.yaml is fork-owned (`merge=ours`) and names live Stripe
+// objects, so the brand prefix of every lookup key differs per deployment.
+// Take the base keys from the catalog and assert the STRUCTURE the runtime
+// must build on top of them: the literal suffixes, plan and kind.
+const PRO_BASE_KEY = PLANS.pro.lookup_key;
+const MAX_BASE_KEY = PLANS.max.lookup_key;
+
 describe("lookup keys", () => {
   it("derives deterministic seat and overage keys", () => {
-    assert.equal(seatLookupKey("pro"), "turboplan_pro_monthly_additional_seat");
-    assert.equal(
-      overageLookupKey("max"),
-      "turboplan_max_monthly_credit_overage",
-    );
+    assert.equal(seatLookupKey("pro"), `${PRO_BASE_KEY}_additional_seat`);
+    assert.equal(overageLookupKey("max"), `${MAX_BASE_KEY}_credit_overage`);
   });
 
   it("classifies every key kind and rejects foreign keys", () => {
-    assert.deepEqual(classifyLookupKey("turboplan_pro_monthly"), {
+    assert.deepEqual(classifyLookupKey(PRO_BASE_KEY), {
       plan: "pro",
       kind: "base",
     });
-    assert.deepEqual(
-      classifyLookupKey("turboplan_max_monthly_additional_seat"),
-      {
-        plan: "max",
-        kind: "seat",
-      },
-    );
-    assert.deepEqual(
-      classifyLookupKey("turboplan_pro_monthly_credit_overage"),
-      {
-        plan: "pro",
-        kind: "overage",
-      },
-    );
+    assert.deepEqual(classifyLookupKey(`${MAX_BASE_KEY}_additional_seat`), {
+      plan: "max",
+      kind: "seat",
+    });
+    assert.deepEqual(classifyLookupKey(`${PRO_BASE_KEY}_credit_overage`), {
+      plan: "pro",
+      kind: "overage",
+    });
     assert.equal(classifyLookupKey("someone_elses_price"), null);
   });
 
   it("resolves plans from base keys only", () => {
-    assert.equal(planFromLookupKey("turboplan_max_monthly"), "max");
-    assert.equal(
-      planFromLookupKey("turboplan_pro_monthly_additional_seat"),
-      null,
-    );
+    assert.equal(planFromLookupKey(MAX_BASE_KEY), "max");
+    assert.equal(planFromLookupKey(`${PRO_BASE_KEY}_additional_seat`), null);
     assert.equal(planFromLookupKey("unknown"), null);
   });
 });

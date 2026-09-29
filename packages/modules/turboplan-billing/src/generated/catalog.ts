@@ -112,7 +112,7 @@ export const CATALOG = {
         "Dedicated onboarding + SLA"
       ],
       "cta": "Talk to Us",
-      "contact_path": "/contact"
+      "contact_path": "/#contact"
     },
     "discount_programs": [
       {

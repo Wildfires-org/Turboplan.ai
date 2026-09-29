@@ -70,7 +70,7 @@ export function PromptSection({
                 <button
                   type="button"
                   className={cn(
-                    "absolute bottom-2 right-2 rounded-md border border-gray-100 bg-white p-1.5 transition-colors hover:bg-gray-50",
+                    "glass press absolute bottom-2 right-2 rounded-lg p-1.5 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700",
                     promptValidation &&
                       !promptValidation.valid &&
                       "animate-scale-pulse",
@@ -80,7 +80,7 @@ export function PromptSection({
                   disabled={isEnhancing}
                 >
                   {isEnhancing ? (
-                    <Loader2 className="size-5 animate-spin text-gray-400" />
+                    <Loader2 className="size-5 animate-spin text-gray-550" />
                   ) : (
                     <BrandGradientIcon icon={Sparkles} className="size-5" />
                   )}
@@ -92,23 +92,23 @@ export function PromptSection({
         )}
       </div>
       {promptValidation && !promptValidation.valid && (
-        <p className="text-sm text-red-500">
+        <p className="text-sm text-error-700">
           {promptValidation.feedback ||
             formatMissingDetails(promptValidation.missing)}
         </p>
       )}
       {form.formState.errors.prompt && (
-        <p className="text-sm text-red-500">
+        <p className="text-sm text-error-700">
           {form.formState.errors.prompt.message}
         </p>
       )}
       {!hasExistingProject && (
-        <div className="flex flex-wrap gap-1 pt-2">
+        <div className="flex flex-wrap gap-1.5 pt-2">
           {PROMPT_SUGGESTIONS.map((suggestion) => (
             <button
               key={suggestion.name}
               type="button"
-              className="whitespace-nowrap rounded-[15px] border border-[#eaebee] bg-white px-3 py-1.5 text-sm leading-5 text-[#262626] transition-colors hover:bg-gray-50"
+              className="glass press whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] leading-5 text-foreground hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:opacity-50"
               onClick={() => {
                 form.setValue("prompt", suggestion.prompt);
               }}

@@ -21,6 +21,23 @@ import { project } from "../workspace/project";
 export type ProjectDocumentSource = "upload" | "research";
 
 /**
+ * Lifecycle of the document's text extraction.
+ * - "pending": not extracted yet (the default for every new row)
+ * - "done": text was extracted and stored in `extractedText`
+ * - "failed": extraction was attempted and errored; see `extractionError`
+ * - "unsupported": the file type carries no extractable text (e.g. an image)
+ */
+export const PROJECT_DOCUMENT_EXTRACTION_STATUSES = [
+  "pending",
+  "done",
+  "failed",
+  "unsupported",
+] as const;
+
+export type ProjectDocumentExtractionStatus =
+  (typeof PROJECT_DOCUMENT_EXTRACTION_STATUSES)[number];
+
+/**
  * Project documents table
  * Stores metadata for documents uploaded to projects (PDFs, DOCX, etc.)
  */
@@ -58,11 +75,31 @@ export const projectDocument = pgTable(
     folder: varchar("folder", { length: 255 }),
     /** Description of the folder group (e.g., NEPA review type) */
     folderDescription: varchar("folder_description", { length: 255 }),
+    /**
+     * Plain text extracted from the file, capped by the extractor (<= 40k
+     * chars). Null until extraction runs — and after a failed or unsupported
+     * extraction. Large enough that queries returning lists of documents
+     * should select columns explicitly and leave this one out.
+     */
+    extractedText: text("extracted_text"),
+    /** See {@link ProjectDocumentExtractionStatus}. */
+    extractionStatus: varchar("extraction_status", { length: 20 })
+      .$type<ProjectDocumentExtractionStatus>()
+      .notNull()
+      .default("pending"),
+    /** Reason the extraction failed or why the file type is unsupported */
+    extractionError: text("extraction_error"),
+    /** When `extractedText` was last written (set only on a "done" status) */
+    extractedAt: timestamp("extracted_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
     projectIdIdx: index("project_document_project_id_idx").on(table.projectId),
     userIdIdx: index("project_document_user_id_idx").on(table.userId),
+    /** Lets a backfill find pending rows without scanning every document */
+    extractionStatusIdx: index("project_document_extraction_status_idx").on(
+      table.extractionStatus,
+    ),
   }),
 );
 

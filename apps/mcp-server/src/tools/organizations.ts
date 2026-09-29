@@ -1,22 +1,18 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import type {
-  OrganizationStatus,
-  OrganizationType,
-} from "@wildfires-org/turboplan-db";
 import { runWithWorkerConnection } from "@wildfires-org/turboplan-db/db-client";
 import { getCommonEnv } from "@wildfires-org/turboplan-env";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
-import { isAdmin } from "@wildfires-org/turboplan-rbac/server";
-import { uploadFile } from "@wildfires-org/turboplan-upload/server";
+import {
+  orgLogoStorageKey,
+  uploadFile,
+} from "@wildfires-org/turboplan-upload/server";
 import {
   EMAIL_DOMAIN_REGEX,
   normalizeEmailDomains,
 } from "@wildfires-org/turboplan-utils/server";
 import {
-  assignOrganizationOwner,
-  createOrganization,
   getOrganizationById,
   getOrganizationsWithOffices,
   updateOrganization,
@@ -26,7 +22,6 @@ import {
   getOrganizationCatalogUrl,
   getOrganizationDashboardUrl,
 } from "../utils/entity-urls.js";
-import { generateOrganizationCoverImage } from "../utils/generate-cover-image.js";
 import { resolveLogoImageType } from "../utils/logo-image.js";
 import {
   accessDenied,
@@ -44,8 +39,8 @@ import {
   validateToolInput,
 } from "../utils/validation.js";
 
-// Organization type enum values accepted by the create/update tools. Kept in one
-// place so create and update stay in sync.
+// Organization type enum values accepted by update_organization's input schema
+// (and always rejected there over a PAT — see the handler).
 const ORGANIZATION_TYPE_VALUES = [
   "personal",
   "business",
@@ -149,11 +144,6 @@ const fetchLogoImage = async (
 
   return { bytes };
 };
-
-// Storage prefix mirrors the seed script
-// (packages/core/turboplan-workspace/src/seed/organizations.ts) so app + public
-// catalog rendering resolves MCP-uploaded logos identically to seeded ones.
-const ORG_LOGOS_PREFIX = "org-logos";
 
 export const registerOrganizationTools = (
   server: McpServer,
@@ -337,156 +327,24 @@ export const registerOrganizationTools = (
       }),
   );
 
+  // Creating an organization is a platform-admin capability. The MCP server
+  // only accepts personal access tokens, and PATs never carry platform-admin
+  // privileges (the REST route gates on `isSessionAdmin`), so the tool is kept
+  // registered only to give a clear, uniform denial.
   server.registerTool(
     "create_organization",
     {
-      description: "Create a new organization. Requires admin privileges.",
-      inputSchema: {
-        name: z.string().min(1).max(255).describe("Organization name"),
-        shortName: z
-          .string()
-          .min(1)
-          .max(50)
-          .optional()
-          .describe("Short name / abbreviation"),
-        description: z
-          .string()
-          .max(2000)
-          .optional()
-          .describe("Organization description"),
-        type: z
-          .enum(ORGANIZATION_TYPE_VALUES)
-          .optional()
-          .describe("Organization type (default: personal)"),
-        status: z
-          .enum(["active", "draft", "archived"])
-          .optional()
-          .describe("Organization status (default: active)"),
-        country: z.string().min(1).max(100).optional().describe("Country name"),
-        emailDomains: emailDomainsSchema
-          .optional()
-          .describe(
-            'Email domains that auto-affiliate users with this org (e.g. ["jacobs.com"]). Public providers like gmail.com are rejected. Admin only.',
-          ),
-      },
+      description:
+        "Not available via personal access tokens: organization creation is restricted to platform admins signed in to the web app. Always returns access denied.",
     },
-    async ({
-      name,
-      shortName,
-      description,
-      type,
-      status,
-      country,
-      emailDomains,
-    }) =>
-      runWithWorkerConnection(async () => {
-        const validation = validateToolInput(
-          z.object({
-            name: nameSchema,
-            shortName: shortNameSchema.optional(),
-            description: descriptionSchema,
-            type: z.enum(ORGANIZATION_TYPE_VALUES).optional(),
-            status: z.enum(["active", "draft", "archived"]).optional(),
-            country: z.string().min(1).max(100).optional(),
-            emailDomains: emailDomainsSchema.optional(),
-          }),
-          { name, shortName, description, type, status, country, emailDomains },
-        );
-        if (!validation.success) {
-          return {
-            isError: true,
-            content: [{ type: "text" as const, text: validation.error }],
-          };
-        }
-
-        const admin = await isAdmin(user.userId, user.email);
-        if (!admin) {
-          return accessDenied();
-        }
-
-        const validated = validation.data;
-
-        // Normalize + reject public-provider email domains before writing.
-        let cleanedEmailDomains: string[] | undefined;
-        if (validated.emailDomains !== undefined) {
-          const result = normalizeEmailDomains(validated.emailDomains);
-          if (!result.ok) {
-            return {
-              isError: true,
-              content: [{ type: "text" as const, text: result.error }],
-            };
-          }
-          cleanedEmailDomains = result.domains;
-        }
-
-        const org = await createOrganization({
-          name: validated.name,
-          ...(validated.shortName !== undefined && {
-            shortName: validated.shortName,
-          }),
-          ...(validated.description !== undefined && {
-            description: validated.description,
-          }),
-          ...(validated.type !== undefined && {
-            type: validated.type as OrganizationType,
-          }),
-          ...(validated.status !== undefined && {
-            status: validated.status as OrganizationStatus,
-          }),
-          ...(validated.country !== undefined && {
-            country: validated.country,
-          }),
-          ...(cleanedEmailDomains !== undefined && {
-            emailDomains: cleanedEmailDomains,
-          }),
-          createdBy: user.userId,
-        });
-
-        // Assign the creator as organization owner so the org resolves through
-        // RBAC and appears in list_my_organizations for non-admin flows.
-        await assignOrganizationOwner(user.userId, org.id);
-
-        // Best-effort cover image — never throws, and a failure here must not
-        // fail the organization creation.
-        const coverImage = await generateOrganizationCoverImage(
-          org.id,
-          org.name,
-          user.userId,
-          org.description,
-        );
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                {
-                  success: true,
-                  organization: {
-                    id: org.id,
-                    name: org.name,
-                    slug: org.slug,
-                    type: org.type,
-                    status: org.status,
-                    catalogUrl: getOrganizationCatalogUrl(org.slug),
-                    dashboardUrl: getOrganizationDashboardUrl(org.slug),
-                  },
-                  coverImage,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      }),
+    async () => accessDenied(),
   );
 
   server.registerTool(
     "update_organization",
     {
       description:
-        "Update an organization's properties. Requires editor role or higher. Changing type or status requires platform-admin privileges; changing emailDomains requires organization owner (MANAGE_MEMBERS) privileges.",
+        "Update an organization's properties. Requires editor role or higher. Changing type or status is not available via personal access tokens (platform-admin only, web app); changing emailDomains requires organization owner (MANAGE_MEMBERS) privileges.",
       inputSchema: {
         organizationId: z.string().uuid().describe("Organization UUID"),
         name: z.string().min(1).max(255).optional().describe("New name"),
@@ -504,11 +362,15 @@ export const registerOrganizationTools = (
         type: z
           .enum(ORGANIZATION_TYPE_VALUES)
           .optional()
-          .describe("Organization type (platform-admin only)"),
+          .describe(
+            "Organization type (platform-admin only; always rejected via personal access tokens)",
+          ),
         status: z
           .enum(["active", "draft", "archived"])
           .optional()
-          .describe("Organization status (platform-admin only)"),
+          .describe(
+            "Organization status (platform-admin only; always rejected via personal access tokens)",
+          ),
         country: z.string().min(1).max(100).optional().describe("Country name"),
         emailDomains: emailDomainsSchema
           .optional()
@@ -581,20 +443,17 @@ export const registerOrganizationTools = (
 
         const validated = validation.data;
 
-        // Type and status control public cataloging, so they require
-        // platform-admin privileges (org-level roles are not enough).
-        const changesAdminFields =
-          validated.type !== undefined || validated.status !== undefined;
-        if (changesAdminFields) {
-          const admin = await isAdmin(user.userId, user.email);
-          if (!admin) {
-            return accessDenied();
-          }
+        // Type and status control public cataloging, so they are
+        // platform-admin only. MCP is PAT-only and PATs never carry
+        // platform-admin privileges (the REST route gates on
+        // `isSessionAdmin`), so these fields are always rejected here.
+        if (validated.type !== undefined || validated.status !== undefined) {
+          return accessDenied();
         }
 
         // Email domains drive auto-affiliation, so changing them requires the
-        // org-owner bar (MANAGE_MEMBERS). Platform admins still pass via the
-        // RBAC adminCheck bypass inside assertPermission.
+        // org-owner bar (MANAGE_MEMBERS). PATs carry no platform-admin RBAC
+        // bypass, so an admin needs a real role on the org here too.
         if (validated.emailDomains !== undefined) {
           const deniedEmailDomains = await assertPermission(
             user.userId,
@@ -629,12 +488,6 @@ export const registerOrganizationTools = (
           }),
           ...(validated.description !== undefined && {
             description: validated.description,
-          }),
-          ...(validated.type !== undefined && {
-            type: validated.type as OrganizationType,
-          }),
-          ...(validated.status !== undefined && {
-            status: validated.status as OrganizationStatus,
           }),
           ...(validated.country !== undefined && {
             country: validated.country,
@@ -733,7 +586,9 @@ export const registerOrganizationTools = (
         }
         const sniffed = resolved.type;
 
-        const blobPath = `${ORG_LOGOS_PREFIX}/${organizationId}.${sniffed.extension}`;
+        // Same `org-logos/` prefix as the seed script, so app + public catalog
+        // rendering resolves MCP-uploaded logos identically to seeded ones.
+        const blobPath = orgLogoStorageKey(organizationId, sniffed.extension);
 
         const { url: logoUrl } = await uploadFile(
           blobPath,

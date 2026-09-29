@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import Image, { type StaticImageData } from "next/image";
 
 interface CatalogEmptyStateProps {
-  backgroundImage: StaticImageData;
   beaverImage: StaticImageData;
   beaverAlt: string;
   title: string;
@@ -12,7 +11,6 @@ interface CatalogEmptyStateProps {
 }
 
 export function CatalogEmptyState({
-  backgroundImage,
   beaverImage,
   beaverAlt,
   title,
@@ -20,30 +18,21 @@ export function CatalogEmptyState({
   actionButton,
 }: CatalogEmptyStateProps) {
   return (
-    <div className="relative rounded-xl border border-neutral-grey overflow-hidden">
+    <div className="glass-card flex flex-col items-center justify-center rounded-[28px] px-6 py-12 text-center sm:px-8 sm:py-14 lg:py-16">
       <Image
-        src={backgroundImage}
-        alt=""
-        fill
-        className="object-cover object-center opacity-40"
-        aria-hidden
+        src={beaverImage}
+        alt={beaverAlt}
+        width={120}
+        height={120}
+        className="mb-5 size-[100px] object-contain sm:size-[120px]"
       />
-      <div className="relative z-10 flex flex-col items-center justify-center py-16 px-6 text-center">
-        <Image
-          src={beaverImage}
-          alt={beaverAlt}
-          width={140}
-          height={140}
-          className="mb-4"
-        />
-        <h3 className="text-lg font-semibold text-neutral-black mb-2">
-          {title}
-        </h3>
-        <p className="text-sm text-neutral-grey3 max-w-md mb-6">
-          {description}
-        </p>
-        {actionButton}
-      </div>
+      <h3 className="mb-2 font-heading text-[22px] font-normal leading-[1.2] tracking-[-0.02em] text-egray-900 sm:text-[24px]">
+        {title}
+      </h3>
+      <p className="mb-6 max-w-md font-inter text-[15px] leading-[22px] text-egray-700">
+        {description}
+      </p>
+      {actionButton}
     </div>
   );
 }

@@ -2,9 +2,14 @@ import { Hono } from "hono";
 
 import { BillingError } from "@wildfires-org/turboplan-billing/server";
 import { Action } from "@wildfires-org/turboplan-rbac";
-import { type RBACContext } from "@wildfires-org/turboplan-rbac/hono";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
+import {
+  getRBACServiceForRequest,
+  isMembershipGrant,
+  NO_PERMISSION_REASON,
+  type RBACContext,
+} from "@wildfires-org/turboplan-rbac/hono";
 
+import { InvitationEmailMismatchError } from "../invitations/policy";
 import {
   getEntityInvitationsWithInviter,
   getInvitationById,
@@ -102,6 +107,12 @@ invitationsRouter.post("/accept", async (c) => {
       role: result.role,
     });
   } catch (error) {
+    if (error instanceof InvitationEmailMismatchError) {
+      return c.json(
+        { error: error.message, code: "INVITATION_EMAIL_MISMATCH" },
+        403,
+      );
+    }
     // Seat-cap rejections are client-actionable, not server faults.
     if (error instanceof BillingError && error.code === "SEAT_LIMIT_REACHED") {
       return c.json({ error: error.message, code: error.code }, 403);
@@ -136,7 +147,7 @@ invitationsRouter.delete("/:id", async (c) => {
     );
 
     // Check MANAGE_MEMBERS permission on the entity
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       invitation.entityId,
@@ -191,7 +202,7 @@ invitationsRouter.post("/:id/resend", async (c) => {
     );
 
     // Check MANAGE_MEMBERS permission on the entity
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       invitation.entityId,
@@ -244,8 +255,10 @@ invitationsRouter.get("/entity/:entityType/:entityId", async (c) => {
     // Map entity type to RBAC entity type
     const rbacEntityType = mapToRBACEntityType(entityTypeResult.data);
 
-    // Check READ permission on the entity (to see invitations)
-    const rbacService = getRBACService();
+    // Pending invitations expose invitee emails, roles and inviters, so READ
+    // must come from a role on the entity itself (or a parent). READ derived
+    // upward from a single child project membership does not qualify.
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       entityId,
@@ -253,14 +266,8 @@ invitationsRouter.get("/entity/:entityType/:entityId", async (c) => {
       Action.READ,
     );
 
-    if (!permissionResult.allowed) {
-      return c.json(
-        {
-          error: "Forbidden",
-          reason: permissionResult.reason,
-        },
-        403,
-      );
+    if (!isMembershipGrant(permissionResult)) {
+      return c.json({ error: "Forbidden", reason: NO_PERMISSION_REASON }, 403);
     }
 
     // Get pending invitations

@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { toast } from "sonner";
 
+import { cn } from "@wildfires-org/turboplan-utils";
+
 import {
   type CreateContextInput,
   type UpdateContextInput,
@@ -17,6 +19,9 @@ interface ProjectContextListProps {
   projectId: string;
   readOnly: boolean;
 }
+
+const SKELETON_BAR_CLASS =
+  "rounded-md bg-brandAlt-200/70 animate-pulse motion-reduce:animate-none dark:bg-slate-800/70";
 
 export function ProjectContextList({
   projectId,
@@ -56,16 +61,31 @@ export function ProjectContextList({
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 py-4">
+      // Mirrors ContextEntryCard's rows (24px meta row, pt-2/pb-6 around a
+      // title + 3-line card) so entries land without moving the page.
+      <div
+        role="status"
+        aria-label="Loading context"
+        className="flex flex-col gap-1"
+      >
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <div className="flex items-center gap-4">
-              <div className="size-6 shrink-0 animate-pulse rounded-full bg-gray-200" />
-              <div className="h-4 w-48 animate-pulse rounded bg-gray-200" />
+          <div key={i} className="flex flex-col gap-1">
+            <div className="flex h-6 items-center gap-4">
+              <div
+                className={cn(
+                  SKELETON_BAR_CLASS,
+                  "size-6 shrink-0 rounded-full",
+                )}
+              />
+              <div className={cn(SKELETON_BAR_CLASS, "h-3 w-48")} />
             </div>
             <div className="flex gap-4">
               <div className="w-6 shrink-0" />
-              <div className="h-24 flex-1 animate-pulse rounded-lg bg-gray-100" />
+              <div className="flex-1 pb-6 pt-2">
+                <div
+                  className={cn(SKELETON_BAR_CLASS, "h-[126px] rounded-2xl")}
+                />
+              </div>
             </div>
           </div>
         ))}
@@ -76,7 +96,7 @@ export function ProjectContextList({
   // Error state
   if (error) {
     return (
-      <div className="py-4 text-sm text-gray-500">
+      <div className="py-4 text-sm text-error-700">
         Failed to load context entries.
       </div>
     );
@@ -87,8 +107,10 @@ export function ProjectContextList({
     return (
       <div className="group relative flex min-h-[220px] items-center justify-center overflow-hidden">
         <div className="flex flex-col items-center gap-2 text-center">
-          <p className="font-semibold">No context entries yet</p>
-          <p className="text-sm text-gray-500">
+          <p className="text-[15px] font-medium leading-6 tracking-[-0.01em] text-foreground">
+            No context entries yet
+          </p>
+          <p className="text-[13px] leading-5 text-gray-600">
             Add context entries to capture key project information.
           </p>
         </div>

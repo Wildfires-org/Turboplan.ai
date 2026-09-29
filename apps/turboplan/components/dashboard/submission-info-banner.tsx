@@ -42,9 +42,10 @@ export const SubmissionInfoBanner = ({
     patchFetcher,
   );
 
-  // Reviewing a submission mints project owners, so the server requires
-  // MANAGE_MEMBERS. Gate the actions on the same permission to avoid showing
-  // buttons that would 403 for Editors/Viewers.
+  // The server requires MANAGE_MEMBERS on the submission's target office. While
+  // SUBMITTED the project lives in that office and every direct member was
+  // downgraded to Viewer, so project-level MANAGE_MEMBERS effectively is the
+  // inherited office/org (or platform admin) grant.
   const { hasPermission: canReview, isChecking } = useEntityPermission({
     userId,
     entityType: EntityType.PROJECT,
@@ -161,6 +162,7 @@ export const SubmissionInfoBanner = ({
           <ApproveProposalDialog
             open={showApproveDialog}
             onOpenChange={setShowApproveDialog}
+            projectId={projectId}
             projectName={projectName}
             onApprove={handleApprove}
             isLoading={isMutating}

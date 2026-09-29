@@ -43,6 +43,7 @@ export function AddAdminUserForm({ onAdded }: AddAdminUserFormProps) {
           <UserSelector
             value={selected}
             onChange={setSelected}
+            searchScope="admin"
             placeholder="Search for a user to add as admin..."
             maxSelections={1}
             allowInvite={false}

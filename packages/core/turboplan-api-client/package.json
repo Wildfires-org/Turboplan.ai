@@ -17,9 +17,11 @@
     "@types/react": "^19.1.1",
     "react": "19.1.7",
     "tsdown": "^0.15.9",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.3"
   },
   "scripts": {
+    "test": "node --import tsx --test $(find tests -name '*.test.ts')",
     "build": "tsdown",
     "dev": "tsdown --watch --no-clean",
     "clean": "rm -rf dist",

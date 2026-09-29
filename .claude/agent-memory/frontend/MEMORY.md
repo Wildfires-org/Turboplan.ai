@@ -1,0 +1,7 @@
+- [Landing browser verification](landing-browser-verification.md) — hidden pane stalls Suspense reveal; UI scale makes px read ~0.94x
+- [Landing browser testing quirks](landing-browser-testing.md) — hidden streamed tree, duplicate IDs, stale screenshots, zoom when measuring :3002
+- [Glass utility conflicts](glass-utility-conflicts.md) — combining glass/glass-card/glass-inset with shadcn base classes safely
+- [Fumadocs /docs theming](fumadocs-docs-theming.md) — where docs styles live; ui-scale zoom, sticky chrome, client-constant traps
+- [Package rebuilds while dev runs](feedback_package_rebuilds.md) — use `tsdown --no-clean`; a clean build crashes the bun API server
+- [Glass system location](project_glass_system.md) — where the Mist/glass tokens, utilities and primitive recipes live in each app
+- [Turboplan glass gotchas](turboplan-glass-gotchas.md) — module CSS, rebuilds, pane CLS, Playwright when pane hidden, chat mock + research-pane CLS

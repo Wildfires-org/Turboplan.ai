@@ -1,7 +1,5 @@
 "use client";
 
-import type React from "react";
-
 import {
   Button,
   Select,
@@ -11,6 +9,7 @@ import {
   SelectValue,
 } from "@wildfires-org/turboplan-utils";
 
+import type { UserSearchScope } from "../hooks/use-user-search";
 import { MemberRole, type MemberRoleType } from "../types";
 import { getRoleDisplayName } from "./members-table/utils";
 import { type SelectedUserValue, UserSelector } from "./user-selector";
@@ -18,6 +17,8 @@ import { type SelectedUserValue, UserSelector } from "./user-selector";
 interface MemberAssignRowProps {
   selectedUsers: SelectedUserValue[];
   onSelectedUsersChange: (users: SelectedUserValue[]) => void;
+  /** Entity the user search runs for (see UserSelector) */
+  searchScope: UserSearchScope;
   currentRole: MemberRoleType;
   onRoleChange: (role: MemberRoleType) => void;
   onAssign: () => void;
@@ -28,6 +29,7 @@ interface MemberAssignRowProps {
 export function MemberAssignRow({
   selectedUsers,
   onSelectedUsersChange,
+  searchScope,
   currentRole,
   onRoleChange,
   onAssign,
@@ -36,19 +38,17 @@ export function MemberAssignRow({
 }: MemberAssignRowProps) {
   return (
     <div className="flex items-center gap-4">
-      <div
-        className="relative min-w-0 flex-1"
-        style={{ "--background": "180 8% 97.5%" } as React.CSSProperties}
-      >
+      <div className="relative min-w-0 flex-1">
         <UserSelector
           value={selectedUsers}
           onChange={onSelectedUsersChange}
+          searchScope={searchScope}
           placeholder="Name or email"
           allowInvite
           disabled={disabled}
           excludeEmails={excludeEmails}
         />
-        <div className="absolute inset-y-px right-px z-10 flex items-center rounded-r-md bg-gray-150">
+        <div className="absolute inset-y-1 right-1 z-10 flex items-center rounded-lg bg-brandAlt-100">
           <Select
             value={currentRole}
             onValueChange={(v) => onRoleChange(v as MemberRoleType)}
@@ -73,8 +73,8 @@ export function MemberAssignRow({
       </div>
       <Button
         type="button"
-        variant="outline"
-        className="h-10 shrink-0 border-gray-160 px-6"
+        variant="glass"
+        className="h-10 shrink-0 px-6"
         disabled={selectedUsers.length === 0 || disabled}
         onClick={onAssign}
       >

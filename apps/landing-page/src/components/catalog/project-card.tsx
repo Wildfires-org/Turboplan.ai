@@ -1,12 +1,16 @@
-import { ImageIcon } from "lucide-react";
+import { ArrowRight, ImageIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PublicProject } from "@/types/public-project";
 import { routing } from "@/utils/routing";
+import {
+  CARD_ACTION_CLASS,
+  CARD_ACTION_ICON_CLASS,
+  CARD_CHIP_CLASS,
+  CATALOG_CARD_LINK_CLASS,
+} from "./catalog-layout";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -40,94 +44,93 @@ export function ProjectCard({ project, className }: ProjectCardProps) {
   return (
     <Link
       href={projectUrl}
-      className={cn(
-        "bg-white rounded-xl border border-neutral-grey overflow-hidden hover:shadow-md transition-shadow block",
-        className,
-      )}
+      className={cn(CATALOG_CARD_LINK_CLASS, "flex flex-col", className)}
     >
-      <div
-        className="aspect-video bg-gray-150 relative"
-        style={{
-          maskImage: "linear-gradient(to bottom, black 80%, transparent)",
-          WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent)",
-        }}
-      >
-        {project.coverImageUrl ? (
-          <Image
-            src={project.coverImageUrl}
-            alt={project.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <ImageIcon className="size-8 text-neutral-grey3/40" />
-          </div>
-        )}
+      <div className="p-2 pb-0">
+        <div className="relative aspect-video overflow-hidden rounded-xl bg-brandAlt-100">
+          {project.coverImageUrl ? (
+            <Image
+              src={project.coverImageUrl}
+              alt={project.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <ImageIcon className="size-8 text-brand-800/30" />
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="p-6 pt-4">
-        <div className="flex items-start justify-between mb-3">
-          <Badge
-            variant="lightGray"
-            className="text-[10px] uppercase rounded-full px-3"
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <span
+            className={cn(
+              CARD_CHIP_CLASS,
+              isCompleted ? "text-brand-800" : "text-egray-700",
+            )}
           >
             {isCompleted ? "Completed" : "In Progress"}
-          </Badge>
+          </span>
           {organization.logoUrl ? (
             <Image
               src={organization.logoUrl}
               alt={organization.name}
               width={32}
               height={32}
-              className="w-8 h-8 rounded object-contain"
+              className="size-8 object-contain"
             />
           ) : (
-            <div className="w-8 h-8 rounded bg-gray-150 flex items-center justify-center text-xs text-neutral-grey3">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-brandAlt-100 font-heading text-xs text-brand-800">
               {organization.name.slice(0, 2).toUpperCase()}
             </div>
           )}
         </div>
 
-        <p className="text-xs text-neutral-grey3 mb-1">
+        <p className="mb-1 line-clamp-1 font-inter text-[13px] leading-[18px] text-egray-700">
           {organization.name} / {office.name}
         </p>
-        <h3 className="text-sm font-medium text-neutral-black mb-3 line-clamp-2">
+        <h3 className="mb-3 line-clamp-2 font-inter text-[16px] font-medium leading-[22px] text-egray-900">
           {project.name}
         </h3>
 
-        <div className="mb-4">
+        <div className="font-inter text-[13px] leading-[18px] text-egray-700">
           {milestoneProgress && (
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-neutral-grey3">
-                Step {milestoneProgress.currentStep} –{" "}
-                {milestoneProgress.currentStepTitle}
-              </span>
-            </div>
+            <p className="mb-1 line-clamp-1">
+              Step {milestoneProgress.currentStep} –{" "}
+              {milestoneProgress.currentStepTitle}
+            </p>
           )}
-          <p className="text-xs text-neutral-grey3">
+          <p>
             {endDate
               ? `Deadline: ${dateFormatter.format(new Date(endDate))}`
               : "no deadline specified for this project"}
           </p>
           {milestoneProgress && (
-            <div className="h-1 bg-gray-150 rounded-full overflow-hidden mt-2">
+            <div
+              role="progressbar"
+              aria-label="Milestone progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progressPercent)}
+              className="mt-3 h-1.5 overflow-hidden rounded-full bg-brandAlt-200"
+            >
               <div
-                className="h-full bg-green-60 rounded-full transition-all"
+                className="h-full rounded-full bg-brand-700"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           )}
         </div>
 
-        <Button
-          variant="outline"
-          size="small"
-          className="w-full justify-center hover:bg-green-60 hover:text-white mb-0"
-        >
-          Learn more
-        </Button>
+        <div className="mt-auto pt-5">
+          <span className={CARD_ACTION_CLASS}>
+            Learn more
+            <ArrowRight aria-hidden className={CARD_ACTION_ICON_CLASS} />
+          </span>
+        </div>
       </div>
     </Link>
   );

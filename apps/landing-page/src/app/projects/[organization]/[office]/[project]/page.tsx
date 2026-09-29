@@ -1,3 +1,10 @@
+import {
+  FileText,
+  History,
+  ListChecks,
+  Map as MapIcon,
+  SlidersHorizontal,
+} from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -6,22 +13,25 @@ import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import type { GeospatialLayer } from "@wildfires-org/turboplan-map/client";
 import type { MilestoneWithTasks } from "@wildfires-org/turboplan-tasks/types";
 import type { EnrichedTimelineRecord } from "@wildfires-org/turboplan-timeline-records/types";
-import {
-  AccordionSection,
-  type CommentData,
-  ProjectImageHeader,
-  ProjectProgress,
-} from "@wildfires-org/turboplan-utils";
+import type { CommentData } from "@wildfires-org/turboplan-utils";
 
+import {
+  CATALOG_PAGE_CLASS,
+  CATALOG_SECTION_CLASS,
+} from "@/components/catalog/catalog-layout";
+import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
 import { PublicCommentsSection } from "@/components/public-project/public-comments-section";
+import { PublicDetailHero } from "@/components/public-project/public-detail-hero";
 import { PublicDocumentsSection } from "@/components/public-project/public-documents-section";
 import { PublicFieldsSection } from "@/components/public-project/public-fields-section";
 import { PublicMapSection } from "@/components/public-project/public-map-section";
+import { PublicModuleSection } from "@/components/public-project/public-module-section";
+import { PublicProjectProgress } from "@/components/public-project/public-project-progress";
 import { PublicTasksSection } from "@/components/public-project/public-tasks-section";
 import { PublicTimelineSection } from "@/components/public-project/public-timeline-section";
 import { ReadOnlyModulesRenderer } from "@/components/public-project/read-only-modules-renderer";
-import { ReadOnlyPreviewDetails } from "@/components/public-project/read-only-preview-details";
 import { brand } from "@/lib/brand";
+import { routing } from "@/utils/routing";
 
 interface PublicProjectDetail {
   id: string;
@@ -290,90 +300,112 @@ export default async function PublicProjectPage({ params }: ProjectPageProps) {
   const sessionUser = session?.user ? { id: session.user.id } : null;
 
   return (
-    <div className="flex flex-col min-h-screen -mt-20">
-      <div className="container mx-auto px-6 pt-4">
-        <ProjectProgress
+    <div className={CATALOG_PAGE_CLASS}>
+      <PublicDetailHero
+        breadcrumbs={[
+          { name: "Projects", href: routing.catalog() },
+          {
+            name: project.organization.name,
+            href: routing.catalogOrganization({
+              organizationSlug: project.organization.slug,
+            }),
+          },
+          {
+            name: project.office.name,
+            href: routing.catalogOffice({
+              organizationSlug: project.organization.slug,
+              officeSlug: project.office.slug,
+            }),
+          },
+          { name: project.name },
+        ]}
+        searchPlaceholder={`Search ${project.office.name} projects...`}
+        name={project.name}
+        description={project.description}
+        organizationName={project.organization.name}
+        officeName={project.office.name}
+        updatedAt={project.updatedAt}
+        coverImageUrl={project.coverImageUrl}
+      >
+        <PublicProjectProgress
           startDate={project.startDate}
           endDate={project.endDate}
+          className="mt-8 sm:mt-10"
         />
-      </div>
+      </PublicDetailHero>
 
-      <ProjectImageHeader
-        projectName={project.name}
-        coverImageUrl={project.coverImageUrl}
-        readOnly={true}
-      />
-
-      <div className="flex-1 container mx-auto p-6 space-y-6">
-        <ReadOnlyPreviewDetails
-          name={project.name}
-          description={project.description}
-          organizationName={project.organization.name}
-          updatedAt={project.updatedAt}
-        />
-        <ReadOnlyModulesRenderer
-          moduleOrder={moduleOrder}
-          entries={[
-            {
-              id: "map",
-              isHidden: isMapHidden || mapLayers.length === 0,
-              render: () => (
-                <AccordionSection title="Map">
-                  <PublicMapSection layers={mapLayers} />
-                </AccordionSection>
-              ),
-            },
-            {
-              id: "tasks",
-              isHidden: isTasksHidden,
-              render: () => (
-                <AccordionSection title="Tasks">
-                  <PublicTasksSection milestones={taskMilestones} />
-                </AccordionSection>
-              ),
-            },
-            {
-              id: "fields",
-              isHidden: isFieldsHidden,
-              render: () => (
-                <AccordionSection title="Fields">
-                  <PublicFieldsSection fields={fieldsData} />
-                </AccordionSection>
-              ),
-            },
-            {
-              id: "documents",
-              isHidden: isDocumentsHidden,
-              render: () => (
-                <AccordionSection title="Documents">
-                  <PublicDocumentsSection documents={documentsData} />
-                </AccordionSection>
-              ),
-            },
-            {
-              id: "timeline",
-              isHidden: isTimelineHidden,
-              render: () => (
-                <AccordionSection title="Timeline">
-                  <PublicTimelineSection records={timelineRecords} />
-                </AccordionSection>
-              ),
-            },
-            {
-              id: "comments",
-              isHidden: isCommentsHidden,
-              render: () => (
-                <PublicCommentsSection
-                  orgSlug={organization}
-                  officeSlug={office}
-                  projectSlug={projectSlug}
-                  initialComments={publicComments}
-                  sessionUser={sessionUser}
-                />
-              ),
-            },
-          ]}
-        />
+      <div className={CATALOG_SECTION_CLASS}>
+        <div className={PAGE_CONTAINER}>
+          <ReadOnlyModulesRenderer
+            moduleOrder={moduleOrder}
+            entries={[
+              {
+                id: "map",
+                isHidden: isMapHidden || mapLayers.length === 0,
+                render: () => (
+                  <PublicModuleSection title="Map" icon={<MapIcon />}>
+                    <PublicMapSection layers={mapLayers} />
+                  </PublicModuleSection>
+                ),
+              },
+              {
+                id: "tasks",
+                isHidden: isTasksHidden,
+                render: () => (
+                  <PublicModuleSection title="Tasks" icon={<ListChecks />}>
+                    <PublicTasksSection milestones={taskMilestones} />
+                  </PublicModuleSection>
+                ),
+              },
+              {
+                id: "fields",
+                isHidden: isFieldsHidden,
+                render: () => (
+                  <PublicModuleSection
+                    title="Fields"
+                    icon={<SlidersHorizontal />}
+                  >
+                    <PublicFieldsSection fields={fieldsData} entity="project" />
+                  </PublicModuleSection>
+                ),
+              },
+              {
+                id: "documents",
+                isHidden: isDocumentsHidden,
+                render: () => (
+                  <PublicModuleSection title="Documents" icon={<FileText />}>
+                    <PublicDocumentsSection
+                      documents={documentsData}
+                      entity="project"
+                    />
+                  </PublicModuleSection>
+                ),
+              },
+              {
+                id: "timeline",
+                isHidden: isTimelineHidden,
+                render: () => (
+                  <PublicModuleSection title="Timeline" icon={<History />}>
+                    <PublicTimelineSection records={timelineRecords} />
+                  </PublicModuleSection>
+                ),
+              },
+              {
+                id: "comments",
+                isHidden: isCommentsHidden,
+                render: () => (
+                  <PublicCommentsSection
+                    orgSlug={organization}
+                    officeSlug={office}
+                    projectSlug={projectSlug}
+                    initialComments={publicComments}
+                    sessionUser={sessionUser}
+                  />
+                ),
+              },
+            ]}
+          />
+        </div>
       </div>
     </div>
   );

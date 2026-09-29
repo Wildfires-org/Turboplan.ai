@@ -82,10 +82,13 @@ export class TurboplanDashboardPage {
     await expect(
       this.page.getByRole("heading", { name: "Access Restricted" }),
     ).toBeVisible({ timeout: 10000 });
+    // Scoped to <main>: React can leave a hidden copy of a streamed segment
+    // outside it (a `display: none` S:* container), which getByText also
+    // matches and which would trip strict mode.
     await expect(
-      this.page.getByText(
-        "There is no such project, or you don't have access to it.",
-      ),
+      this.page
+        .getByRole("main")
+        .getByText("There is no such project, or you don't have access to it."),
     ).toBeVisible();
   }
 

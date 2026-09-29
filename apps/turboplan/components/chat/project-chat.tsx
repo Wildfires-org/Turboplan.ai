@@ -33,6 +33,7 @@ import { generateUUID } from "@/lib/utils";
 import { Artifact, type ArtifactKind, artifactDefinitions } from "../artifact";
 import type { ArtifactStreamDelta } from "../data-stream-handler";
 import { Messages } from "../messages";
+import { CHAT_COMPOSER_SHELL_CLASS, CHAT_FORM_CLASS } from "./chat-classes";
 import { ProjectMultimodalInput } from "./project-multimodal-input";
 
 type ProjectChatProps = {
@@ -76,8 +77,27 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
 
     const { artifact, setArtifact, setMetadata } = useArtifact();
 
+    // The artifact lives in a global SWR key, so it would reappear open in the
+    // next chat mounted anywhere. Reset it when this chat goes away. A stream
+    // left running in the background keeps calling this instance's callbacks,
+    // so they check `isMountedRef` before touching the artifact. The view keys
+    // this component by chat id, so a new id always means a new instance.
+    const isMountedRef = useRef(true);
+    useEffect(() => {
+      isMountedRef.current = true;
+      return () => {
+        isMountedRef.current = false;
+        setMetadata(null);
+        setArtifact(initialArtifactData);
+      };
+    }, [id, setArtifact, setMetadata]);
+
     const handleArtifactDelta = useCallback(
       (delta: ArtifactStreamDelta) => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
         const artifactDefinition = artifactDefinitions.find(
           (def) => def.kind === artifact.kind,
         );
@@ -175,6 +195,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       body: { id, projectId },
       initialMessages,
       generateId: generateUUID,
+      // Runs after every request (success, abort and error alike).
       onFinish: () => {
         mutate(unstable_serialize(getChatHistoryPaginationKey));
 
@@ -182,6 +203,22 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         if (sidebarChatsKey) {
           mutate(sidebarChatsKey);
         }
+
+        // The server has stored the reply by now; refresh the cached messages
+        // so a remount (e.g. Back) is seeded with them.
+        mutate(`/api/chat/${id}/messages`);
+
+        // A stopped or failed document run never sends its "finish" delta, so
+        // the artifact would otherwise stay stuck in "streaming". Skipped once
+        // unmounted: the artifact then belongs to another chat.
+        if (!isMountedRef.current) {
+          return;
+        }
+        setArtifact((currentArtifact) =>
+          currentArtifact.status === "streaming"
+            ? { ...currentArtifact, status: "idle" }
+            : currentArtifact,
+        );
       },
       onError: (error) => {
         // Silently ignore duplicate request rejections (see inFlightChats in route.ts)
@@ -325,7 +362,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
 
     return (
       <>
-        <div className="flex flex-col min-w-0 h-full bg-background">
+        <div className="flex h-full min-w-0 flex-col">
           <Messages
             chatId={id}
             status={status}
@@ -339,24 +376,26 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
             projectId={projectId}
           />
 
-          <form className="flex flex-col mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
+          <form className={CHAT_FORM_CLASS}>
             {!isReadonly && (
-              <ProjectMultimodalInput
-                chatId={id}
-                projectId={projectId}
-                input={input}
-                setInput={setInput}
-                handleSubmit={handleSubmit}
-                status={status}
-                stop={stop}
-                attachments={attachments}
-                setAttachments={setAttachments}
-                messages={messages}
-                setMessages={setMessages}
-                append={append}
-                isInputDisabled={isInputDisabled}
-                disabledPlaceholder={disabledPlaceholder}
-              />
+              <div className={CHAT_COMPOSER_SHELL_CLASS}>
+                <ProjectMultimodalInput
+                  chatId={id}
+                  projectId={projectId}
+                  input={input}
+                  setInput={setInput}
+                  handleSubmit={handleSubmit}
+                  status={status}
+                  stop={stop}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
+                  messages={messages}
+                  setMessages={setMessages}
+                  append={append}
+                  isInputDisabled={isInputDisabled}
+                  disabledPlaceholder={disabledPlaceholder}
+                />
+              </div>
             )}
 
             {isResearchPhaseCompleted &&

@@ -24,6 +24,8 @@ export * from "./server/organizations/validation";
 // ============================================================================
 // Projects
 // ============================================================================
+export * from "./server/projects/creation-policy";
+export * from "./server/projects/documents";
 export * from "./server/projects/project_users_queries";
 export * from "./server/projects/queries";
 export * from "./server/projects/submissions";

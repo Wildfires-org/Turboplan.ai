@@ -87,6 +87,7 @@ publicCommentsRouter.get(
       const comments = await getCommentsByProjectId({
         projectId: p.id,
         currentUserId: user?.userId,
+        publicView: true,
       });
 
       return c.json({ comments, isHidden: false });

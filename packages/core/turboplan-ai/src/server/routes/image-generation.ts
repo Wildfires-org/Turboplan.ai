@@ -11,8 +11,10 @@ import {
   updateProjectCoverImage,
 } from "@wildfires-org/turboplan-db/queries";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
-import { type RBACContext } from "@wildfires-org/turboplan-rbac/hono";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
+import {
+  getRBACServiceForRequest,
+  type RBACContext,
+} from "@wildfires-org/turboplan-rbac/hono";
 import { deleteFile } from "@wildfires-org/turboplan-upload/server";
 
 import { generateImage } from "../../services/image-generation-service";
@@ -56,7 +58,7 @@ imageGenerationRouter.post("/generate-image", async (c) => {
           ? EntityType.OFFICE
           : EntityType.ORGANIZATION;
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       entityId,
@@ -166,7 +168,7 @@ imageGenerationRouter.post("/auto-generate-project-image", async (c) => {
     const { projectId, projectTitle } = validationResult.data;
 
     // Check permission - user needs CREATE permission on the project
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       projectId,
@@ -281,7 +283,7 @@ imageGenerationRouter.get("/generated-images/:id", async (c) => {
           ? EntityType.OFFICE
           : EntityType.ORGANIZATION;
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       image.entityId,
@@ -336,7 +338,7 @@ imageGenerationRouter.delete("/generated-images/:id", async (c) => {
           ? EntityType.OFFICE
           : EntityType.ORGANIZATION;
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       image.entityId,

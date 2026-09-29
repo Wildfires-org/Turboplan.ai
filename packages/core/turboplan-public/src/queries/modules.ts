@@ -5,7 +5,7 @@
  * without authentication.
  */
 
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import {
   milestones,
@@ -100,7 +100,9 @@ export async function getFieldsByProjectId(projectId: string) {
 }
 
 /**
- * Get documents for a project (public view - no uploader info).
+ * Get uploaded documents for a project (public view - no uploader info).
+ * Research documents belong to the "context" module, which the public view does
+ * not show, so they are excluded even when "documents" is public.
  */
 export async function getDocumentsByProjectId(projectId: string) {
   return db
@@ -113,6 +115,11 @@ export async function getDocumentsByProjectId(projectId: string) {
       createdAt: projectDocument.createdAt,
     })
     .from(projectDocument)
-    .where(eq(projectDocument.projectId, projectId))
+    .where(
+      and(
+        eq(projectDocument.projectId, projectId),
+        eq(projectDocument.source, "upload"),
+      ),
+    )
     .orderBy(desc(projectDocument.createdAt));
 }

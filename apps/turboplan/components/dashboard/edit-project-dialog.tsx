@@ -139,10 +139,10 @@ export function EditProjectDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="max-w-[480px] p-6 sm:p-7">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <Edit className="size-5" />
+            <Edit aria-hidden className="size-5 text-brand-800" />
             {project.isTemplate ? "Edit Template" : "Edit Project"}
           </AlertDialogTitle>
           <AlertDialogDescription>
@@ -156,11 +156,11 @@ export function EditProjectDialog({
           {/* Name Field */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">
-              Name <span className="text-red-500">*</span>
+              Name <span className="text-error-700">*</span>
             </Label>
             <Input id="name" placeholder="Project name" {...register("name")} />
             {errors.name && (
-              <p className="text-xs text-red-500">{errors.name.message}</p>
+              <p className="text-xs text-error-700">{errors.name.message}</p>
             )}
           </div>
 
@@ -176,11 +176,11 @@ export function EditProjectDialog({
               {...register("description")}
             />
             {errors.description && (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-error-700">
                 {errors.description.message}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs tabular-nums text-gray-550">
               {((watch("description") as string) || "").length}/1000 characters
             </p>
           </div>
@@ -189,7 +189,7 @@ export function EditProjectDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDate" className="text-sm font-medium">
-                Start Date <span className="text-red-500">*</span>
+                Start Date <span className="text-error-700">*</span>
               </Label>
               <Input
                 id="startDate"
@@ -208,7 +208,7 @@ export function EditProjectDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="endDate" className="text-sm font-medium">
-                End Date <span className="text-red-500">*</span>
+                End Date <span className="text-error-700">*</span>
               </Label>
               <Input
                 id="endDate"
@@ -224,7 +224,7 @@ export function EditProjectDialog({
               />
             </div>
           </div>
-          {dateError && <p className="text-xs text-red-500">{dateError}</p>}
+          {dateError && <p className="text-xs text-error-700">{dateError}</p>}
 
           {/* Status Field */}
           <div className="space-y-2">
@@ -247,20 +247,20 @@ export function EditProjectDialog({
               </SelectContent>
             </Select>
             {errors.status && (
-              <p className="text-xs text-red-500">{errors.status.message}</p>
+              <p className="text-xs text-error-700">{errors.status.message}</p>
             )}
           </div>
 
-          <AlertDialogFooter className="pt-4">
+          <AlertDialogFooter className="gap-2 pt-2 sm:space-x-0">
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" variant="brand" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />

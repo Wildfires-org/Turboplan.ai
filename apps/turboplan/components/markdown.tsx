@@ -1,8 +1,8 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 
-import { code } from "@streamdown/code";
+import type { CodeHighlighterPlugin } from "@streamdown/code";
 import Link from "next/link";
 import { type Components, Streamdown } from "streamdown";
 
@@ -12,7 +12,46 @@ import {
   stripPlaceholderNotesInTableRows,
 } from "@/lib/placeholders";
 
-const streamdownPlugins = { code };
+// Shiki's bundled grammars weigh ~23 MB. Loading `@streamdown/code` lazily on
+// the client after mount keeps them out of the Worker server bundle (128 MB
+// isolate limit) and off the SSR path, where the highlighter cannot run anyway
+// (its `highlight()` returns null until the async load finishes).
+let cachedCodePlugin: CodeHighlighterPlugin | null = null;
+let codePluginPromise: Promise<CodeHighlighterPlugin> | null = null;
+
+const useCodePlugin = () => {
+  const [codePlugin, setCodePlugin] = useState<CodeHighlighterPlugin | null>(
+    cachedCodePlugin,
+  );
+
+  useEffect(() => {
+    if (cachedCodePlugin) {
+      return;
+    }
+    let isMounted = true;
+    if (!codePluginPromise) {
+      codePluginPromise = import("@streamdown/code").then(
+        (module) => module.code,
+      );
+    }
+    codePluginPromise
+      .then((plugin) => {
+        cachedCodePlugin = plugin;
+        if (isMounted) {
+          setCodePlugin(plugin);
+        }
+      })
+      .catch(() => {
+        // Highlighting stays off if the chunk fails to load.
+        codePluginPromise = null;
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return codePlugin;
+};
 
 const components: Partial<Components> = {
   a: ({ node, children, ...props }) => {
@@ -71,16 +110,21 @@ const NonMemoizedMarkdown = ({
   // them on screen instead.
   stripNotes?: boolean;
 }) => {
+  const codePlugin = useCodePlugin();
   // Notes inside table rows are stripped even when stripNotes is false — their
   // pipes would break the table parse (see stripPlaceholderNotesInTableRows).
   const source = stripNotes
     ? stripPlaceholderNotes(children)
     : stripPlaceholderNotesInTableRows(children);
   const normalized = source.replace(/(?<=.) *\{right\}/g, "\n\n{right}");
+  const plugins = useMemo(
+    () => (codePlugin ? { code: codePlugin } : undefined),
+    [codePlugin],
+  );
   return (
     <Streamdown
       className="size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-      plugins={streamdownPlugins}
+      plugins={plugins}
       components={components}
     >
       {normalized}

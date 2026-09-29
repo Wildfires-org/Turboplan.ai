@@ -40,7 +40,7 @@
     "@wildfires-org/turboplan-utils": "workspace:*",
     "@wildfires-org/turboplan-workspace": "workspace:*",
     "ai": "^6.0.191",
-    "drizzle-orm": "^0.42.0",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.7.5",
     "hono-pino": "^0.10.3",
     "pino": "^9.14.0",
@@ -50,7 +50,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@hono/node-server": "^1.19.5",
+    "@hono/node-server": "^1.19.17",
     "@types/node": "^24.0.13",
     "dotenv-cli": "^10.0.0",
     "tsdown": "^0.15.9"

@@ -40,6 +40,13 @@ const OWN_DEPENDENCY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const FOREIGN_DEPENDENCY_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const UNKNOWN_USER_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
+/**
+ * A legacy task: its `documentId` is the chat `Document` it was generated from,
+ * and only its milestone records PROJECT_ID.
+ */
+const LEGACY_TASK_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const CHAT_DOCUMENT_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+
 /** Role the stubbed RBAC layer grants the caller on PROJECT_ID. */
 let callerRole: MemberRoleType | null = MemberRole.EDITOR;
 
@@ -90,23 +97,14 @@ const stubGuard =
 
 mock.module("@wildfires-org/turboplan-rbac/hono", {
   namedExports: {
+    // The stub guards only ever grant through a role.
+    isMembershipGrant: (result: { allowed: boolean }) => result.allowed,
     requirePermission: stubGuard,
     requireEntityPermission: stubGuard,
     requireProjectReadOrPublicGov: (resolveProjectId: EntityIdResolver) =>
       stubGuard(EntityType.PROJECT, Action.READ, resolveProjectId),
     requireEntityReadOrPublicGov: (resolveProjectId: EntityIdResolver) =>
       stubGuard(EntityType.PROJECT, Action.READ, resolveProjectId),
-    // Rows are resolved from a fixture instead of the database: TASK_ID belongs
-    // to PROJECT_ID, everything else is unknown.
-    resolveProjectIdFromRow:
-      (
-        _table: unknown,
-        _idColumn: unknown,
-        _projectColumn: unknown,
-        paramName: string,
-      ) =>
-      async (c: Context) =>
-        c.req.param(paramName) === TASK_ID ? PROJECT_ID : null,
   },
 });
 
@@ -133,6 +131,16 @@ const existingUserIds = new Set([USER_ID, OTHER_USER_ID]);
 
 mock.module("@wildfires-org/turboplan-db/queries", {
   namedExports: {
+    // Rows are resolved from a fixture instead of the database: TASK_ID and
+    // LEGACY_TASK_ID (via its milestone) belong to PROJECT_ID, everything else
+    // is unknown.
+    getTaskProjectId: async (id: string) =>
+      id === TASK_ID || id === LEGACY_TASK_ID ? PROJECT_ID : null,
+    getMilestoneProjectId: async (id: string) =>
+      id === MILESTONE_ID ? PROJECT_ID : null,
+    // Only referenced by the (unused, stubbed) repository's list queries.
+    milestoneInProject: () => undefined,
+    taskInProject: () => undefined,
     getProjectDocumentsByIds: async (ids: string[], projectId?: string) =>
       projectDocuments.filter(
         (doc) =>
@@ -196,7 +204,7 @@ mock.module("../src/server/service", {
           id,
           title: "Task",
           milestoneId: MILESTONE_ID,
-          documentId: PROJECT_ID,
+          documentId: id === LEGACY_TASK_ID ? CHAT_DOCUMENT_ID : PROJECT_ID,
           assigneeIds: [],
         };
       }
@@ -475,5 +483,47 @@ describe("tasks router — delete", () => {
         entityId: null,
       },
     ]);
+  });
+});
+
+/**
+ * Legacy tasks hold a chat `Document` id in `documentId`; the project comes from
+ * their milestone. Guarding on `documentId` denied even the project owner.
+ */
+describe("tasks router — legacy rows", () => {
+  it("guards a legacy task on its milestone's project", async () => {
+    const res = await request("PUT", `/${LEGACY_TASK_ID}`, {
+      body: { title: "Renamed" },
+    });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(guardCalls, [
+      {
+        entityType: EntityType.PROJECT,
+        action: Action.UPDATE,
+        entityId: PROJECT_ID,
+      },
+    ]);
+  });
+
+  it("allows reading a legacy task", async () => {
+    callerRole = MemberRole.VIEWER;
+
+    const res = await request("GET", `/${LEGACY_TASK_ID}`);
+
+    assert.equal(res.status, 200);
+    assert.equal(guardCalls[0].entityId, PROJECT_ID);
+  });
+
+  it("validates a legacy task's references against its project, not the chat document", async () => {
+    const own = await request("PUT", `/${LEGACY_TASK_ID}`, {
+      body: { projectDocumentIds: [OWN_DOCUMENT_ID] },
+    });
+    const foreign = await request("PUT", `/${LEGACY_TASK_ID}`, {
+      body: { projectDocumentIds: [FOREIGN_DOCUMENT_ID] },
+    });
+
+    assert.equal(own.status, 200);
+    assert.equal(foreign.status, 400);
   });
 });

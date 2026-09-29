@@ -18,46 +18,31 @@ export function ModeTabs({
   children,
 }: ModeTabsProps) {
   return (
-    <div>
-      <div role="tablist" className="flex gap-1">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={!hasExistingProject}
-          onClick={() => onModeChange(false)}
+    <div className="space-y-3">
+      {/* Segmented glass control */}
+      <div
+        role="tablist"
+        aria-label="Project stage"
+        className="flex w-full gap-1 rounded-full bg-brandAlt-100 p-1 ring-1 ring-inset ring-brandAlt-200/70 dark:bg-white/5 dark:ring-white/10"
+      >
+        <ModeTab
+          selected={!hasExistingProject}
           disabled={disabled}
-          className={cn(
-            "relative -mb-px rounded-t-lg border border-gray-200 px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-            hasExistingProject
-              ? "bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-              : "z-10 border-b-transparent bg-white text-gray-900",
-          )}
+          onSelect={() => onModeChange(false)}
         >
           Starting from scratch
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={hasExistingProject}
-          onClick={() => onModeChange(true)}
+        </ModeTab>
+        <ModeTab
+          selected={hasExistingProject}
           disabled={disabled}
-          className={cn(
-            "relative -mb-px rounded-t-lg border border-gray-200 px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-            hasExistingProject
-              ? "z-10 border-b-transparent bg-white text-gray-900"
-              : "bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700",
-          )}
+          onSelect={() => onModeChange(true)}
         >
           Already in progress
-        </button>
+        </ModeTab>
       </div>
 
-      {/* Content panel — connects seamlessly to the active tab */}
-      <div
-        role="tabpanel"
-        className="relative space-y-4 rounded-lg border border-gray-200 bg-white p-4"
-      >
-        <p className="text-xs text-gray-500">
+      <div role="tabpanel" className="space-y-4">
+        <p className="text-xs text-gray-550">
           {hasExistingProject
             ? "Project already underway? Upload your documents and the AI will learn your project from them."
             : "Describe your project and our AI will research and bootstrap your workspace."}
@@ -68,3 +53,28 @@ export function ModeTabs({
     </div>
   );
 }
+
+interface ModeTabProps {
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+  children: ReactNode;
+}
+
+const ModeTab = ({ selected, disabled, onSelect, children }: ModeTabProps) => (
+  <button
+    type="button"
+    role="tab"
+    aria-selected={selected}
+    onClick={onSelect}
+    disabled={disabled}
+    className={cn(
+      "press h-9 flex-1 whitespace-nowrap rounded-full px-2 text-[13px] font-medium sm:px-4 sm:text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed",
+      selected
+        ? "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(21,102,71,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white"
+        : "text-gray-550 hover:bg-white/60 hover:text-foreground",
+    )}
+  >
+    {children}
+  </button>
+);

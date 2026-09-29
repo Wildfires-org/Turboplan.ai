@@ -1,5 +1,8 @@
 import { createProjectDocument } from "@wildfires-org/turboplan-db/queries";
-import { uploadFile } from "@wildfires-org/turboplan-upload/server";
+import {
+  uniqueStorageName,
+  uploadFile,
+} from "@wildfires-org/turboplan-upload/server";
 
 import type { DocumensoConfig } from "./config-resolver";
 import { downloadSignedDocument } from "./documenso-client";
@@ -31,7 +34,8 @@ export const persistSignedDocument = async (
 ): Promise<PersistedSignedDocument> => {
   const pdfBuffer = await downloadSignedDocument(record.envelopeId, config);
 
-  const filename = `signed/${record.projectId}/${Date.now()}-${record.title.replace(/[^a-zA-Z0-9._-]/g, "_")}.pdf`;
+  const safeTitle = record.title.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const filename = `signed/${record.projectId}/${uniqueStorageName(`${safeTitle}.pdf`)}`;
   const { url } = await uploadFile(filename, pdfBuffer, "application/pdf");
 
   const originalFilename = `${record.title} (Signed).pdf`;

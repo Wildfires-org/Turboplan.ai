@@ -1,4 +1,15 @@
-import { and, asc, desc, eq, gt, inArray, max, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  inArray,
+  max,
+  ne,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import {
@@ -25,6 +36,7 @@ import {
   ResearchAgentChatStatus,
   ResearchAgentMessageType,
   type ResearchAgentMessageTypeValue,
+  TERMINAL_RESEARCH_AGENT_CHAT_STATUSES,
 } from "../types";
 
 async function withRepoError<T>(
@@ -154,6 +166,13 @@ export function getResearchAgentChatByWebhookSecret(
           // 0050 revokes those rows; this guard keeps them unauthenticable even
           // on a database where that backfill has not run.
           ne(researchAgentChat.webhookSecret, LEGACY_WEBHOOK_SECRET),
+          // A finished run's secret must not authenticate forever: the agent
+          // sandbox can leak it, and a leaked secret would otherwise keep
+          // writing into the project chat. Retry rotates the secret.
+          notInArray(
+            researchAgentChat.status,
+            TERMINAL_RESEARCH_AGENT_CHAT_STATUSES,
+          ),
         ),
       )
       .limit(1);
@@ -299,7 +318,16 @@ export function updateResearchAgentChatByExternalId({
     const [record] = await db
       .update(researchAgentChat)
       .set(updateData)
-      .where(eq(researchAgentChat.externalRunId, externalRunId))
+      .where(
+        and(
+          eq(researchAgentChat.externalRunId, externalRunId),
+          // Webhook-driven updates must never revive a finished run.
+          notInArray(
+            researchAgentChat.status,
+            TERMINAL_RESEARCH_AGENT_CHAT_STATUSES,
+          ),
+        ),
+      )
       .returning();
 
     return record ?? null;

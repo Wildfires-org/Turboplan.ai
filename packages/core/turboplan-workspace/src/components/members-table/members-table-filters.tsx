@@ -4,6 +4,7 @@ import { Eye } from "lucide-react";
 
 import {
   cn,
+  GLASS_CLASS,
   Select,
   SelectContent,
   SelectItem,
@@ -19,8 +20,11 @@ import type {
   SubEntityTag,
 } from "./types";
 
-const CHIP_TRIGGER_CLASS =
-  "h-auto rounded-full border-none bg-white px-2.5 py-1.5 gap-1.5 w-auto shadow-none focus:ring-0 focus:ring-offset-0";
+// Glass chip trigger, matching the dashboard FilterBar chips.
+const CHIP_TRIGGER_CLASS = cn(
+  GLASS_CLASS,
+  "h-9 w-auto gap-1.5 rounded-full px-3 text-[13px] hover:bg-white/80 focus:ring-0 focus:ring-offset-0 data-[state=open]:bg-white/90 [&>span]:font-medium",
+);
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -55,16 +59,14 @@ export function MembersTableFilters({
   onPageSizeChange,
 }: MembersTableFiltersProps) {
   return (
-    <div className="flex items-center justify-between gap-4 pb-4">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-2 pb-4 sm:gap-4">
+      <div className="flex flex-wrap items-center gap-2">
         <Select
           value={roleFilter}
           onValueChange={(v) => onRoleFilterChange(v as RoleFilterValue)}
         >
           <SelectTrigger className={CHIP_TRIGGER_CLASS}>
-            <span className="text-sm font-medium text-muted-foreground">
-              Role:
-            </span>
+            <span className="!font-normal text-gray-550">Role:</span>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -80,9 +82,7 @@ export function MembersTableFilters({
           onValueChange={(v) => onStatusFilterChange(v as StatusFilterValue)}
         >
           <SelectTrigger className={CHIP_TRIGGER_CLASS}>
-            <span className="text-sm font-medium text-muted-foreground">
-              Status:
-            </span>
+            <span className="!font-normal text-gray-550">Status:</span>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -99,9 +99,7 @@ export function MembersTableFilters({
             onValueChange={(v) => onAccessFilterChange(v as AccessFilterValue)}
           >
             <SelectTrigger className={CHIP_TRIGGER_CLASS}>
-              <span className="text-sm font-medium text-muted-foreground">
-                Access:
-              </span>
+              <span className="!font-normal text-gray-550">Access:</span>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -118,7 +116,7 @@ export function MembersTableFilters({
             onValueChange={onSubEntityFilterChange}
           >
             <SelectTrigger className={CHIP_TRIGGER_CLASS}>
-              <span className="text-sm font-medium text-muted-foreground">
+              <span className="!font-normal text-gray-550">
                 {config.subEntityLabel}:
               </span>
               <SelectValue />
@@ -140,7 +138,7 @@ export function MembersTableFilters({
         onValueChange={(v) => onPageSizeChange(Number(v))}
       >
         <SelectTrigger className={cn(CHIP_TRIGGER_CLASS, "min-w-0 gap-2 pr-2")}>
-          <Eye className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          <Eye className="size-4 text-gray-550" aria-hidden="true" />
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

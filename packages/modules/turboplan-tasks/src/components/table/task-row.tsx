@@ -94,7 +94,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
 
   return (
     <div
-      className={`relative flex items-center hover:bg-gray-50 dark:hover:bg-gray-800 border-t border-gray-200 ${
+      className={`group relative flex items-center border-t border-brandAlt-200/70 hover:bg-brandAlt-100 dark:border-white/10 dark:hover:bg-gray-800 ${
         isDragging ? "opacity-50" : ""
       } ${isEditing ? "overflow-visible" : "overflow-hidden"}`}
       style={{ height: `${TABLE_CONFIG.ROW_HEIGHT}px` }}
@@ -108,9 +108,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
         style={{ width: `${taskColumnWidth}px` }}
       >
         <div className="flex items-center gap-2">
-          {isCompleted && (
-            <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-          )}
+          {isCompleted && <Check className="size-4 shrink-0 text-brand-800" />}
           {isEditing ? (
             <div ref={editContainerRef} className="flex-1 relative">
               <input
@@ -120,7 +118,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
                 onChange={(e) => setEditTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
                 draggable={false}
-                className="w-full px-2 py-1 pr-14 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 py-1 pr-14 text-sm rounded-md border border-transparent bg-white shadow-[inset_0_2px_6px_rgba(15,23,42,0.10),inset_0_1px_2px_rgba(15,23,42,0.08)] focus:outline focus:outline-2 focus:outline-brand-700/40 dark:bg-gray-800"
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-1 gap-0.5">
                 <button
@@ -128,7 +126,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
                   onClick={() => {
                     handleSaveEdit();
                   }}
-                  className="p-0.5 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                  className="rounded p-0.5 text-brand-800 hover:bg-brand-50 dark:hover:bg-green-900/20"
                   title="Save (Enter)"
                 >
                   <Check className="h-3 w-3" />
@@ -147,8 +145,10 @@ export const TaskRow: React.FC<TaskRowProps> = ({
             </div>
           ) : (
             <span
-              className={`truncate cursor-pointer hover:underline ${
-                isCompleted ? "line-through text-gray-500" : ""
+              className={`cursor-pointer truncate text-sm hover:underline ${
+                isCompleted
+                  ? "text-gray-550 line-through decoration-gray-400"
+                  : "text-gray-900 dark:text-gray-100"
               }`}
               data-task-title={task.id}
               onClick={() => onTaskClick?.(task.id)}
@@ -162,7 +162,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
       {/* ASSIGNEE Column */}
       {columnVisibility.assignee && (
         <div
-          className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 text-center flex-shrink-0"
+          className="flex-shrink-0 px-4 py-2 text-center text-[13px] tabular-nums text-gray-600 dark:text-gray-400"
           style={{ width: `${COLUMN_WIDTHS.ASSIGNEE}px` }}
         >
           <div className="flex justify-center">
@@ -178,7 +178,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
       {/* START DATE Column */}
       {columnVisibility.startDate && (
         <div
-          className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 text-center flex-shrink-0"
+          className="flex-shrink-0 px-4 py-2 text-center text-[13px] tabular-nums text-gray-600 dark:text-gray-400"
           style={{ width: `${COLUMN_WIDTHS.START_DATE}px` }}
         >
           {task.startDate ? new Date(task.startDate).toLocaleDateString() : "-"}
@@ -188,7 +188,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
       {/* DUE DATE Column */}
       {columnVisibility.dueDate && (
         <div
-          className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 text-center flex-shrink-0"
+          className="flex-shrink-0 px-4 py-2 text-center text-[13px] tabular-nums text-gray-600 dark:text-gray-400"
           style={{ width: `${COLUMN_WIDTHS.DUE_DATE}px` }}
         >
           {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "-"}
@@ -214,7 +214,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
       {/* Actions Column - Sticky Right (hidden in read-only mode) */}
       {!isReadOnly && (
         <div
-          className="py-2 flex-shrink-0 bg-white dark:bg-gray-900"
+          className="flex-shrink-0 bg-white py-2 group-hover:bg-brandAlt-100 dark:bg-gray-900 dark:group-hover:bg-gray-800"
           style={{
             width: `${COLUMN_WIDTHS.ACTIONS}px`,
             position: "sticky",
@@ -227,7 +227,8 @@ export const TaskRow: React.FC<TaskRowProps> = ({
               <DropdownMenuTrigger asChild>
                 <button
                   onClick={(e) => e.stopPropagation()}
-                  className="h-8 w-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  aria-label="Task actions"
+                  className="inline-flex size-8 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 data-[state=open]:bg-white dark:text-gray-400 dark:hover:text-gray-200"
                 >
                   <MoreVertical className="h-4 w-4" />
                 </button>
@@ -258,7 +259,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
                   onSelect={() => {
                     setIsDeleteModalOpen(true);
                   }}
-                  className="flex items-center gap-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                  className="flex items-center gap-2 text-error-700 focus:text-error-700 dark:text-red-400"
                 >
                   <Trash2 className="h-4 w-4" />
                   Delete

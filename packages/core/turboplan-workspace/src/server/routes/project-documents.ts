@@ -13,23 +13,23 @@ import { z } from "zod";
 
 import {
   createProjectDocument,
-  deleteProjectDocument,
   getProjectDocumentById,
   getProjectDocumentsByProjectId,
   updateProjectDocument,
 } from "@wildfires-org/turboplan-db/queries";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
   isPublicGovProjectReadAllowed,
   type RBACContext,
 } from "@wildfires-org/turboplan-rbac/hono";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 import {
-  deleteFile,
   isOwnedUploadUrl,
   isStorageUrl,
 } from "@wildfires-org/turboplan-upload/server";
+
+import { removeProjectDocument } from "../projects/documents";
 
 // Allowed MIME types for document uploads
 const ALLOWED_MIME_TYPES = [
@@ -117,7 +117,8 @@ export const projectDocumentsRouter = new Hono<RBACContext>();
  * Query params:
  * - projectId (required): The project to get documents for
  * - source (optional): Filter by origin — "upload" (Documents page) or
- *   "research" (Context page). Omit to return all documents.
+ *   "research" (Context page). Omit to return all documents (members) or
+ *   only uploads (public-government readers without a project role).
  */
 projectDocumentsRouter.get("/", async (c) => {
   try {
@@ -152,7 +153,7 @@ projectDocumentsRouter.get("/", async (c) => {
     // Check if user has READ permission on the project, with a fallback that
     // allows any authenticated user to read documents from public government
     // projects (matching the main project READ endpoint's bypass).
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       projectId,
@@ -160,9 +161,14 @@ projectDocumentsRouter.get("/", async (c) => {
       Action.READ,
     );
 
+    // Research docs belong to the "context" module, uploads to "documents".
+    // Public-government readers must pass that module's visibility check, and
+    // without an explicit source they only get uploads (members get all).
+    let source = sourceResult.data;
     if (!permissionResult.allowed) {
+      source = source ?? "upload";
       const allowedAsPublic = await isPublicGovProjectReadAllowed(projectId, {
-        moduleName: "documents",
+        moduleName: source === "research" ? "context" : "documents",
       });
       if (!allowedAsPublic) {
         return c.json(
@@ -172,10 +178,7 @@ projectDocumentsRouter.get("/", async (c) => {
       }
     }
 
-    const documents = await getProjectDocumentsByProjectId(
-      projectId,
-      sourceResult.data,
-    );
+    const documents = await getProjectDocumentsByProjectId(projectId, source);
 
     return c.json(documents);
   } catch (error) {
@@ -230,7 +233,7 @@ projectDocumentsRouter.post("/", async (c) => {
     }
 
     // Check if user has UPDATE permission on the project (Editor+)
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       projectId,
@@ -343,7 +346,7 @@ projectDocumentsRouter.patch("/:id", async (c) => {
       existingDocument.userId != null &&
       existingDocument.userId === user.userId;
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       existingDocument.projectId,
@@ -456,7 +459,7 @@ projectDocumentsRouter.delete("/:id", async (c) => {
       existingDocument.userId != null &&
       existingDocument.userId === user.userId;
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       existingDocument.projectId,
@@ -468,33 +471,9 @@ projectDocumentsRouter.delete("/:id", async (c) => {
       return c.json({ error: "Forbidden" }, 403);
     }
 
-    // Delete from R2 storage first — but only when the stored URL resolves to
-    // an object the document's own uploader owns. Rows created before the POST
-    // route started gating `url` can hold an arbitrary key, and deleting the
-    // row must not become a way to destroy another tenant's blob.
-    const ownsStoredObject =
-      existingDocument.userId != null &&
-      isOwnedUploadUrl(existingDocument.url, existingDocument.userId);
-
-    if (ownsStoredObject) {
-      try {
-        await deleteFile(existingDocument.url);
-      } catch (blobError) {
-        console.error(
-          "Failed to delete document from blob storage:",
-          blobError,
-        );
-        // Continue with DB deletion even if blob deletion fails
-        // The blob can be cleaned up later
-      }
-    } else {
-      console.warn(
-        `Skipping storage deletion for document ${documentId}: stored URL is not owned by its uploader`,
-      );
-    }
-
-    // Delete the document record from database
-    await deleteProjectDocument(documentId);
+    // Row first, then the stored object only if it belongs to this row's
+    // uploader/project and no copied row still references it.
+    await removeProjectDocument(existingDocument);
 
     await createTimelineRecord({
       projectId: existingDocument.projectId,

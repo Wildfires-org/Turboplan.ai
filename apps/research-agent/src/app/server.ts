@@ -4,6 +4,7 @@ import { serve } from "@hono/node-server";
 
 import { getResearchAgentEnv } from "@wildfires-org/turboplan-env";
 
+import { createDocumentExtraction } from "../documents/create-document-extraction";
 import { logger } from "../infra/logger";
 import { getModalResources } from "../infra/modal-setup";
 import {
@@ -50,15 +51,20 @@ async function main(): Promise<void> {
     targetApiClient,
   );
 
-  registerGracefulShutdown(runManager);
+  const documentExtraction = createDocumentExtraction();
 
-  const app = createRouter(env, runManager);
+  registerGracefulShutdown(runManager, documentExtraction);
+
+  const app = createRouter(env, runManager, documentExtraction);
 
   logger.log(
     `Agent server listening on :${env.PORT} (${env.AGENT_LOCAL ? "local" : "modal"})`,
     "server",
   );
   serve({ fetch: app.fetch, port: env.PORT });
+
+  documentExtraction.start();
+  logger.log("Document text extraction loop started", "success");
 
   // Reconcile orphaned runs from previous server instance (non-blocking)
   void reattachOrphanedRuns(

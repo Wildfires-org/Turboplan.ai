@@ -1,7 +1,13 @@
-export const PDF_MIME = "application/pdf";
-export const DOC_MIME = "application/msword";
-export const DOCX_MIME =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+import {
+  DOC_MIME,
+  DOCX_MIME,
+  PDF_MIME,
+} from "@wildfires-org/turboplan-document-extraction/mime";
+
+// Single source for these lives in the extraction package; re-exported here so
+// existing importers keep working. The `/mime` subpath carries the constants
+// alone, so client bundles never pull that package's unpdf/mammoth graph.
+export { DOC_MIME, DOCX_MIME, PDF_MIME };
 
 const BOX_DOWNLOAD_PATTERN =
   /app\.box\.com\/index\.php\?.*rm=box_download_shared_file/i;

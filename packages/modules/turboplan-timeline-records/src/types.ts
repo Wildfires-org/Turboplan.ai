@@ -77,7 +77,8 @@ export type CreateTimelineRecordInput = {
 };
 
 export type EnrichedTimelineRecord = TimelineRecord & {
-  authorEmail: string;
+  /** Null in the view served to callers without a role on the project. */
+  authorEmail: string | null;
   authorFirstName: string | null;
   authorLastName: string | null;
   authorAvatarUrl: string | null;

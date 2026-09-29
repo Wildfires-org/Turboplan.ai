@@ -1,11 +1,30 @@
+import { CreditCard } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { CheckoutView } from "@wildfires-org/turboplan-billing/client";
 import {
+  CATALOG,
   PAID_PLAN_KEYS,
   type PaidPlanKey,
 } from "@wildfires-org/turboplan-billing/types";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
+
+import {
+  CATALOG_H1_CLASS,
+  CATALOG_PAGE_CLASS,
+  CATALOG_TOP_CLASS,
+  GLASS_BUTTON_CLASS,
+  PRIMARY_BUTTON_CLASS,
+} from "@/components/catalog/catalog-layout";
+import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
+import {
+  Eyebrow,
+  SECTION_LEAD_CLASS,
+} from "@/components/home-v2/ui/section-header";
+import { StatusPanel } from "@/components/shared/status-panel";
+import { cn } from "@/lib/utils";
+import { routing } from "@/utils/routing";
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -24,14 +43,28 @@ export default async function CheckoutPage({
 }) {
   if (!isBillingEnabled) {
     return (
-      <section className="flex w-full flex-col items-center py-24 text-center">
-        <h1 className="text-2xl font-medium text-neutral-black">
-          Billing is not enabled
-        </h1>
-        <p className="mt-2 text-sm text-gray-70">
-          Subscription checkout isn&apos;t available right now.
-        </p>
-      </section>
+      <StatusPanel
+        icon={CreditCard}
+        eyebrow="Checkout"
+        title="Billing is not enabled"
+        lead="Subscription checkout isn't available right now."
+        actions={
+          <>
+            <Link
+              href={routing.home()}
+              className={cn(PRIMARY_BUTTON_CLASS, "h-11")}
+            >
+              Go to homepage
+            </Link>
+            <Link
+              href={routing.contact()}
+              className={cn(GLASS_BUTTON_CLASS, "h-11")}
+            >
+              Contact us
+            </Link>
+          </>
+        }
+      />
     );
   }
 
@@ -44,11 +77,31 @@ export default async function CheckoutPage({
     ? (plan as PaidPlanKey)
     : undefined;
 
+  const hasTrial = CATALOG.billing.trial_days > 0;
+
   return (
-    <CheckoutView
-      className="pb-16"
-      turboplanUrl={TURBOPLAN_URL}
-      initialPlan={initialPlan}
-    />
+    <div className={CATALOG_PAGE_CLASS}>
+      <section className={CATALOG_TOP_CLASS}>
+        <div className={cn(PAGE_CONTAINER, "max-w-[960px]")}>
+          <header className="mb-8 flex flex-col items-center gap-[18px] text-center sm:mb-10">
+            <Eyebrow icon={CreditCard} label="Checkout" />
+            <h1 className={CATALOG_H1_CLASS}>Choose your plan</h1>
+            <p className={cn(SECTION_LEAD_CLASS, "max-w-[640px]")}>
+              {hasTrial
+                ? `You will not be charged until your ${CATALOG.billing.trial_days}-day free trial ends.`
+                : "A flat workspace price — seats beyond the included count bill separately."}
+            </p>
+          </header>
+
+          <div className="glass-card rounded-[28px] p-5 sm:p-8 lg:p-10">
+            <CheckoutView
+              showHeader={false}
+              turboplanUrl={TURBOPLAN_URL}
+              initialPlan={initialPlan}
+            />
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

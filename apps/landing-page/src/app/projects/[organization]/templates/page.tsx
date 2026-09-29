@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { CATALOG_PAGE_CLASS } from "@/components/catalog/catalog-layout";
 import { CatalogOrganizationHero } from "@/components/catalog/catalog-organization-hero";
 import { ProjectTemplatesSection } from "@/components/catalog/project-templates-section";
 import { getOrganization } from "@/handlers/organizations";
@@ -20,20 +21,16 @@ export default async function OrganizationTemplatesPage({
   }
 
   return (
-    <div className="w-full">
+    <div className={CATALOG_PAGE_CLASS}>
       <CatalogOrganizationHero
         organization={organization}
         extraBreadcrumbs={[{ name: "Templates" }]}
       />
 
-      <div className="px-4 md:px-8 lg:px-12">
-        <div className="max-w-[1200px] mx-auto">
-          <ProjectTemplatesSection
-            organizationSlug={organizationSlug}
-            showMoreLink={false}
-          />
-        </div>
-      </div>
+      <ProjectTemplatesSection
+        organizationSlug={organizationSlug}
+        showMoreLink={false}
+      />
     </div>
   );
 }

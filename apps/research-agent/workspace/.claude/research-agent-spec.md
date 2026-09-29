@@ -712,13 +712,14 @@ logoUrl: string                 # Optional, URI format
 
 ```yaml
 title: string                   # Required — should include the NEPA document type (e.g., "Decision Memo - Peterson Fuel Break")
-url: string                     # Required, URI format, direct file: path ends with .pdf/.docx/.doc OR a Box download URL (index.php?rm=box_download_shared_file)
+url: string                     # Required, URI format, direct file: returns the PDF/DOC/DOCX itself (.pdf/.docx/.doc path, Box download URL, or a file-host attachment URL such as files.ceqanet.lci.ca.gov/.../attachment/...)
 relevance: number               # Required — 0-100 score: how relevant and useful this document is for the project
 context: string                 # Required — substantive explanation of why this document matters for the project; should mention the NEPA document type
 ```
 
 **URL Validation Rules:**
-- URL must be a **direct file**: a path ending in `.pdf`, `.docx`, or `.doc`, **or** a Box download URL (`...index.php?rm=box_download_shared_file&...`)
+- URL must be a **direct file**: a path ending in `.pdf`, `.docx`, or `.doc`, a Box download URL (`...index.php?rm=box_download_shared_file&...`), **or** another URL that serves the file itself (`content-type: application/pdf` etc.), such as a CEQAnet attachment on `files.ceqanet.lci.ca.gov`
+- If a document has several attachments (main document plus appendices), submit each file as its own document
 - No duplicate URLs in the same request — each document URL must be unique
 - NOT web pages, portals, folder views, or Box viewer pages (`/v/.../file/...`)
 
@@ -727,11 +728,13 @@ context: string                 # Required — substantive explanation of why th
 - `https://www.fs.usda.gov/Internet/FSE_DOCUMENTS/stelprdb5349994.pdf`
 - `https://www.doi.gov/sites/doi.gov/files/report-2024.docx`
 - `https://usfs-public.app.box.com/index.php?rm=box_download_shared_file&vanity_name=PinyonPublic&file_id=f_12345` (Box download)
+- `https://files.ceqanet.lci.ca.gov/299729-1/attachment/ypeMi0A1PIyl-Q6sPERUenDuNb3gT_WhoT0zEt0LoQZOWmRHweM3zGWhxtwzhqT51coPGeid2Huh6-kD0` (CEQAnet attachment — no extension, served as `application/pdf`)
 
 **Rejected URLs:**
 - `https://www.fws.gov/program/california-condor-recovery` (web page)
 - `https://eplanning.blm.gov/eplanning-ui/project/12345/510` (project portal)
 - `https://usfs-public.app.box.com/v/PinyonPublic/file/12345` (Box viewer page — use the `index.php?rm=box_download_shared_file` download URL instead)
+- `https://ceqanet.lci.ca.gov/2025010001` (CEQAnet document detail page — use its attachment's `files.ceqanet.lci.ca.gov` URL instead)
 
 **Example:**
 ```json
@@ -870,7 +873,7 @@ Before submitting to Target API, validate:
 4. **Valid project_id**: Must be provided for bootstrapper endpoints
 5. **Array order**: Order is significant for milestones and tasks
 6. **Task dependencies**: Must reference valid task titles within the same milestone/project
-7. **Document URL file extension**: URL path must end with `.pdf`, `.docx`, or `.doc` — web pages, portals, and folder URLs are rejected
+7. **Document URL is a file**: after redirects the URL returns the PDF/DOC/DOCX itself (a `.pdf`/`.docx`/`.doc` path, a Box download URL, or a file-host attachment URL) — web pages, portals, and folder URLs are rejected
 8. **No duplicate document URLs**: Each document URL must appear only once per request
 
 ---

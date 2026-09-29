@@ -7,6 +7,11 @@
 export { AssigneeService, getAssigneeService } from "./server/assignee-service";
 export { default as milestonesRouter } from "./server/milestones-router";
 export { getTaskNotificationService } from "./server/notification-service";
+export {
+  type ReferenceValidationError,
+  validateAssigneeIds,
+  validateTaskReferences,
+} from "./server/reference-validation";
 // Export repositories for direct access
 export {
   DrizzleMilestoneRepository,
@@ -16,4 +21,3 @@ export {
 // Export services
 export { MilestoneService, TaskService } from "./server/service";
 export { default as tasksRouter } from "./server/tasks-router";
-export { default as usersRouter } from "./server/users-router";

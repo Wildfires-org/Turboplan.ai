@@ -13,7 +13,10 @@ import {
   MemberRole,
   roleHasPermission,
 } from "@wildfires-org/turboplan-rbac";
-import type { RBACContext } from "@wildfires-org/turboplan-rbac/hono";
+import {
+  getRBACServiceForRequest,
+  type RBACContext,
+} from "@wildfires-org/turboplan-rbac/hono";
 import {
   getRBACService,
   RBACService,
@@ -164,18 +167,17 @@ const getOrganizationRow = async (organizationId: string) => {
  * Returns `null` when allowed, or a 403 JSON Response when denied.
  */
 const checkOrganizationPermission = async (
-  userId: string,
-  email: string | undefined,
+  c: Context<RBACContext>,
   organizationId: string,
   action: (typeof Action)[keyof typeof Action],
 ) => {
-  const rbacService = getRBACService();
-  const permissionResult = await rbacService.checkPermission(
-    userId,
+  const user = c.get("user");
+  const permissionResult = await getRBACServiceForRequest(c).checkPermission(
+    user.userId,
     organizationId,
     EntityType.ORGANIZATION,
     action,
-    { email },
+    { email: user.email },
   );
 
   if (!permissionResult.allowed) {
@@ -190,12 +192,10 @@ billingRouter.get(
   "/subscription",
   zValidator("query", subscriptionQuerySchema),
   async (c) => {
-    const user = c.get("user");
     const { organizationId } = c.req.valid("query");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.READ,
     );
@@ -257,12 +257,10 @@ billingRouter.get(
   "/seats",
   zValidator("query", seatsQuerySchema),
   async (c) => {
-    const user_ = c.get("user");
     const { organizationId } = c.req.valid("query");
 
     const denied = await checkOrganizationPermission(
-      user_.userId,
-      user_.email,
+      c,
       organizationId,
       Action.MANAGE_MEMBERS,
     );
@@ -292,7 +290,7 @@ billingRouter.get(
     const user = c.get("user");
     const { entityType, entityId } = c.req.valid("query");
 
-    const permissionResult = await getRBACService().checkPermission(
+    const permissionResult = await getRBACServiceForRequest(c).checkPermission(
       user.userId,
       entityId,
       ENTITY_TYPE_MAP[entityType],
@@ -393,12 +391,10 @@ billingRouter.get(
   "/entitlement",
   zValidator("query", entitlementQuerySchema),
   async (c) => {
-    const user = c.get("user");
     const { organizationId } = c.req.valid("query");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.READ,
     );
@@ -419,8 +415,7 @@ billingRouter.post(
     const { organizationId, plan, returnPath, context } = c.req.valid("json");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.MANAGE_MEMBERS,
     );
@@ -491,12 +486,10 @@ billingRouter.post(
   "/select-starter",
   zValidator("json", selectStarterBodySchema),
   async (c) => {
-    const user = c.get("user");
     const { organizationId } = c.req.valid("json");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.MANAGE_MEMBERS,
     );
@@ -520,12 +513,10 @@ billingRouter.get(
   "/usage",
   zValidator("query", usageQuerySchema),
   async (c) => {
-    const user = c.get("user");
     const { organizationId } = c.req.valid("query");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.READ,
     );
@@ -545,12 +536,10 @@ billingRouter.post(
   "/change-plan",
   zValidator("json", changePlanBodySchema),
   async (c) => {
-    const user = c.get("user");
     const { organizationId, plan } = c.req.valid("json");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.MANAGE_MEMBERS,
     );
@@ -575,12 +564,10 @@ billingRouter.post(
   "/portal",
   zValidator("json", portalBodySchema),
   async (c) => {
-    const user = c.get("user");
     const { organizationId } = c.req.valid("json");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.MANAGE_MEMBERS,
     );
@@ -620,12 +607,10 @@ billingRouter.post(
   "/cancel",
   zValidator("json", cancelBodySchema),
   async (c) => {
-    const user = c.get("user");
     const { organizationId } = c.req.valid("json");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.MANAGE_MEMBERS,
     );
@@ -649,12 +634,10 @@ billingRouter.post(
   "/resume",
   zValidator("json", resumeBodySchema),
   async (c) => {
-    const user = c.get("user");
     const { organizationId } = c.req.valid("json");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.MANAGE_MEMBERS,
     );
@@ -682,13 +665,11 @@ billingRouter.delete(
   zValidator("param", seatRemovalParamSchema),
   zValidator("query", seatRemovalQuerySchema),
   async (c) => {
-    const user = c.get("user");
     const { userId } = c.req.valid("param");
     const { organizationId, mode } = c.req.valid("query");
 
     const denied = await checkOrganizationPermission(
-      user.userId,
-      user.email,
+      c,
       organizationId,
       Action.MANAGE_MEMBERS,
     );

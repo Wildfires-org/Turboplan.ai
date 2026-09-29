@@ -10,13 +10,20 @@ export function ProgressBar({ percentage, className }: ProgressBarProps) {
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="relative h-1 flex-1 rounded-full bg-gray-100">
+      <div
+        role="progressbar"
+        aria-label="Progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={clampedPercentage}
+        className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-brandAlt-200"
+      >
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-emerald-400"
+          className="absolute inset-y-0 left-0 rounded-full bg-brand-700"
           style={{ width: `${clampedPercentage}%` }}
         />
       </div>
-      <span className="text-[10px] font-semibold leading-4 text-gray-500">
+      <span className="text-[11px] font-medium leading-4 tabular-nums text-gray-550">
         {clampedPercentage}%
       </span>
     </div>

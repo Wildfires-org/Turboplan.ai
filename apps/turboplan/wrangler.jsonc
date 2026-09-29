@@ -1,6 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
+  "main": "./worker.ts",
+  // Lets worker.ts import the generated OpenNext handler through a bare
+  // specifier so tsc never resolves (and parses) the multi-megabyte bundle.
+  "alias": {
+    "open-next-worker": "./.open-next/worker.js"
+  },
   "name": "turboplan-web",
   "compatibility_date": "2026-04-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -14,6 +19,13 @@
   "images": {
     "binding": "IMAGES"
   },
+  // Hyperdrive ID is a placeholder — replaced at deploy time by scripts/deploy-web.sh via sed
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "HYPERDRIVE_ID_PLACEHOLDER"
+    }
+  ],
   "observability": {
     "logs": {
       "enabled": true,

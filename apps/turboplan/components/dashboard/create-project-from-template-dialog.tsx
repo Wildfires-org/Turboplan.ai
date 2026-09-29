@@ -127,8 +127,8 @@ export function CreateProjectFromTemplateDialog({
         }}
       >
         <AlertDialogHeader className="flex flex-row items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-            <FolderOpen className="size-5 text-primary" />
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-800 ring-1 ring-inset ring-brand-800/15">
+            <FolderOpen aria-hidden className="size-5" />
           </div>
           <div className="flex-1">
             <AlertDialogTitle>Use Template</AlertDialogTitle>
@@ -139,7 +139,8 @@ export function CreateProjectFromTemplateDialog({
           <Button
             variant="ghost"
             size="sm"
-            className="size-8 p-0"
+            aria-label="Close"
+            className="size-8 rounded-full p-0 text-gray-550 hover:bg-slate-900/[0.05] hover:text-foreground"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
@@ -170,16 +171,20 @@ export function CreateProjectFromTemplateDialog({
             />
           </div>
 
-          <AlertDialogFooter className="gap-2">
+          <AlertDialogFooter className="gap-2 sm:space-x-0">
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !name.trim()}>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isSubmitting || !name.trim()}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />

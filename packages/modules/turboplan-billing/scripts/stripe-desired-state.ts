@@ -67,9 +67,11 @@ export type DesiredStripeState = {
   promotionCodes: DesiredPromotionCode[];
 };
 
-// Keyed by the catalog's `product` value, which is Stripe identity and stays
-// "turboplan" (renaming it orphans the live prices and meter). Only the
-// customer-facing display name rebrands.
+// Keyed by the catalog's `product` value from catalog/brand.yaml — Stripe
+// identity, effectively immutable once synced (renaming it orphans the live
+// prices and meter). A fork owns that file, so add its slug here rather than
+// editing an existing entry; the lookup falls back to the raw slug, which
+// would ship a lowercase product name to Stripe.
 const DISPLAY_NAMES: Record<string, string> = {
   turboplan: "TurboPlan",
 };

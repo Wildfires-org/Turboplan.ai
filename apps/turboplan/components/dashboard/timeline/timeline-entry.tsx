@@ -72,31 +72,31 @@ export function TimelineEntry({
     <div className="flex flex-col gap-1">
       {/* Row 1: Circle + meta info */}
       <div className="flex items-center gap-4">
-        <div className="size-6 shrink-0 rounded-full border border-gray-200 bg-gray-50" />
+        <div className="size-6 shrink-0 rounded-full border-[5px] border-white bg-brand-800 shadow-[0_2px_6px_-2px_rgba(15,23,42,0.3)]" />
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs leading-4 text-gray-500">
+          <span className="text-xs leading-4 text-gray-550">
             {entry.dateRange}
           </span>
-          <span className="size-0.5 rounded-full bg-gray-500" />
+          <span aria-hidden className="size-0.5 rounded-full bg-gray-550" />
           <div className="flex items-center gap-2">
             <div className="flex items-center py-0.5">
               {entry.authorAvatarUrl ? (
                 <img
                   src={entry.authorAvatarUrl}
                   alt={entry.authorName}
-                  className="size-6 rounded-full object-cover"
+                  className="size-6 rounded-full bg-white object-cover shadow-sm ring-2 ring-white"
                 />
               ) : entry.authorInitials ? (
-                <span className="flex size-6 items-center justify-center rounded-full bg-gray-100 text-[10px] font-medium text-gray-600">
+                <span className="flex size-6 items-center justify-center rounded-full bg-brand-800 text-[10px] font-medium text-white shadow-sm ring-2 ring-white">
                   {entry.authorInitials}
                 </span>
               ) : (
-                <div className="flex size-4 items-center overflow-hidden rounded-full bg-gray-300">
-                  <User className="size-4 text-gray-500" />
+                <div className="flex size-4 items-center overflow-hidden rounded-full bg-brand-800 shadow-sm ring-1 ring-white">
+                  <User className="size-4 text-white" />
                 </div>
               )}
             </div>
-            <span className="text-xs font-medium leading-4 text-gray-600">
+            <span className="text-xs font-medium leading-4 text-foreground">
               {entry.authorName}
             </span>
           </div>
@@ -107,13 +107,13 @@ export function TimelineEntry({
       <div className="flex gap-4">
         <div className="flex w-6 shrink-0 items-center justify-center overflow-hidden rounded-full px-[11px]">
           <div
-            className={`h-full w-px bg-gray-200 ${isLast ? "opacity-0" : ""}`}
+            className={`h-full w-px bg-brand-800/15 ${isLast ? "opacity-0" : ""}`}
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col pb-6 pt-2">
           <div
             data-testid="timeline-entry"
-            className="rounded-lg border border-gray-200 bg-[#F7FAFF] p-5"
+            className="rounded-2xl border border-white/90 bg-white/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-slate-900/60"
           >
             <div className="flex items-start gap-4">
               {/* Content */}
@@ -123,7 +123,7 @@ export function TimelineEntry({
                     {entry.title}
                   </p>
                   {entry.description && (
-                    <p className="whitespace-pre-line break-words text-sm leading-5 text-gray-600">
+                    <p className="whitespace-pre-line break-words text-sm leading-5 text-gray-550">
                       {entry.description}
                     </p>
                   )}
@@ -135,12 +135,12 @@ export function TimelineEntry({
                     {entry.documents.map((doc, idx) => (
                       <div
                         key={`${doc.filename}-${idx}`}
-                        className="flex items-center gap-1 rounded-lg border border-gray-300 px-1.5 py-1 text-xs leading-5 text-gray-800 transition-colors hover:bg-gray-100"
+                        className="glass flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs leading-5 text-foreground transition-colors hover:bg-white/90"
                       >
                         <button
                           type="button"
                           onClick={() => setPreviewDocIndex(idx)}
-                          className="flex items-center gap-2 rounded px-1 hover:bg-gray-200"
+                          className="flex items-center gap-2 rounded px-1 hover:text-brand-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
                         >
                           <Paperclip className="size-5 shrink-0" />
                           {doc.filename}
@@ -149,7 +149,7 @@ export function TimelineEntry({
                           href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                          className="rounded p-1 text-gray-550 hover:bg-brandAlt-100 hover:text-foreground"
                           aria-label={`Open ${doc.filename} in new tab`}
                           title="Open in new tab"
                         >
@@ -166,7 +166,7 @@ export function TimelineEntry({
                 {!readOnly && onToggleVisibility && (
                   <button
                     type="button"
-                    className="rounded p-0.5 hover:bg-gray-200 disabled:opacity-50"
+                    className="press flex size-7 items-center justify-center rounded-lg text-gray-550 hover:bg-brandAlt-100 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 disabled:opacity-50"
                     disabled={isTogglingVisibility}
                     onClick={async () => {
                       setIsTogglingVisibility(true);
@@ -180,9 +180,9 @@ export function TimelineEntry({
                     title={entry.isPublic ? "Make private" : "Make public"}
                   >
                     {entry.isPublic ? (
-                      <Eye className="size-4 text-gray-500" />
+                      <Eye className="size-4" />
                     ) : (
-                      <EyeOff className="size-4 text-gray-500" />
+                      <EyeOff className="size-4" />
                     )}
                   </button>
                 )}
@@ -192,15 +192,16 @@ export function TimelineEntry({
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="rounded p-0.5 hover:bg-gray-200"
+                        aria-label="Entry actions"
+                        className="press flex size-7 items-center justify-center rounded-lg text-gray-550 hover:bg-brandAlt-100 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 data-[state=open]:bg-brandAlt-100"
                       >
-                        <MoreHorizontal className="size-4 text-gray-500" />
+                        <MoreHorizontal className="size-4" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         onSelect={() => setIsDeleteDialogOpen(true)}
-                        className="text-red-600 focus:text-red-600"
+                        className="text-error-700 focus:text-error-700"
                       >
                         <Trash2 className="mr-2 size-4" />
                         Delete

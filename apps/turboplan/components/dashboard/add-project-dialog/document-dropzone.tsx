@@ -138,17 +138,17 @@ export function DocumentDropzone({
         onDragLeave={handleDragLeave}
         disabled={disabled}
         className={cn(
-          "flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-          isDragging && "border-gray-400 bg-gray-100",
-          disabled && "cursor-not-allowed opacity-60 hover:bg-gray-50",
+          "flex w-full flex-col items-center justify-center gap-1 rounded-2xl border-[1.5px] border-dashed border-brandAlt-300 bg-brandAlt-100/70 px-4 py-6 text-center transition-colors hover:bg-brandAlt-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700",
+          isDragging && "border-brand-700 bg-brand-50",
+          disabled && "cursor-not-allowed opacity-60 hover:bg-brandAlt-100/70",
         )}
       >
-        <Upload className="size-5 text-gray-400" />
-        <p className="text-sm text-gray-600">
-          <span className="font-medium text-gray-900">Click to upload</span> or
+        <Upload aria-hidden className="size-5 text-brand-800" />
+        <p className="text-sm text-gray-550">
+          <span className="font-medium text-brand-800">Click to upload</span> or
           drag and drop
         </p>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-550">
           PDF or Word, up to {MAX_FILE_SIZE_MB}MB, max {MAX_DOCUMENT_FILES}{" "}
           files
         </p>
@@ -168,7 +168,7 @@ export function DocumentDropzone({
       {errors.length > 0 && (
         <ul className="space-y-0.5">
           {errors.map((error) => (
-            <li key={error} className="text-sm text-red-500">
+            <li key={error} className="text-sm text-error-700">
               {error}
             </li>
           ))}
@@ -180,14 +180,17 @@ export function DocumentDropzone({
           {files.map((file, index) => (
             <li
               key={`${file.name}-${file.size}`}
-              className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2"
+              className="glass flex items-center justify-between gap-2 rounded-xl px-3 py-2"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <FileText className="size-4 shrink-0 text-gray-400" />
-                <span className="truncate text-sm text-gray-700">
+                <FileText
+                  aria-hidden
+                  className="size-4 shrink-0 text-brand-800"
+                />
+                <span className="truncate text-sm text-foreground">
                   {file.name}
                 </span>
-                <span className="shrink-0 text-xs text-gray-400">
+                <span className="shrink-0 text-xs text-gray-550">
                   {formatFileSize(file.size)}
                 </span>
               </div>
@@ -196,7 +199,7 @@ export function DocumentDropzone({
                 onClick={() => handleRemove(index)}
                 disabled={disabled}
                 aria-label={`Remove ${file.name}`}
-                className="shrink-0 rounded p-0.5 text-gray-400 transition-colors hover:text-gray-700 disabled:opacity-50"
+                className="shrink-0 rounded p-0.5 text-gray-550 transition-colors hover:text-foreground disabled:opacity-50"
               >
                 <X className="size-4" />
               </button>

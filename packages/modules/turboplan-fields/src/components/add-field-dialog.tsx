@@ -73,13 +73,17 @@ export function AddFieldDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!isValid || isSubmitting}>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={!isValid || isSubmitting}
+            >
               {isSubmitting ? "Adding..." : "Add Field"}
             </Button>
           </DialogFooter>

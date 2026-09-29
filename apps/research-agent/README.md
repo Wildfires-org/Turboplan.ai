@@ -7,6 +7,7 @@ Hono server that orchestrates AI agent (Claude) runs. Runs on Fly.io (production
 - `src/app/` – Application bootstrap, router wiring, graceful shutdown
 - `src/http/` – Transport layer (handlers, middlewares, validation, context types)
 - `src/runs/` – Run lifecycle orchestration, store, repository, runtime context
+- `src/documents/` – Background document text extraction (poll loop + worker thread)
 - `src/memory/` – Cross-run memory feature (service, repository, keyword extraction, AI client)
 - `src/infra/` – Shared infrastructure (logger, Modal setup, target API client)
 - `src/agent-runtime/` – Sandboxed agent entrypoint
@@ -71,8 +72,9 @@ flowchart LR
 | POST | `/api/agent/run/:runId/cancel` | Cancel a running agent. Returns `{ message, runId }` (200) |
 | POST | `/api/agent/run/:runId/add-context` | Add context to `created`/`running` runs. For terminal runs, returns `409` and directs to `/resume` |
 | POST | `/api/agent/run/:runId/resume` | Resume a terminal run under the same `runId`. For `completed`, `prompt` is required; for `failed/cancelled/timeout` it is optional |
+| POST | `/api/documents/extract` | Nudge the document extraction loop to run now. Body: `{ documentIds?: string[] }` (optional, logged only). Returns `{ queued: true }` (202) |
 
-All `/api/agent/*` endpoints require the `x-api-key` header (`AGENT_API_KEY`).
+All `/api/*` endpoints require the `x-api-key` header (`AGENT_API_KEY`); `/api/agent/*` and `/api/documents/*` are additionally behind the `ALLOWED_ORIGINS` origin guard.
 
 When `webhookSecret` is provided in the request body, it is forwarded as `$WEBHOOK_SECRET` env var to the agent runtime for authenticated callbacks to the target API.
 
@@ -112,6 +114,29 @@ Agent-side format:
 ]
 ---END_MEMORIES---
 ```
+
+## Document text extraction
+
+Project documents (PDF, DOC, DOCX) are parsed here, not in the Cloudflare
+Worker — Workers cannot afford a PDF parser's memory or CPU.
+
+- **What runs** – a background loop polls `project_document` for rows with
+  `extraction_status = 'pending'` (oldest first, 5 per batch) and extracts their
+  text with `@wildfires-org/turboplan-document-extraction`.
+- **Where it runs** – each document is parsed in a `worker_threads` worker
+  capped at a 256MB heap (48MB young generation) with a 120s timeout. Documents
+  are processed **one at a time**: the Fly VM only has 512MB. A blown cap or a
+  hung parse kills the thread and is recorded as a failure; the server keeps
+  serving.
+- **Poll interval** – 5s. `POST /api/documents/extract` wakes the loop
+  immediately (the call is a nudge, not a queue — `documentIds` is currently
+  logged only, and the wake is ignored while a pass is already in flight).
+- **Statuses written back** – `done` (with `extracted_text`), `unsupported`
+  (mime type the extractor does not handle), `failed` (fetch or parse error,
+  with the message in `extraction_error`). A row that cannot be persisted stays
+  `pending` and is retried on a later pass.
+- **Observability** – `GET /health` reports
+  `components.documentExtraction = { inFlight, lastRunAt, processed, failed }`.
 
 ## Orphaned runs after restart
 

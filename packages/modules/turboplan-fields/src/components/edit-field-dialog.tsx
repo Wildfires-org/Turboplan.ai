@@ -94,13 +94,17 @@ export function EditFieldDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!isValid || isSubmitting}>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={!isValid || isSubmitting}
+            >
               {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>

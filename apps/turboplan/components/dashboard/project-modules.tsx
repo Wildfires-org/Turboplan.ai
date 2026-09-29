@@ -56,7 +56,7 @@ import {
   TasksSection,
   TimelineSection,
 } from "./module-sections";
-import { ModuleSkeleton } from "./module-skeleton";
+import { ProjectModulesSkeleton } from "./module-skeleton";
 import { type DragHandleProps, SortableModule } from "./sortable-module";
 
 /**
@@ -697,21 +697,7 @@ export function ProjectModules({
   const isLoading =
     isVisibilityLoading || isPublicVisibilityLoading || isOrderLoading;
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
-          {isMapPackageEnabled() && <ModuleSkeleton />}
-          {isTasksPackageEnabled() && <ModuleSkeleton />}
-          {isFieldsPackageEnabled() && <ModuleSkeleton />}
-          <ModuleSkeleton /> {/* Comments module skeleton */}
-        </div>
-        <div className="space-y-6">
-          {isProjectContextPackageEnabled() && <ModuleSkeleton />}
-          {isDocumentsPackageEnabled() && <ModuleSkeleton />}
-          {isTimelineRecordsPackageEnabled() && <ModuleSkeleton />}
-        </div>
-      </div>
-    );
+    return <ProjectModulesSkeleton />;
   }
 
   // Read-only / viewer mode: no dnd, no empty drop zones. Empty columns render

@@ -24,13 +24,13 @@ export const MilestoneColumn: React.FC<MilestoneColumnProps> = ({
   const totalTasks = milestone.tasks?.length || 0;
 
   return (
-    <div className="flex-shrink-0 w-80 bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+    <div className="w-80 flex-shrink-0 rounded-2xl bg-brandAlt-100/80 p-4 ring-1 ring-inset ring-brandAlt-200/70 dark:bg-gray-900 dark:ring-white/10">
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
             {milestone.title}
           </h3>
-          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center text-xs tabular-nums text-gray-600 dark:text-gray-400">
             {completedTasks > 0 ? (
               <CheckCircle2 className="h-4 w-4 mr-1" />
             ) : (
@@ -53,7 +53,7 @@ export const MilestoneColumn: React.FC<MilestoneColumnProps> = ({
 
         <button
           onClick={onAddTask}
-          className="w-full p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-blue-600 dark:text-blue-400 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm font-medium transition-colors"
+          className="w-full rounded-xl border-2 border-dashed border-brand-800/20 p-3 text-sm font-medium text-brand-800 transition-colors hover:border-brand-800/40 hover:bg-white/60 dark:border-white/15 dark:text-brand-300 dark:hover:bg-white/5"
         >
           + Add Task
         </button>

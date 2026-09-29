@@ -107,6 +107,9 @@ export function BaseLayout({ preview, label, children }: BaseLayoutProps) {
             .cta-link { color: #1b845c !important; -webkit-text-fill-color: #1b845c !important; }
           }
           [data-ogsc] .cta-link { color: #1b845c !important; -webkit-text-fill-color: #1b845c !important; }
+          @media (max-width: 480px) {
+            .card-mascot { display: none !important; }
+          }
         `}</style>
       </Head>
       <Preview>{preview}</Preview>

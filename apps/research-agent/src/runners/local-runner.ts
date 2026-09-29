@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { getResearchAgentEnv } from "@wildfires-org/turboplan-env";
 
 import { logger } from "../infra/logger";
-import { getModelProviderEnv } from "../infra/model-provider";
 import type { AgentOutputLine } from "./runner-schema";
 import type {
   AgentRunner,
@@ -15,6 +14,7 @@ import type {
   RunnerInputMessage,
   RunnerResult,
 } from "./types";
+import { buildLocalAgentEnv } from "./utils/local-agent-env";
 import { createStreamParser } from "./utils/runner-parsers";
 import {
   cancelledResult,
@@ -81,15 +81,15 @@ const spawnLocalProcess = (
   context?: RunnerContext,
 ): ChildProcessWithoutNullStreams => {
   return spawn("tsx", [agentScript], {
-    env: {
-      ...process.env,
-      ...getModelProviderEnv(getResearchAgentEnv()),
-      AGENT_CWD: workspacePath,
-      AGENT_LOCAL: "true",
-      RUN_ID: context?.runId,
-      WEBHOOK_SECRET: context?.webhookSecret ?? "",
-      TARGET_API_URL: context?.targetApiUrl ?? "",
-    },
+    // Explicit allowlist, never `...process.env`: the agent runs Bash
+    // unattended and must not see server credentials (AGENT_API_KEY, Modal
+    // tokens, DB URLs).
+    env: buildLocalAgentEnv({
+      hostEnv: process.env,
+      serverEnv: getResearchAgentEnv(),
+      workspacePath,
+      context,
+    }),
     stdio: ["pipe", "pipe", "pipe"],
   });
 };

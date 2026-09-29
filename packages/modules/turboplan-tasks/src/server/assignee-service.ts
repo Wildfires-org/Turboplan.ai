@@ -21,18 +21,28 @@ export class AssigneeService {
    * Adds the userId to the assigneeIds array if not already present
    */
   async assignUserToTask(
+    projectId: string,
     userId: string,
     taskId?: string,
     milestoneId?: string,
   ): Promise<void> {
-    await assignUserToTaskAndMilestone(userId, taskId, milestoneId);
+    await assignUserToTaskAndMilestone({
+      projectId,
+      userId,
+      taskId,
+      milestoneId,
+    });
   }
 
   /**
    * Add a user to a task's assigneeIds array
    */
-  async addAssigneeToTask(userId: string, taskId: string): Promise<void> {
-    await addAssigneeToTask(userId, taskId);
+  async addAssigneeToTask(
+    userId: string,
+    taskId: string,
+    projectId: string,
+  ): Promise<void> {
+    await addAssigneeToTask(userId, taskId, projectId);
   }
 
   /**
@@ -41,8 +51,9 @@ export class AssigneeService {
   async addAssigneeToMilestone(
     userId: string,
     milestoneId: string,
+    projectId: string,
   ): Promise<void> {
-    await addAssigneeToMilestone(userId, milestoneId);
+    await addAssigneeToMilestone(userId, milestoneId, projectId);
   }
 }
 

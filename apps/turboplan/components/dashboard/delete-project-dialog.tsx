@@ -15,6 +15,7 @@ import type { Project } from "@wildfires-org/turboplan-workspace/types";
 
 import { toast } from "@/components/toast";
 import { useSoftDeleteProject } from "@/hooks/use-soft-delete-project";
+import { DESTRUCTIVE_BUTTON_CLASS } from "@/lib/glass";
 
 interface DeleteProjectDialogProps {
   project: Project;
@@ -58,9 +59,9 @@ export function DeleteProjectDialog({
             can restore it later if needed.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogFooter className="gap-2 sm:space-x-0">
           <Button
-            variant="outline"
+            variant="glass"
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
           >
@@ -68,6 +69,7 @@ export function DeleteProjectDialog({
           </Button>
           <Button
             variant="destructive"
+            className={DESTRUCTIVE_BUTTON_CLASS}
             onClick={handleDelete}
             disabled={isDeleting}
           >

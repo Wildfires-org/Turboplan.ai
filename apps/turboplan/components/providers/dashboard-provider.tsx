@@ -18,6 +18,9 @@ interface DashboardContext {
   organization: Organization | null;
   office: Office | null;
   project: Project | null;
+  /** Resolved project cover URL, so loading states can paint the real
+   * header without refetching it. */
+  projectCoverImageUrl: string | null;
 }
 
 // ============================================================================
@@ -35,6 +38,7 @@ interface DashboardProviderProps {
   organization: Organization | null;
   office?: Office | null;
   project?: Project | null;
+  projectCoverImageUrl?: string | null;
 }
 
 export function DashboardProvider({
@@ -42,6 +46,7 @@ export function DashboardProvider({
   organization,
   office = null,
   project = null,
+  projectCoverImageUrl = null,
 }: DashboardProviderProps) {
   useEffect(() => {
     // Group analytics: scope subsequent events to the active workspace
@@ -81,6 +86,7 @@ export function DashboardProvider({
     organization,
     office,
     project,
+    projectCoverImageUrl,
   };
 
   return (
@@ -101,3 +107,7 @@ export function useDashboard() {
   }
   return context;
 }
+
+/** Non-throwing variant for components that may render above the provider
+ * (e.g. a loading boundary that sits outside the office layout). */
+export const useOptionalDashboard = () => useContext(DashboardContext) ?? null;

@@ -19,13 +19,13 @@ interface TaskStyles {
 
 export const useTaskStyles = () => {
   const colors: Array<{ initiated: TaskStyles; notInitiated: TaskStyles }> = [
+    // Brand-family rotation (glass UI): brand green, teal, sage, forest,
+    // olive. Fills stay light; borders/text are the -500/-600 tones.
+    palette.brand,
     palette.turkish,
-    palette.hibiscus,
-    palette.grape,
-    palette.sapphire,
+    palette.sage,
     palette.forest,
     palette.olive,
-    palette.amber,
   ].map((color) => ({
     initiated: {
       backgroundColor: color[25],
@@ -74,6 +74,18 @@ export const useTaskStyles = () => {
 };
 
 const palette = {
+  brand: {
+    "25": "#E3F4EC",
+    "50": "#CDEBDD",
+    "500": "#1B845C",
+    "600": "#12563C",
+  },
+  sage: {
+    "25": "#E8F1ED",
+    "50": "#D1E6DE",
+    "500": "#3C7A62",
+    "600": "#156647",
+  },
   turkish: {
     "25": "#DCEDEF",
     "50": "#CFE4E7",

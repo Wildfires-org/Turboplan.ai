@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { taskDataService } from "../../services/task-service";
 import { useTaskStore } from "../../stores/task-store";
 import type { DateChangedPayload } from "../../types";
+import { resolveAssigneeProjectId } from "../../utils/assignee-project";
 import { createErrorHandler } from "./errorHandler";
 import {
   createMilestoneOperations,
@@ -108,14 +109,30 @@ export function useProjectTasks({
     handleServiceError,
   ]);
 
+  // Assignee candidates are scoped to the project. A chat artifact only learns
+  // its project once milestones load, hence the derived id.
+  const assigneeProjectId = resolveAssigneeProjectId(
+    context,
+    projectId,
+    milestones,
+  );
+
   const refreshUsers = useCallback(async () => {
+    if (!assigneeProjectId || assigneeProjectId === "init") {
+      setAvailableUsers([]);
+      return;
+    }
+
     try {
-      const users = await taskService.fetchUsers();
+      const users = await taskService.fetchUsers(assigneeProjectId);
       setAvailableUsers(users);
     } catch (error) {
-      handleServiceError(error, "refreshUsers");
+      // Readers without a project role (public-government viewers) are denied
+      // the list; that must not turn the whole task view into an error.
+      console.error("Failed to fetch assignable users:", error);
+      setAvailableUsers([]);
     }
-  }, [setAvailableUsers, handleServiceError]);
+  }, [assigneeProjectId, setAvailableUsers]);
 
   // ===== TASK OPERATIONS =====
 

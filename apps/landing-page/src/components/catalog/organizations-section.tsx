@@ -3,7 +3,6 @@ import type { PublicOrganization } from "@wildfires-org/turboplan-public/types";
 
 import { OrganizationsList } from "@/components/catalog/organizations-list";
 import { cn } from "@/lib/utils";
-import { OrganizationsSectionHeader } from "./organizations-section-header";
 
 interface OrganizationsSectionProps {
   className?: string;
@@ -42,18 +41,14 @@ export async function OrganizationsSection({
 
   if (!organizations || organizations.length === 0) {
     return (
-      <section
+      <div
         className={cn(
-          "bg-white/95 p-6 md:p-12 drop-shadow mt-6 w-full max-w-[1080px] mx-auto rounded-t-3xl",
+          "glass-card px-6 py-12 text-center font-inter text-[15px] text-egray-700",
           className,
         )}
       >
-        <OrganizationsSectionHeader />
-
-        <div className="text-center py-16 text-neutral-grey3 mt-14 border-t border-neutral-grey">
-          No agencies found.
-        </div>
-      </section>
+        No agencies found.
+      </div>
     );
   }
 

@@ -10,11 +10,13 @@ import {
 import Image from "next/image";
 
 import type { PublicOrganization } from "@wildfires-org/turboplan-public/types";
-import { cn } from "@wildfires-org/turboplan-utils";
 
+import { SECTION_LEAD_CLASS } from "@/components/home-v2/ui/section-header";
 import { ProjectPromptInput } from "@/components/shared/project-prompt-input";
-import { Button } from "@/components/ui/button";
 import { QUICK_START_OPTIONS } from "@/consts/quick-start-options";
+import { cn } from "@/lib/utils";
+import { CatalogHeaderShell } from "../catalog-header-shell";
+import { CATALOG_H1_CLASS, GLASS_BUTTON_CLASS } from "../catalog-layout";
 
 interface ActionButton {
   id: string;
@@ -59,67 +61,55 @@ export function OrganizationHeaderCard({
   className,
 }: OrganizationHeaderCardProps) {
   return (
-    <div
-      className={cn(
-        "bg-white/95 p-4 md:p-12 max-w-[1080px] mx-auto flex flex-col justify-center drop-shadow",
-        className,
-      )}
+    <CatalogHeaderShell
+      coverImageUrl={organization.coverImageUrl}
+      coverAlt={organization.name}
+      className={className}
     >
-      <div className="max-w-screen-md mx-auto w-full">
-        {/* Organization header */}
-        <div className="flex flex-col items-center text-center mb-4 md:mb-10">
-          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
-            {organization.logoUrl?.trim() ? (
-              <Image
-                src={organization.logoUrl.trim()}
-                alt={`${organization.name} logo`}
-                width={64}
-                height={64}
-                className="object-contain w-10 h-10 md:w-16 md:h-16"
-              />
-            ) : (
-              <div className="w-10 h-10 md:w-16 md:h-16 bg-gray-150 rounded flex items-center justify-center text-sm md:text-lg font-medium text-neutral-grey3">
-                {organization.name.slice(0, 2)}
-              </div>
-            )}
-            <h1 className="text-lg md:h2 font-semibold text-center tracking-tight">
-              {organization.name}
-            </h1>
+      <div className="mb-8 flex flex-col items-center gap-4 text-center sm:mb-10">
+        {organization.logoUrl?.trim() ? (
+          <Image
+            src={organization.logoUrl.trim()}
+            alt={`${organization.name} logo`}
+            width={64}
+            height={64}
+            className="size-12 object-contain md:size-16"
+          />
+        ) : (
+          <div className="flex size-12 items-center justify-center rounded-xl bg-brandAlt-100 font-heading text-sm font-medium text-brand-800 md:size-16 md:text-lg">
+            {organization.name.slice(0, 2)}
           </div>
-          {organization.description && (
-            <p className="text-center text-neutral-grey3 mt-3 md:mt-5 max-w-xl mx-auto text-sm md:text-base">
-              {organization.description}
-            </p>
-          )}
-        </div>
-
-        {/* Project prompt input */}
-        <ProjectPromptInput
-          variant="input"
-          label="Create a new project from prompt"
-          quickStart={QUICK_START_OPTIONS}
-          className="mb-4 md:mb-8"
-        />
-
-        {/* Action buttons */}
-        <div className="flex flex-wrap justify-center gap-2 md:gap-3">
-          {actionButtons.map((button) => {
-            const Icon = button.icon;
-            return (
-              <Button
-                key={button.id}
-                variant="tertiary"
-                size="small"
-                className="justify-center text-xs md:text-sm rounded-full px-3 md:px-4"
-                onClick={button.onClick}
-              >
-                <Icon className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-2 shrink-0" />
-                <span>{button.label}</span>
-              </Button>
-            );
-          })}
-        </div>
+        )}
+        <h1 className={CATALOG_H1_CLASS}>{organization.name}</h1>
+        {organization.description && (
+          <p className={cn(SECTION_LEAD_CLASS, "max-w-[640px]")}>
+            {organization.description}
+          </p>
+        )}
       </div>
-    </div>
+
+      <ProjectPromptInput
+        variant="input"
+        label="Create a new project from prompt"
+        quickStart={QUICK_START_OPTIONS}
+      />
+
+      <div className="mt-6 flex flex-wrap justify-center gap-2 sm:mt-8 sm:gap-3">
+        {actionButtons.map((button) => {
+          const Icon = button.icon;
+          return (
+            <button
+              type="button"
+              key={button.id}
+              className={GLASS_BUTTON_CLASS}
+              onClick={button.onClick}
+            >
+              <Icon className="size-4 shrink-0" />
+              <span>{button.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </CatalogHeaderShell>
   );
 }

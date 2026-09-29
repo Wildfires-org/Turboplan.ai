@@ -164,11 +164,11 @@ export function SearchInput({
       <form onSubmit={handleSubmit}>
         <div
           className={cn(
-            "flex min-h-[56px] items-end gap-4 self-stretch rounded-[12px] bg-white px-3 py-3 sm:min-h-[64px] sm:gap-6 sm:rounded-[16px] sm:px-4 sm:py-4 lg:min-h-[70px]",
-            "border transition-all duration-200 ease-out-expo",
-            isFocused
-              ? "border-brand-600 shadow-[0px_0px_0px_6px_#D1E6DE]"
-              : "border-[#D1D5DB] shadow-none",
+            "glass-inset flex min-h-[56px] items-end gap-4 self-stretch rounded-[18px] px-3 py-3 sm:min-h-[64px] sm:gap-6 sm:rounded-[22px] sm:px-4 sm:py-4 lg:min-h-[70px]",
+            // Focus ring is an outline, not a Tailwind ring: glass-inset owns
+            // box-shadow for its inner shadow, and a ring would override it.
+            "outline-2 outline-transparent transition-[outline-color] duration-200 ease-out-expo",
+            isFocused && "outline-brand-600/25",
           )}
         >
           {/* Textarea — self-center keeps the single-line placeholder
@@ -205,15 +205,13 @@ export function SearchInput({
           {/* Submit button */}
           <button
             type="submit"
-            className="group/send relative flex shrink-0 items-center justify-center gap-2 overflow-hidden rounded-lg border border-[#D1E6DE] bg-brand-800 p-[10px] text-white transition-all duration-300 ease-out-expo"
+            className="btn-primary press flex size-10 shrink-0 items-center justify-center rounded-xl"
             aria-label="Submit"
           >
-            {/* Glow flood — radial expansion on hover */}
-            <span className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[250%] -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-brand-deco opacity-0 transition-all duration-500 ease-out-expo group-hover/send:scale-100 group-hover/send:opacity-100" />
             {isSending ? (
-              <Loader2 className="relative z-10 size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Send className="relative z-10 size-4" />
+              <Send className="size-4" />
             )}
           </button>
         </div>

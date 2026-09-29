@@ -6,6 +6,8 @@ import { ChevronDown, ChevronUp, Clock } from "lucide-react";
 
 import type { TimelineDisplayEntry } from "@wildfires-org/turboplan-timeline-records/client";
 
+import { EMPTY_STATE_TITLE_CLASS, SKELETON_BAR_CLASS } from "@/lib/glass";
+import { cn } from "@/lib/utils";
 import { TimelineEntry } from "./timeline-entry";
 
 const VISIBLE_ENTRIES_LIMIT = 4;
@@ -30,17 +32,28 @@ export function TimelineContent({
   const [showAll, setShowAll] = useState(false);
 
   if (isLoading) {
+    // Mirrors TimelineEntry's rows (24px meta row, pt-2/pb-6 around a
+    // title-only card) so entries land without moving the page.
     return (
-      <div className="flex max-w-[720px] flex-col gap-4 py-4">
+      <div aria-hidden className="flex max-w-[720px] flex-col gap-1">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <div className="flex items-center gap-4">
-              <div className="size-6 shrink-0 animate-pulse rounded-full bg-gray-200" />
-              <div className="h-4 w-48 animate-pulse rounded bg-gray-200" />
+          <div key={i} className="flex flex-col gap-1">
+            <div className="flex h-6 items-center gap-4">
+              <div
+                className={cn(
+                  SKELETON_BAR_CLASS,
+                  "size-6 shrink-0 rounded-full",
+                )}
+              />
+              <div className={cn(SKELETON_BAR_CLASS, "h-3 w-48")} />
             </div>
             <div className="flex gap-4">
               <div className="w-6 shrink-0" />
-              <div className="h-24 flex-1 animate-pulse rounded-lg bg-gray-100" />
+              <div className="flex-1 pb-6 pt-2">
+                <div
+                  className={cn(SKELETON_BAR_CLASS, "h-[62px] rounded-2xl")}
+                />
+              </div>
             </div>
           </div>
         ))}
@@ -50,7 +63,7 @@ export function TimelineContent({
 
   if (error) {
     return (
-      <div className="py-4 text-sm text-gray-500">
+      <div className="py-4 text-sm text-error-700">
         Failed to load timeline entries.
       </div>
     );
@@ -59,8 +72,10 @@ export function TimelineContent({
   if (entries.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <Clock className="size-8 text-gray-300" />
-        <p className="text-sm text-gray-500">No timeline entries yet.</p>
+        <span className="glass flex size-10 items-center justify-center rounded-full text-brand-800">
+          <Clock aria-hidden className="size-5" />
+        </span>
+        <p className={EMPTY_STATE_TITLE_CLASS}>No timeline entries yet</p>
       </div>
     );
   }
@@ -84,7 +99,7 @@ export function TimelineContent({
       {entries.length > VISIBLE_ENTRIES_LIMIT && (
         <button
           type="button"
-          className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700 font-medium mt-1"
+          className="mt-1 flex w-fit items-center gap-1 rounded-md text-xs font-medium text-brand-800 hover:text-brand-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
           onClick={() => setShowAll((prev) => !prev)}
         >
           {showAll ? (

@@ -15,7 +15,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
 }) => {
   return (
     <button
-      className={`text-md text-blue-600 hover:text-blue-700 ${className}`}
+      className={`text-md text-brand-800 hover:text-brand-900 ${className}`}
       onClick={onClick}
     >
       {icon} {label}

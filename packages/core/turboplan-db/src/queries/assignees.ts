@@ -2,11 +2,17 @@
  * Assignee queries and service
  * Handles assigning users to tasks and milestones
  * Located in turboplan-db to avoid circular dependencies between packages
+ *
+ * Every lookup and write is scoped to the owning project via
+ * `taskInProject` / `milestoneInProject`. The ids arrive from request bodies
+ * and stored invitations, so a task or milestone in another project must read
+ * as "not found" rather than be modified.
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "../db-client";
 import { milestones, tasks } from "../schemas";
+import { milestoneInProject, taskInProject } from "./task-references";
 
 /**
  * Result type for assignee operations
@@ -24,11 +30,13 @@ export interface AssigneeResult {
 export async function addAssigneeToTask(
   userId: string,
   taskId: string,
+  projectId: string,
 ): Promise<AssigneeResult> {
+  const inProject = and(eq(tasks.id, taskId), taskInProject(projectId));
   const [task] = await db
     .select({ assigneeIds: tasks.assigneeIds })
     .from(tasks)
-    .where(eq(tasks.id, taskId))
+    .where(inProject)
     .limit(1);
 
   if (!task) {
@@ -52,7 +60,7 @@ export async function addAssigneeToTask(
       assigneeIds: updatedAssignees,
       updatedAt: new Date(),
     })
-    .where(eq(tasks.id, taskId));
+    .where(inProject);
 
   return { success: true };
 }
@@ -64,11 +72,16 @@ export async function addAssigneeToTask(
 export async function addAssigneeToMilestone(
   userId: string,
   milestoneId: string,
+  projectId: string,
 ): Promise<AssigneeResult> {
+  const inProject = and(
+    eq(milestones.id, milestoneId),
+    milestoneInProject(projectId),
+  );
   const [milestone] = await db
     .select({ assigneeIds: milestones.assigneeIds })
     .from(milestones)
-    .where(eq(milestones.id, milestoneId))
+    .where(inProject)
     .limit(1);
 
   if (!milestone) {
@@ -92,25 +105,28 @@ export async function addAssigneeToMilestone(
       assigneeIds: updatedAssignees,
       updatedAt: new Date(),
     })
-    .where(eq(milestones.id, milestoneId));
+    .where(inProject);
 
   return { success: true };
 }
 
 /**
- * Assign a user to a task and/or milestone
+ * Assign a user to a task and/or milestone of `projectId`
  * Convenience function that handles both in one call
  */
-export async function assignUserToTaskAndMilestone(
-  userId: string,
-  taskId?: string,
-  milestoneId?: string,
-): Promise<void> {
+export async function assignUserToTaskAndMilestone(params: {
+  projectId: string;
+  userId: string;
+  taskId?: string;
+  milestoneId?: string;
+}): Promise<void> {
+  const { projectId, userId, taskId, milestoneId } = params;
+
   if (taskId) {
-    await addAssigneeToTask(userId, taskId);
+    await addAssigneeToTask(userId, taskId, projectId);
   }
 
   if (milestoneId) {
-    await addAssigneeToMilestone(userId, milestoneId);
+    await addAssigneeToMilestone(userId, milestoneId, projectId);
   }
 }

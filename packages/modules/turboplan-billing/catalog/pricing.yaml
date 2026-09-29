@@ -94,7 +94,7 @@ billing:
       - "Government security + SSO/SAML"
       - "Dedicated onboarding + SLA"
     cta: "Talk to Us"
-    contact_path: "/contact"
+    contact_path: "/#contact"
   discount_programs:
     - id: startups
       name: "Startup discount"

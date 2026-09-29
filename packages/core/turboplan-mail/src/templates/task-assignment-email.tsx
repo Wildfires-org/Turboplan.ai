@@ -2,11 +2,10 @@ import { Section, Text } from "@react-email/components";
 
 import { BaseLayout } from "./base-layout";
 import {
-  CardMascot,
+  BrandCard,
   CtaButton,
   Disclaimer,
   FallbackUrl,
-  GradientCard,
   GreetingPill,
 } from "./email-card";
 
@@ -50,7 +49,7 @@ export function TaskAssignmentEmail({
       preview={`${assignerName} assigned you to "${taskTitle}" in ${projectName}`}
       label="Task Assignment"
     >
-      <GradientCard>
+      <BrandCard>
         <GreetingPill>{greeting}</GreetingPill>
 
         <Text style={assignmentText}>
@@ -77,9 +76,7 @@ export function TaskAssignmentEmail({
         </Section>
 
         <CtaButton href={taskUrl} label="View Task" />
-
-        <CardMascot />
-      </GradientCard>
+      </BrandCard>
 
       <Disclaimer>
         This notification was sent to {assigneeEmail} because you are a member

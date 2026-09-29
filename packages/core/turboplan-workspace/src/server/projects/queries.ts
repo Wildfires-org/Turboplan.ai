@@ -52,6 +52,10 @@ import {
 import type { SlugLookupResult } from "../../types";
 import { getOfficeById } from "../offices/queries";
 import { getOrganizationById } from "../organizations/queries";
+import {
+  isProjectDocumentInScope,
+  resolveTemplateCopyScope,
+} from "./template-copy-policy";
 import type {
   CreateProjectRequest,
   ProjectStatus,
@@ -858,17 +862,22 @@ async function copyProjectContentToTarget(
   userId: string,
   options?: {
     dateOffsetMs?: number;
+    /** Module names whose content must not be copied (see template-copy-policy). */
+    excludedModules?: readonly string[];
   },
 ): Promise<void> {
   const dateOffsetMs = options?.dateOffsetMs ?? 0;
+  const scope = resolveTemplateCopyScope(options?.excludedModules);
   const shiftDate = (date: Date): Date =>
     new Date(date.getTime() + dateOffsetMs);
 
   // Copy project fields
-  const sourceFields = await tx
-    .select()
-    .from(projectField)
-    .where(eq(projectField.projectId, sourceProjectId));
+  const sourceFields = scope.fields
+    ? await tx
+        .select()
+        .from(projectField)
+        .where(eq(projectField.projectId, sourceProjectId))
+    : [];
 
   if (sourceFields.length > 0) {
     await tx.insert(projectField).values(
@@ -885,10 +894,12 @@ async function copyProjectContentToTarget(
   }
 
   // Fetch milestones/tasks from source
-  const sourceMilestones = await tx
-    .select()
-    .from(milestones)
-    .where(eq(milestones.projectId, sourceProjectId));
+  const sourceMilestones = scope.tasks
+    ? await tx
+        .select()
+        .from(milestones)
+        .where(eq(milestones.projectId, sourceProjectId))
+    : [];
 
   const sourceTasks =
     sourceMilestones.length > 0
@@ -1003,10 +1014,12 @@ async function copyProjectContentToTarget(
   }
 
   // Copy project documents (share blob URLs)
-  const sourceDocuments = await tx
-    .select()
-    .from(projectDocument)
-    .where(eq(projectDocument.projectId, sourceProjectId));
+  const sourceDocuments = (
+    await tx
+      .select()
+      .from(projectDocument)
+      .where(eq(projectDocument.projectId, sourceProjectId))
+  ).filter((d) => isProjectDocumentInScope(d.source, scope));
 
   if (sourceDocuments.length > 0) {
     await tx.insert(projectDocument).values(
@@ -1036,6 +1049,7 @@ async function copyProjectContentToTarget(
 export async function createTemplateFromProject(
   sourceProjectId: string,
   userId: string,
+  isPublic: boolean,
   overrides?: { name?: string; description?: string },
 ): Promise<Project> {
   try {
@@ -1067,7 +1081,7 @@ export async function createTemplateFromProject(
           lastModifiedBy: userId,
           isTemplate: true,
           parentProjectId: sourceProjectId,
-          isPublic: true,
+          isPublic,
           status: sourceProject.status,
           hiddenModules: sourceProject.hiddenModules,
           privateModules: sourceProject.privateModules,
@@ -1258,6 +1272,12 @@ export async function createProjectFromTemplate(
     /** Saved default submit-for-review target (not submitted at creation). */
     intendedSubmissionOrganizationId?: string | null;
     intendedSubmissionOfficeId?: string | null;
+    /**
+     * Module names whose content must not be copied — the template's
+     * hidden/private modules when the caller reached it only because it is
+     * public (no project role).
+     */
+    excludedModules?: readonly string[];
   },
 ): Promise<Project> {
   try {
@@ -1343,7 +1363,7 @@ export async function createProjectFromTemplate(
         templateProjectId,
         newProject.id,
         userId,
-        { dateOffsetMs },
+        { dateOffsetMs, excludedModules: overrides?.excludedModules },
       );
 
       return newProject;

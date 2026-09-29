@@ -10,24 +10,24 @@ import type {
   CatalogerRun,
 } from "@wildfires-org/turboplan-db/schemas";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
-import { uploadFile } from "@wildfires-org/turboplan-upload/server";
 import {
   assignOrganizationOwner,
   createOffice,
   createOrganization,
   createProject,
   generateUniqueProjectSlug,
-  getOfficeByName,
-  getOrganizationByName,
 } from "@wildfires-org/turboplan-workspace/server";
 
 import type { MilestoneSaveItem } from "../../types";
+import { downloadDocumentToStorage } from "../bootstrapper/service";
 import { getResearchAgentClient } from "../external-client";
 import { insertMilestonesWithTasks, insertProjectFields } from "../repository";
 import type { catalogerCreateEntrySchema } from "../schemas";
 import {
   createCatalogerEntry as createCatalogerEntryRecord,
   getNonTerminalCatalogerRuns,
+  getOwnedOfficeByName,
+  getOwnedOrganizationByName,
   updateCatalogerRunExternalId,
   updateCatalogerRunStatus,
 } from "./repository";
@@ -185,12 +185,15 @@ export const reconcileCatalogerRunStatus = async (
 // Find-or-create helpers (for webhook entry creation)
 // ---------------------------------------------------------------------------
 
+// Existing orgs/offices are reused only when the run user directly owns them.
+// A name match alone must never attach catalog output (and an office OWNER
+// grant) to another tenant's organization — otherwise a new one is created.
+
 export const findOrCreateOrganization = async (
   name: string,
   userId: string,
 ): Promise<{ id: string; created: boolean }> => {
-  // Try to find existing org by name (case-insensitive)
-  const existing = await getOrganizationByName(name);
+  const existing = await getOwnedOrganizationByName(name, userId);
   if (existing) {
     return { id: existing.id, created: false };
   }
@@ -207,7 +210,7 @@ export const findOrCreateOrganization = async (
   } catch (error: unknown) {
     // Handle race condition: another concurrent webhook may have created the same org
     if (isUniqueViolation(error)) {
-      const retried = await getOrganizationByName(name);
+      const retried = await getOwnedOrganizationByName(name, userId);
       if (retried) {
         return { id: retried.id, created: false };
       }
@@ -221,8 +224,7 @@ export const findOrCreateOffice = async (
   organizationId: string,
   userId: string,
 ): Promise<{ id: string; created: boolean }> => {
-  // Try to find existing office by name (case-insensitive)
-  const existing = await getOfficeByName(name, organizationId);
+  const existing = await getOwnedOfficeByName(name, organizationId, userId);
   if (existing) {
     return { id: existing.id, created: false };
   }
@@ -238,7 +240,7 @@ export const findOrCreateOffice = async (
   } catch (error: unknown) {
     // Handle race condition: another concurrent webhook may have created the same office
     if (isUniqueViolation(error)) {
-      const retried = await getOfficeByName(name, organizationId);
+      const retried = await getOwnedOfficeByName(name, organizationId, userId);
       if (retried) {
         return { id: retried.id, created: false };
       }
@@ -251,65 +253,30 @@ export const findOrCreateOffice = async (
 // Create a full catalog entry (org → office → project → docs/milestones/fields)
 // ---------------------------------------------------------------------------
 
-const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024; // 50MB
-
 const processDocument = async (
   doc: { url: string; title: string; relevance: number; context: string },
   projectId: string,
   catalogerRun: CatalogerRun,
 ): Promise<void> => {
-  // URLs come from the research agent which only serves files from government websites,
-  // so we trust them. HTTPS check is a basic sanity guard, not a full SSRF mitigation.
-  if (!doc.url.startsWith("https://")) {
-    console.error(`[cataloger] Blocked non-HTTPS URL: ${doc.url}`);
+  // Agent-supplied URLs are untrusted: public hosts only, redirects re-checked,
+  // body capped, and only allowlisted document types stored.
+  const stored = await downloadDocumentToStorage(
+    doc,
+    `cataloger/${projectId}`,
+    "cataloger",
+  );
+  if (!stored) {
     return;
   }
-
-  const response = await fetch(doc.url, {
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) {
-    console.error(`[cataloger] Failed to fetch ${doc.url}: ${response.status}`);
-    return;
-  }
-
-  const contentLength = response.headers.get("content-length");
-  if (contentLength && Number(contentLength) > MAX_DOCUMENT_SIZE) {
-    console.error(`[cataloger] Skipping ${doc.url}: exceeds 50MB limit`);
-    return;
-  }
-
-  const buffer = await response.arrayBuffer();
-  if (buffer.byteLength > MAX_DOCUMENT_SIZE) {
-    console.error(
-      `[cataloger] Skipping ${doc.url}: downloaded size exceeds 50MB limit`,
-    );
-    return;
-  }
-
-  const contentType = response.headers.get("content-type") || "application/pdf";
-  const size = buffer.byteLength;
-
-  const urlPath = new URL(doc.url).pathname;
-  const originalFilename =
-    decodeURIComponent(urlPath.split("/").pop() || "") || `${doc.title}.pdf`;
-  const ext = originalFilename.includes(".")
-    ? ""
-    : contentType.includes("word")
-      ? ".docx"
-      : ".pdf";
-  const filename = `cataloger/${projectId}/${Date.now()}-${originalFilename}${ext}`;
-
-  const { url: blobUrl } = await uploadFile(filename, buffer, contentType);
 
   await createProjectDocument({
     projectId,
     userId: catalogerRun.userId,
-    filename: filename.split("/").pop() || originalFilename,
-    originalFilename,
-    mimeType: contentType,
-    size,
-    url: blobUrl,
+    filename: stored.storedFilename,
+    originalFilename: stored.originalFilename,
+    mimeType: stored.mimeType,
+    size: stored.size,
+    url: stored.url,
     source: "research",
     relevance: doc.relevance,
     context: doc.context,

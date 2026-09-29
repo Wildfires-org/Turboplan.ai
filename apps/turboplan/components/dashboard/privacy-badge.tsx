@@ -1,5 +1,6 @@
 import { Eye, EyeOff } from "lucide-react";
 
+import { CHIP_BASE_CLASS, CHIP_TONE_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
 type PrivacyBadgeProps = {
@@ -23,16 +24,9 @@ export function PrivacyBadge({ isPublic, className }: PrivacyBadgeProps) {
   const Icon = config.icon;
 
   return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-1 rounded border border-gray-100 bg-gray-50 px-1.5 py-0.5 text-gray-500",
-        className,
-      )}
-    >
-      <Icon className="size-3.5" />
-      <span className="text-[10px] font-semibold leading-4">
-        {config.label}
-      </span>
-    </div>
+    <span className={cn(CHIP_BASE_CLASS, CHIP_TONE_CLASS.neutral, className)}>
+      <Icon aria-hidden />
+      {config.label}
+    </span>
   );
 }

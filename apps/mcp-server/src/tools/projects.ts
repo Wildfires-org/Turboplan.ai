@@ -9,6 +9,7 @@ import {
   db,
   runWithWorkerConnection,
 } from "@wildfires-org/turboplan-db/db-client";
+import { getProfileByUserId } from "@wildfires-org/turboplan-db/queries";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 import type { FieldChange } from "@wildfires-org/turboplan-timeline-records/types";
@@ -19,6 +20,7 @@ import {
   getOrganizationById,
   getProjectById,
   getUserAccessibleProjects,
+  resolveProjectCreationFlags,
   updateProject,
 } from "@wildfires-org/turboplan-workspace/server";
 
@@ -26,7 +28,11 @@ import {
   getProjectCatalogUrl,
   getProjectDashboardUrl,
 } from "../utils/entity-urls.js";
-import { assertEntityExists, assertPermission } from "../utils/permissions.js";
+import {
+  assertEntityExists,
+  assertPermission,
+  getMcpRBACService,
+} from "../utils/permissions.js";
 import type { McpUserContext } from "../utils/types.js";
 import {
   descriptionSchema,
@@ -212,7 +218,7 @@ export const registerProjectTools = (
     "create_project",
     {
       description:
-        "Create a new project within an office. Requires editor role or higher on the office. Optional flags: prompt (project AI prompt), isTemplate and isPublic (safe at creation — the creator is auto-assigned as project owner in the same transaction).",
+        "Create a new project within an office. Requires editor role or higher on the office. Optional flags: prompt (project AI prompt), isTemplate and isPublic (only honoured with owner role on the office; otherwise ignored).",
       inputSchema: {
         officeId: z.string().uuid().describe("Parent office UUID"),
         name: z.string().min(1).max(255).describe("Project name"),
@@ -297,6 +303,31 @@ export const registerProjectTools = (
 
         const validated = validation.data;
 
+        // Same policy as the web create route: isPublic / isTemplate are only
+        // honoured with office MANAGE_MEMBERS, citizens start as DRAFT.
+        const wantsPublicOrTemplate =
+          validated.isPublic === true || validated.isTemplate === true;
+        const hasOfficeManageMembers =
+          wantsPublicOrTemplate &&
+          (
+            await getMcpRBACService().checkPermission(
+              user.userId,
+              officeId,
+              EntityType.OFFICE,
+              Action.MANAGE_MEMBERS,
+              { email: user.email },
+            )
+          ).allowed;
+        const userRole =
+          user.userRole ?? (await getProfileByUserId(user.userId))?.userRole;
+        const flags = resolveProjectCreationFlags({
+          hasOfficeCreate: true,
+          hasOfficeManageMembers,
+          userRole,
+          requestedIsPublic: validated.isPublic,
+          requestedIsTemplate: validated.isTemplate,
+        });
+
         const slug = await generateUniqueProjectSlug(
           officeId as string,
           validated.name as string,
@@ -309,12 +340,7 @@ export const registerProjectTools = (
           description: validated.description as string | undefined,
           createdBy: user.userId,
           ...(validated.prompt !== undefined && { prompt: validated.prompt }),
-          ...(validated.isTemplate !== undefined && {
-            isTemplate: validated.isTemplate,
-          }),
-          ...(validated.isPublic !== undefined && {
-            isPublic: validated.isPublic,
-          }),
+          ...flags,
         });
 
         await createTimelineRecord({
@@ -363,7 +389,7 @@ export const registerProjectTools = (
     "update_project",
     {
       description:
-        "Update a project's properties. Requires editor role or higher on the project. Changing isPublic or isTemplate requires owner role.",
+        "Update a project's properties. Requires editor role or higher on the project. Changing isPublic or isTemplate requires owner role on the project; turning either on additionally requires owner role on the project's office.",
       inputSchema: {
         projectId: z.string().uuid().describe("Project UUID"),
         name: z.string().min(1).max(255).optional().describe("New name"),
@@ -474,6 +500,28 @@ export const registerProjectTools = (
           );
           if (ownerDenied) {
             return ownerDenied;
+          }
+        }
+
+        // Turning isPublic / isTemplate ON presents the project under its
+        // office's name, so it takes MANAGE_MEMBERS on the office itself — the
+        // same bar create_project uses for these flags. Project ownership alone
+        // is not enough: the creator of a project is always its owner, so an
+        // office editor could otherwise create and then publish in two calls.
+        // Turning them OFF only needs project MANAGE_MEMBERS (checked above).
+        const enablesPublicOrTemplate =
+          (validated.isPublic === true && !project!.isPublic) ||
+          (validated.isTemplate === true && !project!.isTemplate);
+        if (enablesPublicOrTemplate) {
+          const officeDenied = await assertPermission(
+            user.userId,
+            project!.officeId,
+            EntityType.OFFICE,
+            Action.MANAGE_MEMBERS,
+            user.email,
+          );
+          if (officeDenied) {
+            return officeDenied;
           }
         }
 

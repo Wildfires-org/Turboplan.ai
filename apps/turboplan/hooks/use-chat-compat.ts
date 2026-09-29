@@ -4,6 +4,8 @@ import {
   type Dispatch,
   type SetStateAction,
   useCallback,
+  useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -85,6 +87,36 @@ export const useChatCompat = ({
           }
         : undefined,
     });
+
+  // useChat reads `messages` only when its Chat instance is created, so a chat
+  // remounted from a stale SWR cache (e.g. after Back) would ignore the fresh
+  // fetch. Adopt a newer server snapshot once the chat is idle, if it holds
+  // messages this chat lacks. Local messages the server has not stored yet (a
+  // just-stopped reply, an injected card) are kept after it.
+  const lastSyncedMessagesRef = useRef(initialMessages);
+  useEffect(() => {
+    if (!initialMessages || initialMessages === lastSyncedMessagesRef.current) {
+      return;
+    }
+    if (status === "submitted" || status === "streaming") {
+      return;
+    }
+    lastSyncedMessagesRef.current = initialMessages;
+
+    const localIds = new Set(messages.map((message) => message.id));
+    const hasNewMessages = initialMessages.some(
+      (message) => !localIds.has(message.id),
+    );
+    if (!hasNewMessages) {
+      return;
+    }
+
+    const serverIds = new Set(initialMessages.map((message) => message.id));
+    setMessages([
+      ...initialMessages,
+      ...messages.filter((message) => !serverIds.has(message.id)),
+    ]);
+  }, [initialMessages, messages, status, setMessages]);
 
   const handleSubmit = useCallback(
     (

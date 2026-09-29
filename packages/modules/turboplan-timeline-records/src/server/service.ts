@@ -1,22 +1,86 @@
-import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  isNull,
+  notInArray,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 
-import { profile, timelineRecord, user } from "@wildfires-org/turboplan-db";
+import {
+  profile,
+  project,
+  timelineRecord,
+  user,
+} from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 
 import type { TimelineQueryParams } from "../schemas";
 import type { EnrichedTimelineRecord } from "../types";
+import {
+  getPubliclyHiddenEntityTypes,
+  toPublicTimelineRecord,
+} from "./public-view";
 
-export const getTimeline = async (
+export type TimelineViewOptions = {
+  /**
+   * The caller holds no role on the project (e.g. a citizen reading a public
+   * government project). Restricts the view to what the public timeline shows:
+   * public records only, none from hidden/private modules, no author email.
+   */
+  publicView?: boolean;
+};
+
+/**
+ * Base WHERE conditions for a project's timeline. The public view additionally
+ * keeps only public records and drops entity types of hidden/private modules.
+ */
+const getBaseConditions = async (
   projectId: string,
-  params: TimelineQueryParams,
-) => {
-  const { page, limit, entityType, action, userId, isPublic } = params;
-  const offset = (page - 1) * limit;
-
+  { publicView = false }: TimelineViewOptions,
+): Promise<SQL[]> => {
   const conditions = [
     eq(timelineRecord.projectId, projectId),
     isNull(timelineRecord.deletedAt),
   ];
+
+  if (!publicView) {
+    return conditions;
+  }
+
+  conditions.push(eq(timelineRecord.isPublic, true));
+
+  const [modules] = await db
+    .select({
+      hiddenModules: project.hiddenModules,
+      privateModules: project.privateModules,
+    })
+    .from(project)
+    .where(eq(project.id, projectId))
+    .limit(1);
+
+  const hiddenEntityTypes = getPubliclyHiddenEntityTypes(
+    modules?.hiddenModules,
+    modules?.privateModules,
+  );
+  if (hiddenEntityTypes.length > 0) {
+    conditions.push(notInArray(timelineRecord.entityType, hiddenEntityTypes));
+  }
+
+  return conditions;
+};
+
+export const getTimeline = async (
+  projectId: string,
+  params: TimelineQueryParams,
+  options: TimelineViewOptions = {},
+) => {
+  const { page, limit, entityType, action, userId, isPublic } = params;
+  const offset = (page - 1) * limit;
+
+  const conditions = await getBaseConditions(projectId, options);
 
   if (entityType) {
     conditions.push(eq(timelineRecord.entityType, entityType));
@@ -24,7 +88,8 @@ export const getTimeline = async (
   if (action) {
     conditions.push(eq(timelineRecord.action, action));
   }
-  if (userId) {
+  // The public view hides record authorship ids, so it does not filter by them.
+  if (userId && !options.publicView) {
     conditions.push(eq(timelineRecord.userId, userId));
   }
   if (isPublic !== undefined) {
@@ -72,11 +137,12 @@ export const getTimeline = async (
   ]);
 
   const total = totalResult[0]?.count ?? 0;
+  // Safe cast: select shape matches EnrichedTimelineRecord fields exactly
+  // (innerJoin user guarantees authorEmail; leftJoin profile allows null author fields)
+  const records = rows as EnrichedTimelineRecord[];
 
   return {
-    // Safe cast: select shape matches EnrichedTimelineRecord fields exactly
-    // (innerJoin user guarantees authorEmail; leftJoin profile allows null author fields)
-    records: rows as EnrichedTimelineRecord[],
+    records: options.publicView ? records.map(toPublicTimelineRecord) : records,
     pagination: {
       page,
       limit,
@@ -86,7 +152,11 @@ export const getTimeline = async (
   };
 };
 
-export const getTimelineStats = async (projectId: string) => {
+export const getTimelineStats = async (
+  projectId: string,
+  options: TimelineViewOptions = {},
+) => {
+  const conditions = await getBaseConditions(projectId, options);
   const results = await db
     .select({
       entityType: timelineRecord.entityType,
@@ -94,12 +164,7 @@ export const getTimelineStats = async (projectId: string) => {
       count: count(),
     })
     .from(timelineRecord)
-    .where(
-      and(
-        eq(timelineRecord.projectId, projectId),
-        isNull(timelineRecord.deletedAt),
-      ),
-    )
+    .where(and(...conditions))
     .groupBy(timelineRecord.entityType, timelineRecord.action);
 
   let total = 0;

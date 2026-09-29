@@ -2,12 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AccessError } from "@/components/access-error";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { InviteMembersProvider } from "@/components/dashboard/invite-members-context";
-import { OfficeBannerActions } from "@/components/dashboard/office-banner-actions";
 import { OfficeMembersSection } from "@/components/dashboard/office-members-section";
-import { StickyEntityBanner } from "@/components/dashboard/sticky-entity-banner";
-import { SidebarOfficeRegistrar } from "@/components/sidebar/sidebar-office-registrar";
+import { OfficePageFrame } from "@/components/dashboard/office-page-frame";
 import {
   getCachedSession,
   getValidatedOfficeBySlug,
@@ -78,51 +75,21 @@ export default async function OfficeMembersPage({ params }: OfficePageProps) {
 
   const { organization, office } = data;
 
-  const breadcrumbs = [
-    {
-      label: organization.name,
-      href: AppUrls.organization(organization.slug),
-      isActive: false,
-      entity: { type: "organization" as const, data: organization },
-    },
-    {
-      label: office.name,
-      href: AppUrls.office(organization.slug, office.slug),
-      isActive: false,
-      entity: {
-        type: "office" as const,
-        data: office,
-        organizationSlug: organization.slug,
-      },
-    },
-    { label: "Members", isActive: true },
-  ];
-
   return (
     <InviteMembersProvider>
-      <SidebarOfficeRegistrar />
-      <div className="flex flex-col shrink-0 min-h-screen">
-        <DashboardHeader breadcrumbs={breadcrumbs} userId={session.user.id} />
-        <StickyEntityBanner
-          logoUrl={office.logoUrl ?? organization.logoUrl}
-          title={office.name}
-          description={office.description}
-          actions={
-            <OfficeBannerActions
-              organizationSlug={organization.slug}
-              office={office}
-            />
-          }
+      <OfficePageFrame
+        organization={organization}
+        office={office}
+        userId={session.user.id}
+        tab="members"
+      >
+        <OfficeMembersSection
+          user={session.user}
+          office={office}
+          orgSlug={organization.slug}
+          officeSlug={office.slug}
         />
-        <div className="flex-1 container mx-auto px-6">
-          <OfficeMembersSection
-            user={session.user}
-            office={office}
-            orgSlug={organization.slug}
-            officeSlug={office.slug}
-          />
-        </div>
-      </div>
+      </OfficePageFrame>
     </InviteMembersProvider>
   );
 }

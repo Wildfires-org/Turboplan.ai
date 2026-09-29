@@ -12,6 +12,7 @@ import type { Organization } from "@wildfires-org/turboplan-workspace/types";
 import { OrgTabNav } from "@/components/dashboard/org-tab-nav";
 import { useMembersSection } from "@/hooks/use-members-section";
 import { useOrgBillingActive } from "@/hooks/use-org-billing-active";
+import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 
 interface OrgMembersSectionProps {
   user: User;
@@ -54,12 +55,16 @@ export function OrgMembersSection({
         open={showInviteForm}
         onOpenChange={handleInviteDialogChange}
         entityName={organization.name}
+        searchScope={{
+          entityType: EntityType.ORGANIZATION,
+          entityId: organization.id,
+        }}
         onSendInvitations={handleSendInvitations}
         isSubmitting={isSendingInvites}
         existingEmails={existingEmails}
         seatBillingActive={seatBillingActive}
       />
-      <div className="sticky top-[120px] z-20 -mx-6 bg-[#F9FAFB] px-6 pb-2 pt-4">
+      <div className={STICKY_TOOLBAR_CLASS}>
         <OrgTabNav
           orgSlug={orgSlug}
           searchValue={searchQuery}

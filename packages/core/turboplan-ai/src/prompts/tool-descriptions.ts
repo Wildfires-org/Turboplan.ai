@@ -112,7 +112,8 @@ How to call:
 
 Results:
 - Returns each document's extracted text plus a filename and id.
-- Text may be truncated (a per-document cap and a total budget across documents apply); truncated: true means only the beginning of that document was returned. Documents that could not be read (e.g. legacy .doc format, or the total budget was exceeded) are listed under "skipped" with a reason — relay any actionable message to the user, such as asking them to convert a legacy .doc to PDF or .docx.`;
+- Text may be truncated (a per-document cap and a total budget across documents apply); truncated: true means only the beginning of that document was returned. Documents that could not be read (e.g. legacy .doc format, or the total budget was exceeded) are listed under "skipped" with a reason — relay any actionable message to the user, such as asking them to convert a legacy .doc to PDF or .docx.
+- Documents are indexed shortly after being saved. A document skipped with reason "extraction-pending" is still being processed — tell the user so and offer to retry in a moment. "extraction-failed" and "unsupported-format" cannot be read at all; do not retry those.`;
 
 export const toolDescUpdateProjectContext = `Create or update labeled context entries for this project. Context entries are confirmed, factual background about the project that is saved to the project's Context library and injected into future conversations.
 

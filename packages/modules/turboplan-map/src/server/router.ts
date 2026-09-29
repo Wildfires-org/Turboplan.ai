@@ -7,11 +7,11 @@ import { z } from "zod";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
   type RBACContext,
   requirePermission,
   requireProjectReadOrPublicGov,
 } from "@wildfires-org/turboplan-rbac/hono";
-import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 import { assertSafeFetchUrl } from "@wildfires-org/turboplan-utils/ssrf";
 
@@ -126,7 +126,7 @@ router.post("/layers/upload", async (c) => {
 
     // Check permission manually after validating body
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       body.projectId,
@@ -266,7 +266,7 @@ router.delete("/layers/:layerId", async (c) => {
       return c.json({ error: "Unauthorized" }, 401);
     }
 
-    const rbacService = getRBACService();
+    const rbacService = getRBACServiceForRequest(c);
     const permissionResult = await rbacService.checkPermission(
       user.userId,
       layer.projectId,

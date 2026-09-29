@@ -41,6 +41,26 @@ export enum OwnershipStatus {
   REJECTED = "rejected",
 }
 
+/**
+ * Ownership states that must never be exposed through a public read path
+ * (catalog, public-gov read fallback, search). A SUBMITTED project is a citizen
+ * application under review — it already sits in the target agency's office, so
+ * showing it would present it under the agency's name. REJECTED is a legacy
+ * terminal state (rejections now revert to DRAFT).
+ *
+ * DRAFT is deliberately NOT listed: it is the column default, so cataloger
+ * templates and template-created staff projects are DRAFT too. Applicants
+ * cannot make a DRAFT public themselves — the create/update routes only let
+ * office staff set `isPublic` / `isTemplate`.
+ */
+export const PUBLICLY_HIDDEN_OWNERSHIP_STATUSES: OwnershipStatus[] = [
+  OwnershipStatus.SUBMITTED,
+  OwnershipStatus.REJECTED,
+];
+
+export const isOwnershipStatusPubliclyVisible = (status: string): boolean =>
+  !PUBLICLY_HIDDEN_OWNERSHIP_STATUSES.includes(status as OwnershipStatus);
+
 export const ownershipStatusEnum = pgEnum(
   "ownership_status",
   Object.values(OwnershipStatus) as [string, ...string[]],

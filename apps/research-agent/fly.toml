@@ -35,6 +35,10 @@ app = "turboplan-research-agent"
   min_machines_running = 0
   processes = ["app"]
 
+# 512MB is enough because PDF/DOCX parsing never runs on the main thread:
+# document extraction is spawned in a worker thread capped at a 256MB heap
+# (see src/documents/run-extraction-in-worker.ts), so a runaway document kills
+# the thread rather than the machine.
 [[vm]]
   memory = "512mb"
   cpu_kind = "shared"

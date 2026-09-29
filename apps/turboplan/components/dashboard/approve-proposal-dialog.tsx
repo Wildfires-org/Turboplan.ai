@@ -4,7 +4,11 @@ import { useCallback, useMemo, useState } from "react";
 
 import { Loader2 } from "lucide-react";
 
-import { MemberRole, type MemberRoleType } from "@wildfires-org/turboplan-rbac";
+import {
+  EntityType,
+  MemberRole,
+  type MemberRoleType,
+} from "@wildfires-org/turboplan-rbac";
 import {
   Button,
   Dialog,
@@ -32,6 +36,11 @@ import {
 interface ApproveProposalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * The submitted project. While under review it sits in the target office,
+   * so the owner/member search covers the reviewing organization.
+   */
+  projectId: string;
   projectName: string;
   onApprove: (data: {
     ownerEmail?: string;
@@ -47,6 +56,7 @@ interface ApproveProposalDialogProps {
 export function ApproveProposalDialog({
   open,
   onOpenChange,
+  projectId,
   projectName,
   onApprove,
   isLoading,
@@ -86,6 +96,8 @@ export function ApproveProposalDialog({
     }
     return emails;
   }, [pendingInvitees]);
+
+  const searchScope = { entityType: EntityType.PROJECT, entityId: projectId };
 
   const resetState = useCallback(() => {
     setOwnerSelection([]);
@@ -186,6 +198,7 @@ export function ApproveProposalDialog({
             <UserSelector
               value={ownerSelection}
               onChange={setOwnerSelection}
+              searchScope={searchScope}
               maxSelections={1}
               placeholder="Name or email"
               allowInvite
@@ -202,6 +215,7 @@ export function ApproveProposalDialog({
             <MemberAssignRow
               selectedUsers={selectedUsers}
               onSelectedUsersChange={setSelectedUsers}
+              searchScope={searchScope}
               currentRole={currentRole}
               onRoleChange={setCurrentRole}
               onAssign={handleAssign}

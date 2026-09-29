@@ -21,15 +21,18 @@ import {
   VALID_MEMBER_ROLES,
 } from "@wildfires-org/turboplan-rbac";
 import {
+  getRBACServiceForRequest,
+  isSessionAdmin,
   type RBACContext,
+  requireMemberPermission,
   requirePermission,
 } from "@wildfires-org/turboplan-rbac/hono";
+import { RBACService } from "@wildfires-org/turboplan-rbac/server";
 import {
-  getRBACService,
-  isAdmin,
-  RBACService,
-} from "@wildfires-org/turboplan-rbac/server";
-import { deleteReplacedStorageFile } from "@wildfires-org/turboplan-upload/server";
+  deleteReplacedStorageFiles,
+  isAllowedStorageUrlUpdate,
+  type StorageOwner,
+} from "@wildfires-org/turboplan-upload/server";
 import {
   generateUniqueSlug,
   normalizeEmailDomains,
@@ -180,9 +183,7 @@ organizationsRouter.put(
       // non-admin editor can still save the rest of the form (the edit dialog
       // always sends type/status). Mirrors the MCP update_organization gate.
       if (type !== organization.type || status !== organization.status) {
-        const authUser = c.get("user");
-        const admin = await isAdmin(authUser.userId, authUser.email);
-        if (!admin) {
+        if (!(await isSessionAdmin(c))) {
           return c.json(
             {
               error:
@@ -193,16 +194,29 @@ organizationsRouter.put(
         }
       }
 
-      // Clean up old logos from storage when replaced or removed.
-      await deleteReplacedStorageFile(organization.logoUrl, logoUrl);
-      await deleteReplacedStorageFile(
-        organization.documentLogoUrl,
-        documentLogoUrl,
-      );
-      await deleteReplacedStorageFile(
-        organization.documentFooterLogoUrl,
-        documentFooterLogoUrl,
-      );
+      // Logo fields may only point into our bucket at objects this caller (or
+      // this org) owns — otherwise the replaced-logo cleanup below could be
+      // aimed at another tenant's object. External links are unaffected.
+      const storageOwner: StorageOwner = {
+        userId: c.get("user").userId,
+        organizationId: id,
+      };
+      const logoFields = [
+        [logoUrl, organization.logoUrl],
+        [documentLogoUrl, organization.documentLogoUrl],
+        [documentFooterLogoUrl, organization.documentFooterLogoUrl],
+      ] as const;
+      if (
+        logoFields.some(
+          ([next, current]) =>
+            !isAllowedStorageUrlUpdate(next, current, storageOwner),
+        )
+      ) {
+        return c.json(
+          { error: "Logo URLs must reference your own uploads" },
+          400,
+        );
+      }
 
       // Generate new slug if name is changing
       let newSlug: string | undefined;
@@ -225,6 +239,9 @@ organizationsRouter.put(
         documentFooterNote,
         documentFooterLogoUrl,
       });
+
+      // Clean up old logos from storage once the row no longer points at them.
+      await deleteReplacedStorageFiles(logoFields, storageOwner);
 
       // Return updated organization
       const updatedOrganization = await getOrganizationById(id);
@@ -292,10 +309,11 @@ organizationsRouter.put(
   },
 );
 
-// GET /:id/members - List members (RBAC: READ permission)
+// GET /:id/members - List members (RBAC: READ from a role on the org itself —
+// upward READ from a child project/office membership does not expose staff)
 organizationsRouter.get(
   "/:id/members",
-  requirePermission(
+  requireMemberPermission(
     EntityType.ORGANIZATION,
     Action.READ,
     (c) => c.req.param("id")!,
@@ -442,7 +460,7 @@ organizationsRouter.post(
         const userId = users[0].id;
 
         // Check if user already has a membership
-        const rbacService = getRBACService();
+        const rbacService = getRBACServiceForRequest(c);
         const existingMembership = await rbacService.getUserMembershipForEntity(
           userId,
           orgId,

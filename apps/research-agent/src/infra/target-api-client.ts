@@ -39,6 +39,9 @@ export const createTargetApiClient = (): TargetApiClient => {
         "x-webhook-secret": input.webhookSecret,
       },
       body: JSON.stringify(input.body),
+      // Never follow a redirect: fetch would re-send the secret header to a
+      // target that assertPublicTarget never checked.
+      redirect: "error",
     });
     if (!res.ok) {
       throw new Error(

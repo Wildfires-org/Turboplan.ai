@@ -37,7 +37,7 @@ export const MembersListSection = ({
 }: MembersListSectionProps) => {
   return (
     <div className="space-y-2">
-      <h3 className="font-medium text-sm text-muted-foreground">
+      <h3 className="text-[11px] font-medium uppercase tracking-[0.08em] text-gray-550">
         {isAssignMode
           ? `Select Members (${selectedUserIds.size} selected)`
           : `Members (${members.length})`}

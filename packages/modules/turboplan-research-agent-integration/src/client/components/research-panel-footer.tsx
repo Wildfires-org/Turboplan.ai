@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button, cn } from "@wildfires-org/turboplan-utils";
+import { Button } from "@wildfires-org/turboplan-utils";
 
 import { useSaveToProjectContext } from "../contexts/save-to-project-context";
 import { useResearchPanelWidth } from "../hooks/use-research-panel-width";
@@ -52,12 +52,12 @@ export const ResearchPanelFooter = ({
   }
 
   return (
-    <div className="shrink-0 border-t border-border bg-background px-6 py-4 shadow-[0px_-6px_4px_0px_rgba(0,0,0,0.05)]">
+    <div className="shrink-0 border-t border-slate-900/[0.06] bg-white/70 px-6 py-4 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {totalSavedCount > 0 && (
             <div className="flex items-center gap-2 text-sm font-medium text-brand-900">
-              <span className="inline-flex items-center justify-center size-5 rounded-full bg-brand-600 text-white text-[10px] font-medium">
+              <span className="inline-flex size-5 items-center justify-center rounded-full bg-brand-800 text-[11px] font-medium text-white">
                 {totalSavedCount}
               </span>
               {(!panelWidth || panelWidth >= 595) && (
@@ -69,14 +69,10 @@ export const ResearchPanelFooter = ({
         <div className="flex items-center gap-2.5">
           {!isResearchPhaseCompleted && isResearchCompleted && (
             <Button
+              variant="glass"
               onClick={() => setIsDialogOpen(true)}
               disabled={isCompleteDisabled}
-              className={cn(
-                "w-44 text-white",
-                isCompleteDisabled
-                  ? "bg-neutral-300 hover:bg-neutral-300"
-                  : "bg-[#07e28a] hover:bg-[#06cb7c]",
-              )}
+              className="w-44"
             >
               Complete research
             </Button>
@@ -87,7 +83,8 @@ export const ResearchPanelFooter = ({
                 void saveAll();
               }}
               disabled={isSaving || totalSelectedCount < 1}
-              className="gap-1.5 w-44 text-white bg-[#07e28a] hover:bg-[#06cb7c]"
+              variant="brand"
+              className="w-44 gap-1.5"
             >
               {isSaving ? (
                 <>

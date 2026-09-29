@@ -20,7 +20,7 @@ export interface CreateInvitationParams {
   entityId: string;
   role: InvitationRole;
   invitedBy: string;
-  expiresInDays?: number; // defaults to 7
+  expiresInDays?: number; // defaults to DEFAULT_EXPIRATION_DAYS
   taskAssignment?: TaskAssignment; // optional task/milestone to assign upon acceptance
 }
 
@@ -47,8 +47,13 @@ export interface AcceptWithAutoSignupResult {
     | "failed"
     | "invalid_invitation"
     | "expired"
-    | "already_accepted";
+    | "already_accepted"
+    // An account already exists for the invited email: it must sign in and
+    // accept while authenticated (the invite link never signs it in).
+    | "login_required";
   userId?: string;
+  /** Invited email, set with `login_required` to prefill the login form. */
+  email?: string;
   redirectTo?: string;
   error?: string;
 }

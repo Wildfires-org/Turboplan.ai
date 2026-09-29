@@ -115,7 +115,7 @@ export function PromptsSplitView() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-180px)] min-h-[600px] border rounded-lg overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh/var(--ui-scale,1)-180px)] min-h-[600px] border rounded-lg overflow-hidden bg-background">
       {/* Left Sidebar - Categories & Prompts List */}
       <div className="w-80 border-r flex flex-col bg-muted/30">
         <div className="p-4 border-b">

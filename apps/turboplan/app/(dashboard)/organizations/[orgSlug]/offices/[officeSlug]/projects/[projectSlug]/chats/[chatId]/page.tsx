@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getChatById } from "@wildfires-org/turboplan-db/queries";
+import { isResearchAgentPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 
 import { AccessError } from "@/components/access-error";
 import {
@@ -120,6 +121,9 @@ export default async function ChatByIdPage({ params }: ChatByIdPageProps) {
     <Suspense
       fallback={
         <ProjectChatPageFallback
+          showResearchPane={
+            isResearchAgentPackageEnabled() && !project.isResearchPhaseCompleted
+          }
           breadcrumbs={
             <DashboardHeader
               breadcrumbs={breadcrumbs}

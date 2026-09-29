@@ -1,31 +1,31 @@
-import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
-const Dot = ({ delay }: { delay: number }) => {
-  const dotAnimation = {
-    y: [0, -8, 0],
-  };
+const DOT_DELAY_CLASSES = [
+  "[animation-delay:0ms]",
+  "[animation-delay:150ms]",
+  "[animation-delay:300ms]",
+];
 
-  return (
-    <motion.span
-      className="rounded-full"
-      style={{ width: "4px", height: "4px", backgroundColor: "#9299A1" }}
-      animate={dotAnimation}
-      transition={{
-        duration: 0.8,
-        repeat: Infinity,
-        ease: "easeInOut",
-        delay,
-      }}
-    />
-  );
-};
-
+/** Typing indicator (CSS keyframes in app/globals.css: `chat-typing-dot`).
+ * Same 32px row height as a text line + avatar, so swapping it for streamed
+ * text doesn't shift the list. */
 export const ThinkingDots = () => {
   return (
-    <div className="flex gap-1.5 items-center h-8">
-      <Dot delay={0} />
-      <Dot delay={0.15} />
-      <Dot delay={0.3} />
+    <div
+      role="status"
+      aria-label="Assistant is typing"
+      className="flex h-8 items-center gap-1.5"
+    >
+      {DOT_DELAY_CLASSES.map((delayClass) => (
+        <span
+          key={delayClass}
+          aria-hidden
+          className={cn(
+            "chat-typing-dot size-1.5 rounded-full bg-brand-700",
+            delayClass,
+          )}
+        />
+      ))}
     </div>
   );
 };

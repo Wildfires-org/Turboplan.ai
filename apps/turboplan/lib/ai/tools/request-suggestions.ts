@@ -74,6 +74,7 @@ export const requestSuggestions = async ({
 
         writer.write({
           type: "data-artifact",
+          transient: true,
           data: { type: "suggestion", content: suggestion },
         });
 

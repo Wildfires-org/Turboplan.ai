@@ -38,6 +38,7 @@ export const updateDocument = async ({
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "clear", content: document.title },
       });
 
@@ -59,6 +60,7 @@ export const updateDocument = async ({
 
       writer.write({
         type: "data-artifact",
+        transient: true,
         data: { type: "finish", content: "" },
       });
 

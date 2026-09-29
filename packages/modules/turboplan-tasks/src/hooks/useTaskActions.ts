@@ -10,6 +10,7 @@ import {
   TaskStatus,
   User,
 } from "../types";
+import { resolveAssigneeProjectId } from "../utils/assignee-project";
 
 export const useTaskActions = (
   documentId: string,
@@ -86,10 +87,21 @@ export const useTaskActions = (
     [onSaveContent, milestones],
   );
 
-  // Fetch users utility
+  // Fetch the project's assignable users (this hook is keyed by a chat
+  // document, so the project comes from the loaded milestones)
   const fetchUsers = useCallback(async () => {
+    const projectId = resolveAssigneeProjectId(
+      "document",
+      documentId,
+      milestones,
+    );
+    if (!projectId) {
+      setAvailableUsers([]);
+      return [];
+    }
+
     try {
-      const users = await apiService.fetchUsers();
+      const users = await apiService.fetchUsers(projectId);
       setAvailableUsers(users);
       return users;
     } catch (error) {
@@ -97,7 +109,7 @@ export const useTaskActions = (
       // Don't set error state for users fetch failure, just log it
       return [];
     }
-  }, [setAvailableUsers]);
+  }, [documentId, milestones, setAvailableUsers]);
 
   // Task handlers
   const handleTaskUpdate = useCallback(

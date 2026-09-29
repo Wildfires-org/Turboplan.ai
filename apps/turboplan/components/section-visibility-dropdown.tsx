@@ -49,7 +49,7 @@ export function SectionVisibilityDropdown({
       <span
         aria-label={isPrivate ? "Private section" : "Public section"}
         title={isPrivate ? "Private" : "Public"}
-        className="flex items-center text-muted-foreground"
+        className="flex items-center text-gray-550"
       >
         {isPrivate ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </span>
@@ -59,7 +59,7 @@ export function SectionVisibilityDropdown({
             type="button"
             disabled={isLoading}
             aria-label="Section options"
-            className="flex items-center justify-center size-8 rounded-md text-secondary-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring"
+            className="press flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:bg-white/90"
           >
             {isLoading ? (
               <Loader2 className="size-5 animate-spin" />

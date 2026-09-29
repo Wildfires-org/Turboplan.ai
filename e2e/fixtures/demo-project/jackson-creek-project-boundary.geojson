@@ -1,0 +1,62 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.614747,
+              32.891255
+            ],
+            [
+              -116.602185,
+              32.889875
+            ],
+            [
+              -116.590169,
+              32.892176
+            ],
+            [
+              -116.584707,
+              32.898159
+            ],
+            [
+              -116.586345,
+              32.905523
+            ],
+            [
+              -116.593446,
+              32.909665
+            ],
+            [
+              -116.603277,
+              32.909205
+            ],
+            [
+              -116.612016,
+              32.906443
+            ],
+            [
+              -116.61584,
+              32.9
+            ],
+            [
+              -116.614747,
+              32.891255
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "NAME": "Jackson Creek Vegetation Restoration",
+        "FOREST": "Cleveland National Forest",
+        "DISTRICT": "Descanso Ranger District",
+        "NEPA": "CE 36 CFR 220.6(e)(6)",
+        "GIS_ACRES": 1250
+      }
+    }
+  ]
+}

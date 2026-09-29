@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { PermissionResolver } from "../src/permission-resolver";
+import {
+  isMembershipGrant,
+  PermissionResolver,
+} from "../src/permission-resolver";
 import type {
   EntityHierarchyService,
   EntityMetadata,
@@ -570,5 +573,51 @@ describe("PermissionResolver.getAllowedActionsBatch", () => {
       });
     }
     assert.ok(!h.calls.some((c) => c.startsWith("ancestors")));
+  });
+});
+
+describe("isMembershipGrant", () => {
+  it("is false for office READ reached only through a child project", async () => {
+    const h = createHarness([
+      membership(PROJECT, EntityType.PROJECT, MemberRole.OWNER),
+    ]);
+    const result = await h.resolver.checkPermission(
+      USER,
+      OFFICE,
+      EntityType.OFFICE,
+      Action.READ,
+    );
+    assert.equal(result.allowed, true);
+    assert.equal(isMembershipGrant(result), false);
+  });
+
+  it("is true for office READ inherited from an organization role", async () => {
+    const h = createHarness([
+      membership(ORG, EntityType.ORGANIZATION, MemberRole.VIEWER),
+    ]);
+    const result = await h.resolver.checkPermission(
+      USER,
+      OFFICE,
+      EntityType.OFFICE,
+      Action.READ,
+    );
+    assert.equal(isMembershipGrant(result), true);
+  });
+
+  it("is true for a direct office role", async () => {
+    const h = createHarness([
+      membership(OFFICE, EntityType.OFFICE, MemberRole.VIEWER),
+    ]);
+    const result = await h.resolver.checkPermission(
+      USER,
+      OFFICE,
+      EntityType.OFFICE,
+      Action.READ,
+    );
+    assert.equal(isMembershipGrant(result), true);
+  });
+
+  it("is false for a denial", () => {
+    assert.equal(isMembershipGrant({ allowed: false }), false);
   });
 });

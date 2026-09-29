@@ -2,14 +2,16 @@
 
 import { BrainCircuit, ChartGantt, Handshake, Sparkles } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { FeatureSection } from "./feature-section";
-import { FeatureShowcase } from "./feature-showcase";
+import { PAGE_GUTTER, SECTION_Y } from "./ui/layout";
 
 const FEATURES = [
   {
     badge: "Research",
     badgeIcon: BrainCircuit,
-    heading: "Accelerate project research",
+    heading: "Find the right Categorical Exclusion",
+    headingAccent: "in seconds",
     description:
       "Automatically surface relevant project context. Our AI instantly finds the right Categorical Exclusions and references past online documents.",
     visualSrc: "/images/features/research.webp",
@@ -22,7 +24,8 @@ const FEATURES = [
   {
     badge: "AI Drafting",
     badgeIcon: Sparkles,
-    heading: "Accelerate drafting NEPA documents",
+    heading: "Turn a blank page into a",
+    headingAccent: "NEPA draft",
     description:
       "Turn a blank page into a structured NEPA document in seconds. We auto-generate Scoping Letters with correct locations, intents, and citations.",
     visualSrc: "/images/features/aidrafting.webp",
@@ -34,7 +37,8 @@ const FEATURES = [
   {
     badge: "Planning",
     badgeIcon: ChartGantt,
-    heading: "Accelerate project planning",
+    heading: "Track every survey, boundary and",
+    headingAccent: "milestone",
     description:
       "Track every detail — from Botany Surveys to GIS boundaries. On an interactive, keyboard-friendly Gantt chart.",
     visualSrc: "/images/features/planning.webp",
@@ -46,7 +50,8 @@ const FEATURES = [
   {
     badge: "Community",
     badgeIcon: Handshake,
-    heading: "Collaborate with the community and partners",
+    heading: "Collaborate with the community and",
+    headingAccent: "partners",
     description:
       "Provide a secure platform for public comments. External partners can easily submit project applications directly to your agency.",
     visualSrc: "/images/features/community.webp",
@@ -59,14 +64,14 @@ const FEATURES = [
 
 export function Features() {
   return (
+    // Rows are spaced with the shared section rhythm.
     <section
-      className="flex flex-col items-center gap-16 self-stretch pt-8 pb-12 sm:gap-20 sm:pt-10 sm:pb-16 md:gap-24 lg:gap-[132px] lg:pt-12 lg:pb-[90px]"
-      style={{
-        background:
-          "linear-gradient(180deg, rgba(209, 230, 222, 0.00) -41.46%, #F4F9F7 64.05%)",
-      }}
+      className={cn(
+        PAGE_GUTTER,
+        SECTION_Y,
+        "flex flex-col items-center gap-16 self-stretch sm:gap-20 lg:gap-28",
+      )}
     >
-      <FeatureShowcase />
       {FEATURES.map((feature) => (
         <FeatureSection key={feature.badge} {...feature} />
       ))}

@@ -1,0 +1,153 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.612562,
+              32.893096
+            ],
+            [
+              -116.603277,
+              32.892176
+            ],
+            [
+              -116.602185,
+              32.89954
+            ],
+            [
+              -116.612016,
+              32.90046
+            ],
+            [
+              -116.612562,
+              32.893096
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "UNIT_ID": "JC-01",
+        "TREATMENT": "Mastication",
+        "VEG_TYPE": "Chamise chaparral",
+        "SEASON": "Sep-Feb",
+        "GIS_ACRES": 182.3
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.599454,
+              32.893096
+            ],
+            [
+              -116.590169,
+              32.894293
+            ],
+            [
+              -116.587438,
+              32.89908
+            ],
+            [
+              -116.598361,
+              32.9
+            ],
+            [
+              -116.599454,
+              32.893096
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "UNIT_ID": "JC-02",
+        "TREATMENT": "Mastication",
+        "VEG_TYPE": "Chamise chaparral",
+        "SEASON": "Sep-Feb",
+        "GIS_ACRES": 150.6
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.610378,
+              32.901841
+            ],
+            [
+              -116.602185,
+              32.901381
+            ],
+            [
+              -116.602731,
+              32.906904
+            ],
+            [
+              -116.609285,
+              32.905063
+            ],
+            [
+              -116.610378,
+              32.901841
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "UNIT_ID": "JC-03",
+        "TREATMENT": "Hand thin and pile",
+        "VEG_TYPE": "Coast live oak woodland",
+        "SEASON": "Year-round",
+        "GIS_ACRES": 82.1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.597269,
+              32.901841
+            ],
+            [
+              -116.589076,
+              32.901381
+            ],
+            [
+              -116.589622,
+              32.905063
+            ],
+            [
+              -116.595084,
+              32.907824
+            ],
+            [
+              -116.597269,
+              32.901841
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "UNIT_ID": "JC-04",
+        "TREATMENT": "Invasive removal",
+        "VEG_TYPE": "Sycamore-willow riparian",
+        "SEASON": "Aug-Oct",
+        "GIS_ACRES": 87.9
+      }
+    }
+  ]
+}

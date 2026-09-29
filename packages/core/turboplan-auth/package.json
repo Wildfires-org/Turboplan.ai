@@ -8,7 +8,8 @@
     "build": "tsdown",
     "dev": "tsdown --watch --no-clean",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test $(find tests -name '*.test.ts')"
   },
   "exports": {
     ".": {
@@ -53,13 +54,13 @@
     }
   },
   "dependencies": {
-    "@auth/core": "^0.37.4",
+    "@auth/core": "^0.41.3",
     "@wildfires-org/turboplan-db": "workspace:*",
     "@wildfires-org/turboplan-env": "workspace:*"
   },
   "peerDependencies": {
-    "next": ">=15.0.0",
-    "next-auth": "^5.0.0-beta.25",
+    "next": ">=15.5.25",
+    "next-auth": "^5.0.0-beta.32",
     "react": "^19.1.1"
   },
   "devDependencies": {
@@ -67,6 +68,7 @@
     "@types/react": "^19.1.1",
     "rollup-plugin-preserve-use-client": "^3.0.1",
     "tsdown": "^0.15.9",
+    "tsx": "^4.19.1",
     "typescript": "^5.3.3"
   }
 }

@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { adminUsersRouter } from "./admin-users";
 import { aiModelsRouter } from "./ai-models";
 import { promptsRouter } from "./prompts";
+import { userSearchRouter } from "./user-search";
 import { webhookLogsRouter } from "./webhook-logs";
 
 /**
@@ -15,6 +16,7 @@ adminRouter.route("/prompts", promptsRouter);
 adminRouter.route("/admin-users", adminUsersRouter);
 adminRouter.route("/webhook-logs", webhookLogsRouter);
 adminRouter.route("/ai-models", aiModelsRouter);
+adminRouter.route("/users", userSearchRouter);
 
 export { adminRouter };
 

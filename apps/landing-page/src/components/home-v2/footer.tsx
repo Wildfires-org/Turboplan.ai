@@ -1,7 +1,9 @@
 import Image from "next/image";
 
+import { PAGE_CONTAINER, PAGE_GUTTER } from "@/components/home-v2/ui/layout";
 import { AnalyticsLink } from "@/components/shared/analytics-link";
 import { brand } from "@/lib/brand";
+import { cn } from "@/lib/utils";
 import { events } from "@/types/analytics";
 import { routing } from "@/utils/routing";
 
@@ -38,11 +40,16 @@ export function Footer() {
   return (
     <footer
       id="footer-bar"
-      className="bg-transparent [padding-bottom:env(safe-area-inset-bottom)] sm:border-t sm:border-egray-100"
+      className={cn(PAGE_GUTTER, "pb-[max(1rem,env(safe-area-inset-bottom))]")}
     >
-      <div className="mx-auto flex max-w-[1440px] flex-col items-center gap-5 px-6 py-6 sm:flex-row sm:justify-between sm:gap-0 sm:py-5 lg:px-28">
+      <div
+        className={cn(
+          PAGE_CONTAINER,
+          "glass flex flex-col items-center gap-5 rounded-2xl px-6 py-6 sm:flex-row sm:justify-between sm:gap-0 sm:py-4 lg:px-8",
+        )}
+      >
         {/* Copyright — last on mobile, left on desktop */}
-        <p className="order-3 font-inter text-[13px] font-normal leading-[20px] text-[#6B7280] sm:order-none sm:w-[296px] sm:text-left">
+        <p className="order-3 font-inter text-[13px] font-normal leading-[20px] text-egray-700 sm:order-none sm:w-[296px] sm:text-left">
           &copy; {new Date().getFullYear()} {brand.name}
         </p>
 
