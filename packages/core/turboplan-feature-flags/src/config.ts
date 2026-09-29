@@ -1,4 +1,7 @@
-import { isEnvValueTruthy } from "@wildfires-org/turboplan-env";
+import {
+  isEnvValueExplicitlyFalse,
+  isEnvValueTruthy,
+} from "@wildfires-org/turboplan-env";
 
 // Feature flags configuration
 // Feature flags are now controlled via environment variables (remember to prefix with NEXT_PUBLIC_ for next.js client side usage):
@@ -10,6 +13,7 @@ import { isEnvValueTruthy } from "@wildfires-org/turboplan-env";
 // - IS_TIMELINE_RECORDS_PACKAGE_ENABLED
 // - IS_PROJECT_CONTEXT_PACKAGE_ENABLED
 // - IS_BILLING_PACKAGE_ENABLED
+// - IS_BILLING_ENFORCEMENT_ENABLED (defaults to ON; only "false"/"0" disables it)
 
 // Define the feature flags structure
 export const featureFlags = {
@@ -47,6 +51,17 @@ export const featureFlags = {
     billing:
       isEnvValueTruthy(process.env.NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED) ||
       isEnvValueTruthy(process.env.IS_BILLING_PACKAGE_ENABLED),
+  },
+  // Sub-feature toggles that refine an enabled package rather than load one.
+  billing: {
+    // Credit, active-project and seat limits. Default ON (upstream-safe): only
+    // an explicit "false"/"0" in either variant turns enforcement off, while
+    // plans, pricing, checkout, Stripe and metering keep working.
+    enforcement: !(
+      isEnvValueExplicitlyFalse(
+        process.env.NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED,
+      ) || isEnvValueExplicitlyFalse(process.env.IS_BILLING_ENFORCEMENT_ENABLED)
+    ),
   },
 };
 

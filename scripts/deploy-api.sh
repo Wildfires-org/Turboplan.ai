@@ -76,6 +76,8 @@ VARS=(
   --var "IS_TIMELINE_RECORDS_PACKAGE_ENABLED:${IS_TIMELINE_RECORDS_PACKAGE_ENABLED:-false}"
   --var "IS_PROJECT_CONTEXT_PACKAGE_ENABLED:${IS_PROJECT_CONTEXT_PACKAGE_ENABLED:-false}"
   --var "IS_BILLING_PACKAGE_ENABLED:${IS_BILLING_PACKAGE_ENABLED:-false}"
+  # Defaults to true: only an explicit false turns off billing limits.
+  --var "IS_BILLING_ENFORCEMENT_ENABLED:${IS_BILLING_ENFORCEMENT_ENABLED:-true}"
   --var "IS_SIGNING_PACKAGE_ENABLED:${IS_SIGNING_PACKAGE_ENABLED:-false}"
   # Documenso signing (API URL is non-sensitive; key and webhook secret are secrets below)
   --var "DOCUMENSO_API_URL:${DOCUMENSO_API_URL:-}"

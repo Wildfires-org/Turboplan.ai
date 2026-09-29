@@ -4,6 +4,8 @@ Workspace billing for TurboPlan: a declarative pricing catalog, Stripe subscript
 
 Gated by the `IS_BILLING_PACKAGE_ENABLED` feature flag (`NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED` on the web client). When disabled, credit gating and entitlement checks become no-ops.
 
+To keep plans, pricing, checkout and metering but stop blocking anyone, set `IS_BILLING_ENFORCEMENT_ENABLED=false` (and `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED=false` for the web app). This turns `assertCreditsAvailable`, `getProjectCreationEntitlement` and `assertSeatAvailable` into no-ops; it defaults to on when unset.
+
 ## Plans
 
 Defined in `catalog/pricing.yaml` (see [Pricing catalog](#pricing-catalog)); current shipped catalog:
