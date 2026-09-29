@@ -300,7 +300,7 @@ jobs:
           cache: pnpm
 
       - name: Cache turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-landing-${{ github.sha }}
@@ -440,7 +440,7 @@ jobs:
           cache: pnpm
 
       - name: Cache turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-server-${{ github.sha }}
@@ -693,7 +693,7 @@ jobs:
           cache: pnpm
 
       - name: Cache turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-web-${{ github.sha }}
@@ -1050,7 +1050,7 @@ jobs:
           cache: pnpm
 
       - name: Cache turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-mcp-${{ github.sha }}
