@@ -69,8 +69,8 @@ Rules:
 - Each bubble = ONE distinct choice. NEVER combine options with "/" or "or" in a single bubble.
 
 In full mode (research complete):
-Suggestions should be specific document types relevant to the project.
-Example: generateQuickResponses({ conversationContext: "Asked user which document to draft first. Project is a routine, low-impact vegetation-thinning project likely needing only a lightweight exclusion. Most likely: Scoping/Consultation Letter. Alternate: Decision Document." })
+Suggestions should be specific document types relevant to the project's review framework and current stage — never default to one framework's documents.
+Example: generateQuickResponses({ conversationContext: "Asked user which document to draft first. Framework (from project fields): state-level review tiering from a program-level document. Most likely: the program's project notification. Alternate: tribal consultation initiation letter." })
 
 In research mode (research NOT complete):
 Suggestions MUST be direct answers to your clarifying question. NEVER suggest document creation in research mode.

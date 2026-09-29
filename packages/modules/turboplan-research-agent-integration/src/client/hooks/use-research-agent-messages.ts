@@ -11,14 +11,15 @@ type MessagesResponse = {
   messages: ResearchAgentMessage[];
 };
 
+export const getResearchAgentMessagesKey = (projectId: string) =>
+  `/api/ai/research-agent/bootstrapper/project/${projectId}/messages`;
+
 export function useResearchAgentMessages(
   projectId: string | null,
   isActive: boolean,
 ) {
   const { data, mutate, isLoading } = useSWR<MessagesResponse>(
-    projectId
-      ? `/api/ai/research-agent/bootstrapper/project/${projectId}/messages`
-      : null,
+    projectId ? getResearchAgentMessagesKey(projectId) : null,
     fetcher,
     {
       refreshInterval: isActive

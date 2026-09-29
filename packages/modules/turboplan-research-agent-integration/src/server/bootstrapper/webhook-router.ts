@@ -10,7 +10,6 @@ import {
   isTimelineRecordsPackageEnabled,
 } from "@wildfires-org/turboplan-feature-flags";
 import type { RBACContext } from "@wildfires-org/turboplan-rbac/hono";
-import { getProjectById } from "@wildfires-org/turboplan-workspace/server";
 
 import type {
   ResearchAgentChat,
@@ -34,7 +33,6 @@ import {
 } from "../schemas";
 import { handleRouteError } from "../utils";
 import { webhookLoggerMiddleware } from "../webhook-logger-middleware";
-import { generateSuggestionsFromMilestones } from "./service";
 
 type WebhookContext = RBACContext & {
   Variables: RBACContext["Variables"] & {
@@ -201,23 +199,6 @@ bootstrapperWebhookRouter.post(
         type: ResearchAgentMessageType.MILESTONES,
         data: { milestones: milestonesWithState },
       });
-
-      if (webhookProjectId) {
-        const project = await getProjectById(webhookProjectId);
-        if (project) {
-          generateSuggestionsFromMilestones({
-            chatId: researchAgentRecord.chatId,
-            researchAgentChatId: researchAgentRecord.id,
-            milestones: milestonesWithState,
-            projectName: project.name,
-          }).catch((err) => {
-            console.error(
-              "Failed to generate suggestions from milestones:",
-              err,
-            );
-          });
-        }
-      }
 
       return c.json({ success: true });
     } catch (error) {

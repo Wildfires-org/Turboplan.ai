@@ -70,7 +70,7 @@ Required:
 Optional:
 
 - Organization/office
-- Framework (NEPA, CEQA, EU EIA, etc.)
+- Framework (NEPA, CEQA, CalVTP, EU EIA, etc.)
 - Location details
 - Timeline preferences
 
@@ -105,12 +105,22 @@ Research project phases and timelines:
 - Environmental review phases — e.g. for NEPA: Scoping → Public Comment → EA/EIS → Decision; adapt the phase names to the project's framework
 - Implementation phases: Design → Permitting → Construction → Monitoring
 
+**CalVTP projects** (California vegetation treatment / fuels reduction that tiers from the 2019 CalVTP Program EIR via a Project-Specific Analysis, PSA): report fields `Framework: CalVTP` and `Program EIR: 2019 CalVTP PEIR` (not NEPA; add NEPA only if there is a federal nexus). Typical milestones:
+- Project registration / notification to the Board of Forestry
+- AB 52 tribal consultation initiation
+- CNDDB / special-status species scoping
+- Biological surveys: reconnaissance-level across the planning area, protocol-level within priority sub-areas
+- Cultural resources survey (often subcontracted)
+- PSA with the Standard Project Requirements (SPR) checklist
+- Mitigation Monitoring and Reporting Program (MMRP) and CEQA findings
+- Notice of Determination (NOD)
+
 ### 3. CUSTOM FIELDS (Required: label + value)
 
 Collect key metadata:
 
-- **Framework**: NEPA, CEQA, EU EIA, etc.
-- **Review Type**: Categorical Exclusion, EA, EIS
+- **Framework**: NEPA, CEQA, CalVTP, EU EIA, etc.
+- **Review Type**: Categorical Exclusion, EA, EIS, PSA (tiered from a Program EIR), etc.
 - **CE/Exemption Category**: 36 CFR 220.6(e)(6), etc.
 - **Legal Authority**: HFRA §605, IIJA §40806, etc.
 - **Location**: State, County, specific site

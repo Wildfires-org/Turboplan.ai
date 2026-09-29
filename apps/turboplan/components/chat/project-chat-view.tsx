@@ -224,6 +224,7 @@ const ProjectChatViewInner = ({
     isResearchPhaseCompleted,
     completeResearchPhase,
     isCompleting: isCompletingResearch,
+    isGeneratingSuggestions,
   } = useResearchPhase(
     researchEnabled && effectiveIsInitialChat ? project.id : null,
   );
@@ -514,6 +515,9 @@ const ProjectChatViewInner = ({
                     projectName={project.name}
                     researchSuggestions={
                       effectiveIsInitialChat ? researchSuggestions : undefined
+                    }
+                    isSuggestionsLoading={
+                      effectiveIsInitialChat && isGeneratingSuggestions
                     }
                   />
                 </Fragment>

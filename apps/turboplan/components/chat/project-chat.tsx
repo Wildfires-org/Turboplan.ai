@@ -48,6 +48,8 @@ type ProjectChatProps = {
   isResearchPhaseCompleted?: boolean;
   projectName?: string;
   researchSuggestions?: Array<{ label: string; content: string }>;
+  /** Next-step suggestions are being generated: show a loading row, not the fallback chips. */
+  isSuggestionsLoading?: boolean;
 };
 
 export type ProjectChatRef = {
@@ -67,6 +69,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       isResearchPhaseCompleted,
       projectName,
       researchSuggestions,
+      isSuggestionsLoading = false,
     },
     ref,
   ) {
@@ -400,9 +403,10 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
 
             {isResearchPhaseCompleted &&
               !isReadonly &&
-              suggestions.length > 0 && (
+              (isSuggestionsLoading || suggestions.length > 0) && (
                 <SuggestionPills
                   suggestions={suggestions}
+                  isLoading={isSuggestionsLoading}
                   onSuggestionClick={handleSuggestionClick}
                 />
               )}

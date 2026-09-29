@@ -73,7 +73,7 @@ export const generateQuickResponses = async (options?: {
     execute: async ({ conversationContext }) => {
       const documentGuidance = isResearchMode
         ? "- DO NOT suggest document creation, document drafting, or any document-related actions. Suggestions must be direct answers to the AI's clarifying question. Never suggest creating, drafting, or writing any documents."
-        : "- When the context suggests document creation, focus on NEPA documents (Scoping Letters, Environmental Assessments, Decision Memos) — not tasks or milestones";
+        : "- When the context suggests document creation, suggest the specific documents that fit the project's review framework and stage as described in the context (use that framework's own document names; do not assume any particular framework) — not tasks or milestones";
 
       const generation = await generateObject({
         model: await getModel("lite"),
@@ -82,8 +82,8 @@ export const generateQuickResponses = async (options?: {
 All 3 must be plausible, distinct answers to the question — ranked from most likely to least likely based on context clues. No filler options like "Something else" or "Not sure" — every bubble should be a real answer the user might give.
 
 Each response:
-- Title: Start with a single relevant emoji, then 2-5 words (e.g., "🏛️ USFS Truckee District", "🌲 Categorical Exclusion")
-- Message: The actual answer in under 10 words. Just the answer, no explanation or justification. Each bubble must be ONE single choice — NEVER combine options with "/" or "or" (e.g., "Categorical Exclusion" not "CE / Decision Memo"). If there are multiple options, put each in its own bubble.
+- Title: Start with a single relevant emoji, then 2-5 words (e.g., "🏛️ County Planning Office", "🌲 Tribal Consultation Letter")
+- Message: The actual answer in under 10 words. Just the answer, no explanation or justification. Each bubble must be ONE single choice — NEVER combine options with "/" or "or" (e.g., "Initial Study" not "Initial Study / Notice"). If there are multiple options, put each in its own bubble.
 ${documentGuidance}
 - MUST be pure statements — NEVER questions
 - Each must be different`,

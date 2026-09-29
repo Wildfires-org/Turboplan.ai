@@ -32,6 +32,7 @@ const {
   commentAutoResponderPrompt,
   emptyStateSuggestionsTemplate,
   fullModePrompt,
+  projectNextStepSuggestionsTemplate,
   researchAgentForwardMessagesTemplate,
   researchAgentNoResultsContextTemplate,
   researchAgentSavedContextTemplate,
@@ -205,6 +206,14 @@ const PROMPT_SEEDS: PromptSeed[] = [
     description:
       "Generates personalized suggestion pills for empty project states. Uses {{section}}, {{projectName}}, {{projectDescription}} variables.",
     content: emptyStateSuggestionsTemplate,
+    category: C.ProjectChat,
+  },
+  {
+    name: "project-next-step-suggestions",
+    title: "Project Next-Step Suggestions Prompt",
+    description:
+      "Generates the framework-aware next-step chips under the project chat input after research. Uses {{projectName}}, {{projectDescription}}, {{projectFields}}, {{projectContext}}, {{projectDocuments}}, {{projectMilestones}}, {{projectActivity}} variables.",
+    content: projectNextStepSuggestionsTemplate,
     category: C.ProjectChat,
   },
   {
