@@ -32,6 +32,8 @@ export {
   generateTitlesSystemPrompt,
   generateTitlesUserPrompt,
 } from "./generate-titles";
+// Next-step suggestion chips
+export { projectNextStepSuggestionsTemplate } from "./next-step-suggestions";
 export {
   researchAgentForwardMessagesTemplate,
   researchAgentNoResultsContextTemplate,

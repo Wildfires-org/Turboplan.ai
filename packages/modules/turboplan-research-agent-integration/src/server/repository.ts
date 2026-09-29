@@ -843,3 +843,102 @@ export async function getExistingTaskIds(
     .where(inArray(tasksTable.id, ids));
   return new Set(rows.map((row) => row.id));
 }
+
+// Next-step suggestion inputs
+
+const MAX_SUGGESTION_DRAFTED_DOCUMENTS = 15;
+const MAX_SUGGESTION_USER_MESSAGES = 12;
+
+/** Saved project milestones with their tasks, in schedule order. */
+export const getProjectMilestonesWithTasks = (
+  projectId: string,
+): Promise<
+  {
+    title: string;
+    status: string;
+    tasks: { title: string; status: string }[];
+  }[]
+> => {
+  return withRepoError("getProjectMilestonesWithTasks", async () => {
+    const milestoneRows = await db
+      .select({
+        id: milestonesTable.id,
+        title: milestonesTable.title,
+        status: milestonesTable.status,
+      })
+      .from(milestonesTable)
+      .where(eq(milestonesTable.projectId, projectId))
+      .orderBy(asc(milestonesTable.startDate), asc(milestonesTable.order));
+    if (milestoneRows.length === 0) {
+      return [];
+    }
+
+    const taskRows = await db
+      .select({
+        title: tasksTable.title,
+        status: tasksTable.status,
+        milestoneId: tasksTable.milestoneId,
+      })
+      .from(tasksTable)
+      .where(
+        inArray(
+          tasksTable.milestoneId,
+          milestoneRows.map((row) => row.id),
+        ),
+      )
+      .orderBy(asc(tasksTable.startDate), asc(tasksTable.order));
+
+    const tasksByMilestone = new Map<
+      string,
+      { title: string; status: string }[]
+    >();
+    for (const task of taskRows) {
+      const list = tasksByMilestone.get(task.milestoneId) ?? [];
+      list.push({ title: task.title, status: task.status });
+      tasksByMilestone.set(task.milestoneId, list);
+    }
+
+    return milestoneRows.map((row) => ({
+      title: row.title,
+      status: row.status,
+      tasks: tasksByMilestone.get(row.id) ?? [],
+    }));
+  });
+};
+
+/**
+ * Titles of text documents drafted in one chat, newest first. Scoped to a
+ * single chat because other members' chats are private.
+ */
+export const getDraftedDocumentTitlesByChatId = (
+  chatId: string,
+): Promise<string[]> => {
+  return withRepoError("getDraftedDocumentTitlesByChatId", async () => {
+    const rows = await db
+      .select({ title: document.title })
+      .from(document)
+      .where(and(eq(document.chatId, chatId), eq(document.kind, "text")))
+      .groupBy(document.title)
+      .orderBy(desc(max(document.createdAt)))
+      .limit(MAX_SUGGESTION_DRAFTED_DOCUMENTS);
+    return rows.map((row) => row.title);
+  });
+};
+
+/**
+ * Raw parts of the most recent user messages in one chat. Scoped to a single
+ * chat because other members' chats are private.
+ */
+export const getRecentUserMessagePartsByChatId = (
+  chatId: string,
+): Promise<unknown[]> => {
+  return withRepoError("getRecentUserMessagePartsByChatId", async () => {
+    const rows = await db
+      .select({ parts: message.parts })
+      .from(message)
+      .where(and(eq(message.chatId, chatId), eq(message.role, "user")))
+      .orderBy(desc(message.createdAt))
+      .limit(MAX_SUGGESTION_USER_MESSAGES);
+    return rows.map((row) => row.parts);
+  });
+};

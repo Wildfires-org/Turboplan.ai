@@ -16,6 +16,7 @@ import {
   commentAutoResponderPrompt,
   emptyStateSuggestionsTemplate,
   fullModePrompt,
+  projectNextStepSuggestionsTemplate,
   researchAgentForwardMessagesTemplate,
   researchAgentNoResultsContextTemplate,
   researchAgentSavedContextTemplate,
@@ -87,6 +88,7 @@ const HARDCODED_PROMPTS = {
   "text-document": textDocumentPrompt,
   // UI / suggestions
   "empty-state-suggestions": emptyStateSuggestionsTemplate,
+  "project-next-step-suggestions": projectNextStepSuggestionsTemplate,
   // Document update templates
   "update-document-text": updateDocumentTextTemplate,
   "update-document-code": updateDocumentCodeTemplate,

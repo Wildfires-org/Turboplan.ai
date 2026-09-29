@@ -13,9 +13,14 @@ Research phase is complete. All tools are available.
 Research is complete — don't reopen open-ended research questions. Pivot to action by suggesting relevant
 environmental documents the user could draft based on what you know about the project.
 
-Pick the most logical next step given the project's context. For example:
-- If the project is early-stage, suggest a Scoping/Consultation Letter or Purpose & Need statement
-- If scoping is done, suggest an Environmental Assessment or Decision Document
+Pick the most logical next deliverable for THIS project's review framework and current stage:
+- Identify the framework from the project fields (e.g. Framework, Lead Agency, Review Type, Program EIR),
+  saved context and documents. Never assume a federal framework by default — a state-level review, or a
+  project tiering from a program-level document, has its own notices, consultations and findings.
+- Check what is already done (completed tasks, documents on file, documents drafted in this conversation)
+  and suggest the next deliverable that is still ahead, using that framework's own document names.
+- If the framework is unclear, suggest a neutral planning deliverable (project summary, stakeholder
+  outreach letter, schedule, permit checklist) or ask which review pathway applies.
 - If specific resource concerns came up, suggest relevant analysis sections
 
 Example: "Now that research is complete, based on what I know about your project, a good next

@@ -33,7 +33,6 @@ import { ResearchAgentChatStatus, ResearchAgentMessageType } from "../../types";
 import {
   countProgressMessagesByChatId,
   createResearchAgentChat,
-  createResearchAgentMessage,
   getActiveResearchAgentChatByChatId,
   getChatByProjectId,
   getResearchAgentChatByChatId,
@@ -46,6 +45,7 @@ import { saveMilestonesToProjectSchema, saveToProjectSchema } from "../schemas";
 import { handleRouteError } from "../utils";
 import {
   forwardNewMessagesToResearchAgent,
+  generateProjectSuggestions,
   reconcileExternalStatus,
   reconcileSavedMilestonesInMessages,
   resolveDocumentPreviewUrl,
@@ -368,6 +368,52 @@ bootstrapperRouter.get(
       });
     } catch (error) {
       return handleRouteError(c, "bootstrapper-messages", error);
+    }
+  },
+);
+
+// POST /project/:projectId/suggestions/regenerate - Build the next-step chips
+// from the project's saved data. Called when the user completes the research
+// phase, which is when the chips first become visible.
+bootstrapperRouter.post(
+  "/project/:projectId/suggestions/regenerate",
+  zValidator("param", projectParams),
+  requirePermission(
+    EntityType.PROJECT,
+    Action.UPDATE,
+    (c) => c.req.param("projectId")!,
+  ),
+  async (c) => {
+    try {
+      const projectId = c.req.param("projectId")!;
+
+      const chatRecord = await getChatByProjectId(projectId);
+      if (!chatRecord) {
+        return c.json({ error: "No chat found for project" }, 404);
+      }
+
+      // Suggestions are stored as a research-agent message, which needs a run.
+      const researchAgentRecord = await getResearchAgentChatByChatId(
+        chatRecord.id,
+      );
+      if (!researchAgentRecord) {
+        return c.json({ error: "No research run found for project" }, 404);
+      }
+
+      const billingOrgId = await resolveBillingOrgForProject(projectId);
+      const blocked = await gateCreditsOr402(c, billingOrgId);
+      if (blocked) {
+        return blocked;
+      }
+
+      const suggestions = await generateProjectSuggestions({
+        projectId,
+        chatId: chatRecord.id,
+        researchAgentChatId: researchAgentRecord.id,
+      });
+      return c.json({ suggestions });
+    } catch (error) {
+      return handleRouteError(c, "bootstrapper-regenerate-suggestions", error);
     }
   },
 );
