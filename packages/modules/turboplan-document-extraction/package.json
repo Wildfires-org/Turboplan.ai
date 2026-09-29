@@ -28,9 +28,9 @@
     "unpdf": "^1.6.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.1.4",
-    "@types/node": "^20.10.5",
-    "tsdown": "^0.15.9",
+    "@biomejs/biome": "^2.5.14",
+    "@types/node": "^26.6.3",
+    "tsdown": "^0.23.0",
     "typescript": "^5.3.3"
   }
 }

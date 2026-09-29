@@ -28,11 +28,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250410.0",
-    "@types/node": "^25.9.1",
-    "esbuild": "^0.25.12",
+    "@cloudflare/workers-types": "^5.20260926.1",
+    "@types/node": "^26.6.3",
+    "esbuild": "^0.28.2",
     "tsx": "^4.19.1",
     "typescript": "^5.8.2",
-    "wrangler": "^4.94.0"
+    "wrangler": "^4.141.0"
   }
 }
