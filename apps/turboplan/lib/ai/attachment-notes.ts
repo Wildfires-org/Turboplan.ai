@@ -17,29 +17,53 @@ type NamedFile = {
   mediaType?: string;
 };
 
+// Types a ZIP may arrive with. `application/octet-stream` is what browsers
+// report when they cannot name a type; an unrecognised file with it has
+// always been treated as a GIS archive here.
+const ARCHIVE_MEDIA_TYPES = [
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/octet-stream",
+];
+
 const quoteNames = (names: Array<string>) =>
   names.map((name) => JSON.stringify(name)).join(", ");
 
 /**
- * Project chats save the layers of every attached ZIP to the project map on
- * the client as soon as the file is attached; other chats only offer the map
- * visualization.
+ * GIS files: ZIP/KMZ archives and standalone GeoJSON, KML and GeoPackage
+ * files (by extension or type, see `classifyProjectFile`), plus unrecognised
+ * files sent with an archive type.
  */
-export const buildZipAttachmentNote = (
-  zipNames: Array<string>,
+export const isGisAttachment = ({ name, mediaType }: NamedFile): boolean => {
+  const kind = classifyProjectFile({ name, type: mediaType ?? "" });
+  if (kind === "gis") {
+    return true;
+  }
+  return (
+    kind === "unsupported" && ARCHIVE_MEDIA_TYPES.includes(mediaType ?? "")
+  );
+};
+
+/**
+ * Project chats save the layers of every attached GIS file to the project map
+ * on the client as soon as the file is attached; other chats only offer the
+ * map visualization.
+ */
+export const buildGisAttachmentNote = (
+  gisFileNames: Array<string>,
   { isProjectChat }: Pick<AttachmentNoteContext, "isProjectChat">,
 ): string | null => {
-  if (zipNames.length === 0) {
+  if (gisFileNames.length === 0) {
     return null;
   }
 
-  const names = zipNames.join(", ");
+  const names = gisFileNames.join(", ");
 
   if (!isProjectChat) {
-    return `[System: User has uploaded ZIP file(s): ${names} - these contain geospatial data ready for map visualization]`;
+    return `[System: User has uploaded GIS file(s): ${names} - these contain geospatial data ready for map visualization]`;
   }
 
-  return `[System: User has uploaded GIS ZIP file(s): ${names}. The app adds the GIS layers from these files to the project map automatically and shows the user a confirmation (or an error if a file has no readable GIS data), so do not ask the user to upload or save them again. You can refer to them as layers on the project map and can create a map document to visualize them in the chat.]`;
+  return `[System: User has uploaded GIS file(s): ${names}. The app adds the GIS layers from these files to the project map automatically and shows the user a confirmation (or an error if a file has no readable GIS data), so do not ask the user to upload or save them again. You can refer to them as layers on the project map and can create a map document to visualize them in the chat.]`;
 };
 
 /**

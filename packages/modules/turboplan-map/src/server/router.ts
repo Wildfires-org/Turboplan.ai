@@ -64,7 +64,9 @@ const layerUploadSchema = z
 // Schema for map processing proxy request
 const processRequestSchema = z.object({
   url: z.string().url("Valid URL is required"),
-  filename: z.string().min(1, "Filename is required"),
+  // Forwarded to the map service, which names layers after it and uses its
+  // extension as a format hint (presigned/storage URLs lose the name).
+  filename: z.string().min(1, "Filename is required").max(255),
 });
 
 // GIS processing is genuinely slow — a large archive means a download, a zip

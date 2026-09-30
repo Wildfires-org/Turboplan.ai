@@ -46,6 +46,6 @@ export {
 // Utils
 export type { GisZipSaveResult } from "./utils/save-gis-layers";
 export {
-  processAndSaveGisZip,
+  processAndSaveGisFile,
   saveGisLayersToProject,
 } from "./utils/save-gis-layers";

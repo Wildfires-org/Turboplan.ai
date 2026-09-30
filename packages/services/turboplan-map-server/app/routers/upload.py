@@ -11,6 +11,7 @@ from app.core.exceptions import (
     InvalidURLError,
     InvalidZipFileError,
     NoGISFilesFoundError,
+    UnsupportedFileTypeError,
 )
 from app.services.gis_processor import GISProcessor
 
@@ -23,12 +24,22 @@ async def process_gis_file(
     request: FileUploadRequest,
     _: bool = Depends(verify_api_key),
 ):
-    """Process GIS file from URL. API key authentication is enforced."""
+    """
+    Process a GIS file from URL: a ZIP/KMZ archive or a standalone GeoJSON,
+    KML or GeoPackage file. API key authentication is enforced.
+    """
     try:
         processor = GISProcessor()
-        result = await processor.process_url(str(request.url))
+        result = await processor.process_url(
+            str(request.url), request.filename
+        )
         return result
-    except (InvalidURLError, InvalidZipFileError, NoGISFilesFoundError) as e:
+    except (
+        InvalidURLError,
+        InvalidZipFileError,
+        NoGISFilesFoundError,
+        UnsupportedFileTypeError,
+    ) as e:
         # Caller-side problems (bad URL/host, broken archive, nothing usable
         # inside). Messages are deliberately coarse and never echo upstream
         # errors, so surfacing them is safe.

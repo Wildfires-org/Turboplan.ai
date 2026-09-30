@@ -1,7 +1,7 @@
 /**
  * Save GIS layers straight to a project's map, without the layer-picker
- * dialog. Used wherever a dropped GIS ZIP should "just work" (project chat,
- * project context dropzone).
+ * dialog. Used wherever a dropped GIS file (ZIP, KMZ, KML, GeoJSON or
+ * GeoPackage) should "just work" (project chat, project context dropzone).
  */
 
 import { mutate } from "swr";
@@ -24,10 +24,11 @@ export type GisZipSaveResult = {
   errors: string[];
 };
 
-type ProcessAndSaveGisZipParams = {
+type ProcessAndSaveGisFileParams = {
   projectId: string;
-  /** URL of the ZIP already uploaded to storage */
+  /** URL of the GIS file (ZIP, KMZ, KML, GeoJSON, GeoPackage) already in storage */
   url: string;
+  /** Original file name; names the layers and hints the format */
   fileName: string;
 };
 
@@ -142,15 +143,15 @@ export const saveGisLayersToProject = async (
 };
 
 /**
- * Process an uploaded GIS ZIP with the map service and save its layers to the
- * project map. Throws with the service's message when the ZIP cannot be
+ * Process an uploaded GIS file with the map service and save its layers to
+ * the project map. Throws with the service's message when the file cannot be
  * processed or contains no readable layer.
  */
-export const processAndSaveGisZip = async ({
+export const processAndSaveGisFile = async ({
   projectId,
   url,
   fileName,
-}: ProcessAndSaveGisZipParams): Promise<GisZipSaveResult> => {
+}: ProcessAndSaveGisFileParams): Promise<GisZipSaveResult> => {
   const { data: layers, error } = await apiClient.post<ServerResponse>(
     "/api/maps/process",
     { url, filename: fileName },

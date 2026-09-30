@@ -33,15 +33,15 @@ export const mapDocumentHandler = {
 
     try {
       // Process attachments for map creation
-      const zipAttachments = findGeospatialAttachments(attachments);
+      const gisAttachments = findGeospatialAttachments(attachments);
       const hasGeoContext = hasGeospatialContext(
         userContext,
-        zipAttachments.length > 0,
+        gisAttachments.length > 0,
       );
 
-      if (zipAttachments.length > 0) {
-        // Process the first ZIP file
-        const zipFile = zipAttachments[0];
+      if (gisAttachments.length > 0) {
+        // Process the first GIS file
+        const gisFile = gisAttachments[0];
 
         // Don't process the file here - just save blob URL for later loading
         writer.write({
@@ -52,8 +52,8 @@ export const mapDocumentHandler = {
 
         // Save only blob URL - processing will happen when user opens the artifact
         return JSON.stringify({
-          blobUrl: zipFile.url,
-          fileName: zipFile.name,
+          blobUrl: gisFile.url,
+          fileName: gisFile.name,
           message: `Map artifact created. Data will load when opened.`,
           status: MAP_STATUS.READY_TO_LOAD,
           projectId,
@@ -70,7 +70,7 @@ export const mapDocumentHandler = {
           blobUrl: null,
           fileName: null,
           message:
-            "Map artifact created. Upload a ZIP file containing geospatial data.",
+            "Map artifact created. Upload a GIS file (ZIP, KMZ, KML, GeoJSON or GeoPackage).",
           status: MAP_STATUS.AWAITING_UPLOAD,
           projectId,
         });

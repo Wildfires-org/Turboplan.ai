@@ -41,7 +41,8 @@ import { auth } from "@/app/(auth)/auth";
 import { triggerResearchAgent } from "@/app/self-service/helpers";
 import {
   buildDroppedFilesNote,
-  buildZipAttachmentNote,
+  buildGisAttachmentNote,
+  isGisAttachment,
 } from "@/lib/ai/attachment-notes";
 import { buildSystemPromptArgs } from "@/lib/ai/build-system-prompt-args";
 import { generateTitleFromUserMessage } from "@/lib/ai/generate-title";
@@ -427,9 +428,9 @@ export async function POST(request: Request) {
     // Only images and PDFs can be sent to the model — Anthropic rejects other
     // file types (e.g. docx) with a 400. Unsupported file parts are dropped
     // from `parts` (which convertToModelMessages actually consumes) and
-    // replaced with a text note; ZIP files get a geospatial hint instead. In
+    // replaced with a text note; GIS files get a geospatial hint instead. In
     // project chats the client has already mirrored Word files into project
-    // documents and GIS ZIPs into the project map, and the notes say so.
+    // documents and GIS files into the project map, and the notes say so.
     const attachmentNoteContext = {
       isProjectChat: Boolean(chatProjectId) && hasProjectAccess,
       canReadProjectDocuments: promptArgs.activeTools.includes(
@@ -456,12 +457,6 @@ export async function POST(request: Request) {
       const messageAttachments: LegacyAttachment[] =
         (message as MessageWithAttachments).experimental_attachments ?? [];
 
-      const zipTypes = [
-        "application/zip",
-        "application/x-zip-compressed",
-        "application/octet-stream",
-      ];
-
       const supportedAttachments = messageAttachments.filter((att) =>
         isModelReadableType(att.contentType),
       );
@@ -476,18 +471,22 @@ export async function POST(request: Request) {
         ("filename" in part ? part.filename : undefined) ||
         safeDecodeURIComponent(part.url.split("/").pop() || "") ||
         "unnamed file";
-      const isZipPart = (part: (typeof fileParts)[number]) =>
-        zipTypes.includes(part.mediaType || "") ||
-        filePartName(part).toLowerCase().endsWith(".zip");
+      // GIS files (ZIP/KMZ, GeoJSON, KML — stored as text/plain — and
+      // GeoPackage) are never sent to the model.
+      const isGisPart = (part: (typeof fileParts)[number]) =>
+        isGisAttachment({
+          name: filePartName(part),
+          mediaType: part.mediaType,
+        });
 
-      const zipParts = fileParts.filter(isZipPart);
+      const gisParts = fileParts.filter(isGisPart);
       const droppedParts = fileParts.filter(
-        (part) => !isModelReadableType(part.mediaType) && !isZipPart(part),
+        (part) => !isModelReadableType(part.mediaType) && !isGisPart(part),
       );
 
       const noteLines = [
-        buildZipAttachmentNote(
-          zipParts.map(filePartName),
+        buildGisAttachmentNote(
+          gisParts.map(filePartName),
           attachmentNoteContext,
         ),
         buildDroppedFilesNote(

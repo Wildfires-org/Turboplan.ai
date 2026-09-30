@@ -3,9 +3,13 @@ import { describe, it } from "node:test";
 
 import {
   classifyProjectFile,
-  GIS_ARCHIVE_MAX_FILE_SIZE,
+  GIS_FILE_EXTENSIONS,
+  GIS_MAX_FILE_SIZE,
+  GIS_MIME_TYPES,
+  GIS_UPLOAD_CONTENT_TYPES,
   getProjectFileMaxSize,
   isAllowedUploadContentType,
+  isLegacyWordDocument,
   PROJECT_DOCUMENT_ACCEPT,
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
   PROJECT_DOCUMENT_MIME_TYPES,
@@ -42,22 +46,33 @@ describe("classifyProjectFile", () => {
         name: "layers.zip",
         type: "application/octet-stream",
       }),
-      "gis-zip",
+      "gis",
     );
   });
 
   it("classifies ZIP archives as GIS uploads", () => {
     assert.strictEqual(
       classifyProjectFile({ name: "units.zip", type: "application/zip" }),
-      "gis-zip",
+      "gis",
     );
     assert.strictEqual(
       classifyProjectFile({
         name: "boundary.zip",
         type: "application/x-zip-compressed",
       }),
-      "gis-zip",
+      "gis",
     );
+  });
+
+  it("classifies standalone GIS files by extension", () => {
+    for (const name of [
+      "roads.geojson",
+      "sites.KML",
+      "sites.kmz",
+      "parcels.gpkg",
+    ]) {
+      assert.strictEqual(classifyProjectFile({ name, type: "" }), "gis", name);
+    }
   });
 
   it("falls back to the MIME type for extensionless names", () => {
@@ -67,7 +82,7 @@ describe("classifyProjectFile", () => {
     );
     assert.strictEqual(
       classifyProjectFile({ name: "archive", type: "application/zip" }),
-      "gis-zip",
+      "gis",
     );
   });
 
@@ -77,7 +92,7 @@ describe("classifyProjectFile", () => {
       "unsupported",
     );
     assert.strictEqual(
-      classifyProjectFile({ name: "layer.geojson", type: "" }),
+      classifyProjectFile({ name: "layer.json", type: "application/json" }),
       "unsupported",
     );
     assert.strictEqual(
@@ -119,6 +134,44 @@ describe("resolveProjectFileContentType", () => {
     );
   });
 
+  it("uploads KML as text/plain, never as its +xml type", () => {
+    const kmlType = "application/vnd.google-earth.kml+xml";
+    assert.strictEqual(
+      classifyProjectFile({ name: "sites.kml", type: kmlType }),
+      "gis",
+    );
+    assert.strictEqual(
+      resolveProjectFileContentType({ name: "sites.kml", type: kmlType }),
+      "text/plain",
+    );
+    assert.strictEqual(
+      resolveProjectFileContentType({ name: "download", type: kmlType }),
+      "text/plain",
+    );
+    assert.ok((GIS_MIME_TYPES as readonly string[]).includes(kmlType));
+    assert.ok(!GIS_UPLOAD_CONTENT_TYPES.includes(kmlType));
+    assert.ok(GIS_UPLOAD_CONTENT_TYPES.includes("text/plain"));
+    assert.ok(GIS_UPLOAD_CONTENT_TYPES.every((type) => !type.endsWith("+xml")));
+  });
+
+  it("maps GIS extensions to their content types", () => {
+    const expected: Record<string, string> = {
+      "a.zip": "application/zip",
+      "a.kmz": "application/vnd.google-earth.kmz",
+      "a.kml": "text/plain",
+      "a.geojson": "application/geo+json",
+      "a.gpkg": "application/geopackage+sqlite3",
+    };
+    for (const [name, contentType] of Object.entries(expected)) {
+      assert.strictEqual(
+        resolveProjectFileContentType({ name, type: "" }),
+        contentType,
+        name,
+      );
+      assert.ok(GIS_UPLOAD_CONTENT_TYPES.includes(contentType), name);
+    }
+  });
+
   it("only resolves to types the upload allow list accepts", () => {
     const names = ["a.pdf", "b.doc", "c.docx", "d.zip"];
     for (const name of names) {
@@ -135,10 +188,7 @@ describe("project file limits and accept strings", () => {
       getProjectFileMaxSize("document"),
       PROJECT_DOCUMENT_MAX_FILE_SIZE,
     );
-    assert.strictEqual(
-      getProjectFileMaxSize("gis-zip"),
-      GIS_ARCHIVE_MAX_FILE_SIZE,
-    );
+    assert.strictEqual(getProjectFileMaxSize("gis"), GIS_MAX_FILE_SIZE);
     assert.strictEqual(getProjectFileMaxSize("unsupported"), null);
   });
 
@@ -151,7 +201,38 @@ describe("project file limits and accept strings", () => {
         assert.ok(PROJECT_DOCUMENT_ACCEPT.includes(extension));
       }
     }
-    assert.ok(PROJECT_FILE_ACCEPT.includes(".zip"));
+    for (const extension of GIS_FILE_EXTENSIONS) {
+      assert.ok(PROJECT_FILE_ACCEPT.includes(extension), extension);
+    }
+    assert.ok(!PROJECT_FILE_ACCEPT.split(",").includes(".json"));
     assert.ok(PROJECT_FILE_ACCEPT.includes(PROJECT_DOCUMENT_ACCEPT));
+  });
+});
+
+describe("isLegacyWordDocument", () => {
+  it("flags .doc files", () => {
+    assert.strictEqual(
+      isLegacyWordDocument({ name: "old.DOC", type: "" }),
+      true,
+    );
+    assert.strictEqual(
+      isLegacyWordDocument({ name: "download", type: "application/msword" }),
+      true,
+    );
+  });
+
+  it("does not flag .docx or other documents", () => {
+    assert.strictEqual(
+      isLegacyWordDocument({ name: "new.docx", type: DOCX }),
+      false,
+    );
+    assert.strictEqual(
+      isLegacyWordDocument({ name: "new.docx", type: "application/msword" }),
+      false,
+    );
+    assert.strictEqual(
+      isLegacyWordDocument({ name: "plan.pdf", type: "application/pdf" }),
+      false,
+    );
   });
 });

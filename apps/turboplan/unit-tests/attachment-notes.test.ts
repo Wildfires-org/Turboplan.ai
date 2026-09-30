@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   buildDroppedFilesNote,
-  buildZipAttachmentNote,
+  buildGisAttachmentNote,
+  isGisAttachment,
 } from "../lib/ai/attachment-notes";
 
 const DOCX_TYPE =
@@ -15,23 +16,53 @@ const personalContext = {
   canReadProjectDocuments: false,
 };
 
-describe("buildZipAttachmentNote", () => {
-  it("returns null without ZIPs", () => {
-    assert.strictEqual(buildZipAttachmentNote([], projectContext), null);
+describe("isGisAttachment", () => {
+  it("accepts archives and standalone GIS files", () => {
+    for (const file of [
+      { name: "parcels.zip", mediaType: "application/zip" },
+      { name: "area.kmz", mediaType: "application/vnd.google-earth.kmz" },
+      // KML is stored as text/plain; the extension identifies it
+      { name: "sites.kml", mediaType: "text/plain" },
+      { name: "roads.geojson", mediaType: "application/geo+json" },
+      { name: "project.gpkg", mediaType: "application/geopackage+sqlite3" },
+      { name: "project.gpkg", mediaType: "" },
+      // Legacy: unrecognised files sent as a generic archive type
+      { name: "upload", mediaType: "application/octet-stream" },
+    ]) {
+      assert.strictEqual(isGisAttachment(file), true, file.name);
+    }
+  });
+
+  it("rejects documents, images, bare JSON and plain text", () => {
+    for (const file of [
+      { name: "letter.docx", mediaType: "application/octet-stream" },
+      { name: "report.pdf", mediaType: "application/pdf" },
+      { name: "photo.png", mediaType: "image/png" },
+      { name: "meta.json", mediaType: "application/json" },
+      { name: "notes.txt", mediaType: "text/plain" },
+    ]) {
+      assert.strictEqual(isGisAttachment(file), false, file.name);
+    }
+  });
+});
+
+describe("buildGisAttachmentNote", () => {
+  it("returns null without GIS files", () => {
+    assert.strictEqual(buildGisAttachmentNote([], projectContext), null);
   });
 
   it("keeps the visualization hint outside project chats", () => {
-    const note = buildZipAttachmentNote(["parcels.zip"], personalContext);
+    const note = buildGisAttachmentNote(["parcels.zip"], personalContext);
     assert.ok(note?.includes("ready for map visualization"));
     assert.ok(!note?.includes("project map"));
   });
 
   it("says the layers go to the project map in project chats", () => {
-    const note = buildZipAttachmentNote(
-      ["parcels.zip", "roads.zip"],
+    const note = buildGisAttachmentNote(
+      ["parcels.zip", "sites.kml"],
       projectContext,
     );
-    assert.ok(note?.includes("parcels.zip, roads.zip"));
+    assert.ok(note?.includes("GIS file(s): parcels.zip, sites.kml"));
     assert.ok(note?.includes("adds the GIS layers"));
     assert.ok(note?.includes("project map automatically"));
   });

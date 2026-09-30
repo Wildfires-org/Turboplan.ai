@@ -6,6 +6,7 @@ import { ArrowRight, Settings } from "lucide-react";
 import Link from "next/link";
 
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
+import { GIS_FILE_EXTENSIONS } from "@wildfires-org/turboplan-upload/types";
 import {
   Button,
   Dialog,
@@ -73,7 +74,7 @@ export function MapControls({ href, projectId }: MapControlsProps) {
     // Create a hidden file input to trigger file selection
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".geojson,.json,.kml,.gpx,.zip";
+    input.accept = [...GIS_FILE_EXTENSIONS, ".json"].join(",");
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {

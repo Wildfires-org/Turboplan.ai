@@ -79,7 +79,7 @@ export const mapArtifact: Artifact<"map", MapArtifactMetadata> = {
           .then((layers) => {
             loadingRef.current = false;
             // View only: in project chats the chat input already saved these
-            // layers to the project map when the ZIP was attached.
+            // layers to the project map when the file was attached.
             setMetadata((prev) => ({
               ...prev,
               layers,
@@ -170,8 +170,8 @@ export const mapArtifact: Artifact<"map", MapArtifactMetadata> = {
                 </p>
               )}
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                Attach a ZIP file containing geospatial data in your next
-                message to create a map.
+                Attach a GIS file (ZIP, KMZ, KML, GeoJSON or GeoPackage) in your
+                next message to create a map.
               </p>
               {!projectId && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-4">

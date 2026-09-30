@@ -14,6 +14,7 @@ import {
   getGisResultPhase,
   getNextStaleDelay,
   hasPendingExtraction,
+  LEGACY_WORD_MESSAGE,
 } from "../lib/project-context-drop";
 
 // Fixed clock: FRESH was created 10s ago, STALE 3 minutes ago.
@@ -148,8 +149,12 @@ describe("getDropRowTypeLabel", () => {
       "Word document",
     );
     assert.strictEqual(
-      getDropRowTypeLabel(makeRow({ name: "a.zip", kind: "gis-zip" })),
-      "GIS layers (ZIP)",
+      getDropRowTypeLabel(makeRow({ name: "a.zip", kind: "gis" })),
+      "GIS layers (.zip)",
+    );
+    assert.strictEqual(
+      getDropRowTypeLabel(makeRow({ name: "Sites.KML", kind: "gis" })),
+      "GIS layers (.kml)",
     );
     assert.strictEqual(
       getDropRowTypeLabel(makeRow({ name: "a.png", kind: "unsupported" })),
@@ -251,5 +256,38 @@ describe("stale extraction", () => {
       getNextStaleDelay([makeRow()], pending(STALE), NOW),
       null,
     );
+  });
+});
+
+describe("legacy .doc uploads", () => {
+  it("finish as a warning telling the user to save as .docx", () => {
+    const status = getDropRowStatus(
+      makeRow({ name: "old-plan.doc", contentType: "application/msword" }),
+      [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
+      NOW,
+    );
+    assert.strictEqual(status.tone, "warning");
+    assert.strictEqual(status.detail, LEGACY_WORD_MESSAGE);
+    assert.strictEqual(status.isFinished, true);
+  });
+
+  it("do not keep the page polling", () => {
+    assert.strictEqual(
+      getExtractionPollInterval(
+        [makeRow({ name: "old-plan.doc" })],
+        [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
+        NOW,
+      ),
+      0,
+    );
+  });
+
+  it("leave .docx uploads on the normal extraction path", () => {
+    const status = getDropRowStatus(
+      makeRow({ name: "plan.docx" }),
+      [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
+      NOW,
+    );
+    assert.strictEqual(status.label, "Extracting text");
   });
 });

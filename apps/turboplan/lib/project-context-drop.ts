@@ -4,7 +4,10 @@ import {
   type ProjectDocumentExtractionStatus,
 } from "@wildfires-org/turboplan-documents/types";
 import type { GisZipSaveResult } from "@wildfires-org/turboplan-map/client";
-import type { ProjectFileKind } from "@wildfires-org/turboplan-upload/types";
+import {
+  isLegacyWordDocument,
+  type ProjectFileKind,
+} from "@wildfires-org/turboplan-upload/types";
 
 // Pure status logic for the Project Context dropzone rows, kept apart from the
 // component so it can be unit tested.
@@ -27,7 +30,13 @@ export type DropRow = {
   message?: string;
   /** Set once a document row is registered with the project */
   documentId?: string;
+  /** Content type the file was uploaded with */
+  contentType?: string;
 };
+
+/** Why a legacy .doc upload finishes as a warning. */
+export const LEGACY_WORD_MESSAGE =
+  "Added — the assistant can't read .doc files. Save as .docx and upload again so it can.";
 
 export type DropRowTone =
   | "progress"
@@ -64,8 +73,11 @@ export const formatMegabytes = (bytes: number) => `${Math.round(bytes / MB)}MB`;
 
 /** Short type label shown under the file name. */
 export const getDropRowTypeLabel = (row: Pick<DropRow, "name" | "kind">) => {
-  if (row.kind === "gis-zip") {
-    return "GIS layers (ZIP)";
+  if (row.kind === "gis") {
+    const dotIndex = row.name.lastIndexOf(".");
+    return dotIndex > 0
+      ? `GIS layers (${row.name.slice(dotIndex).toLowerCase()})`
+      : "GIS layers";
   }
   if (row.kind === "unsupported") {
     return "Unsupported file";
@@ -144,6 +156,18 @@ export const getDropRowStatus = (
         isFinished: true,
       };
     case "registered": {
+      // Stored, but the text extractor cannot read the old binary format.
+      if (
+        isLegacyWordDocument({ name: row.name, type: row.contentType ?? "" })
+      ) {
+        return {
+          label: "Added",
+          tone: "warning",
+          detail: LEGACY_WORD_MESSAGE,
+          isFinished: true,
+        };
+      }
+
       const document = documents.find((doc) => doc.id === row.documentId);
 
       // The upload already put the new document in the cached list, so a

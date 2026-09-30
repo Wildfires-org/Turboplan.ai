@@ -5,6 +5,20 @@ import React, { useCallback, useEffect, useState } from "react";
 import { AlertCircle, FileIcon, Upload } from "lucide-react";
 import { type FileRejection, useDropzone } from "react-dropzone";
 
+import {
+  GIS_FILE_EXTENSIONS,
+  GIS_MAX_FILE_SIZE,
+  GIS_MIME_TYPES,
+} from "@wildfires-org/turboplan-upload/types";
+
+// Browsers report GIS files inconsistently (a .gpkg or .kmz often comes
+// through as application/octet-stream or with no type), so accept by
+// extension as well as by type.
+const GIS_ACCEPT: Record<string, string[]> = {
+  ...Object.fromEntries(GIS_MIME_TYPES.map((mimeType) => [mimeType, []])),
+  "application/octet-stream": [...GIS_FILE_EXTENSIONS],
+};
+
 interface MapDragDropUploadProps {
   onFileUpload: (file: File) => void;
   onFileSelect: (file: File) => void;
@@ -21,7 +35,7 @@ export function MapDragDropUpload({
   className,
 }: MapDragDropUploadProps) {
   const [error, setError] = useState<string | null>(null);
-  const maxSizeInMB = 100;
+  const maxSizeInMB = GIS_MAX_FILE_SIZE / (1024 * 1024);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -44,7 +58,9 @@ export function MapDragDropUpload({
         if (error.code === "file-too-large") {
           setError(`File size must be less than ${maxSizeInMB}MB`);
         } else if (error.code === "file-invalid-type") {
-          setError("Please upload a ZIP file containing geospatial data");
+          setError(
+            "Please upload a GIS file: a zipped Shapefile or File Geodatabase, KMZ, KML, GeoJSON or GeoPackage",
+          );
         } else {
           setError(error.message);
         }
@@ -72,12 +88,8 @@ export function MapDragDropUpload({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     onDropRejected,
-    accept: {
-      "application/zip": [".zip"],
-      "application/x-zip-compressed": [".zip"],
-      "application/octet-stream": [".zip"],
-    },
-    maxSize: maxSizeInMB * 1024 * 1024,
+    accept: GIS_ACCEPT,
+    maxSize: GIS_MAX_FILE_SIZE,
     multiple: false,
     disabled: isUploading,
   });
@@ -135,10 +147,11 @@ export function MapDragDropUpload({
                   {isDragActive ? "Drop file here" : "Upload Map Data"}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Drag and drop a ZIP file here, or click to browse
+                  Drag and drop a GIS file here, or click to browse
                 </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Supported formats: Shapefiles, GeoJSON, KML (in ZIP)
+                  Supported formats: zipped Shapefile or File Geodatabase, KMZ,
+                  KML, GeoJSON, GeoPackage
                 </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500">
                   Maximum file size: {maxSizeInMB}MB

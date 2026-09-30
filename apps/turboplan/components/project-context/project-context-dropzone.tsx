@@ -17,12 +17,14 @@ import {
 import { useDropzone } from "react-dropzone";
 
 import { useProjectDocuments } from "@wildfires-org/turboplan-documents/client";
-import { processAndSaveGisZip } from "@wildfires-org/turboplan-map/client";
+import { processAndSaveGisFile } from "@wildfires-org/turboplan-map/client";
 import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
 import {
   classifyProjectFile,
-  GIS_ARCHIVE_MAX_FILE_SIZE,
-  GIS_ARCHIVE_MIME_TYPES,
+  GIS_FILE_EXTENSIONS,
+  GIS_MAX_FILE_SIZE,
+  GIS_MIME_TYPES,
+  GIS_UPLOAD_CONTENT_TYPES,
   getProjectFileMaxSize,
   PROJECT_DOCUMENT_ACCEPT,
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
@@ -56,7 +58,8 @@ interface ProjectContextDropzoneProps {
   className?: string;
 }
 
-const GIS_ALLOWED_TYPES = [...GIS_ARCHIVE_MIME_TYPES];
+// Upload types, not the dropped types: KML goes up as text/plain.
+const GIS_ALLOWED_TYPES = [...GIS_UPLOAD_CONTENT_TYPES];
 
 const TONE_CHIP: Record<DropRowTone, ChipTone> = {
   progress: "info",
@@ -84,10 +87,10 @@ const withResolvedContentType = (file: File): File => {
 
 const getDropHint = (acceptsDocuments: boolean, acceptsGisLayers: boolean) => {
   if (acceptsDocuments && acceptsGisLayers) {
-    return "Drop PDFs, Word documents or zipped GIS layers (shapefile, geodatabase)";
+    return "Drop PDFs, Word documents or GIS files (zipped shapefile/geodatabase, GeoJSON, KML/KMZ, GeoPackage)";
   }
   if (acceptsGisLayers) {
-    return "Drop zipped GIS layers (shapefile, geodatabase)";
+    return "Drop GIS files (zipped shapefile/geodatabase, GeoJSON, KML/KMZ, GeoPackage)";
   }
   return "Drop PDFs or Word documents";
 };
@@ -103,7 +106,7 @@ const getLimitsHint = (
     );
   }
   if (acceptsGisLayers) {
-    limits.push(`ZIP up to ${formatMegabytes(GIS_ARCHIVE_MAX_FILE_SIZE)}`);
+    limits.push(`GIS files up to ${formatMegabytes(GIS_MAX_FILE_SIZE)}`);
   }
   return limits.join(" · ");
 };
@@ -152,7 +155,7 @@ export function ProjectContextDropzone({
     return () => clearTimeout(timer);
   }, [nextStaleDelay]);
   const { upload: uploadToStorage } = useFileUpload({
-    maxSize: GIS_ARCHIVE_MAX_FILE_SIZE,
+    maxSize: GIS_MAX_FILE_SIZE,
     allowedTypes: GIS_ALLOWED_TYPES,
   });
 
@@ -170,13 +173,13 @@ export function ProjectContextDropzone({
       if (kind === "document" && !acceptsDocuments) {
         return "Documents are not enabled for this project";
       }
-      if (kind === "gis-zip" && !acceptsGisLayers) {
+      if (kind === "gis" && !acceptsGisLayers) {
         return "Map layers are not enabled for this project";
       }
       const maxSize = getProjectFileMaxSize(kind);
       if (maxSize && file.size > maxSize) {
-        return kind === "gis-zip"
-          ? `GIS ZIP too large, max ${formatMegabytes(maxSize)}`
+        return kind === "gis"
+          ? `GIS file too large, max ${formatMegabytes(maxSize)}`
           : `File too large, max ${formatMegabytes(maxSize)}`;
       }
       return null;
@@ -203,13 +206,13 @@ export function ProjectContextDropzone({
     [updateRow, uploadDocument],
   );
 
-  const importGisArchive = useCallback(
+  const importGisFile = useCallback(
     async (row: DropRow, file: File) => {
       updateRow(row.id, { phase: "uploading" });
       try {
         const stored = await uploadToStorage(file);
         updateRow(row.id, { phase: "processing" });
-        const result = await processAndSaveGisZip({
+        const result = await processAndSaveGisFile({
           projectId,
           url: stored.url,
           fileName: file.name,
@@ -243,6 +246,7 @@ export function ProjectContextDropzone({
           id: `drop-${nextRowIdRef.current}`,
           name: file.name,
           kind,
+          contentType: file.type,
           phase: rejection ? "error" : "queued",
           message: rejection ?? undefined,
         };
@@ -274,11 +278,11 @@ export function ProjectContextDropzone({
           documentKeys.add(key);
           await importDocument(row, file);
         } else {
-          await importGisArchive(row, file);
+          await importGisFile(row, file);
         }
       }
     },
-    [getRejection, importDocument, importGisArchive, updateRow],
+    [getRejection, importDocument, importGisFile, updateRow],
   );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -294,7 +298,7 @@ export function ProjectContextDropzone({
       accept.push(PROJECT_DOCUMENT_ACCEPT);
     }
     if (acceptsGisLayers) {
-      accept.push(...GIS_ARCHIVE_MIME_TYPES, ".zip");
+      accept.push(...GIS_MIME_TYPES, ...GIS_FILE_EXTENSIONS);
     }
     return accept.join(",");
   }, [acceptsDocuments, acceptsGisLayers]);
@@ -404,7 +408,7 @@ interface DropRowItemProps {
 
 function DropRowItem({ row, status, onDismiss }: DropRowItemProps) {
   const KindIcon =
-    row.kind === "gis-zip"
+    row.kind === "gis"
       ? Layers
       : row.kind === "document"
         ? FileText

@@ -26,9 +26,12 @@ import {
   ALLOWED_MIME_TYPES,
   MAX_FILE_SIZE,
 } from "@wildfires-org/turboplan-documents/client";
-import { processAndSaveGisZip } from "@wildfires-org/turboplan-map/client";
+import { processAndSaveGisFile } from "@wildfires-org/turboplan-map/client";
 import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
-import { classifyProjectFile } from "@wildfires-org/turboplan-upload/types";
+import {
+  classifyProjectFile,
+  resolveProjectFileContentType,
+} from "@wildfires-org/turboplan-upload/types";
 import { Button, Textarea } from "@wildfires-org/turboplan-utils";
 
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
@@ -49,10 +52,24 @@ const isProjectDocument = (file: File): boolean =>
   Object.keys(ALLOWED_MIME_TYPES).includes(file.type) &&
   file.size <= MAX_FILE_SIZE;
 
-// ZIPs are treated as GIS archives: their layers go straight onto the project
-// map. A ZIP without GIS data surfaces the map service's explanation.
-const isGisArchive = (file: File): boolean =>
-  classifyProjectFile(file) === "gis-zip";
+// GIS files (ZIP/KMZ, GeoJSON, KML, GeoPackage): their layers go straight onto
+// the project map. A file without GIS data surfaces the map service's
+// explanation.
+const isGisFile = (file: File): boolean => classifyProjectFile(file) === "gis";
+
+// Browsers often report no type (or a generic one) for GIS and Word files, and
+// the upload allow list refuses those. Re-wrap such files with the type their
+// extension maps to; files the project does not recognise are left alone.
+const withResolvedContentType = (file: File): File => {
+  const contentType = resolveProjectFileContentType(file);
+  if (!contentType || contentType === file.type) {
+    return file;
+  }
+  return new File([file], file.name, {
+    type: contentType,
+    lastModified: file.lastModified,
+  });
+};
 
 const pluralizeLayers = (count: number) =>
   `${count} GIS layer${count === 1 ? "" : "s"}`;
@@ -237,9 +254,9 @@ function PureProjectMultimodalInput({
     [projectId],
   );
 
-  // Save the layers of attached GIS ZIPs (already stored in R2 by the chat
-  // upload) to the project map. One toast per archive, updated in place, since
-  // processing a large archive can take a while. Never blocks or fails the
+  // Save the layers of attached GIS files (already stored in R2 by the chat
+  // upload) to the project map. One toast per file, updated in place, since
+  // processing a large file can take a while. Never blocks or fails the
   // chat attachment.
   const persistGisArchives = useCallback(
     async (uploads: Array<UploadedFile>) => {
@@ -248,8 +265,8 @@ function PureProjectMultimodalInput({
       }
 
       const seenFiles = new Set<File>();
-      const archiveUploads = uploads.filter(({ file }) => {
-        if (seenFiles.has(file) || !isGisArchive(file)) {
+      const gisUploads = uploads.filter(({ file }) => {
+        if (seenFiles.has(file) || !isGisFile(file)) {
           return false;
         }
         seenFiles.add(file);
@@ -257,13 +274,13 @@ function PureProjectMultimodalInput({
       });
 
       await Promise.all(
-        archiveUploads.map(async ({ file, attachment }) => {
+        gisUploads.map(async ({ file, attachment }) => {
           const toastId = toast.loading(
             `Adding GIS layers from ${file.name} to the project map…`,
           );
 
           try {
-            const result = await processAndSaveGisZip({
+            const result = await processAndSaveGisFile({
               projectId,
               url: attachment.url,
               fileName: file.name,
@@ -312,10 +329,12 @@ function PureProjectMultimodalInput({
 
   // Shared upload path for both the paperclip file picker and drag-and-drop.
   const processFiles = useCallback(
-    async (files: Array<File>) => {
-      if (files.length === 0) {
+    async (selectedFiles: Array<File>) => {
+      if (selectedFiles.length === 0) {
         return;
       }
+
+      const files = selectedFiles.map(withResolvedContentType);
 
       setUploadQueue(files.map((file) => file.name));
 

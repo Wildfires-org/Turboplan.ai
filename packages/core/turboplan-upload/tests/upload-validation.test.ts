@@ -197,6 +197,10 @@ describe("isAllowedUploadContentType", () => {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/zip",
       "application/geo+json",
+      "application/vnd.google-earth.kmz",
+      "application/geopackage+sqlite3",
+      // KML is stored as plain text, never as its +xml type
+      "text/plain",
     ]) {
       assert.strictEqual(isAllowedUploadContentType(type), true, type);
     }
@@ -215,7 +219,8 @@ describe("isAllowedUploadContentType", () => {
       "image/svg+xml",
       "application/rdf+xml",
       "application/xhtml+xml; charset=utf-8",
-      "text/plain",
+      // Browsers render +xml types as XML documents (script via XHTML)
+      "application/vnd.google-earth.kml+xml",
       "text/csv",
       "application/octet-stream",
       "",

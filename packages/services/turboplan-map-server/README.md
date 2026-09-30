@@ -2,7 +2,7 @@
 
 Pure-Python FastAPI service for processing GIS data with [Fiona](https://github.com/Toblerity/Fiona). It is consumed by `@wildfires-org/turboplan-map` (via the `MAP_SERVICE_URL` env var in the main server).
 
-This service provides endpoints for processing GIS data (Shapefiles, File Geodatabases, GeoPackages, GeoJSON and KML) delivered in a ZIP, with automatic CRS transformation to WGS84. It comes with a health check endpoint (`/api/health`) that can be used to verify the service status.
+This service provides endpoints for processing GIS data (Shapefiles, File Geodatabases, GeoPackages, GeoJSON and KML), delivered in a ZIP or as a single .geojson, .kml, .kmz or .gpkg file, with automatic CRS transformation to WGS84. It comes with a health check endpoint (`/api/health`) that can be used to verify the service status.
 
 It can be deployed as a Docker container (see `Dockerfile` and `wrangler.jsonc` for Cloudflare Containers) or to [Vercel](https://vercel.com/) serverless functions.
 
@@ -61,6 +61,7 @@ The project is configured to use [black](https://github.com/psf/black), [autofla
 
 - **GIS ingestion**: Shapefiles (.shp), File Geodatabases (.gdb), GeoPackages (.gpkg, every vector layer), GeoJSON (.geojson, or .json that contains a FeatureCollection) and KML (.kml, when the GDAL build has a KML driver; otherwise the file is reported as unsupported)
 - **Nested ZIPs**: Datasets are found in any folder of the archive; `__MACOSX/` and hidden files are ignored
+- **Standalone files**: A single .geojson, .kml, .kmz (handled as a ZIP) or .gpkg can be uploaded without zipping. The format is detected from the content; the optional `filename` only names the layers and breaks ties
 - **Readable errors**: Lists the supported formats when a ZIP has no GIS data, names the file for corrupt layers, and explains a missing `.prj` / unconvertible coordinate system
 - **Fiona & GDAL**: Reliable geospatial IO
 - **CRS transform**: Auto-converts to WGS84 (EPSG:4326)
@@ -86,7 +87,7 @@ Sample response:
 {
     "status": "OK",
     "message": "GIS Fiona Server running",
-    "supportedFormats": [".shp", ".gdb", ".gpkg", ".geojson", ".json", ".kml"],
+    "supportedFormats": [".shp", ".gdb", ".gpkg", ".geojson", ".json", ".kml", ".kmz"],
     "processor": "Fiona (Python 3.12)",
     "runtime": "Serverless Functions",
     "timestamp": "2024-12-03T08:30:45.123Z",
@@ -99,7 +100,7 @@ Sample response:
 
 ### POST `/api/upload`
 
-Ingests a ZIP file containing GIS data by downloading it from a public URL. This endpoint requires API key authentication.
+Ingests a ZIP (or KMZ) with GIS data, or a single GeoJSON, KML or GeoPackage file, by downloading it from a public URL. This endpoint requires API key authentication.
 
 **Headers:**
 
@@ -109,8 +110,10 @@ Ingests a ZIP file containing GIS data by downloading it from a public URL. This
 **Request body:**
 
 ```json
-{ "url": "https://example.com/data.zip" }
+{ "url": "https://example.com/data.zip", "filename": "data.zip" }
 ```
+
+`filename` is optional: the original file name, used to name layers.
 
 Example:
 
