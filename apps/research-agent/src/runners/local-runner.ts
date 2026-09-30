@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { getResearchAgentEnv } from "@wildfires-org/turboplan-env";
 
 import { logger } from "../infra/logger";
-import type { AgentOutputLine } from "./runner-schema";
+import type { AgentOutputLine, RunStats } from "./runner-schema";
 import type {
   AgentRunner,
   RunnerContext,
@@ -119,7 +119,7 @@ export function createLocalRunner(): AgentRunner {
     });
 
     // 4. Send the initial prompt via NDJSON on stdin
-    sendToChildProcess(child, { type: "start", prompt });
+    sendToChildProcess(child, { type: "start", prompt, skill: context?.skill });
 
     // 5. Register this run so sendMessage() can reach it
     if (runId) {
@@ -131,6 +131,7 @@ export function createLocalRunner(): AgentRunner {
     // 6. Collect output and handle parsed NDJSON lines
     let result = "";
     let lastError: { msg: string; status: number } | null = null;
+    let stats: RunStats | undefined;
     const { done, flush } = collectOutput(child, (parsed) => {
       switch (parsed.type) {
         case "progress":
@@ -138,9 +139,11 @@ export function createLocalRunner(): AgentRunner {
           break;
         case "result":
           result = parsed.result;
+          stats = parsed.stats ?? stats;
           break;
         case "error":
           lastError = { msg: parsed.msg, status: parsed.status };
+          stats = parsed.stats ?? stats;
           break;
       }
     });
@@ -162,18 +165,28 @@ export function createLocalRunner(): AgentRunner {
     if (signal?.aborted) return cancelledResult();
     if (code !== 0) {
       if (lastError) {
-        return { ok: false, error: lastError };
+        return { ok: false, error: lastError, stats };
       }
       return failedResult(stderr || `Exit code ${code}`);
     }
 
     // 9. Flush remaining buffer
     const flushed = flush();
-    if (flushed?.type === "result") result = flushed.result;
+    if (flushed?.type === "result") {
+      result = flushed.result;
+      stats = flushed.stats ?? stats;
+    }
 
     // 10. Return the result or error
-    if (!result) return failedResult("No result line found in agent output");
-    return { ok: true, data: result };
+    if (!result) {
+      // The agent exits 0 after an SDK error result (e.g. error_max_turns);
+      // surface that error instead of a generic "no result" failure.
+      if (lastError) {
+        return { ok: false, error: lastError, stats };
+      }
+      return failedResult("No result line found in agent output");
+    }
+    return { ok: true, data: result, stats };
   };
 
   const sendMessage = async (

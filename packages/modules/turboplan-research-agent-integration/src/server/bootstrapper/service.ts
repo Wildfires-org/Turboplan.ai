@@ -116,11 +116,13 @@ export function formatChatMessagesForResearchAgent(
 
 // Per-section character budgets. Their sum plus template overhead and
 // sanitizePromptValue expansion is kept comfortably under MAX_START_PROMPT_CHARS
-// so the assembled start prompt clears the external service's hard 10k limit.
+// so the assembled start prompt clears the external service's hard 20k limit.
+// Uploaded documents get the largest share: a user's own scope/proposal lets
+// the agent skip web research for facts it would otherwise rediscover.
 const MAX_FIELDS_CHARS = 800;
 const MAX_CONTEXT_CHARS = 1800;
 const MAX_DOCUMENTS = 5;
-const MAX_DOCUMENTS_TOTAL_CHARS = 3600;
+const MAX_DOCUMENTS_TOTAL_CHARS = 12_000;
 
 const TRUNCATION_MARKER = "\n[truncated]";
 
@@ -244,11 +246,13 @@ async function gatherProjectDocumentsForResearchAgent(
     );
 
     const blocks: string[] = [];
+    const omittedFilenames: string[] = [];
     let totalChars = 0;
 
     for (const doc of recentDocuments) {
       if (totalChars >= MAX_DOCUMENTS_TOTAL_CHARS) {
-        break;
+        omittedFilenames.push(doc.originalFilename);
+        continue;
       }
 
       const extraction = extractionById.get(doc.id);
@@ -267,7 +271,8 @@ async function gatherProjectDocumentsForResearchAgent(
       const header = `## ${doc.originalFilename}\n`;
       const remaining = MAX_DOCUMENTS_TOTAL_CHARS - totalChars - header.length;
       if (remaining <= 0) {
-        break;
+        omittedFilenames.push(doc.originalFilename);
+        continue;
       }
 
       const isTruncated = text.length > remaining;
@@ -279,7 +284,16 @@ async function gatherProjectDocumentsForResearchAgent(
       totalChars += block.length;
     }
 
-    return blocks.length > 0 ? blocks.join("\n\n") : "N/A";
+    if (blocks.length === 0) {
+      return "N/A";
+    }
+    // Tell the agent more material exists, so a missing section is not read
+    // as "the uploads don't cover this".
+    const omittedNote =
+      omittedFilenames.length > 0
+        ? `\n\n[truncated: ${omittedFilenames.length} more uploaded document(s) omitted for length: ${omittedFilenames.join(", ")}]`
+        : "";
+    return `${blocks.join("\n\n")}${omittedNote}`;
   } catch (error) {
     console.error(
       "[bootstrapper] Failed to gather project documents for research agent:",
@@ -298,11 +312,11 @@ async function gatherProjectDocumentsForResearchAgent(
 const sanitizePromptValue = (value: string): string =>
   value.replace(/<\//g, "&lt;/");
 
-// Mirrors the external research-agent service's hard limit: it rejects any start
-// request whose `prompt` exceeds 10,000 characters (server-side, not
-// configurable from this repo). All per-section caps and the final guard below
-// exist to keep the assembled prompt under this ceiling.
-const MAX_START_PROMPT_CHARS = 10_000;
+// Mirrors the research-agent service's hard limit (MAX_PROMPT_LENGTH in
+// apps/research-agent/src/http/validation.ts): it rejects any start request
+// whose `prompt` exceeds 20,000 characters. All per-section caps and the final
+// guard below exist to keep the assembled prompt under this ceiling.
+const MAX_START_PROMPT_CHARS = 20_000;
 const MAX_NAME_CHARS = 200;
 const MAX_DESCRIPTION_CHARS = 800;
 

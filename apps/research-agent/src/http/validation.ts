@@ -5,7 +5,10 @@ import { assertSafeFetchUrl } from "@wildfires-org/turboplan-utils/ssrf";
 
 import { AGENT_SKILLS } from "../runs/types";
 
-const MAX_PROMPT_LENGTH = 10_000;
+// Mirrored by MAX_START_PROMPT_CHARS in the bootstrapper service
+// (turboplan-research-agent-integration). Raise this one first and deploy it
+// before the caller, or the caller's larger prompts are rejected.
+const MAX_PROMPT_LENGTH = 20_000;
 
 /**
  * Callback base URL supplied by the caller. Callbacks carry only the per-run

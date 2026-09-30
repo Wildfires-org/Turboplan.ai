@@ -1,3 +1,4 @@
+import type { RunStats } from "../runners/runner-schema";
 import type { RunRecord } from "./run-engine-store";
 
 export const AGENT_SKILLS = [
@@ -40,6 +41,7 @@ export type AgentRunState = {
   status: RunStatus;
   result?: AgentResult;
   error?: AgentErrorResponse;
+  stats?: RunStats;
 };
 
 export type RunRecordContext = Omit<
@@ -88,6 +90,7 @@ export type RunEngine = {
       webhookSecret: string;
       projectId?: string;
       targetApiUrl?: string;
+      skill?: AgentSkill;
     },
   ): { runId: string; status: RunStatus };
   cancelRun(runId: string): CancelResult | Promise<CancelResult>;

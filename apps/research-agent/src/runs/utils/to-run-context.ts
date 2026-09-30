@@ -7,4 +7,5 @@ export const toRunRecordContext = (run: RunRecord): RunRecordContext => ({
   projectId: run.projectId,
   webhookSecret: run.webhookSecret,
   targetApiUrl: run.targetApiUrl,
+  skill: run.skill,
 });

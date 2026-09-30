@@ -11,6 +11,7 @@
 
 **Rules:**
 
+0. **Skill already preloaded?** If your system prompt already contains the matching skill's instructions (e.g. a `# Project Bootstrapper Skill` section), the skill is loaded — follow it directly and do NOT call the `Skill` tool. Rules 1–2 apply only when it is not preloaded.
 1. Your **FIRST action** must be calling `Skill` with the matching skill name — do NOT research, fetch, or search first
 2. Pass the user's full request as the argument: `Skill("project-bootstrapper", "NPS Bear Lake Trail Repair")`
 3. If no skill matches, proceed normally with available tools
@@ -152,7 +153,7 @@ https://usfs-public.app.box.com/index.php?rm=box_download_shared_file&vanity_nam
 
 - **FORBIDDEN as a document `url`:** the viewer pages `/v/{VANITY_NAME}/file/{FILE_ID}` and `/v/{VANITY_NAME}/folder/{FOLDER_ID}`. These return an HTML viewer, not the file — they are ingested as garbage and cannot be previewed. Only the `index.php?rm=box_download_shared_file` download URL is accepted.
 - Each National Forest has its own vanity name (e.g., `PinyonPublic` for Tahoe NF). Extract it from the scraped content — never hardcode it.
-- **Capture EVERY file in EVERY subfolder.** A project's Box root lists several subfolders (Decision, Maps, Scoping, Proposed Action, …). Scrape all of them and submit every PDF — including appendices, maps, and supporting files. Do NOT submit just one "main" document per folder; that drops real project documents.
+- **Capture EVERY file in each subfolder you scrape.** A project's Box root lists several subfolders (Decision, Maps, Scoping, Proposed Action, …). Submit every PDF in a scraped subfolder — including appendices, maps, and supporting files. Do NOT submit just one "main" document per folder; that drops real project documents. *Which* subfolders to scrape is skill-specific: **project-bootstrapper** scrapes only the core-document subfolders and caps its total (see its SKILL.md "Document Budget"); otherwise scrape them all.
 - **Verify ONE download URL per folder** with `curl -sIL` — a valid file returns `302` then `200` with `content-type: application/pdf`. Every file in the same folder shares the identical `vanity_name` + download pattern, so one check confirms the pattern for the **whole** folder; then submit all files in it. Do **not** `curl` every file — that wastes turns. (Verify one, submit all — never submit one.)
 
 **Fallback if the `firecrawl_scrape` tool is unavailable** (MCP not loaded): the Firecrawl HTTP API still works via Bash, using `$FIRECRAWL_API_KEY` from the environment:
@@ -195,7 +196,7 @@ You do NOT need `WebFetch` for:
 - **General process knowledge** — "NEPA requires public scoping", "CEs typically take 3-6 months"
 - **Framework patterns** — standard NEPA phases, typical CE timelines, EIA screening criteria
 - **Template structures** — field naming conventions, API schema patterns
-- **Memories from verified projects** — durable *patterns* and *locations* only (Box vanity name, folder IDs, CE category, contacts). **Memories are NOT an authoritative document list.** A memory's enumerated file IDs are a hint to which folder to scrape — never the complete set (memories have dropped Scoping Letters and Proposed Actions). Whenever you submit a project's documents, scrape its folder fresh this run to enumerate the current files; do not submit a doc set straight from a cached memory list.
+- **Memories from verified projects** — durable *patterns* and *locations* only (Box vanity name, folder IDs, CE category, contacts). **Memories are NOT an authoritative document list.** A memory's enumerated file IDs are a hint to which folder to scrape — never the complete set (memories have dropped Scoping Letters and Proposed Actions). Whenever you submit a project's documents, scrape its folder fresh this run to enumerate the current files; do not submit a doc set straight from a cached memory list. (**project-bootstrapper:** the fresh scrape is required for the core-document subfolders only; for other subfolders memory file IDs may be reused — see its SKILL.md "Document Budget".)
 
 ## Forbidden Actions (NEVER DO THESE)
 
@@ -457,7 +458,7 @@ The following values are provided in **RUNTIME CONTEXT** at the end of your prom
 
 ### Full API Specification
 
-**Refer to `research-agent-spec.md`** for complete request/response schemas, validation rules, and error handling.
+**Refer to `research-agent-spec.md`** for complete request/response schemas, validation rules, and error handling. (**project-bootstrapper:** do NOT read it — every schema detail it needs is inlined in its SKILL.md.)
 
 ### Making API Calls with curl
 
@@ -646,6 +647,8 @@ WebFetch("https://www.law.cornell.edu/cfr/text/36/220.6")
 # - The subsection (e.g., "(e)(6)")
 # - Keywords matching the claimed authority (e.g., "hazardous fuels")
 # Only include citations where the fetched source confirms the claim
+# (project-bootstrapper: a citation already verified in an injected memory —
+#  same section, same source URL — does not need re-fetching; see its SKILL.md)
 ```
 
 ### Complete Research Flow Example

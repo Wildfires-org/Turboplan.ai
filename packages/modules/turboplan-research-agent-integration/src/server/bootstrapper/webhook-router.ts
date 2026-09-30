@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 
+import { runWithWorkerConnection } from "@wildfires-org/turboplan-db/db-client";
 import {
   isDocumentsPackageEnabled,
   isFieldsPackageEnabled,
@@ -11,16 +12,21 @@ import {
 } from "@wildfires-org/turboplan-feature-flags";
 import type { RBACContext } from "@wildfires-org/turboplan-rbac/hono";
 
+import { isPreviewableDocumentUrl } from "../../document-preview-utils";
 import type {
   ResearchAgentChat,
   ResearchAgentMessageTypeValue,
 } from "../../types";
 import { ResearchAgentChatStatus, ResearchAgentMessageType } from "../../types";
-import { annotateDocumentDownloadability } from "../document-probe";
+import {
+  annotateDocumentDownloadability,
+  type DocumentProbeResult,
+} from "../document-probe";
 import {
   appendOrCreateRunArrayMessage,
   createResearchAgentMessage,
   getResearchAgentChatByWebhookSecret,
+  patchRunArrayMessageItems,
   updateResearchAgentChatByExternalId,
 } from "../repository";
 import {
@@ -90,6 +96,59 @@ const appendOrCreateArrayMessage = <T>(params: {
   });
 };
 
+/**
+ * Run `task` after the response is sent. On Workers, waitUntil keeps the
+ * isolate (and the task's own DB connection) alive until it settles; a bare
+ * fire-and-forget would be reaped after the response. Other runtimes (Bun)
+ * have no executionCtx, and the promise simply survives on its own.
+ */
+const runInBackground = (
+  c: Context<WebhookContext>,
+  label: string,
+  task: () => Promise<void>,
+): void => {
+  const promise = runWithWorkerConnection(task).catch((error: unknown) => {
+    console.error(`[${label}] Background task failed:`, error);
+  });
+  try {
+    c.executionCtx.waitUntil(promise);
+  } catch {
+    // No executionCtx outside Workers — the promise is already running.
+  }
+};
+
+/**
+ * Probe extensionless document URLs and write the result onto the persisted
+ * documents message, so the panel pill and both download paths read the same
+ * answer. Until it lands, documents fall back to URL-shape detection.
+ */
+const persistDocumentDownloadability = async (
+  record: ResearchAgentChat,
+  documents: { url: string }[],
+): Promise<void> => {
+  const toProbe = documents.filter((doc) => !isPreviewableDocumentUrl(doc.url));
+  if (toProbe.length === 0) {
+    return;
+  }
+  const probed = await annotateDocumentDownloadability(toProbe);
+  const patches = new Map<string, Partial<DocumentProbeResult>>();
+  for (const doc of probed) {
+    patches.set(doc.url, {
+      isDownloadable: doc.isDownloadable,
+      contentType: doc.contentType,
+    });
+  }
+  await patchRunArrayMessageItems<
+    { url?: string } & Partial<DocumentProbeResult>
+  >({
+    researchAgentChatId: record.id,
+    type: ResearchAgentMessageType.DOCUMENTS,
+    key: "documents",
+    dedupeKey: (doc) => doc.url ?? null,
+    patches,
+  });
+};
+
 // POST /project/progress - Receive progress update from research agent
 bootstrapperWebhookRouter.post(
   "/project/progress",
@@ -141,10 +200,7 @@ bootstrapperWebhookRouter.post(
         return c.json({ error: "Forbidden - Project ID mismatch" }, 403);
       }
 
-      // Probe extensionless URLs once, here, so the panel pill and both
-      // download paths read the same persisted answer.
-      const probedDocuments = await annotateDocumentDownloadability(documents);
-      const documentsWithState = probedDocuments.map((doc) => ({
+      const documentsWithState = documents.map((doc) => ({
         ...doc,
         saved: false,
       }));
@@ -156,6 +212,12 @@ bootstrapperWebhookRouter.post(
         items: documentsWithState,
         dedupeKey: (doc) => doc.url ?? null,
       });
+
+      // Probing can take up to ~20s per batch; the agent's curl blocks on this
+      // response, so the probe runs after replying and patches the row.
+      runInBackground(c, "bootstrapper-webhook-documents", () =>
+        persistDocumentDownloadability(researchAgentRecord, documents),
+      );
 
       return c.json({ success: true });
     } catch (error) {

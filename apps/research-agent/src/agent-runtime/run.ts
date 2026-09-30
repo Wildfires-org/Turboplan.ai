@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
@@ -25,6 +27,39 @@ import { parseWireMessage, toSdkUserMessage } from "./wire-protocol";
  *    - Iterates over the SDK response stream and logs progress (turns, tools, costs).
  * 5. On completion, writes the result to stdout as JSON.
  */
+
+const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+
+/**
+ * Load a workspace skill's SKILL.md body (frontmatter stripped) so it can be
+ * passed as the system prompt, saving the agent a `Skill` tool round-trip.
+ * Returns null when no skill was requested or the file cannot be read — the
+ * agent then falls back to invoking the Skill tool itself.
+ */
+const loadSkillInstructions = (
+  cwd: string,
+  skill: string | undefined,
+): string | null => {
+  if (!skill || !SKILL_NAME_PATTERN.test(skill)) {
+    return null;
+  }
+  try {
+    const raw = readFileSync(
+      join(cwd, ".claude", "skills", skill, "SKILL.md"),
+      "utf8",
+    );
+    const body = raw.replace(/^---\n[\s\S]*?\n---\n/, "").trim();
+    return body.length > 0 ? body : null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log(`skill preload failed for ${skill}: ${message}`);
+    return null;
+  }
+};
+
+const secondsSince = (start: number): string =>
+  ((Date.now() - start) / 1000).toFixed(1);
+
 async function main(): Promise<void> {
   // Ensure PATH includes tool binaries and ~/.claude/ has the required config files
   ensureRuntimePath();
@@ -62,7 +97,23 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const maxTurns = 80;
+  // Safety net only — the skill's scope limits are what keep runs short.
+  // Too low truncates a run before its final API POSTs.
+  const maxTurns = 50;
+
+  // Preloading the skill into the system prompt removes the mandatory
+  // `Skill(...)` first turn. The pinned SDK (0.3.283) sends an omitted
+  // `systemPrompt` as an empty *custom* prompt (not the claude_code preset), so
+  // a string here only fills that empty prompt. CLAUDE.md is user context and
+  // loads via settingSources either way. Do not switch to the preset form: it
+  // would add the full Claude Code prompt.
+  const skillInstructions = loadSkillInstructions(
+    env.AGENT_CWD,
+    firstMessage.skill,
+  );
+  if (skillInstructions) {
+    log(`preloaded skill ${firstMessage.skill} into system prompt`);
+  }
 
   // Firecrawl MCP is only wired when an API key is present — otherwise the server
   // would fail to spawn. When absent, the agent still has WebFetch/WebSearch and
@@ -76,9 +127,8 @@ async function main(): Promise<void> {
     "Bash",
     "WebFetch",
     "WebSearch",
-    "Skill",
-    "ToolSearch",
-    "EnterPlanMode",
+    // Not needed once the skill is preloaded into the system prompt.
+    ...(skillInstructions ? [] : ["Skill"]),
     ...(firecrawlEnabled ? ["mcp__firecrawl__firecrawl_scrape"] : []),
   ];
 
@@ -94,8 +144,15 @@ async function main(): Promise<void> {
     "mcp__firecrawl__firecrawl_search",
     // No sub-agents: the agent was spawning Task("Explore") to read files it
     // could just `cat`, costing a full subagent (~50s) per run for nothing.
+    // The subagent tool is named "Agent" since SDK 0.3; "Task" is its legacy alias.
+    "Agent",
     "Task",
     "TaskOutput",
+    // Planning / deferred-tool lookups only cost turns in an unattended run.
+    "EnterPlanMode",
+    "ExitPlanMode",
+    "ToolSearch",
+    ...(skillInstructions ? ["Skill"] : []),
   ];
 
   // Start a Claude Agent SDK session — returns an async iterable stream
@@ -105,6 +162,7 @@ async function main(): Promise<void> {
     options: {
       cwd: env.AGENT_CWD,
       model: env.CLAUDE_MODEL,
+      ...(skillInstructions ? { systemPrompt: skillInstructions } : {}),
       settingSources: ["project"],
       allowedTools,
       disallowedTools,
@@ -160,20 +218,46 @@ async function main(): Promise<void> {
     );
   };
 
-  const emitResult = (result: string): void => {
-    process.stdout.write(`${JSON.stringify({ type: "result", result })}\n`);
+  type RunStats = {
+    num_turns: number;
+    duration_ms: number;
+    total_cost_usd: number;
   };
 
-  const emitError = (msg: string, status: number): void => {
-    process.stdout.write(`${JSON.stringify({ type: "error", msg, status })}\n`);
+  const emitResult = (result: string, stats?: RunStats): void => {
+    process.stdout.write(
+      `${JSON.stringify({ type: "result", result, stats })}\n`,
+    );
+  };
+
+  const emitError = (msg: string, status: number, stats?: RunStats): void => {
+    process.stdout.write(
+      `${JSON.stringify({ type: "error", msg, status, stats })}\n`,
+    );
   };
 
   let result = "";
+  let stats: RunStats | undefined;
   let turnCount = 0;
+  let lastMessageId: string | null = null;
   let lastApiErrorStatus: number | null = null;
   const startTime = Date.now();
-  // Maps tool_use id → tool name so tool-result messages can be labeled.
-  const toolNamesById = new Map<string, string>();
+  // Last time anything arrived from the stream: the gap to the next assistant
+  // message is (roughly) model latency for that turn.
+  let lastEventAt = startTime;
+  // Maps tool_use id → tool name + start time so results can be labeled/timed.
+  const toolCallsById = new Map<string, { name: string; startedAt: number }>();
+  // Per-tool totals for the final summary line.
+  const toolTotals = new Map<string, { count: number; ms: number }>();
+
+  const formatToolTotals = (): string =>
+    [...toolTotals.entries()]
+      .sort((a, b) => b[1].ms - a[1].ms)
+      .map(
+        ([name, { count, ms }]) =>
+          `${name}×${count}=${(ms / 1000).toFixed(1)}s`,
+      )
+      .join(", ");
 
   // Main loop — iterate over the Claude Agent SDK response stream
   for await (const msg of stream) {
@@ -204,7 +288,15 @@ async function main(): Promise<void> {
       }
 
       case "assistant": {
-        turnCount++;
+        const now = Date.now();
+        // The SDK can split one API response into several assistant messages
+        // (one per content block) sharing a message id — count it once.
+        const messageId = msg.message.id ?? null;
+        const isNewTurn = messageId === null || messageId !== lastMessageId;
+        if (isNewTurn) {
+          turnCount++;
+        }
+        lastMessageId = messageId;
         const content = msg.message.content;
 
         // Extract first text block for turn summary
@@ -212,7 +304,11 @@ async function main(): Promise<void> {
           (b: { type: string }) => b.type === "text",
         ) as { type: "text"; text: string } | undefined;
         const summary = textBlock ? truncate(textBlock.text, 500) : "(no text)";
-        log(`turn ${turnCount}/${maxTurns} | ${summary}`);
+        const modelSeconds = ((now - lastEventAt) / 1000).toFixed(1);
+        log(
+          `turn ${turnCount}/${maxTurns} | t+${secondsSince(startTime)}s | model ${modelSeconds}s | ${summary}`,
+        );
+        lastEventAt = now;
 
         // Emit full content array (text, tool_use, tool_results) for persistence
         emitProgress("assistant", JSON.stringify(content));
@@ -220,7 +316,7 @@ async function main(): Promise<void> {
         // Log each tool_use block
         for (const block of content) {
           if (block.type === "tool_use") {
-            toolNamesById.set(block.id, block.name);
+            toolCallsById.set(block.id, { name: block.name, startedAt: now });
             const inputSummary = summarizeToolInput(block.name, block.input);
             log(
               `  tool: ${block.name}${inputSummary ? `("${inputSummary}")` : ""}`,
@@ -234,6 +330,8 @@ async function main(): Promise<void> {
       // (WebSearch hits, the content firecrawl_scrape pulled) so the Fly logs
       // show what the agent actually found, not just what it called.
       case "user": {
+        const now = Date.now();
+        lastEventAt = now;
         const userContent = msg.message.content;
         if (Array.isArray(userContent)) {
           for (const block of userContent) {
@@ -245,21 +343,41 @@ async function main(): Promise<void> {
               content: unknown;
               is_error?: boolean;
             };
-            const name = toolNamesById.get(resultBlock.tool_use_id) ?? "tool";
+            const call = toolCallsById.get(resultBlock.tool_use_id);
+            const name = call?.name ?? "tool";
+            let timing = "";
+            if (call) {
+              const ms = now - call.startedAt;
+              const total = toolTotals.get(name) ?? { count: 0, ms: 0 };
+              toolTotals.set(name, {
+                count: total.count + 1,
+                ms: total.ms + ms,
+              });
+              timing = ` (${(ms / 1000).toFixed(1)}s)`;
+              toolCallsById.delete(resultBlock.tool_use_id);
+            }
             const flag = resultBlock.is_error ? " [error]" : "";
             const text = stringifyToolResult(resultBlock.content);
-            log(`  ⤷ ${name} result${flag}: ${truncate(text, 600)}`);
+            log(
+              `  ⤷ ${name} result${flag}${timing} | t+${secondsSince(startTime)}s: ${truncate(text, 600)}`,
+            );
           }
         }
         break;
       }
 
       case "result": {
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        const elapsed = secondsSince(startTime);
+        stats = {
+          num_turns: msg.num_turns,
+          duration_ms: msg.duration_ms,
+          total_cost_usd: msg.total_cost_usd,
+        };
+        const toolSummary = formatToolTotals();
         if (msg.subtype === "success") {
           result = msg.result;
           log(
-            `done | ${msg.num_turns} turns | ${elapsed}s | $${msg.total_cost_usd.toFixed(4)}`,
+            `done | ${msg.num_turns} turns | ${elapsed}s | $${msg.total_cost_usd.toFixed(4)}${toolSummary ? ` | tools: ${toolSummary}` : ""}`,
           );
         } else {
           const errorMsg = msg.errors?.[0] ?? msg.subtype;
@@ -267,8 +385,10 @@ async function main(): Promise<void> {
             msg.subtype === "error_during_execution"
               ? (lastApiErrorStatus ?? 500)
               : 500;
-          emitError(errorMsg, errorStatus);
-          log(`error | ${msg.subtype} | ${msg.num_turns} turns | ${elapsed}s`);
+          emitError(errorMsg, errorStatus, stats);
+          log(
+            `error | ${msg.subtype} | ${msg.num_turns} turns | ${elapsed}s | $${msg.total_cost_usd.toFixed(4)}${toolSummary ? ` | tools: ${toolSummary}` : ""}`,
+          );
         }
         break;
       }
@@ -278,7 +398,7 @@ async function main(): Promise<void> {
   rl.close();
   await Promise.allSettled([stdinPump, streamInputPromise]);
 
-  emitResult(result);
+  emitResult(result, stats);
 }
 
 main().catch((error) => {

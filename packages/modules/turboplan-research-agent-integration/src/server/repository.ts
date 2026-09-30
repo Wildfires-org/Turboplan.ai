@@ -540,6 +540,71 @@ export function appendOrCreateRunArrayMessage<T>(params: {
   });
 }
 
+/**
+ * Merges per-item patches into the current run's message row of the given type,
+ * matching items by `dedupeKey`. Used to write back results computed after the
+ * webhook replied (e.g. document downloadability probes). Takes the same
+ * advisory lock as {@link appendOrCreateRunArrayMessage} so it cannot interleave
+ * with a concurrent batch append. Items that are no longer present are ignored.
+ */
+export function patchRunArrayMessageItems<T>(params: {
+  researchAgentChatId: string;
+  type: ResearchAgentMessageTypeValue;
+  key: string;
+  dedupeKey: (item: T) => string | null;
+  patches: Map<string, Partial<T>>;
+}): Promise<void> {
+  const { researchAgentChatId, type, key, dedupeKey, patches } = params;
+  return withRepoError("patchRunArrayMessageItems", async () => {
+    if (patches.size === 0) {
+      return;
+    }
+    await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${`${researchAgentChatId}:${type}`}))`,
+      );
+
+      const [existing] = await tx
+        .select()
+        .from(researchAgentMessage)
+        .where(
+          and(
+            eq(researchAgentMessage.researchAgentChatId, researchAgentChatId),
+            eq(researchAgentMessage.type, type),
+          ),
+        )
+        .orderBy(desc(researchAgentMessage.createdAt))
+        .limit(1);
+
+      if (!existing) {
+        return;
+      }
+
+      const existingData = existing.data as Record<string, unknown>;
+      const existingItems = (existingData[key] as T[] | undefined) ?? [];
+      let changed = false;
+      const patched = existingItems.map((item) => {
+        const itemKey = dedupeKey(item);
+        const patch = itemKey === null ? undefined : patches.get(itemKey);
+        if (!patch) {
+          return item;
+        }
+        changed = true;
+        return { ...item, ...patch };
+      });
+
+      if (!changed) {
+        return;
+      }
+      await updateResearchAgentMessageData(
+        existing.id,
+        { ...existingData, [key]: patched },
+        tx,
+      );
+    });
+  });
+}
+
 export function getResearchAgentMessageByIdAndProjectId(
   messageId: string,
   projectId: string,
