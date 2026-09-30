@@ -24,6 +24,13 @@ export type ProjectDocumentExtractionStatus =
   | "failed"
   | "unsupported";
 
+/** Extracted text of a project document (GET /api/project-documents/:id/text). */
+export type ProjectDocumentText = {
+  status: ProjectDocumentExtractionStatus;
+  text: string | null;
+  error: string | null;
+};
+
 /**
  * A document still "pending" this long after upload is not being extracted
  * right now (the extraction worker is down or busy). The UI stops showing a

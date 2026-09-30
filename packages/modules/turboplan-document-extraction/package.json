@@ -1,6 +1,6 @@
 {
   "name": "@wildfires-org/turboplan-document-extraction",
-  "description": "Server-only PDF/DOCX text extraction for TurboPlan",
+  "description": "Server-only PDF/DOC/DOCX text extraction for TurboPlan",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,8 @@
     "build": "tsdown",
     "dev": "tsdown --watch --no-clean",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test $(find tests -name '*.test.ts')"
   },
   "exports": {
     ".": {
@@ -25,12 +26,15 @@
   },
   "dependencies": {
     "mammoth": "^1.12.0",
-    "unpdf": "^1.6.2"
+    "unpdf": "^1.6.2",
+    "word-extractor": "^1.0.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.4",
     "@types/node": "^20.10.5",
+    "@types/word-extractor": "^1.0.6",
     "tsdown": "^0.15.9",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.3"
   }
 }

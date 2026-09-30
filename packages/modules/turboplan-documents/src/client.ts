@@ -36,6 +36,7 @@ export type {
   ProjectDocument,
   ProjectDocumentExtractionStatus,
   ProjectDocumentSource,
+  ProjectDocumentText,
   ProjectDocumentUploader,
   UseProjectDocumentsOptions,
   UseProjectDocumentsReturn,

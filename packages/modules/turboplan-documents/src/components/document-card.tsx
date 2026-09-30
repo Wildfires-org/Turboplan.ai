@@ -4,7 +4,6 @@ import { type ReactNode, useEffect, useState } from "react";
 
 import { Loader2, User } from "lucide-react";
 
-import { isLegacyWordDocument } from "@wildfires-org/turboplan-upload/types";
 import {
   Avatar,
   AvatarFallback,
@@ -108,10 +107,6 @@ export function DocumentCardEditable({
               status={document.extractionStatus}
               error={document.extractionError}
               createdAt={document.createdAt}
-              isLegacyWord={isLegacyWordDocument({
-                name: document.originalFilename,
-                type: document.mimeType,
-              })}
             />
           )}
           <span className="rounded-full bg-slate-900/[0.05] px-2 py-0.5 text-[11px] font-medium text-gray-700 ring-1 ring-inset ring-slate-900/[0.06]">
@@ -222,13 +217,10 @@ function ExtractionStatusChip({
   status,
   error,
   createdAt,
-  isLegacyWord,
 }: {
   status?: ProjectDocumentExtractionStatus;
   error?: string | null;
   createdAt: string;
-  /** Old binary .doc: the extractor cannot read it, say how to fix that */
-  isLegacyWord: boolean;
 }) {
   const isStale = useIsExtractionStale(status === "pending", createdAt);
 
@@ -286,7 +278,7 @@ function ExtractionStatusChip({
           "bg-slate-900/[0.04] text-gray-700 ring-slate-900/[0.06]",
         )}
       >
-        {isLegacyWord ? "Old .doc format — save as .docx" : "No readable text"}
+        No readable text
       </span>
     );
   }

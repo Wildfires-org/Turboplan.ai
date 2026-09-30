@@ -154,18 +154,6 @@ export const classifyProjectFile = (file: FileLike): ProjectFileKind => {
 };
 
 /**
- * Legacy binary Word (.doc): accepted and stored, but the text extractor
- * cannot read it, so the assistant never sees its contents.
- */
-export const isLegacyWordDocument = (file: FileLike): boolean => {
-  const extension = getExtension(file.name);
-  if (extension === ".doc") {
-    return true;
-  }
-  return extension !== ".docx" && file.type === "application/msword";
-};
-
-/**
  * The content type to upload a classified file with. Keeps the browser's type
  * when it is already an allowed one, otherwise derives it from the extension,
  * so the upload allow list does not reject a file only because the browser

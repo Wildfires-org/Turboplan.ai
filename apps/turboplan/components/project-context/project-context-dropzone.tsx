@@ -246,7 +246,6 @@ export function ProjectContextDropzone({
           id: `drop-${nextRowIdRef.current}`,
           name: file.name,
           kind,
-          contentType: file.type,
           phase: rejection ? "error" : "queued",
           message: rejection ?? undefined,
         };

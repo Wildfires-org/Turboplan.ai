@@ -618,6 +618,7 @@ export function ProjectDocumentsSection({
           filename={previewDoc.originalFilename}
           url={previewDoc.url}
           mimeType={previewDoc.mimeType}
+          projectDocumentId={previewDoc.id}
           open={!!previewDoc}
           onOpenChange={(open) => {
             if (!open) {

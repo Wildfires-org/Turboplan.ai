@@ -9,7 +9,6 @@ import {
   GIS_UPLOAD_CONTENT_TYPES,
   getProjectFileMaxSize,
   isAllowedUploadContentType,
-  isLegacyWordDocument,
   PROJECT_DOCUMENT_ACCEPT,
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
   PROJECT_DOCUMENT_MIME_TYPES,
@@ -206,33 +205,5 @@ describe("project file limits and accept strings", () => {
     }
     assert.ok(!PROJECT_FILE_ACCEPT.split(",").includes(".json"));
     assert.ok(PROJECT_FILE_ACCEPT.includes(PROJECT_DOCUMENT_ACCEPT));
-  });
-});
-
-describe("isLegacyWordDocument", () => {
-  it("flags .doc files", () => {
-    assert.strictEqual(
-      isLegacyWordDocument({ name: "old.DOC", type: "" }),
-      true,
-    );
-    assert.strictEqual(
-      isLegacyWordDocument({ name: "download", type: "application/msword" }),
-      true,
-    );
-  });
-
-  it("does not flag .docx or other documents", () => {
-    assert.strictEqual(
-      isLegacyWordDocument({ name: "new.docx", type: DOCX }),
-      false,
-    );
-    assert.strictEqual(
-      isLegacyWordDocument({ name: "new.docx", type: "application/msword" }),
-      false,
-    );
-    assert.strictEqual(
-      isLegacyWordDocument({ name: "plan.pdf", type: "application/pdf" }),
-      false,
-    );
   });
 });

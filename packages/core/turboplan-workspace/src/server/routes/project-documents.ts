@@ -3,6 +3,7 @@
  *
  * Endpoints for managing uploaded documents (PDFs, DOCX, etc.) in projects:
  * - GET /api/project-documents?projectId=xxx - List all documents for a project
+ * - GET /api/project-documents/:id/text - Extracted text + extraction status
  * - POST /api/project-documents - Create a document record after upload to R2
  * - PATCH /api/project-documents/:id - Rename a document (display name only)
  * - DELETE /api/project-documents/:id - Delete a document
@@ -33,6 +34,7 @@ import {
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
 } from "@wildfires-org/turboplan-upload/types";
 
+import { toDocumentTextResponse } from "../projects/document-text";
 import { removeProjectDocument } from "../projects/documents";
 
 // Zod validation schemas
@@ -180,6 +182,63 @@ projectDocumentsRouter.get("/", async (c) => {
     return c.json(documents);
   } catch (error) {
     console.error("Failed to get project documents:", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+});
+
+/**
+ * GET /:id/text - The document's extracted text, for the preview
+ *
+ * Returns `{ status, text, error }` (see `toDocumentTextResponse`); `text` is
+ * the stored extraction, already capped at 40k characters. Same read access as
+ * the list: READ on the document's project, or — for public government
+ * projects — the visibility check of the module the document belongs to.
+ */
+projectDocumentsRouter.get("/:id/text", async (c) => {
+  try {
+    const user = c.get("user");
+    const documentId = c.req.param("id");
+
+    if (!user?.userId) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const parseResult = z.string().uuid().safeParse(documentId);
+    if (!parseResult.success) {
+      return c.json({ error: "Invalid document ID format" }, 400);
+    }
+
+    const document = await getProjectDocumentById(documentId);
+    if (!document) {
+      return c.json({ error: "Document not found" }, 404);
+    }
+
+    const rbacService = getRBACServiceForRequest(c);
+    const permissionResult = await rbacService.checkPermission(
+      user.userId,
+      document.projectId,
+      EntityType.PROJECT,
+      Action.READ,
+    );
+
+    if (!permissionResult.allowed) {
+      const allowedAsPublic = await isPublicGovProjectReadAllowed(
+        document.projectId,
+        {
+          moduleName: document.source === "research" ? "context" : "documents",
+        },
+      );
+      if (!allowedAsPublic) {
+        return c.json({ error: "Forbidden" }, 403);
+      }
+    }
+
+    // Per-user authorization decides who may see this text: never let a
+    // shared cache keep it.
+    c.header("Cache-Control", "private, no-store");
+    return c.json(toDocumentTextResponse(document));
+  } catch (error) {
+    console.error("Failed to get project document text:", error);
     return c.json({ error: "Internal Server Error" }, 500);
   }
 });

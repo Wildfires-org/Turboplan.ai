@@ -14,7 +14,6 @@ import {
   getGisResultPhase,
   getNextStaleDelay,
   hasPendingExtraction,
-  LEGACY_WORD_MESSAGE,
 } from "../lib/project-context-drop";
 
 // Fixed clock: FRESH was created 10s ago, STALE 3 minutes ago.
@@ -259,35 +258,28 @@ describe("stale extraction", () => {
   });
 });
 
-describe("legacy .doc uploads", () => {
-  it("finish as a warning telling the user to save as .docx", () => {
-    const status = getDropRowStatus(
-      makeRow({ name: "old-plan.doc", contentType: "application/msword" }),
+describe(".doc uploads", () => {
+  it("go through text extraction like .docx", () => {
+    const pending = getDropRowStatus(
+      makeRow({ name: "old-plan.doc" }),
       [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
       NOW,
     );
-    assert.strictEqual(status.tone, "warning");
-    assert.strictEqual(status.detail, LEGACY_WORD_MESSAGE);
-    assert.strictEqual(status.isFinished, true);
-  });
-
-  it("do not keep the page polling", () => {
+    assert.strictEqual(pending.label, "Extracting text");
     assert.strictEqual(
       getExtractionPollInterval(
         [makeRow({ name: "old-plan.doc" })],
         [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
         NOW,
       ),
-      0,
+      EXTRACTION_POLL_INTERVAL_MS,
     );
-  });
 
-  it("leave .docx uploads on the normal extraction path", () => {
-    const status = getDropRowStatus(
-      makeRow({ name: "plan.docx" }),
-      [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
+    const done = getDropRowStatus(
+      makeRow({ name: "old-plan.doc" }),
+      [{ id: "doc-1", extractionStatus: "done", createdAt: FRESH }],
       NOW,
     );
-    assert.strictEqual(status.label, "Extracting text");
+    assert.strictEqual(done.tone, "success");
   });
 });

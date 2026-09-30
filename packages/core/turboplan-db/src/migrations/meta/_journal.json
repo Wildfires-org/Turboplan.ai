@@ -15,6 +15,13 @@
       "when": 1790351519495,
       "tag": "0001_project_document_extraction",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790758478524,
+      "tag": "0002_requeue_legacy_doc_extraction",
+      "breakpoints": true
     }
   ]
 }

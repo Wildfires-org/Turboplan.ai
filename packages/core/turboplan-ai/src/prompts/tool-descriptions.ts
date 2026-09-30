@@ -104,7 +104,7 @@ When to use:
 - The user asks a question about an uploaded document or its contents (e.g. "what does the EIS say about wetlands?", "summarize the uploaded report").
 - The user asks you to learn about or ground yourself in the project using its uploaded documents.
 - You need facts, figures, or specific passages that would only be found inside the uploaded files.
-- IMPORTANT: .docx (Word) files attached in the chat are NOT directly readable by the model. If the user references a Word document, you MUST use this tool to read it — you cannot see its content otherwise.
+- IMPORTANT: Word files (.doc and .docx) attached in the chat are NOT directly readable by the model. If the user references a Word document, you MUST use this tool to read it — you cannot see its content otherwise.
 
 How to call:
 - Pass documentIds with the specific IDs from the "Saved Project Documents" list when the user refers to particular documents.
@@ -112,7 +112,7 @@ How to call:
 
 Results:
 - Returns each document's extracted text plus a filename and id.
-- Text may be truncated (a per-document cap and a total budget across documents apply); truncated: true means only the beginning of that document was returned. Documents that could not be read (e.g. legacy .doc format, or the total budget was exceeded) are listed under "skipped" with a reason — relay any actionable message to the user, such as asking them to convert a legacy .doc to PDF or .docx.
+- Text may be truncated (a per-document cap and a total budget across documents apply); truncated: true means only the beginning of that document was returned. Documents that could not be read (e.g. a corrupt or password-protected file, an unsupported file type, or the total budget was exceeded) are listed under "skipped" with a reason — relay any actionable message to the user, such as asking them to re-save the file as PDF or .docx.
 - Documents are indexed shortly after being saved. A document skipped with reason "extraction-pending" is still being processed — tell the user so and offer to retry in a moment. "extraction-failed" and "unsupported-format" cannot be read at all; do not retry those.`;
 
 export const toolDescUpdateProjectContext = `Create or update labeled context entries for this project. Context entries are confirmed, factual background about the project that is saved to the project's Context library and injected into future conversations.

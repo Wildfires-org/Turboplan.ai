@@ -84,6 +84,19 @@ describe("buildDroppedFilesNote", () => {
     assert.ok(!note?.includes("cannot read directly"));
   });
 
+  it("treats legacy .doc exactly like .docx", () => {
+    const note = buildDroppedFilesNote(
+      [
+        { name: "Old Memo.doc", mediaType: "application/msword" },
+        { name: "New Memo.docx", mediaType: DOCX_TYPE },
+      ],
+      projectContext,
+    );
+    assert.ok(note?.includes("added these files to the project documents"));
+    assert.ok(note?.includes('filenames ["Old Memo.doc","New Memo.docx"]'));
+    assert.ok(!note?.includes("cannot read directly"));
+  });
+
   it("recognizes Word files by extension when the type is generic", () => {
     const note = buildDroppedFilesNote(
       [{ name: "old.doc", mediaType: "application/octet-stream" }],

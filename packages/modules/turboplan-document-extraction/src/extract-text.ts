@@ -1,5 +1,6 @@
 import mammoth from "mammoth";
 import { getDocumentProxy } from "unpdf";
+import WordExtractor from "word-extractor";
 
 import { DOC_MIME, DOCX_MIME, PDF_MIME } from "./document-mime";
 
@@ -442,11 +443,63 @@ const extractDocxText = async (buffer: Buffer): Promise<string> => {
   return value;
 };
 
+// Word 97-2003 files are OLE2 compound files.
+const OLE_SIGNATURE = Buffer.from([
+  0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1,
+]);
+const ZIP_LOCAL_HEADER_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+
+/**
+ * Legacy Word (.doc) text via `word-extractor` (pure JS, safe in a worker
+ * thread): the body plus footnotes and endnotes. Headers and footers are left
+ * out — they repeat on every page and add noise, not content.
+ *
+ * The input is already capped at MAX_DOCUMENT_BYTES by the fetch, and the
+ * extractor reads only that buffer (never a path). A file saved as .docx but
+ * labelled .doc (a common rename) is routed to the .docx extractor so it keeps
+ * the zip-bomb prescan.
+ */
+const extractDocText = async (buffer: Buffer): Promise<string> => {
+  if (buffer.subarray(0, 4).equals(ZIP_LOCAL_HEADER_SIGNATURE)) {
+    return extractDocxText(buffer);
+  }
+
+  if (!buffer.subarray(0, OLE_SIGNATURE.length).equals(OLE_SIGNATURE)) {
+    throw new Error("Not a valid Word 97-2003 (.doc) file");
+  }
+
+  let document: WordExtractor.Document;
+  try {
+    document = await new WordExtractor().extract(buffer);
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(`Could not read the .doc file${detail}`);
+  }
+
+  return [document.getBody(), document.getFootnotes(), document.getEndnotes()]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join("\n\n");
+};
+
+const extractByMime = async (
+  mimeType: string,
+  buffer: Buffer,
+): Promise<{ text: string; truncated: boolean }> => {
+  if (mimeType === PDF_MIME) {
+    return extractPdfText(buffer);
+  }
+  if (mimeType === DOC_MIME) {
+    return { text: await extractDocText(buffer), truncated: false };
+  }
+  return { text: await extractDocxText(buffer), truncated: false };
+};
+
 /**
  * Download a project document from its public R2 URL and extract its plain
- * text. Supports PDF (via unpdf) and .docx (via mammoth). Legacy .doc files are
- * not supported. Never throws — all failure modes are returned as a discriminated
- * `ExtractionResult`.
+ * text. Supports PDF (via unpdf), .docx (via mammoth) and legacy .doc (via
+ * word-extractor). Never throws — all failure modes are returned as a
+ * discriminated `ExtractionResult`.
  */
 export const extractDocumentText = async (
   {
@@ -460,16 +513,11 @@ export const extractDocumentText = async (
 ): Promise<ExtractionResult> => {
   const normalizedMime = mimeType.toLowerCase().trim();
 
-  if (normalizedMime === DOC_MIME) {
-    return {
-      ok: false,
-      reason: "unsupported-format",
-      message:
-        "Legacy .doc files are not supported. Convert the document to PDF or .docx and re-upload.",
-    };
-  }
-
-  if (normalizedMime !== PDF_MIME && normalizedMime !== DOCX_MIME) {
+  if (
+    normalizedMime !== PDF_MIME &&
+    normalizedMime !== DOCX_MIME &&
+    normalizedMime !== DOC_MIME
+  ) {
     return {
       ok: false,
       reason: "unsupported-format",
@@ -483,10 +531,7 @@ export const extractDocumentText = async (
   }
 
   try {
-    const extracted =
-      normalizedMime === PDF_MIME
-        ? await extractPdfText(fetched.buffer)
-        : { text: await extractDocxText(fetched.buffer), truncated: false };
+    const extracted = await extractByMime(normalizedMime, fetched.buffer);
 
     const normalized = normalizeWhitespace(extracted.text);
     const { text, truncated } = capText(normalized);

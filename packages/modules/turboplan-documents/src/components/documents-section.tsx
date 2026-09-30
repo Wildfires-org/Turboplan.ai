@@ -673,6 +673,7 @@ export function DocumentsSectionUI({
           filename={previewDoc.originalFilename}
           url={previewDoc.url}
           mimeType={previewDoc.mimeType}
+          projectDocumentId={previewDoc.id}
           open={!!previewDoc}
           onOpenChange={(open) => {
             if (!open) setPreviewDoc(null);
