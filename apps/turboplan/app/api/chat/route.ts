@@ -1,4 +1,5 @@
 import {
+  consumeStream,
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
@@ -22,13 +23,17 @@ import {
   resolveBillingOrgForUser,
 } from "@wildfires-org/turboplan-billing/server";
 import { extractOpenRouterCost } from "@wildfires-org/turboplan-billing/types";
-import { isUniqueViolation } from "@wildfires-org/turboplan-db/db-client";
+import {
+  isUniqueViolation,
+  registerBackgroundTask,
+} from "@wildfires-org/turboplan-db/db-client";
 import {
   deleteChatById,
   getChatById,
   getChatsByProjectId,
   saveChat,
   saveMessages,
+  upsertAssistantMessage,
 } from "@wildfires-org/turboplan-db/queries";
 import {
   isResearchAgentPackageEnabled,
@@ -530,6 +535,29 @@ export async function POST(request: Request) {
       };
     });
 
+    // Persists the assistant reply. Called on every step finish (checkpoint) and
+    // once more in onFinish with the complete message; the SDK awaits both in
+    // stream order, so a later write never races an earlier one.
+    const persistAssistantMessage = async (responseMessage: UIMessage) => {
+      const cleanedParts = responseMessage.parts.filter((part) => {
+        if (part.type === "text") {
+          return part.text.trim().length > 0;
+        }
+        return true;
+      });
+
+      await upsertAssistantMessage({
+        message: {
+          id: responseMessage.id,
+          chatId: id,
+          role: responseMessage.role,
+          parts: cleanedParts,
+          attachments: [],
+          createdAt: new Date(),
+        },
+      });
+    };
+
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         // Notify user if they lack project access (tasks context will be excluded)
@@ -698,35 +726,32 @@ export async function POST(request: Request) {
       },
       generateId: generateUUID,
       originalMessages: messages,
-      onFinish: async ({ responseMessage }) => {
-        if (session.user?.id) {
-          try {
-            const cleanedParts = responseMessage.parts
-              ? responseMessage.parts.filter(
-                  (part: { type: string; text?: string }) => {
-                    if (part.type === "text") {
-                      return part.text && part.text.trim().length > 0;
-                    }
-                    return true;
-                  },
-                )
-              : [];
+      // Checkpoint after every step so a Worker killed mid-run (client gone
+      // and the ~30s waitUntil window exceeded) keeps the completed steps.
+      // A step only finishes once its tool calls have returned, so a long
+      // createDocument appears here only after it completes.
+      onStepFinish: async ({ responseMessage }) => {
+        const hasContent = responseMessage.parts.some(
+          (part) => part.type !== "step-start",
+        );
+        if (!hasContent) {
+          return;
+        }
 
-            await saveMessages({
-              messages: [
-                {
-                  id: responseMessage.id,
-                  chatId: id,
-                  role: responseMessage.role,
-                  parts: cleanedParts,
-                  attachments: [],
-                  createdAt: new Date(),
-                },
-              ],
-            });
-          } catch (error) {
-            console.error("Failed to save chat:", error);
-          }
+        try {
+          await persistAssistantMessage(responseMessage);
+        } catch (error) {
+          console.error(
+            "[Chat] Failed to checkpoint assistant message:",
+            error,
+          );
+        }
+      },
+      onFinish: async ({ responseMessage }) => {
+        try {
+          await persistAssistantMessage(responseMessage);
+        } catch (error) {
+          console.error("Failed to save chat:", error);
         }
       },
       onError: (error) => {
@@ -735,7 +760,17 @@ export async function POST(request: Request) {
       },
     });
 
-    return createUIMessageStreamResponse({ stream });
+    // The tee'd server-side copy keeps the run going if the browser stops
+    // reading (disconnect or Stop): cancelling the client branch of a tee does
+    // not cancel the source, so onFinish still fires with the full message.
+    // Registering the drain keeps the Worker and its DB connection alive until
+    // that save lands — within Cloudflare's ~30s post-disconnect waitUntil cap.
+    return createUIMessageStreamResponse({
+      stream,
+      consumeSseStream: ({ stream: serverCopy }) => {
+        registerBackgroundTask(consumeStream({ stream: serverCopy }));
+      },
+    });
   } catch (error) {
     // Duplicate request for the same chat — return 409 so the frontend
     // silently ignores it (see onError in project-chat.tsx)

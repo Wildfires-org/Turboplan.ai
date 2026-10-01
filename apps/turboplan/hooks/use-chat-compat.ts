@@ -15,6 +15,7 @@ import { type ChatStatus, DefaultChatTransport, type UIMessage } from "ai";
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
 
 import type { ArtifactStreamDelta } from "@/components/data-stream-handler";
+import { isChatBusy } from "@/lib/chat-status";
 
 /**
  * Compat type matching the old v4 UseChatHelpers shape.
@@ -98,7 +99,7 @@ export const useChatCompat = ({
     if (!initialMessages || initialMessages === lastSyncedMessagesRef.current) {
       return;
     }
-    if (status === "submitted" || status === "streaming") {
+    if (isChatBusy(status)) {
       return;
     }
     lastSyncedMessagesRef.current = initialMessages;

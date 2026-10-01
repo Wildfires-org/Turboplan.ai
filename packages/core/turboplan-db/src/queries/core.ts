@@ -402,6 +402,42 @@ export async function saveMessages({
   }
 }
 
+/**
+ * Inserts an assistant message or, if it already exists, replaces its parts.
+ * Used to checkpoint a streaming reply as it progresses.
+ *
+ * The update only applies to an existing assistant message in the same chat:
+ * the id can come from the client (a continued assistant message), so it must
+ * never let a request overwrite a message in another chat or a user message.
+ */
+export const upsertAssistantMessage = async ({
+  message: assistantMessage,
+}: {
+  message: DBMessage;
+}) => {
+  try {
+    await db
+      .insert(message)
+      .values(assistantMessage)
+      .onConflictDoUpdate({
+        target: message.id,
+        set: { parts: assistantMessage.parts },
+        setWhere: and(
+          eq(message.chatId, assistantMessage.chatId),
+          eq(message.role, "assistant"),
+        ),
+      });
+
+    await db
+      .update(chat)
+      .set({ updatedAt: new Date() })
+      .where(eq(chat.id, assistantMessage.chatId));
+  } catch (error) {
+    console.error("Failed to upsert assistant message in database", error);
+    throw error;
+  }
+};
+
 export async function getMessagesByChatId({ id }: { id: string }) {
   try {
     return await db

@@ -5,6 +5,7 @@ export {
   db,
   finalizeResponseWithCleanup,
   getDB,
+  registerBackgroundTask,
   runWithWorkerConnection,
   runWithWorkerConnectionForResponse,
   type TestDBConnection,

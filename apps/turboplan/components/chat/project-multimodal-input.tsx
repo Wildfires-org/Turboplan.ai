@@ -35,6 +35,7 @@ import {
 import { Button, Textarea } from "@wildfires-org/turboplan-utils";
 
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
+import { isChatBusy } from "@/lib/chat-status";
 import { registerProjectDocument } from "@/lib/project-documents";
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from "../icons";
 import { PreviewAttachment } from "../preview-attachment";
@@ -138,8 +139,9 @@ function PureProjectMultimodalInput({
   });
 
   const submitForm = useCallback(() => {
-    // Prevent submission if model is busy
-    if (status !== "ready") {
+    // Prevent submission while a reply is in flight. "error" is allowed so a
+    // broken stream doesn't lock the chat until reload.
+    if (isChatBusy(status)) {
       toast.error("Please wait for the model to finish its response!");
       return;
     }
@@ -390,7 +392,7 @@ function PureProjectMultimodalInput({
   // flickers. Counting enters/leaves keeps the overlay stable while dragging.
   const dragDepthRef = useRef(0);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
-  const isUploadDisabled = status !== "ready" || Boolean(isInputDisabled);
+  const isUploadDisabled = isChatBusy(status) || Boolean(isInputDisabled);
 
   const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
     if (isUploadDisabled || !hasDraggedFiles(event)) {
@@ -452,10 +454,11 @@ function PureProjectMultimodalInput({
 
   // Restore focus when AI finishes responding
   useEffect(() => {
-    // Only restore focus when transitioning from busy state to ready
+    // Only restore focus when a reply ends — finished or failed. The textarea
+    // is disabled while streaming, so it lost focus either way.
     if (
-      prevStatusRef.current !== "ready" &&
-      status === "ready" &&
+      isChatBusy(prevStatusRef.current) &&
+      !isChatBusy(status) &&
       textareaRef.current
     ) {
       textareaRef.current.focus();
@@ -559,7 +562,7 @@ function PureProjectMultimodalInput({
             className="absolute bottom-2 right-10 size-7 rounded-lg p-0 text-foreground"
             onClick={() => fileInputRef.current?.click()}
             variant="glass"
-            disabled={status !== "ready" || isInputDisabled}
+            disabled={isUploadDisabled}
           >
             <PaperclipIcon size={14} />
           </Button>

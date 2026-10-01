@@ -16,6 +16,7 @@ const isWorkerRuntime = () => process.env.WORKER_RUNTIME === "true";
 type WorkerConnectionStore = {
   client: PostgresClient;
   db?: DbInstance;
+  backgroundTasks: Promise<unknown>[];
 };
 
 // The AsyncLocalStorage instance lives on `globalThis` because a deployed
@@ -35,6 +36,32 @@ type GlobalWithStore = typeof globalThis & {
 const globalWithStore = globalThis as GlobalWithStore;
 const workerConnectionStore = (globalWithStore[STORE_KEY] ??=
   new AsyncLocalStorage<WorkerConnectionStore>());
+
+/**
+ * Keeps the request-scoped connection (and, through `waitUntil`, the Worker)
+ * alive until `task` settles, even if the client disconnects first.
+ *
+ * Use it for work that must finish after the response is handed back, such as
+ * a chat run that keeps generating and persisting after the browser goes away.
+ * Cloudflare still caps `waitUntil` at ~30s after the response ends, so this
+ * only buys that window. Outside a request-scoped store (local Node dev, plain
+ * scripts) it is a no-op: the process outlives the request anyway.
+ */
+export const registerBackgroundTask = (task: Promise<unknown>): void => {
+  workerConnectionStore.getStore()?.backgroundTasks.push(task);
+};
+
+/**
+ * Waits for every task in the (live) list, including ones registered while
+ * waiting, without ever rejecting.
+ */
+const settleBackgroundTasks = async (
+  tasks: Promise<unknown>[],
+): Promise<void> => {
+  while (tasks.length > 0) {
+    await Promise.allSettled(tasks.splice(0));
+  }
+};
 
 let dbInstance: DbInstance | null = null;
 let clientInstance: PostgresClient | null = null;
@@ -91,20 +118,25 @@ export const runWithWorkerConnection = async <T>(
   options?: { connectionString?: string },
 ): Promise<T> => {
   const client = createWorkerClient(options?.connectionString);
+  const backgroundTasks: Promise<unknown>[] = [];
   try {
-    return await workerConnectionStore.run({ client }, fn);
+    return await workerConnectionStore.run({ client, backgroundTasks }, fn);
   } finally {
+    await settleBackgroundTasks(backgroundTasks);
     await client.end();
   }
 };
 
 /**
- * Defers `cleanup` until the response body has been fully delivered.
+ * Defers `cleanup` until the response body has been fully delivered (or the
+ * client went away) and every task in `backgroundTasks` has settled.
  *
  * A streaming route handler (the AI chat route's `onFinish`, which saves
  * messages) keeps using the database for a moment after the last byte is
  * written, so the connection is held for a short grace period past the end of
- * the stream. `waitUntil` keeps the Worker alive across both.
+ * the stream. `backgroundTasks` is read when the body ends, so tasks may be
+ * added while it streams (see {@link registerBackgroundTask}). `waitUntil`
+ * keeps the Worker alive across all of it.
  */
 export const finalizeResponseWithCleanup = (
   response: Response,
@@ -112,10 +144,15 @@ export const finalizeResponseWithCleanup = (
     waitUntil: (promise: Promise<unknown>) => void;
     cleanup: () => Promise<void>;
     graceMs?: number;
+    backgroundTasks?: Promise<unknown>[];
   },
 ): Response => {
+  const backgroundTasks = options.backgroundTasks ?? [];
+
   if (!response.body) {
-    options.waitUntil(options.cleanup());
+    options.waitUntil(
+      settleBackgroundTasks(backgroundTasks).then(() => options.cleanup()),
+    );
     return response;
   }
 
@@ -123,6 +160,7 @@ export const finalizeResponseWithCleanup = (
   const done = response.body
     .pipeTo(writable)
     .catch(() => {})
+    .then(() => settleBackgroundTasks(backgroundTasks))
     .then(() => {
       return new Promise((resolve) => {
         setTimeout(resolve, options.graceMs ?? 2000);
@@ -153,18 +191,26 @@ export const runWithWorkerConnectionForResponse = async (
   },
 ): Promise<Response> => {
   const client = createWorkerClient(options.connectionString);
+  const backgroundTasks: Promise<unknown>[] = [];
 
   let response: Response;
   try {
-    response = await workerConnectionStore.run({ client }, fn);
+    response = await workerConnectionStore.run({ client, backgroundTasks }, fn);
   } catch (error) {
-    await client.end({ timeout: 5 }).catch(() => undefined);
+    // Do not hold the error response hostage to background work; close the
+    // client once that work has settled.
+    options.waitUntil(
+      settleBackgroundTasks(backgroundTasks)
+        .then(() => client.end({ timeout: 5 }))
+        .catch(() => undefined),
+    );
     throw error;
   }
 
   return finalizeResponseWithCleanup(response, {
     waitUntil: options.waitUntil,
     graceMs: options.graceMs,
+    backgroundTasks,
     cleanup: () => client.end({ timeout: 5 }).catch(() => undefined),
   });
 };
