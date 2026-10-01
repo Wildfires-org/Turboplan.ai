@@ -1,7 +1,13 @@
 import type { FileChild, ICommentOptions, IPropertiesOptions } from "docx";
 
 import {
-  createPlaceholderRegex,
+  type ColumnAlignment,
+  computeColumnWidths,
+  estimateTextWidthEm,
+  hasExplicitAlignment,
+  parseTableAlignments,
+} from "@/lib/export/letterhead-layout";
+import {
   PLACEHOLDER_SOURCE,
   parsePlaceholder,
   stripPlaceholderNotesInTableRows,
@@ -13,18 +19,6 @@ type ParagraphChild = InstanceType<
   | typeof import("docx").CommentRangeEnd
   | typeof import("docx").CommentReference
 >;
-
-// Strips bold/italic markers that directly wrap a placeholder
-// (e.g. "**[INSERT X]**" -> "[INSERT X]") so the emphasis characters never leak
-// into the export as literal asterisks. Markers separated from the bracket by
-// other text (genuine emphasis) are left untouched.
-const WRAPPING_EMPHASIS_REGEX = new RegExp(
-  `[*_]{1,3}(${PLACEHOLDER_SOURCE})[*_]{1,3}`,
-  "g",
-);
-
-const stripWrappingEmphasis = (text: string): string =>
-  text.replace(WRAPPING_EMPHASIS_REGEX, "$1");
 
 type CommentEntry = {
   id: number;
@@ -49,9 +43,10 @@ export type DocxDocumentFooter = {
 // Footer run size (half-points) and footer-logo display height (px).
 const FOOTER_FONT_HALFPT = 17;
 const FOOTER_LOGO_HEIGHT = 20;
-// Content width (twips) on a default Letter page (12240w − 2×1440 margins): used
-// for the footer's center/right tab stops.
-const CONTENT_WIDTH_TWIPS = 9360;
+// Content width (twips) of the page docx generates by default — A4 (11906w)
+// minus 2×1440 margins. The letterhead table spans it, and the footer's
+// center/right tab stops sit on it.
+const CONTENT_WIDTH_TWIPS = 9026;
 
 // Letterhead logos are scaled to fit this box (px, the unit docx ImageRun
 // expects). Kept small enough to sit within the page's left margin (~1 inch =
@@ -128,6 +123,32 @@ const buildLetterheadLogoImage = (
 // letterhead renders ~1.5pt smaller, matching the reference agency letterhead.
 const HEADER_FONT_HALFPT = 21;
 
+// Letterhead cell padding (twips): no left inset and an 8pt gutter before the
+// next column; the last column has no right inset, so a right-aligned address
+// sits flush with the right margin like the `{right}` lines below it.
+const HEADER_CELL_MARGINS = { top: 20, bottom: 20, left: 0, right: 160 };
+const LAST_HEADER_CELL_MARGINS = { ...HEADER_CELL_MARGINS, right: 0 };
+// Width (twips) of a letterhead column that has no content at all.
+const EMPTY_HEADER_COLUMN_TWIPS = 360;
+
+// Sizes the letterhead columns to their content (see computeColumnWidths),
+// estimating text width at the letterhead font size (1pt = 20 twips, so one em
+// is HEADER_FONT_HALFPT × 10 twips). The logo sits in the page margin (see
+// buildLetterheadLogoImage), so the table always spans the full content width.
+const computeHeaderColumnWidths = (rows: string[][]): number[] => {
+  const widths = computeColumnWidths({
+    rows,
+    totalWidth: CONTENT_WIDTH_TWIPS,
+    measure: (text) => estimateTextWidthEm(text) * HEADER_FONT_HALFPT * 10,
+    padding: HEADER_CELL_MARGINS.left + HEADER_CELL_MARGINS.right,
+    emptyWidth: EMPTY_HEADER_COLUMN_TWIPS,
+  }).map(Math.round);
+  // OOXML widths are whole twips; the last column absorbs the rounding.
+  const rounded = widths.reduce((total, width) => total + width, 0);
+  widths[widths.length - 1] += CONTENT_WIDTH_TWIPS - rounded;
+  return widths;
+};
+
 type RunOptions = {
   // Force bold (letterhead identity columns).
   forceBold?: boolean;
@@ -149,7 +170,7 @@ const parseInlineFormatting = (
     docxModule;
   const children: ParagraphChild[] = [];
 
-  const segments = splitByPlaceholders(stripWrappingEmphasis(text));
+  const segments = splitByPlaceholders(text);
 
   for (const segment of segments) {
     if (segment.isPlaceholder) {
@@ -157,7 +178,12 @@ const parseInlineFormatting = (
       comments.push({ id: commentId, description: segment.description! });
 
       children.push(new CommentRangeStart(commentId));
-      const runs = parseFormattedRuns(segment.text, docxModule, opts);
+      const emphasis = segment.emphasis ?? "";
+      const runs = parseFormattedRuns(
+        `${emphasis}${segment.text}${emphasis}`,
+        docxModule,
+        opts,
+      );
       children.push(...runs);
       children.push(new CommentRangeEnd(commentId));
       children.push(
@@ -179,13 +205,27 @@ type TextSegment = {
   text: string;
   isPlaceholder: boolean;
   description?: string;
+  // Canonical emphasis marker ("*", "**" or "***") that directly wrapped the
+  // placeholder in the markdown.
+  emphasis?: string;
 };
+
+// A placeholder, optionally wrapped directly in bold/italic markers
+// ("**[INSERT X]**"). The markers are consumed with the token, so they never
+// leak into the export as literal asterisks, and re-applied to its text, so a
+// bold placeholder (e.g. a letterhead firm name) stays bold. Markers separated
+// from the bracket by other text (genuine emphasis) are left untouched.
+const createWrappedPlaceholderRegex = (): RegExp =>
+  new RegExp(
+    `([*_]{1,3})(${PLACEHOLDER_SOURCE})([*_]{1,3})|(${PLACEHOLDER_SOURCE})`,
+    "g",
+  );
 
 const splitByPlaceholders = (text: string): TextSegment[] => {
   const segments: TextSegment[] = [];
   let lastIndex = 0;
 
-  const regex = createPlaceholderRegex();
+  const regex = createWrappedPlaceholderRegex();
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
@@ -195,13 +235,18 @@ const splitByPlaceholders = (text: string): TextSegment[] => {
         isPlaceholder: false,
       });
     }
+    const [, open, wrapped, close, bare] = match;
     // The reviewer note (after "||") becomes the comment body; the anchored
     // text is the placeholder with the note stripped off.
-    const { desc, note, visible } = parsePlaceholder(match[0]);
+    const { desc, note, visible } = parsePlaceholder(wrapped ?? bare);
+    // Mismatched markers ("**[X]*") keep the emphasis both sides agree on.
+    const emphasisLevel =
+      open && close ? Math.min(open.length, close.length) : 0;
     segments.push({
       text: visible,
       isPlaceholder: true,
       description: note || desc,
+      emphasis: "*".repeat(emphasisLevel),
     });
     lastIndex = regex.lastIndex;
   }
@@ -287,6 +332,7 @@ const BULLET_REGEX = /^[\s]*[-*]\s+(.+)$/;
 const NUMBERED_REGEX = /^[\s]*\d+\.\s+(.+)$/;
 const TABLE_ROW_REGEX = /^\|(.+)\|$/;
 const TABLE_SEPARATOR_REGEX = /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|$/;
+const ALIGNED_LINE_REGEX = /^\{(right|center)\}/;
 
 const HEADING_LEVELS = [
   "HEADING_1",
@@ -306,6 +352,7 @@ const parseTableRow = (line: string): string[] => {
 
 const buildTable = (
   rows: string[][],
+  alignments: ColumnAlignment[],
   commentCounter: { value: number },
   comments: CommentEntry[],
   docxModule: typeof import("docx"),
@@ -337,34 +384,46 @@ const buildTable = (
     right: noBorder,
   };
 
-  const TABLE_WIDTH = 9360;
   const colCount = rows[0]?.length ?? 0;
+  const headerColWidths = isHeader ? computeHeaderColumnWidths(rows) : [];
+  // Separator-row markers mean the letterhead layout was chosen to mirror the
+  // reference document; without them it's a legacy agency letterhead.
+  const isExplicitLayout = hasExplicitAlignment(alignments);
 
-  // Preferred 4-col letterhead split in twips (9360 total usable on letter
-  // page): Agency 22%, Branch 13%, Forest/District 28%, Address 37%. For any
-  // other column count, split evenly so the header never renders ragged. The
-  // logo sits in the page margin (see buildLetterheadLogoImage), so the
-  // table always uses the full content width.
-  const preferredHeaderWidths = [2060, 1215, 2620, 3465];
-  const headerColWidths =
-    colCount === preferredHeaderWidths.length
-      ? preferredHeaderWidths
-      : Array.from({ length: colCount }, () =>
-          Math.floor(TABLE_WIDTH / Math.max(colCount, 1)),
-        );
+  const markerAlignment = {
+    left: AlignmentType.LEFT,
+    center: AlignmentType.CENTER,
+    right: AlignmentType.RIGHT,
+  };
+
+  const columnAlignment = (colIndex: number) => {
+    const marker = alignments[colIndex];
+    if (marker) {
+      return markerAlignment[marker];
+    }
+    if (!isHeader) {
+      return undefined;
+    }
+    if (isExplicitLayout) {
+      return AlignmentType.LEFT;
+    }
+    // Legacy letterhead: the address/contact column (last) hugs the right edge.
+    return colIndex === colCount - 1 ? AlignmentType.RIGHT : undefined;
+  };
 
   const tableRows = rows.map((cells, rowIndex) => {
     const dataCells = cells.map((cellText, colIndex) => {
-      const isAddressColumn = colIndex === colCount - 1;
+      const isLastColumn = colIndex === colCount - 1;
       const formatted = parseInlineFormatting(
         cellText,
         commentCounter,
         comments,
         docxModule,
         {
-          // Agency identity columns are bold on real letterheads; the
-          // address/contact column (last) stays regular weight.
-          forceBold: isHeader && !isAddressColumn,
+          // Legacy letterheads bold every agency identity column; the
+          // address/contact column (last) stays regular weight. Explicit
+          // layouts take bold from the markdown only.
+          forceBold: isHeader && !isExplicitLayout && !isLastColumn,
           // The letterhead renders slightly smaller than the body.
           size: isHeader ? HEADER_FONT_HALFPT : undefined,
         },
@@ -376,12 +435,14 @@ const buildTable = (
         isHeader && logo && rowIndex === 0 && colIndex === 0
           ? [buildLetterheadLogoImage(logo, docxModule), ...formatted]
           : formatted;
+      const headerMargins = isLastColumn
+        ? LAST_HEADER_CELL_MARGINS
+        : HEADER_CELL_MARGINS;
       return new TableCell({
         children: [
           new Paragraph({
             children: cellChildren,
-            alignment:
-              isHeader && isAddressColumn ? AlignmentType.RIGHT : undefined,
+            alignment: columnAlignment(colIndex),
             // Single-spaced with no trailing gap keeps letterhead rows tight
             // instead of inheriting the body paragraph's after-spacing.
             spacing: isHeader ? { after: 0, line: 240 } : undefined,
@@ -389,9 +450,7 @@ const buildTable = (
         ],
         borders: allBordersNone,
         verticalAlign: isHeader ? VerticalAlign.CENTER : undefined,
-        margins: isHeader
-          ? { top: 20, bottom: 20, left: 0, right: 120 }
-          : undefined,
+        margins: isHeader ? headerMargins : undefined,
         width: isHeader
           ? { size: headerColWidths[colIndex], type: WidthType.DXA }
           : undefined,
@@ -407,7 +466,7 @@ const buildTable = (
 
   return new Table({
     rows: tableRows,
-    width: { size: TABLE_WIDTH, type: WidthType.DXA },
+    width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
     borders: {
       top: noBorder,
       bottom: noBorder,
@@ -554,7 +613,7 @@ export const generateDocxFromMarkdown = async (
     decodeHtmlEntities(content),
   )
     .replace(/\\([[\]()])/g, "$1")
-    .replace(/(?<=.) *\{right\}/g, "\n{right}");
+    .replace(/(?<=.) *\{(right|center)\}/g, "\n{$1}");
 
   const comments: CommentEntry[] = [];
   const commentCounter = { value: 0 };
@@ -582,8 +641,12 @@ export const generateDocxFromMarkdown = async (
     // Table: collect all consecutive table rows
     if (TABLE_ROW_REGEX.test(line)) {
       const tableRows: string[][] = [];
+      // Per-column alignment from the separator row (empty when it's missing).
+      let alignments: ColumnAlignment[] = [];
       while (i < lines.length && TABLE_ROW_REGEX.test(lines[i])) {
-        if (!TABLE_SEPARATOR_REGEX.test(lines[i])) {
+        if (TABLE_SEPARATOR_REGEX.test(lines[i])) {
+          alignments = parseTableAlignments(lines[i]);
+        } else {
           tableRows.push(parseTableRow(lines[i]));
         }
         i++;
@@ -596,6 +659,7 @@ export const generateDocxFromMarkdown = async (
         paragraphs.push(
           buildTable(
             tableRows,
+            alignments,
             commentCounter,
             comments,
             docx,
@@ -611,18 +675,21 @@ export const generateDocxFromMarkdown = async (
       continue;
     }
 
-    // Right-aligned paragraph: {right}text
-    if (line.startsWith("{right}")) {
-      const text = line.slice(7);
+    // Right-aligned or centered paragraph: {right}text / {center}text
+    const alignedMatch = line.match(ALIGNED_LINE_REGEX);
+    if (alignedMatch) {
       const children = parseInlineFormatting(
-        text,
+        line.slice(alignedMatch[0].length),
         commentCounter,
         comments,
         docx,
       );
       paragraphs.push(
         new Paragraph({
-          alignment: AlignmentType.RIGHT,
+          alignment:
+            alignedMatch[1] === "center"
+              ? AlignmentType.CENTER
+              : AlignmentType.RIGHT,
           children,
         }),
       );

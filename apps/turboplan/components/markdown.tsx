@@ -53,6 +53,14 @@ const useCodePlugin = () => {
   return codePlugin;
 };
 
+// `{right}` / `{center}` line prefixes from the document dialect (see
+// lib/export/markdown-to-docx.ts).
+const ALIGNED_LINE_REGEX = /^\{(right|center)\}/;
+const ALIGN_CLASSES: Record<string, string> = {
+  right: "text-right",
+  center: "text-center",
+};
+
 const components: Partial<Components> = {
   a: ({ node, children, ...props }) => {
     return (
@@ -79,12 +87,18 @@ const components: Partial<Components> = {
   p: ({ node, children, ...props }) => {
     const childArray = React.Children.toArray(children);
     const firstChild = childArray[0];
-    if (typeof firstChild === "string" && firstChild.startsWith("{right}")) {
-      return (
-        <p className="text-right" {...props}>
-          {highlightPlaceholders([firstChild.slice(7), ...childArray.slice(1)])}
-        </p>
-      );
+    if (typeof firstChild === "string") {
+      const alignMatch = firstChild.match(ALIGNED_LINE_REGEX);
+      if (alignMatch) {
+        return (
+          <p className={ALIGN_CLASSES[alignMatch[1]]} {...props}>
+            {highlightPlaceholders([
+              firstChild.slice(alignMatch[0].length),
+              ...childArray.slice(1),
+            ])}
+          </p>
+        );
+      }
     }
     return <p {...props}>{highlightPlaceholders(children)}</p>;
   },
@@ -116,7 +130,7 @@ const NonMemoizedMarkdown = ({
   const source = stripNotes
     ? stripPlaceholderNotes(children)
     : stripPlaceholderNotesInTableRows(children);
-  const normalized = source.replace(/(?<=.) *\{right\}/g, "\n\n{right}");
+  const normalized = source.replace(/(?<=.) *\{(right|center)\}/g, "\n\n{$1}");
   const plugins = useMemo(
     () => (codePlugin ? { code: codePlugin } : undefined),
     [codePlugin],

@@ -7,9 +7,19 @@ import { addListNodes } from "prosemirror-schema-list";
 import type { Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 
-import { buildContentFromDocument } from "./functions";
+import { buildContentFromDocument } from "./markdown-serializer";
 
 const baseNodes = addListNodes(schema.spec.nodes, "paragraph block*", "block");
+
+// The document HTML comes from components/markdown.tsx, which renders **bold**
+// as `span.font-semibold` rather than <strong>. Parse that back to the strong
+// mark, or every edit would drop the document's bold (e.g. a letterhead's firm
+// name, whose explicit layout takes bold from the markdown only).
+const baseStrong = schema.spec.marks.get("strong");
+const baseMarks = schema.spec.marks.update("strong", {
+  ...baseStrong,
+  parseDOM: [...(baseStrong?.parseDOM ?? []), { tag: "span.font-semibold" }],
+});
 
 export const documentSchema = new Schema({
   nodes: baseNodes
@@ -68,8 +78,19 @@ export const documentSchema = new Schema({
         },
       ],
       toDOM: () => ["p", { class: "text-right" }, 0],
+    })
+    .addToEnd("center_aligned", {
+      content: "inline*",
+      group: "block",
+      parseDOM: [
+        {
+          tag: "p.text-center",
+          priority: 60,
+        },
+      ],
+      toDOM: () => ["p", { class: "text-center" }, 0],
     }),
-  marks: schema.spec.marks,
+  marks: baseMarks,
 });
 
 export function headingRule(level: number) {

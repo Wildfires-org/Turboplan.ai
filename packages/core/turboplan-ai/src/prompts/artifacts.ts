@@ -40,7 +40,7 @@ export { nepaDocumentPrompt as textDocumentPrompt } from "./nepa-document";
 /**
  * Update document templates with {{currentContent}} variable for prompt management.
  */
-export const updateDocumentTextTemplate = `Improve the following contents of the document based on the given prompt.
+export const updateDocumentTextTemplate = `Improve the following contents of the document based on the given prompt. Keep its layout markup intact unless the prompt asks to change it: the letterhead table (the first table, including the alignment markers in its separator row), \`{right}\` / \`{center}\` line prefixes, and \`[INSERT: ...]\` placeholders.
 
 {{currentContent}}`;
 

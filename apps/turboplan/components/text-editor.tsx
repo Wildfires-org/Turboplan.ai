@@ -15,10 +15,10 @@ import {
   headingRule,
 } from "@/lib/editor/config";
 import {
-  buildContentFromDocument,
   buildDocumentFromContent,
   createDecorations,
 } from "@/lib/editor/functions";
+import { buildContentFromDocument } from "@/lib/editor/markdown-serializer";
 import { placeholderHighlightPlugin } from "@/lib/editor/placeholder-highlights";
 import {
   projectWithPositions,

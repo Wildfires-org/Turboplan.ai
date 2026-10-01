@@ -8,12 +8,20 @@
 // the ".js" form is aliased in pdfkit-standalone.d.ts to preserve types.
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 
+import {
+  type ColumnAlignment,
+  computeColumnWidths,
+  hasExplicitAlignment,
+  parseTableAlignments,
+} from "./letterhead-layout";
+
 // Generates a PDF that mirrors the DOCX export (markdown-to-docx.ts) so signed
 // documents look the same as the downloadable Word version. Uses the same
-// line-based markdown dialect: borderless tables, `{right}` right-aligned
-// paragraphs, headings, bullet/numbered lists, and inline bold/italic. Standard
-// markdown libraries (remark-pdf) don't understand this dialect and mis-render
-// `{right}`, tables, and `---` separators — hence the hand-rolled parser.
+// line-based markdown dialect: borderless tables, `{right}` right-aligned and
+// `{center}` centered paragraphs, headings, bullet/numbered lists, and inline
+// bold/italic. Standard markdown libraries (remark-pdf) don't understand this
+// dialect and mis-render `{right}`, tables, and `---` separators — hence the
+// hand-rolled parser.
 
 const PAGE_MARGIN = 50;
 const BODY_FONT_SIZE = 11;
@@ -22,6 +30,14 @@ const BODY_FONT_SIZE = 11;
 const HEADER_FONT_SIZE = 9.5;
 const PARAGRAPH_GAP = 6;
 const CELL_PADDING = 2;
+// Letterhead columns sit flush with the content edges and are separated by
+// this gutter (points), matching the DOCX letterhead cell margins.
+const HEADER_COLUMN_GAP = 8;
+// Width (points) of a letterhead column that has no content at all.
+const EMPTY_HEADER_COLUMN_WIDTH = 18;
+// Slack (points) when wrapping manually laid-out text, so float noise between
+// measuring a whole line and its fragments never pushes a word onto a new line.
+const WRAP_TOLERANCE = 0.5;
 
 // Letterhead logo box, placed in the LEFT PAGE MARGIN (top-left), so the
 // letterhead text keeps the full content width — mirroring a standard agency
@@ -29,6 +45,9 @@ const CELL_PADDING = 2;
 // inside this box; the width is kept small enough to fit within PAGE_MARGIN.
 const LOGO_W = 44;
 const LOGO_H = 56;
+// Gap (points) between the margin logo and the letterhead text, which starts
+// flush at the content margin (mirrors LOGO_GAP_PX in the DOCX export).
+const LOGO_GAP = 4;
 
 // An org/office letterhead logo. PDFKit's `doc.image()` only accepts PNG/JPEG
 // buffers; the caller guarantees png/jpeg, but the renderer still wraps the call
@@ -57,15 +76,19 @@ const BULLET_REGEX = /^[\s]*[-*]\s+(.+)$/;
 const NUMBERED_REGEX = /^[\s]*\d+\.\s+(.+)$/;
 const TABLE_ROW_REGEX = /^\|(.+)\|$/;
 const TABLE_SEPARATOR_REGEX = /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|$/;
+const ALIGNED_LINE_REGEX = /^\{(right|center)\}/;
 
 // Heading font sizes by markdown level (1-6).
 const HEADING_SIZES = [20, 15, 13, 12, 11, 11];
 
-// Header letterhead column proportions, matched to the DOCX fixed widths
-// [2060, 1215, 2620, 3465] (total 9360 twips).
-const HEADER_COL_FRACTIONS = [0.2201, 0.1298, 0.2799, 0.3702];
-
 type Run = { text: string; bold: boolean; italic: boolean };
+type TextAlign = "left" | "center" | "right";
+
+// Manually wrapped text: a word is one or more fragments (runs with differing
+// fonts, e.g. "**Phone**:") that must stay together on a line.
+type Fragment = { text: string; font: string; width: number };
+type Word = { fragments: Fragment[]; width: number; spaceBefore: number };
+type Line = { words: Word[]; width: number };
 
 // Serif fonts to match standard agency letterhead documents (mirrors the DOCX
 // export's Times New Roman default).
@@ -165,10 +188,10 @@ export const generatePdfFromMarkdown = async (
   // inject the title as a visible heading — only set it as PDF metadata. Same
   // normalization as the DOCX generator: decode HTML entities (so `&nbsp;` etc.
   // never render literally), unescape brackets/parens and move inline `{right}`
-  // markers onto their own line.
+  // and `{center}` markers onto their own line.
   const normalized = decodeHtmlEntities(stripPlaceholderNotes(markdown))
     .replace(/\\([[\]()])/g, "$1")
-    .replace(/(?<=.) *\{right\}/g, "\n{right}");
+    .replace(/(?<=.) *\{(right|center)\}/g, "\n{$1}");
 
   const doc = new PDFDocument({
     size: "A4",
@@ -185,91 +208,215 @@ export const generatePdfFromMarkdown = async (
   const usableWidth =
     doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
+  // Greedy word wrap of formatted runs into lines no wider than maxWidth, at
+  // the current font size. Lines break only at whitespace; a word wider than
+  // maxWidth gets a line of its own.
+  const layoutRuns = (runs: Run[], maxWidth: number): Line[] => {
+    const words: Word[] = [];
+    let spaceBefore = 0;
+    let isInWord = false;
+    for (const run of runs) {
+      const font = fontFor(run.bold, run.italic);
+      doc.font(font);
+      for (const token of run.text.split(/(\s+)/)) {
+        if (token === "") {
+          continue;
+        }
+        if (/^\s/.test(token)) {
+          spaceBefore = doc.widthOfString(" ");
+          isInWord = false;
+          continue;
+        }
+        const fragment = { text: token, font, width: doc.widthOfString(token) };
+        const word = words.at(-1);
+        if (isInWord && word) {
+          word.fragments.push(fragment);
+          word.width += fragment.width;
+        } else {
+          words.push({
+            fragments: [fragment],
+            width: fragment.width,
+            spaceBefore: words.length > 0 ? spaceBefore : 0,
+          });
+        }
+        isInWord = true;
+      }
+    }
+
+    const lines: Line[] = [{ words: [], width: 0 }];
+    for (const word of words) {
+      let line = lines[lines.length - 1];
+      const fitsOnLine =
+        line.words.length === 0 ||
+        line.width + word.spaceBefore + word.width <= maxWidth + WRAP_TOLERANCE;
+      if (!fitsOnLine) {
+        line = { words: [], width: 0 };
+        lines.push(line);
+      }
+      line.width += (line.words.length > 0 ? word.spaceBefore : 0) + word.width;
+      line.words.push(word);
+    }
+    return lines;
+  };
+
+  // Draws one laid-out line inside a box of the given width. PDFKit re-aligns
+  // every `continued` fragment independently, so combining `continued` with
+  // right/center alignment makes mixed-format runs overlap; positioning each
+  // fragment manually keeps them flush.
+  const drawLine = (
+    line: Line,
+    x: number,
+    y: number,
+    width: number,
+    align: TextAlign,
+  ) => {
+    const freeSpace = width - line.width;
+    let fragmentX = x;
+    if (align === "right") {
+      fragmentX += freeSpace;
+    } else if (align === "center") {
+      fragmentX += freeSpace / 2;
+    }
+    line.words.forEach((word, index) => {
+      if (index > 0) {
+        fragmentX += word.spaceBefore;
+      }
+      for (const fragment of word.fragments) {
+        doc
+          .font(fragment.font)
+          .text(fragment.text, fragmentX, y, { lineBreak: false });
+        fragmentX += fragment.width;
+      }
+    });
+  };
+
   const writeRuns = (
     runs: Run[],
-    options: { size: number; align?: "left" | "right"; gap: number },
+    options: { size: number; align?: TextAlign; gap: number },
   ) => {
     doc.fontSize(options.size);
 
-    // PDFKit re-aligns every `continued` fragment independently, so combining
-    // `continued` with `align: "right"` makes mixed-format runs overlap at the
-    // right margin. Instead, measure the line and offset x manually, then flow
-    // the runs left-to-right (the right-aligned lines here never wrap).
-    if (options.align === "right") {
-      const totalWidth = runs.reduce((width, run) => {
+    if (options.align === "right" || options.align === "center") {
+      const lineHeight = doc.currentLineHeight(true);
+      for (const line of layoutRuns(runs, usableWidth)) {
+        if (doc.y + lineHeight > doc.page.height - doc.page.margins.bottom) {
+          doc.addPage();
+        }
+        drawLine(
+          line,
+          doc.page.margins.left,
+          doc.y,
+          usableWidth,
+          options.align,
+        );
+        doc.y += lineHeight;
+      }
+    } else {
+      runs.forEach((run, index) => {
         doc.font(fontFor(run.bold, run.italic));
-        return width + doc.widthOfString(run.text);
-      }, 0);
-      doc.x = doc.page.margins.left + (usableWidth - totalWidth);
+        doc.text(run.text, {
+          continued: index < runs.length - 1,
+          align: options.align,
+        });
+      });
     }
 
-    runs.forEach((run, index) => {
-      doc.font(fontFor(run.bold, run.italic));
-      doc.text(run.text, {
-        continued: index < runs.length - 1,
-        align: options.align === "right" ? undefined : options.align,
-      });
-    });
-
-    // Restore the left margin — a manual right-align offset (or any stray x)
-    // would otherwise narrow the wrap width of every following line.
+    // Restore the left margin — a manually positioned fragment (or any stray
+    // x) would otherwise narrow the wrap width of every following line.
     doc.x = doc.page.margins.left;
     doc.moveDown(options.gap / options.size);
   };
 
+  // Letterhead text measured with the real font metrics, in bold — the widest
+  // face it uses — so a column is never narrower than its text.
+  const measureHeaderText = (text: string): number => {
+    doc.font("Times-Bold").fontSize(HEADER_FONT_SIZE);
+    return doc.widthOfString(text);
+  };
+
   const renderTable = (
     rows: string[][],
+    alignments: ColumnAlignment[],
     isHeader: boolean,
-    // Cell origin and available width default to the full page so non-header
-    // tables and body content are unaffected. The header table passes a reduced
-    // width and a shifted origin so its columns sit to the right of the logo.
-    originX: number = doc.page.margins.left,
-    availWidth: number = usableWidth,
   ) => {
     const colCount = rows[0]?.length ?? 0;
     if (colCount === 0) {
       return;
     }
-    const widths =
-      isHeader && colCount === HEADER_COL_FRACTIONS.length
-        ? HEADER_COL_FRACTIONS.map((f) => f * availWidth)
-        : Array(colCount).fill(availWidth / colCount);
+    // The logo sits in the page margin, so the letterhead always spans the
+    // full content width; its columns are sized to their content.
+    const widths = isHeader
+      ? computeColumnWidths({
+          rows,
+          totalWidth: usableWidth,
+          measure: measureHeaderText,
+          padding: HEADER_COLUMN_GAP,
+          emptyWidth: EMPTY_HEADER_COLUMN_WIDTH,
+        })
+      : Array(colCount).fill(usableWidth / colCount);
+    // Separator-row markers mean the letterhead layout was chosen to mirror the
+    // reference document; without them it's a legacy agency letterhead.
+    const isExplicitLayout = hasExplicitAlignment(alignments);
+    const isLegacyHeader = isHeader && !isExplicitLayout;
 
-    // Agency identity columns (all but the last, which is the address) are bold
-    // on real letterheads.
-    const fontForCell = (ci: number): string =>
-      isHeader && ci < colCount - 1 ? "Times-Bold" : "Times-Roman";
+    // Horizontal text insets: letterhead columns sit flush with the content
+    // edges with a gutter after every column but the last; body table cells
+    // are padded on both sides.
+    const insetsFor = (ci: number) =>
+      isHeader
+        ? { left: 0, right: ci < colCount - 1 ? HEADER_COLUMN_GAP : 0 }
+        : { left: CELL_PADDING, right: CELL_PADDING };
+    let columnX = doc.page.margins.left;
+    const textBoxes = widths.map((width, ci) => {
+      const { left, right } = insetsFor(ci);
+      const box = { x: columnX + left, width: width - left - right };
+      columnX += width;
+      return box;
+    });
+
+    // Legacy letterhead: the address/contact column (last) hugs the right edge.
+    const alignFor = (ci: number): TextAlign =>
+      alignments[ci] ??
+      (isLegacyHeader && ci === colCount - 1 ? "right" : "left");
+
+    // Legacy letterheads bold every agency identity column but the last
+    // (address); explicit layouts and body tables take bold from the markdown.
+    const runsFor = (cellText: string, ci: number): Run[] => {
+      const runs = parseRuns(cellText);
+      return isLegacyHeader && ci < colCount - 1
+        ? runs.map((run) => ({ ...run, bold: true }))
+        : runs;
+    };
 
     // The letterhead renders slightly smaller than the body.
     doc.fontSize(isHeader ? HEADER_FONT_SIZE : BODY_FONT_SIZE);
+    const lineHeight = doc.currentLineHeight(true);
 
     for (const cells of rows) {
-      // Compute row height from the tallest cell.
-      let rowHeight = 0;
-      cells.forEach((cellText, ci) => {
-        doc.font(fontForCell(ci));
-        const h = doc.heightOfString(cellText, {
-          width: widths[ci] - CELL_PADDING * 2,
-        });
-        if (h > rowHeight) {
-          rowHeight = h;
-        }
-      });
+      const cellLines = cells
+        .slice(0, colCount)
+        .map((cellText, ci) =>
+          layoutRuns(runsFor(cellText, ci), textBoxes[ci].width),
+        );
+      // Row height from the tallest cell.
+      const rowHeight =
+        Math.max(...cellLines.map((lines) => lines.length)) * lineHeight;
 
       if (doc.y + rowHeight > doc.page.height - doc.page.margins.bottom) {
         doc.addPage();
       }
 
       const rowY = doc.y;
-      let cellX = originX;
-      cells.forEach((cellText, ci) => {
-        const alignRight = isHeader && ci === colCount - 1;
-        doc.font(fontForCell(ci));
-        doc.text(cellText, cellX + CELL_PADDING, rowY + CELL_PADDING, {
-          width: widths[ci] - CELL_PADDING * 2,
-          align: alignRight ? "right" : "left",
+      cellLines.forEach((lines, ci) => {
+        lines.forEach((line, li) => {
+          drawLine(
+            line,
+            textBoxes[ci].x,
+            rowY + CELL_PADDING + li * lineHeight,
+            textBoxes[ci].width,
+            alignFor(ci),
+          );
         });
-        cellX += widths[ci];
       });
 
       doc.x = doc.page.margins.left;
@@ -317,8 +464,12 @@ export const generatePdfFromMarkdown = async (
     // Table: collect consecutive table rows.
     if (TABLE_ROW_REGEX.test(line)) {
       const tableRows: string[][] = [];
+      // Per-column alignment from the separator row (empty when it's missing).
+      let alignments: ColumnAlignment[] = [];
       while (i < lines.length && TABLE_ROW_REGEX.test(lines[i])) {
-        if (!TABLE_SEPARATOR_REGEX.test(lines[i])) {
+        if (TABLE_SEPARATOR_REGEX.test(lines[i])) {
+          alignments = parseTableAlignments(lines[i]);
+        } else {
           tableRows.push(parseTableRow(lines[i]));
         }
         i++;
@@ -339,15 +490,19 @@ export const generatePdfFromMarkdown = async (
             // "fs.readFileSync is not a function". A base64 data URL is the only
             // input the bundle decodes without touching the filesystem.
             const base64 = Buffer.from(options.logo.data).toString("base64");
-            // Place the logo in the left margin: its right edge meets the content
-            // margin, extending left into the margin whitespace (clamped to the
-            // page edge), so the table keeps the full width.
-            const logoLeft = Math.max(2, doc.page.margins.left - LOGO_W);
+            // Place the logo in the left margin: right-aligned in its box so
+            // its right edge sits LOGO_GAP before the content margin, extending
+            // left into the margin whitespace (clamped to the page edge), so
+            // the table keeps the full width.
+            const logoLeft = Math.max(
+              2,
+              doc.page.margins.left - LOGO_W - LOGO_GAP,
+            );
             doc.image(
               `data:${options.logo.contentType};base64,${base64}`,
               logoLeft,
               logoTop,
-              { fit: [LOGO_W, LOGO_H] },
+              { fit: [LOGO_W, LOGO_H], align: "right" },
             );
             logoBottom = logoTop + LOGO_H;
             // `doc.image()` advances doc.y past the image; reset to logoTop so
@@ -364,7 +519,7 @@ export const generatePdfFromMarkdown = async (
           }
         }
 
-        renderTable(tableRows, isFirstTable);
+        renderTable(tableRows, alignments, isFirstTable);
         isFirstTable = false;
         if (wasHeaderTable) {
           // Keep the rule and body below a tall logo: drop doc.y to the lower of
@@ -378,11 +533,12 @@ export const generatePdfFromMarkdown = async (
       continue;
     }
 
-    // Right-aligned paragraph: {right}text
-    if (line.startsWith("{right}")) {
-      writeRuns(parseRuns(line.slice(7)), {
+    // Right-aligned or centered paragraph: {right}text / {center}text
+    const alignedMatch = line.match(ALIGNED_LINE_REGEX);
+    if (alignedMatch) {
+      writeRuns(parseRuns(line.slice(alignedMatch[0].length)), {
         size: BODY_FONT_SIZE,
-        align: "right",
+        align: alignedMatch[1] === "center" ? "center" : "right",
         gap: PARAGRAPH_GAP,
       });
       i++;

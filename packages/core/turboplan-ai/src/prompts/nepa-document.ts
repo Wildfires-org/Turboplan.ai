@@ -22,24 +22,40 @@ Generate a professional-quality document based on:
 If a reference document is provided, your output MUST be approximately the same length. Count the reference's sections and paragraphs — produce a similar number. If the reference uses 2-3 sentences per section, you use 2-3 sentences per section. If the reference is 1 page, your output is 1 page. Do NOT expand, elaborate, or add detail beyond what the reference demonstrates. Brevity is a feature, not a bug — real agency documents are concise.
 
 ### Document Header (CRITICAL)
-Every document MUST start with a markdown table that has EXACTLY 4 columns as the authority letterhead — always 4, never more or fewer, because the exporter sizes the letterhead for four columns. The columns are: (1) parent authority name, (2) branch/division, (3) office/district name, (4) address and contact details. Use empty cells where a column has no more content. After the table, add File Code and Date as right-aligned lines using the \`{right}\` prefix. Each \`{right}\` line MUST be separated by a blank line so they render as separate paragraphs.
+Every document MUST start with its letterhead: the FIRST markdown table in the document is always the letterhead. It has 1–4 columns, and its separator row MUST carry an alignment marker for every column — \`:---\` left, \`:---:\` center, \`---:\` right — which the exporter uses to align each column. Only text wrapped in \`**\` renders bold: bold the identity/name lines, leave address and contact lines regular. Column widths follow the content, so keep each cell to one short line (roughly 40 characters; keep placeholder descriptions in cells terse). A multi-line block such as an address continues on the following rows, with empty cells in the other columns. Every row has the same number of cells as the first row.
 
-Make the letterhead CONTENT adaptive to whatever authority and jurisdiction the project belongs to. Determine the parent authority, branch/division, and office from the project context and your research, and use \`[INSERT: ...]\` placeholders for any part you don't have:
+**Whose letterhead.** The letterhead identifies THIS document's AUTHOR — the party issuing or submitting it — taken from the request and project context. Never take the identity from the reference document just because it appears there, and never put the recipient in the letterhead. A proposal answering an RFP carries the submitting firm's letterhead; the RFP issuer is the addressee (e.g. a "Submitted to" line), not the letterhead.
 
+**Layout.** If the request has a LETTERHEAD LAYOUT note or a reference document, mirror the reference header's LAYOUT — number of columns, what sits left/center/right, which lines are bold, any centered title block beneath it — never its facts or identity. Otherwise use the convention for the document type and author:
+- Agency correspondence (letters, notices, decision documents) → bold authority identity columns (parent authority, branch/division, office) plus a right-aligned address/contact column, then \`{right}\` File Code and Date lines:
 \`\`\`
-| [INSERT: parent authority name] | [INSERT: branch/division] | [INSERT: office/district name] | [INSERT: address and contact] |
-|---|---|---|---|
-| | | | [INSERT: city/region postal code] |
-| | | | [INSERT: phone] |
+| **[INSERT: parent authority name]** | **[INSERT: branch/division]** | **[INSERT: office/district name]** | [INSERT: street address] |
+|:---|:---|:---|---:|
+| | | | [INSERT: city, state ZIP] |
+| | | | [INSERT: office phone number] |
 
 {right}**File Code:** [INSERT: file code]
 
 {right}**Date:** [INSERT: date]
 \`\`\`
+- Firm/consultant documents (proposals, reports, memos) → 2 columns: bold firm name and an optional tagline line on the left, the address/contact block right-aligned; a proposal adds a centered title block:
+\`\`\`
+| **[INSERT: firm name]** | [INSERT: street address] |
+|:---|---:|
+| [INSERT: firm tagline] | [INSERT: city, state ZIP] |
+| | [INSERT: phone] |
+| | [INSERT: email] |
 
-Adapt the names to match the specific responsible authority and office from the project context, but always keep exactly 4 columns. For ANY value you don't have, use the colon form \`[INSERT: description]\` — never bare ALL-CAPS — so each missing field reliably becomes a review comment in the exported document.
+{center}**[INSERT: proposal title]**
 
-Letterhead VALUES obey the High-Stakes tiers below like everything else: the office's street address, phone, fax, and File Code are project-office specifics, and a reference document or your own knowledge of the office does NOT confirm them. Two table-specific rules:
+{center}Submitted to [INSERT: issuing organization]
+\`\`\`
+
+Outside the table, a \`{right}\` line prefix right-aligns a paragraph and \`{center}\` centers it; separate each such line with a blank line so it renders as its own paragraph. Use \`{right}\` File Code / Date lines only where the document type conventionally has them (agency correspondence); other types follow the reference or their own convention (e.g. a proposal's date and addressee lines). Use \`{center}\` for a centered title block when the reference or document type has one.
+
+For ANY value you don't have, use the colon form \`[INSERT: description]\` — never bare ALL-CAPS — so each missing field reliably becomes a review comment in the exported document.
+
+Letterhead VALUES obey the High-Stakes tiers below like everything else: the author's name, street address, phone, fax, email, and File Code are specifics, and a reference document or your own knowledge does NOT confirm them. Two table-specific rules:
 - NEVER write \`||\` inside a table cell — the pipes break the table's columns. In the letterhead table an unconfirmed value gets a plain \`[INSERT: description]\` placeholder (no \`||\` note), e.g. \`[INSERT: office phone number]\`.
 - The File Code and FAX lines outside the table follow the normal tiers — \`{right}**File Code:** [INSERT: file code || verify against the office's filing system]\` when not confirmed.
 
@@ -107,6 +123,6 @@ If the context includes a \`# PROJECT FIELDS\` block, treat its filled values as
 Before writing the last line, re-scan your ENTIRE draft top to bottom, including the letterhead table, File Code, and signature block. For EVERY name, title, street address, email address, phone/fax number, date, deadline, quantity, acreage, file code, office hours, URL, species, and determination, check which tier it is in:
 - Confirmed verbatim in the request's USER-CONFIRMED section / \`# PROJECT FIELDS\` / user-confirmed research → bare text is OK.
 - Anything else → it MUST be inside an \`[INSERT: ...]\` token — plain or suggested-value form (inside tables: without a \`||\` note). There is no other flag syntax: any \`||\` outside a token prints as raw text, and a nested bracket or URL inside a token breaks it.
-Also check every table renders: each row has exactly 4 cells and no cell contains \`||\`.
+Also check every table renders: every row has the same number of cells as its first row, the letterhead's separator row has an alignment marker for every column, and no cell contains \`||\`.
 If a value fails this check, fix it in the draft before finishing. A single unflagged unconfirmed specific means the document is wrong, even if the value happens to be correct.
 `;
