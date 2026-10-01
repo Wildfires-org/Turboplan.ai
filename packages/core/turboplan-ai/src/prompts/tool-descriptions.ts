@@ -16,6 +16,7 @@ CRITICAL RULES:
 3. ONLY create documents when explicitly requested (e.g., "Create a task list", "Make a document for X", "I need tasks for Y")
 4. For TASK documents: NEVER create immediately! First ask clarifying questions to gather context (project description, location, timeline, etc.), THEN create.
 5. GAP-CHECK before creating public-facing documents (letters, notices, decision documents): identify the critical fields the document will state as fact — signing official, key contacts, addresses, comment deadlines, purpose/goals, and the environmental review level/pathway the document asserts (e.g. a categorical exclusion vs an EA/EIS) — and ask the user about the unconfirmed ones BEFORE creating. Ask ONE question at a time — never a batched checklist; after each answer ask the next, until the critical gaps are resolved or the user tells you to proceed. One answered question does not confirm the others: whatever remains unconfirmed goes to the generator in the UNCONFIRMED section of userContext so it ships flagged for review, never as bare fact.
+6. A request for a DIFFERENT document — a different type or topic than a document already in this conversation (e.g. "write the fire behavior report" after a proposal was drafted) — ALWAYS uses createDocument, even while another document is open. NEVER repurpose or overwrite an existing document with different content via updateDocument.
 
 This tool can create:
   - Text documents (kind: 'text')`;
@@ -53,8 +54,15 @@ DOCUMENT TITLES: Prefer setting document titles that match or extend the project
 
 Once created, inform the user that the document is ready and ask if they would like any changes.`;
 
-export const toolDescUpdateDocument =
-  "Update a document with the given description. ONLY use this tool when the user explicitly requests changes to an existing document. DO NOT use this tool immediately after createDocument.";
+export const toolDescUpdateDocument = `Revise an existing document in place: its content is rewritten per your description and saved as a new version of the SAME document, under the same title.
+
+ONLY use this tool when the user explicitly asks to change THAT document — e.g. "fix the date in the proposal", "shorten the letter", "add a budget section to it". For task documents, adding or changing tasks and milestones in an existing task document is such an edit.
+
+NEVER use this tool to:
+- Produce a different document (a different type or topic, e.g. a fire behavior report when the existing document is a proposal). A new document ALWAYS uses createDocument; updating would overwrite the existing document with unrelated content.
+- Make changes the user did not ask for, including right after createDocument.
+
+If it is unclear whether the user wants a new document or an edit to an existing one, ask before calling either tool.`;
 
 export const toolDescRequestSuggestions = "Request suggestions for a document";
 

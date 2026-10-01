@@ -36,6 +36,28 @@ export const updateDocument = async ({
         };
       }
 
+      // Point the artifact panel at the document being rewritten before the
+      // stream starts. Without this the stream lands in whichever document is
+      // open, so it shows under the wrong title and an edit typed meanwhile
+      // would be saved to that other document.
+      writer.write({
+        type: "data-artifact",
+        transient: true,
+        data: { type: "kind", content: document.kind },
+      });
+
+      writer.write({
+        type: "data-artifact",
+        transient: true,
+        data: { type: "id", content: document.id },
+      });
+
+      writer.write({
+        type: "data-artifact",
+        transient: true,
+        data: { type: "title", content: document.title },
+      });
+
       writer.write({
         type: "data-artifact",
         transient: true,
