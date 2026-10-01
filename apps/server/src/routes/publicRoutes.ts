@@ -17,13 +17,23 @@ import {
   publicTimelineRouter,
 } from "@wildfires-org/turboplan-public/server";
 import { searchRouter } from "@wildfires-org/turboplan-search/server";
+import { publicUploadRouter } from "@wildfires-org/turboplan-upload/server";
 import { publicInvitationsRouter } from "@wildfires-org/turboplan-workspace/server";
 
 import { magicLinkAnalyticsMiddleware } from "../middleware/magic-link-analytics.js";
+import { createIpRateLimiter } from "../utils/ip-rate-limit.js";
 import { tokenRouter } from "./auth/token.js";
 import { publicEnhanceProjectPromptRouter } from "./enhance-project-prompt.js";
 import { generateTitleRouter } from "./generate-title.js";
 import { publicValidateProjectPromptRouter } from "./validate-project-prompt.js";
+
+// Anonymous presigns for documents attached on the landing page. There is no
+// identity to gate on, so the per-IP limit is the abuse control: 10/min is two
+// full attempts at the 5-file maximum.
+const checkPublicUploadRateLimit = createIpRateLimiter({
+  windowMs: 60_000,
+  maxRequests: 10,
+});
 
 /**
  * Registers all PUBLIC routes that do NOT require authentication.
@@ -62,6 +72,18 @@ export async function registerPublicRoutes(router: Hono) {
 
   // Public project prompt enhancement endpoint (no auth)
   router.route("/api/public", publicEnhanceProjectPromptRouter);
+
+  // Landing-page document attachments (no auth, per-IP rate limited)
+  router.use("/api/public/uploads/*", async (c, next) => {
+    if (!checkPublicUploadRateLimit(c)) {
+      return c.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        429,
+      );
+    }
+    await next();
+  });
+  router.route("/api/public/uploads", publicUploadRouter);
 
   // Public invitation details (for acceptance page before login)
   router.route("/api/public/invitations", publicInvitationsRouter);

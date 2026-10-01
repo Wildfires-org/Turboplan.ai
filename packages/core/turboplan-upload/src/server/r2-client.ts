@@ -1,5 +1,7 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -38,7 +40,7 @@ const getBaseUrl = (): string => {
   return getR2Env().R2_PUBLIC_URL.replace(/\/+$/, "");
 };
 
-const getPublicUrl = (key: string): string => {
+export const getPublicUrl = (key: string): string => {
   return `${getBaseUrl()}/${key}`;
 };
 
@@ -147,16 +149,94 @@ export const uploadFile = async (
   return { url: getPublicUrl(key), key };
 };
 
+/**
+ * Delete the object at an exact key. No ownership check — callers decide
+ * whose key it is; URL-driven deletes go through `deleteFile` /
+ * `deleteOwnedStorageFile` instead.
+ */
+export const deleteStorageObject = async (key: string): Promise<void> => {
+  await getS3Client().send(
+    new DeleteObjectCommand({
+      Bucket: getBucketName(),
+      Key: key,
+    }),
+  );
+};
+
 export const deleteFile = async (url: string): Promise<void> => {
   const key = canonicalStorageKey(url);
   if (!key) {
     throw new Error(`URL does not resolve to a storage key: ${url}`);
   }
 
+  await deleteStorageObject(key);
+};
+
+/** What storage reports for an object — never what a client claimed. */
+export type StorageObjectInfo = {
+  contentType: string;
+  size: number;
+  etag: string | undefined;
+};
+
+const isNotFoundError = (error: unknown): boolean => {
+  const { name, $metadata } = (error ?? {}) as {
+    name?: string;
+    $metadata?: { httpStatusCode?: number };
+  };
+  return (
+    name === "NotFound" ||
+    name === "NoSuchKey" ||
+    $metadata?.httpStatusCode === 404
+  );
+};
+
+/** The stored type, size and ETag of the object at `key`, or null if absent. */
+export const headStorageObject = async (
+  key: string,
+): Promise<StorageObjectInfo | null> => {
+  try {
+    const result = await getS3Client().send(
+      new HeadObjectCommand({
+        Bucket: getBucketName(),
+        Key: key,
+      }),
+    );
+
+    return {
+      contentType: result.ContentType ?? "",
+      size: result.ContentLength ?? 0,
+      etag: result.ETag,
+    };
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Server-side copy within the bucket. With `ifMatch`, storage refuses the copy
+ * unless the source still has that ETag, so the destination is exactly the
+ * object the caller inspected (no swap between HEAD and COPY).
+ */
+export const copyStorageObject = async (
+  sourceKey: string,
+  destinationKey: string,
+  ifMatch?: string,
+): Promise<void> => {
+  const bucket = getBucketName();
+
   await getS3Client().send(
-    new DeleteObjectCommand({
-      Bucket: getBucketName(),
-      Key: key,
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: destinationKey,
+      // `x-amz-copy-source` must be URL-encoded and the SDK sends it verbatim.
+      CopySource: [bucket, ...sourceKey.split("/")]
+        .map(encodeURIComponent)
+        .join("/"),
+      CopySourceIfMatch: ifMatch,
     }),
   );
 };
@@ -227,7 +307,9 @@ export type StorageOwner = {
 
 // An id carrying separators or dot-segments would make a prefix built from it
 // mean something other than "this entity's directory".
-const isSafeKeySegment = (id: string | null | undefined): id is string => {
+export const isSafeKeySegment = (
+  id: string | null | undefined,
+): id is string => {
   return !!id && !id.includes("/") && !id.includes("..");
 };
 

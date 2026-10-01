@@ -1,5 +1,6 @@
 import { useRouter } from "next/navigation";
 
+import { appendLandingUploadParams } from "@/lib/landing-uploads";
 import {
   appendAttributionParams,
   type SignupAttribution,
@@ -11,6 +12,7 @@ interface UseEmailExistsRedirectParams {
   projectTitle: string;
   projectDescription?: string;
   attribution?: SignupAttribution;
+  landingUploadKeys?: string[];
 }
 
 /**
@@ -30,6 +32,7 @@ export function useEmailExistsRedirect() {
     projectTitle,
     projectDescription,
     attribution,
+    landingUploadKeys,
   }: UseEmailExistsRedirectParams): Promise<boolean> => {
     const emailCheckResult = await checkEmailExists(email);
 
@@ -45,6 +48,9 @@ export function useEmailExistsRedirect() {
       // Carry attribution across the login detour so a user who bounces
       // through /login and back keeps their campaign + anonymous identity.
       appendAttributionParams(callbackParams, attribution);
+      // The landing-page attachments must reach the project created after
+      // login too.
+      appendLandingUploadParams(callbackParams, landingUploadKeys);
       const params = new URLSearchParams({
         email,
         callbackUrl: `/self-service?${callbackParams.toString()}`,

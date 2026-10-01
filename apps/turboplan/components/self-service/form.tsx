@@ -9,6 +9,7 @@ import {
   useUrlParams,
 } from "@/app/self-service/hooks";
 import { useLogout } from "@/hooks/use-logout";
+import { appendLandingUploadParams } from "@/lib/landing-uploads";
 import { appendAttributionParams } from "@/lib/signup-attribution";
 import type { AuthUser } from "@/lib/types/auth";
 import { EmailMismatchScreen } from "./email-mismatch-screen";
@@ -35,6 +36,7 @@ export function SelfServiceForm({
     urlOrganizationId,
     urlOfficeId,
     attribution,
+    landingUploadKeys,
     hasEmailMismatch,
   } = useUrlParams({ isAuthenticated, user });
 
@@ -77,6 +79,7 @@ export function SelfServiceForm({
     if (urlProjectDescription)
       params.set("projectDescription", urlProjectDescription);
     appendAttributionParams(params, attribution);
+    appendLandingUploadParams(params, landingUploadKeys);
 
     await logout({ redirectTo: `/self-service?${params.toString()}` });
   };
@@ -96,6 +99,7 @@ export function SelfServiceForm({
       organizationId: urlOrganizationId || undefined,
       officeId: urlOfficeId || undefined,
       attribution,
+      landingUploadKeys,
     });
   };
 
@@ -122,6 +126,7 @@ export function SelfServiceForm({
             organizationId: urlOrganizationId || undefined,
             officeId: urlOfficeId || undefined,
             attribution,
+            landingUploadKeys,
           });
         }}
         onLogout={handleLogout}

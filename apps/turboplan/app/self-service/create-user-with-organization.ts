@@ -30,6 +30,10 @@ import { aliasAnonymousId, captureServerEvent } from "@/lib/server-analytics";
 import { buildAttributionEventProperties } from "@/lib/signup-attribution";
 import { buildMagicLinkUrl } from "../(auth)/actions";
 import {
+  attachLandingUploads,
+  withAttachedDocumentsNote,
+} from "./attach-landing-uploads";
+import {
   buildFallbackProjectDescription,
   buildProjectChatUrl,
   sanitizeName,
@@ -246,6 +250,15 @@ export async function createUserWithOrganization(
       isInitial: true,
     });
 
+    // Documents attached on the landing page move into the new user's uploads
+    // and onto the project now, so the first chat turn can read them.
+    const attachedDocumentNames = await attachLandingUploads({
+      keys: validated.landingUploadKeys,
+      projectId: newProject.id,
+      userId: newUser.id,
+      logPrefix: "[Self-Service]",
+    });
+
     // Cover image generation and the research agent bootstrap are deferred to
     // the user's first magic-link verification (email ownership proven) — see
     // runDeferredSelfServiceProjectSetup. Running them here would let
@@ -269,7 +282,10 @@ export async function createUserWithOrganization(
       redirectLocation.projectSlug,
       {
         chatId: initialChatId,
-        initialMessageContent: validated.projectDescription,
+        initialMessageContent: withAttachedDocumentsNote(
+          validated.projectDescription,
+          attachedDocumentNames,
+        ),
       },
     );
 

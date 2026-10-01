@@ -78,6 +78,8 @@ const contentSecurityPolicyReportOnly = [
     toOrigin(process.env.NEXT_PUBLIC_SERVER_URL),
     toOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST),
     ...r2Origins,
+    // Browser PUTs to presigned R2 upload URLs (hero document attachments).
+    "https://*.r2.cloudflarestorage.com",
     "https://www.googletagmanager.com",
     "https://*.google-analytics.com",
     "https://*.analytics.google.com",

@@ -1,7 +1,7 @@
 import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
 
 import { cx } from "class-variance-authority";
-import { Loader2, Sparkles } from "lucide-react";
+import { FileText, Loader2, Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { posthog } from "posthog-js";
 import useSWR from "swr";
@@ -19,12 +19,14 @@ import DialogBase from "@/components/dialogs/dialog-base/dialog-base";
 import {
   CONTEXT_RESOURCES_PARAM,
   EMAIL_PARAM,
+  LANDING_UPLOADS_PARAM,
   OFFICE_ID_PARAM,
   ORGANIZATION_ID_PARAM,
   POSTHOG_DISTINCT_ID_PARAM,
   PROJECT_DESCRIPTION_PARAM,
   PROJECT_TITLE_PARAM,
 } from "@/consts/urlParams";
+import type { AttachedDocument } from "@/hooks/use-prompt-attachments";
 import { getAttributionParams } from "@/lib/attribution";
 import { brand } from "@/lib/brand";
 import { fetcher } from "@/lib/utils";
@@ -78,6 +80,8 @@ type FormErrors = {
   projectPrompt: boolean;
 };
 
+const NO_DOCUMENTS: AttachedDocument[] = [];
+
 export const SignupModal = ({
   initialProjectTitle,
   initialOrganizationName,
@@ -85,6 +89,7 @@ export const SignupModal = ({
   isOpen,
   onOpenChange,
   projectDescription,
+  attachedDocuments = NO_DOCUMENTS,
 }: {
   initialProjectTitle?: string;
   initialOrganizationName?: string;
@@ -92,6 +97,8 @@ export const SignupModal = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   projectDescription?: string;
+  /** Documents already uploaded from the hero; they come along as params. */
+  attachedDocuments?: AttachedDocument[];
 }) => {
   const searchParams = useSearchParams();
   const ENV = getLandingPageEnv();
@@ -116,6 +123,9 @@ export const SignupModal = ({
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const [projectPrompt, setProjectPrompt] = useState(projectDescription || "");
+  // The details the prompt check looks for may well be in the attached
+  // documents, so it does not gate the submission when there are any.
+  const hasAttachedDocuments = attachedDocuments.length > 0;
   const {
     validate: validatePrompt,
     isValidating: isValidatingPrompt,
@@ -200,9 +210,11 @@ export const SignupModal = ({
   useEffect(() => {
     if (isOpen && projectDescription) {
       setProjectPrompt(projectDescription);
-      validatePrompt(projectDescription);
+      if (!hasAttachedDocuments) {
+        validatePrompt(projectDescription);
+      }
     }
-  }, [isOpen, projectDescription, validatePrompt]);
+  }, [isOpen, projectDescription, hasAttachedDocuments, validatePrompt]);
 
   // The modal stays mounted inside SearchInput across open/close cycles, so a
   // submission target matched for an earlier prompt would otherwise survive into
@@ -256,10 +268,12 @@ export const SignupModal = ({
     }
 
     // Validate prompt with AI before submitting
-    const validation =
-      promptValidation ?? (await validatePrompt(projectPrompt));
-    if (validation && !validation.valid) {
-      return;
+    if (!hasAttachedDocuments) {
+      const validation =
+        promptValidation ?? (await validatePrompt(projectPrompt));
+      if (validation && !validation.valid) {
+        return;
+      }
     }
 
     const params = new URLSearchParams();
@@ -283,6 +297,9 @@ export const SignupModal = ({
     }
     searchParams.getAll(CONTEXT_RESOURCES_PARAM).forEach((resource) => {
       params.append(CONTEXT_RESOURCES_PARAM, resource);
+    });
+    attachedDocuments.forEach((attached) => {
+      params.append(LANDING_UPLOADS_PARAM, attached.key);
     });
 
     // Forward the PostHog distinct id so the app can alias this browser's
@@ -450,7 +467,11 @@ export const SignupModal = ({
               <LabeledTextarea
                 label="Project prompt"
                 placeholder="Describe your project goals, location, conditions, and desired outcomes..."
-                className="bg-white min-h-[220px] max-h-[45vh] field-sizing-content"
+                className={cx(
+                  "bg-white max-h-[45vh] field-sizing-content",
+                  // Leave room for the attached documents list below.
+                  hasAttachedDocuments ? "min-h-[160px]" : "min-h-[220px]",
+                )}
                 value={projectPrompt}
                 hasError={
                   (promptValidation !== null && !promptValidation.valid) ||
@@ -510,6 +531,28 @@ export const SignupModal = ({
                 Please provide a project prompt
                 <ExclamationMarkIcon size={16} />
               </p>
+            )}
+            {hasAttachedDocuments && (
+              <div className="mt-2">
+                <p className="text-sm text-neutral-grey3">
+                  Attached documents (the AI reads these with your prompt)
+                </p>
+                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                  {attachedDocuments.map((attached) => (
+                    <li
+                      key={attached.key}
+                      title={attached.name}
+                      className="flex min-w-0 max-w-full items-center gap-1.5 rounded-md border border-neutral-grey bg-white px-2 py-1 text-sm text-neutral-black"
+                    >
+                      <FileText
+                        aria-hidden
+                        className="size-4 shrink-0 text-green-60"
+                      />
+                      <span className="truncate">{attached.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </div>

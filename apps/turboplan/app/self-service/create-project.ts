@@ -9,6 +9,10 @@ import { MemberRole } from "@wildfires-org/turboplan-workspace/types";
 
 import { auth } from "../(auth)/auth";
 import {
+  attachLandingUploads,
+  withAttachedDocumentsNote,
+} from "./attach-landing-uploads";
+import {
   autoGenerateProjectImage,
   buildProjectChatUrl,
   sanitizeName,
@@ -50,6 +54,7 @@ export async function createProjectForAuthenticatedUser(
       projectDescription,
       existingOrgId,
       existingOfficeId,
+      landingUploadKeys,
     } = data;
 
     // Validate input
@@ -120,6 +125,15 @@ export async function createProjectForAuthenticatedUser(
       role: MemberRole.OWNER,
     });
 
+    // Documents attached on the landing page move into the user's uploads and
+    // onto the project now, so the first chat turn can read them.
+    const attachedDocumentNames = await attachLandingUploads({
+      keys: landingUploadKeys,
+      projectId: newProject.id,
+      userId,
+      logPrefix: "[Self-Service Authenticated]",
+    });
+
     // Auto-generate cover image if feature is enabled (fire-and-forget for faster redirect)
     autoGenerateProjectImage(
       userId,
@@ -144,7 +158,10 @@ export async function createProjectForAuthenticatedUser(
         personalOffice.slug,
         newProject.slug,
         {
-          initialMessageContent: projectDescription,
+          initialMessageContent: withAttachedDocumentsNote(
+            projectDescription,
+            attachedDocumentNames,
+          ),
         },
       ),
     };

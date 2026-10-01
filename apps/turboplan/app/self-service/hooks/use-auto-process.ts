@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useSearchParams } from "next/navigation";
 
+import { parseLandingUploadKeys } from "@/lib/landing-uploads";
 import { parseSignupAttribution } from "@/lib/signup-attribution";
 import type { AuthUser } from "@/lib/types/auth";
 import { checkEmailMismatch, generateAutoProcessKey } from "./email-helpers";
@@ -31,6 +32,8 @@ export function useAutoProcess({
   const urlOfficeId = searchParams.get("officeId");
   // PostHog anonymous id + campaign params handed off by the landing page.
   const attribution = parseSignupAttribution(searchParams);
+  // Documents attached to the landing-page prompt (storage keys).
+  const landingUploadKeys = parseLandingUploadKeys(searchParams);
 
   // Generate request key once for both useEffect and render logic
   const requestKey = generateAutoProcessKey(
@@ -78,6 +81,7 @@ export function useAutoProcess({
             organizationId: urlOrganizationId || undefined,
             officeId: urlOfficeId || undefined,
             attribution,
+            landingUploadKeys,
           },
           isAuthenticated,
         );

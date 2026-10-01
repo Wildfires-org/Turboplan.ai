@@ -2,6 +2,18 @@ import { z } from "zod";
 
 import { signupAttributionSchema } from "@/lib/signup-attribution";
 
+/** Most documents a visitor can attach to the landing-page prompt. */
+export const MAX_LANDING_UPLOADS = 5;
+
+/**
+ * Staging keys from `POST /api/public/uploads/presign`. Only the shape is
+ * checked here; each key is strictly validated when it is claimed, and a bad
+ * one is skipped rather than failing the signup.
+ */
+export const landingUploadKeysSchema = z
+  .array(z.string())
+  .max(MAX_LANDING_UPLOADS);
+
 export const selfServiceSchema = z.object({
   email: z.string().email("Invalid email address"),
   projectTitle: z.string().min(1, "Project title is required"),
@@ -15,6 +27,7 @@ export const selfServiceSchema = z.object({
    * than failing the signup.
    */
   attribution: signupAttributionSchema.optional(),
+  landingUploadKeys: landingUploadKeysSchema.optional(),
 });
 
 export type SelfServiceInput = z.infer<typeof selfServiceSchema>;
@@ -59,4 +72,6 @@ export interface CreateProjectInput {
   projectDescription?: string;
   existingOrgId?: string;
   existingOfficeId?: string;
+  /** See {@link landingUploadKeysSchema} */
+  landingUploadKeys?: string[];
 }

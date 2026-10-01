@@ -10,6 +10,10 @@ export const EMAIL_PARAM = "email";
 // post-signup app session stitch into one person. Contract with the app side —
 // do not rename.
 export const POSTHOG_DISTINCT_ID_PARAM = "ph_did";
+// Storage keys of documents attached in the hero, one param per key. The app
+// adds them to the new project as documents. Contract with the app side — do
+// not rename.
+export const LANDING_UPLOADS_PARAM = "landingUploads";
 
 export const clearUrlParams = () => {
   const url = new URL(window.location.href);
@@ -21,5 +25,6 @@ export const clearUrlParams = () => {
   url.searchParams.delete(USER_ROLE_PARAM);
   url.searchParams.delete(CONTEXT_RESOURCES_PARAM);
   url.searchParams.delete(EMAIL_PARAM);
+  url.searchParams.delete(LANDING_UPLOADS_PARAM);
   window.history.replaceState(null, "", url.toString());
 };

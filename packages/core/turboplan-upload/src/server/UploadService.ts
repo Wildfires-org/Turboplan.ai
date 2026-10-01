@@ -1,10 +1,17 @@
 import {
   ABSOLUTE_MAX_FILE_SIZE,
   isAllowedUploadContentType,
+  isProjectDocumentMimeType,
   normalizeContentType,
+  PROJECT_DOCUMENT_MAX_FILE_SIZE,
   UploadError,
   UploadErrorCode,
 } from "../types";
+import {
+  LANDING_FILENAME_MAX_LENGTH,
+  LANDING_FILENAME_STRIP_CHARS,
+  LANDING_UPLOAD_PREFIX,
+} from "./landing-uploads";
 import { generatePresignedUploadUrl } from "./r2-client";
 import { uniqueStorageName } from "./storage-key";
 
@@ -59,7 +66,10 @@ export const assertAllowedContentType = (contentType: string): void => {
 // Helper Functions
 // ============================================================================
 
-export const sanitizeFilename = (filename: string): string => {
+export const sanitizeFilename = (
+  filename: string,
+  maxLength: number = MAX_FILENAME_LENGTH,
+): string => {
   if (!filename || typeof filename !== "string") {
     throw new UploadError(
       "Invalid filename provided",
@@ -84,10 +94,10 @@ export const sanitizeFilename = (filename: string): string => {
     sanitized = `file-${Date.now()}`;
   }
 
-  if (sanitized.length > MAX_FILENAME_LENGTH) {
+  if (sanitized.length > maxLength) {
     const extMatch = sanitized.match(/\.[^.]+$/);
-    const ext = extMatch ? extMatch[0] : "";
-    const nameLength = MAX_FILENAME_LENGTH - ext.length;
+    const ext = extMatch && extMatch[0].length < maxLength ? extMatch[0] : "";
+    const nameLength = maxLength - ext.length;
     sanitized = sanitized.slice(0, nameLength) + ext;
   }
 
@@ -142,6 +152,55 @@ export class UploadService {
     const key = `uploads/${userId}/${uniqueStorageName(sanitizedFilename)}`;
 
     return generatePresignedUploadUrl(key, contentType, fileSize);
+  }
+
+  /**
+   * Presigned PUT for a document an anonymous visitor attaches on the landing
+   * page. No identity, so the rules are the strict project-document ones
+   * (PDF / Word, project document size cap) and the key lands in the
+   * `landing-uploads/` staging prefix until `claimLandingUpload` moves it.
+   * The content type must match exactly: it is signed into the URL, so the
+   * browser's PUT has to send the same `Content-Type`.
+   */
+  async generateLandingPresignedUrl(
+    filename: string,
+    contentType: string,
+    fileSize: number,
+  ): Promise<{ uploadUrl: string; key: string }> {
+    if (!isProjectDocumentMimeType(contentType)) {
+      throw new UploadError(
+        "Only PDF and Word documents can be attached",
+        UploadErrorCode.VALIDATION_ERROR,
+        { contentType },
+      );
+    }
+
+    if (
+      !Number.isInteger(fileSize) ||
+      fileSize <= 0 ||
+      fileSize > PROJECT_DOCUMENT_MAX_FILE_SIZE
+    ) {
+      throw new UploadError(
+        `File size must be between 1 and ${PROJECT_DOCUMENT_MAX_FILE_SIZE} bytes`,
+        UploadErrorCode.VALIDATION_ERROR,
+        { fileSize, maxSize: PROJECT_DOCUMENT_MAX_FILE_SIZE },
+      );
+    }
+
+    const sanitizedFilename = sanitizeFilename(
+      filename.replace(LANDING_FILENAME_STRIP_CHARS, ""),
+      LANDING_FILENAME_MAX_LENGTH,
+    );
+
+    const key = `${LANDING_UPLOAD_PREFIX}/${uniqueStorageName(sanitizedFilename)}`;
+
+    const { uploadUrl } = await generatePresignedUploadUrl(
+      key,
+      contentType,
+      fileSize,
+    );
+
+    return { uploadUrl, key };
   }
 }
 
