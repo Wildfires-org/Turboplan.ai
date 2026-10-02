@@ -128,20 +128,40 @@ const HEADER_FONT_HALFPT = 21;
 // sits flush with the right margin like the `{right}` lines below it.
 const HEADER_CELL_MARGINS = { top: 20, bottom: 20, left: 0, right: 160 };
 const LAST_HEADER_CELL_MARGINS = { ...HEADER_CELL_MARGINS, right: 0 };
-// Width (twips) of a letterhead column that has no content at all.
-const EMPTY_HEADER_COLUMN_TWIPS = 360;
+// Width (twips) of a table column that has no content at all.
+const EMPTY_COLUMN_TWIPS = 360;
 
-// Sizes the letterhead columns to their content (see computeColumnWidths),
-// estimating text width at the letterhead font size (1pt = 20 twips, so one em
-// is HEADER_FONT_HALFPT × 10 twips). The logo sits in the page margin (see
-// buildLetterheadLogoImage), so the table always spans the full content width.
-const computeHeaderColumnWidths = (rows: string[][]): number[] => {
+// Body tables use the document default run size (`size: 24` in the styles of
+// generateDocxFromMarkdown) and Word's default cell margins (108 twips on the
+// left and on the right), since their cells set no margins of their own.
+const BODY_FONT_HALFPT = 24;
+const BODY_CELL_PADDING_TWIPS = 108 * 2;
+
+type TableSizing = {
+  // Run size in half-points the cell text renders at.
+  fontHalfPt: number;
+  // Horizontal cell padding (left + right margins) in twips.
+  padding: number;
+  // Width (twips) of a column with no content at all.
+  emptyWidth: number;
+};
+
+// Sizes table columns to their content (see computeColumnWidths), estimating
+// text width at the table's font size (1pt = 20 twips, so one em is
+// fontHalfPt × 10 twips). Tables always span the full content width — the
+// letterhead logo sits in the page margin (see buildLetterheadLogoImage). An
+// explicit grid matters for body tables too: without one docx writes 100-twip
+// columns that renderers other than Word (Pages, Google Docs) honor.
+const computeTableColumnWidths = (
+  rows: string[][],
+  { fontHalfPt, padding, emptyWidth }: TableSizing,
+): number[] => {
   const widths = computeColumnWidths({
     rows,
     totalWidth: CONTENT_WIDTH_TWIPS,
-    measure: (text) => estimateTextWidthEm(text) * HEADER_FONT_HALFPT * 10,
-    padding: HEADER_CELL_MARGINS.left + HEADER_CELL_MARGINS.right,
-    emptyWidth: EMPTY_HEADER_COLUMN_TWIPS,
+    measure: (text) => estimateTextWidthEm(text) * fontHalfPt * 10,
+    padding,
+    emptyWidth,
   }).map(Math.round);
   // OOXML widths are whole twips; the last column absorbs the rounding.
   const rounded = widths.reduce((total, width) => total + width, 0);
@@ -384,8 +404,28 @@ const buildTable = (
     right: noBorder,
   };
 
+  // Body tables get a visible 0.5pt grid (size is in eighths of a point); the
+  // letterhead stays invisible. Cell-level borders override table-level ones,
+  // so body cells set none and inherit this grid.
+  const tableBorder = isHeader
+    ? noBorder
+    : { style: BorderStyle.SINGLE, size: 4, color: "000000" };
+
   const colCount = rows[0]?.length ?? 0;
-  const headerColWidths = isHeader ? computeHeaderColumnWidths(rows) : [];
+  const colWidths = computeTableColumnWidths(
+    rows,
+    isHeader
+      ? {
+          fontHalfPt: HEADER_FONT_HALFPT,
+          padding: HEADER_CELL_MARGINS.left + HEADER_CELL_MARGINS.right,
+          emptyWidth: EMPTY_COLUMN_TWIPS,
+        }
+      : {
+          fontHalfPt: BODY_FONT_HALFPT,
+          padding: BODY_CELL_PADDING_TWIPS,
+          emptyWidth: EMPTY_COLUMN_TWIPS,
+        },
+  );
   // Separator-row markers mean the letterhead layout was chosen to mirror the
   // reference document; without them it's a legacy agency letterhead.
   const isExplicitLayout = hasExplicitAlignment(alignments);
@@ -414,6 +454,9 @@ const buildTable = (
   const tableRows = rows.map((cells, rowIndex) => {
     const dataCells = cells.map((cellText, colIndex) => {
       const isLastColumn = colIndex === colCount - 1;
+      // Undefined for surplus cells of a row longer than the first: they have
+      // no grid column, and docx throws on a width without a size.
+      const colWidth = colWidths[colIndex];
       const formatted = parseInlineFormatting(
         cellText,
         commentCounter,
@@ -422,8 +465,11 @@ const buildTable = (
         {
           // Legacy letterheads bold every agency identity column; the
           // address/contact column (last) stays regular weight. Explicit
-          // layouts take bold from the markdown only.
-          forceBold: isHeader && !isExplicitLayout && !isLastColumn,
+          // layouts take bold from the markdown only. Body tables bold their
+          // header row.
+          forceBold: isHeader
+            ? !isExplicitLayout && !isLastColumn
+            : rowIndex === 0,
           // The letterhead renders slightly smaller than the body.
           size: isHeader ? HEADER_FONT_HALFPT : undefined,
         },
@@ -448,34 +494,32 @@ const buildTable = (
             spacing: isHeader ? { after: 0, line: 240 } : undefined,
           }),
         ],
-        borders: allBordersNone,
+        borders: isHeader ? allBordersNone : undefined,
         verticalAlign: isHeader ? VerticalAlign.CENTER : undefined,
         margins: isHeader ? headerMargins : undefined,
-        width: isHeader
-          ? { size: headerColWidths[colIndex], type: WidthType.DXA }
-          : undefined,
+        width:
+          colWidth === undefined
+            ? undefined
+            : { size: colWidth, type: WidthType.DXA },
       });
     });
 
     return new TableRow({ children: dataCells });
   });
 
-  const fixedLayout = isHeader
-    ? { columnWidths: headerColWidths, layout: TableLayoutType.FIXED }
-    : {};
-
   return new Table({
     rows: tableRows,
     width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
     borders: {
-      top: noBorder,
-      bottom: noBorder,
-      left: noBorder,
-      right: noBorder,
-      insideHorizontal: noBorder,
-      insideVertical: noBorder,
+      top: tableBorder,
+      bottom: tableBorder,
+      left: tableBorder,
+      right: tableBorder,
+      insideHorizontal: tableBorder,
+      insideVertical: tableBorder,
     },
-    ...fixedLayout,
+    columnWidths: colWidths,
+    layout: TableLayoutType.FIXED,
   });
 };
 

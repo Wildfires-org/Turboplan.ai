@@ -9,6 +9,8 @@ import { generateDocxFromMarkdown } from "../lib/export/markdown-to-docx";
 const CONTENT_WIDTH_TWIPS = 9026;
 // The letterhead font is 10.5pt, i.e. 210 twips per em.
 const HEADER_EM_TWIPS = 210;
+// The body font is 12pt, i.e. 240 twips per em.
+const BODY_EM_TWIPS = 240;
 
 // Reads one file out of the .docx zip. docx (JSZip) writes sizes into every
 // local file header, so walking the headers is enough.
@@ -66,6 +68,15 @@ const runWithText = (xml: string, text: string): string => {
 };
 
 const isBold = (runXml: string): boolean => runXml.includes("<w:b/>");
+
+// Border edge → style ("single", "none") for every border element in the XML.
+// Cell margins share the edge names but carry w:type, not w:val.
+const borderStyles = (xml: string): [string, string][] =>
+  [
+    ...xml.matchAll(
+      /<w:(top|left|bottom|right|insideH|insideV) w:val="(\w+)"/g,
+    ),
+  ].map((m) => [m[1], m[2]]);
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
@@ -177,5 +188,102 @@ describe("DOCX aligned paragraphs and body text", () => {
     assert.strictEqual(alignmentOf(cells[1]), "right");
     assert.strictEqual(alignmentOf(cells[2]), undefined);
     assert.strictEqual(alignmentOf(cells[3]), "right");
+  });
+});
+
+describe("DOCX body tables", () => {
+  const SCHEDULE_ROWS = [
+    ["Phase", "Key Deliverables", "Estimated Completion"],
+    ["Phase 1 — Kickoff", "Kickoff meeting, work plan", "January 2027"],
+    [
+      "Phase 2 — Field Surveys",
+      "Biological and cultural resource surveys",
+      "April 2027",
+    ],
+    ["Phase 3 — Final Report", "Draft and final NEPA documents", "June 2027"],
+  ];
+  const scheduleTable = [
+    `| ${SCHEDULE_ROWS[0].join(" | ")} |`,
+    "|---|---|---|",
+    ...SCHEDULE_ROWS.slice(1).map((row) => `| ${row.join(" | ")} |`),
+  ].join("\n");
+
+  const renderBodyTable = async (): Promise<string> => {
+    const xml = await renderDocumentXml(
+      `${BUG_REPORT_LETTERHEAD}\n\n${scheduleTable}`,
+    );
+    return firstTable(xml.slice(xml.indexOf("</w:tbl>") + 1));
+  };
+
+  it("sizes columns from content instead of docx's 100-twip default", async () => {
+    const widths = gridWidths(await renderBodyTable());
+    assert.strictEqual(widths.length, 3);
+    assert.strictEqual(sum(widths), CONTENT_WIDTH_TWIPS);
+    assert.ok(!widths.includes(100), `default 100-twip column: ${widths}`);
+    // No word breaks mid-way: every column fits its longest word at 12pt.
+    widths.forEach((width, col) => {
+      const longestWord = Math.max(
+        ...SCHEDULE_ROWS.flatMap((row) => row[col].split(/\s+/)).map(
+          (word) => estimateTextWidthEm(word) * BODY_EM_TWIPS,
+        ),
+      );
+      assert.ok(
+        width >= longestWord,
+        `column ${col} narrower than its longest word: ${widths}`,
+      );
+    });
+  });
+
+  it("uses a fixed layout so renderers honor the grid", async () => {
+    assert.ok(
+      (await renderBodyTable()).includes('<w:tblLayout w:type="fixed"/>'),
+    );
+  });
+
+  it("draws a visible 0.5pt grid that the cells inherit", async () => {
+    const table = await renderBodyTable();
+    const tableBorders = table.match(/<w:tblBorders>[\s\S]*?<\/w:tblBorders>/);
+    assert.ok(tableBorders, "no table borders");
+    assert.deepStrictEqual(
+      borderStyles(tableBorders[0]).sort(),
+      ["bottom", "insideH", "insideV", "left", "right", "top"].map((edge) => [
+        edge,
+        "single",
+      ]),
+    );
+    assert.ok(tableBorders[0].includes('w:sz="4"'), "grid is not 0.5pt");
+    // Cell-level borders would override the table grid.
+    for (const cell of cellsOf(table)) {
+      assert.ok(!cell.includes("<w:tcBorders>"), "cell overrides the grid");
+      assert.ok(!cell.includes('w:val="none"'), "cell hides a border");
+    }
+  });
+
+  it("keeps the letterhead table borderless", async () => {
+    const letterhead = firstTable(
+      await renderDocumentXml(`${BUG_REPORT_LETTERHEAD}\n\n${scheduleTable}`),
+    );
+    const styles = borderStyles(letterhead);
+    assert.ok(styles.length > 0, "letterhead borders not set");
+    assert.ok(
+      styles.every(([, style]) => style === "none"),
+      `visible letterhead border: ${JSON.stringify(styles)}`,
+    );
+  });
+
+  it("bolds the header row and leaves data rows regular", async () => {
+    const table = await renderBodyTable();
+    for (const header of SCHEDULE_ROWS[0]) {
+      assert.ok(isBold(runWithText(table, header)), `"${header}" not bold`);
+    }
+    assert.ok(!isBold(runWithText(table, "Phase 1 — Kickoff")));
+    assert.ok(!isBold(runWithText(table, "January 2027")));
+  });
+
+  it("exports a row with more cells than the header row", async () => {
+    const xml = await renderDocumentXml(
+      `${BUG_REPORT_LETTERHEAD}\n\n| Item | Cost |\n|---|---|\n| Survey | $100 | extra |`,
+    );
+    assert.ok(xml.includes(">extra</w:t>"), "surplus cell missing");
   });
 });

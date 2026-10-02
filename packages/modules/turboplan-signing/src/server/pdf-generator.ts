@@ -17,11 +17,11 @@ import {
 
 // Generates a PDF that mirrors the DOCX export (markdown-to-docx.ts) so signed
 // documents look the same as the downloadable Word version. Uses the same
-// line-based markdown dialect: borderless tables, `{right}` right-aligned and
-// `{center}` centered paragraphs, headings, bullet/numbered lists, and inline
-// bold/italic. Standard markdown libraries (remark-pdf) don't understand this
-// dialect and mis-render `{right}`, tables, and `---` separators — hence the
-// hand-rolled parser.
+// line-based markdown dialect: tables (a borderless letterhead, gridded body
+// tables), `{right}` right-aligned and `{center}` centered paragraphs,
+// headings, bullet/numbered lists, and inline bold/italic. Standard markdown
+// libraries (remark-pdf) don't understand this dialect and mis-render
+// `{right}`, tables, and `---` separators — hence the hand-rolled parser.
 
 const PAGE_MARGIN = 50;
 const BODY_FONT_SIZE = 11;
@@ -30,11 +30,16 @@ const BODY_FONT_SIZE = 11;
 const HEADER_FONT_SIZE = 9.5;
 const PARAGRAPH_GAP = 6;
 const CELL_PADDING = 2;
+// Body table cells sit inside a visible grid, so their text gets more room
+// from the lines than the invisible letterhead's.
+const BODY_CELL_PADDING = 4;
+// Body table grid line width (points), matching the DOCX 0.5pt cell borders.
+const TABLE_BORDER_WIDTH = 0.5;
 // Letterhead columns sit flush with the content edges and are separated by
 // this gutter (points), matching the DOCX letterhead cell margins.
 const HEADER_COLUMN_GAP = 8;
-// Width (points) of a letterhead column that has no content at all.
-const EMPTY_HEADER_COLUMN_WIDTH = 18;
+// Width (points) of a table column that has no content at all.
+const EMPTY_COLUMN_WIDTH = 18;
 // Slack (points) when wrapping manually laid-out text, so float noise between
 // measuring a whole line and its fragments never pushes a word onto a new line.
 const WRAP_TOLERANCE = 0.5;
@@ -327,12 +332,15 @@ export const generatePdfFromMarkdown = async (
     doc.moveDown(options.gap / options.size);
   };
 
-  // Letterhead text measured with the real font metrics, in bold — the widest
-  // face it uses — so a column is never narrower than its text.
-  const measureHeaderText = (text: string): number => {
-    doc.font("Times-Bold").fontSize(HEADER_FONT_SIZE);
-    return doc.widthOfString(text);
-  };
+  // Table text measured with the real font metrics, in bold — the widest face
+  // a table uses — so a column is never narrower than its text. Leaves the
+  // document in Times-Bold at fontSize.
+  const measureTableText =
+    (fontSize: number) =>
+    (text: string): number => {
+      doc.font("Times-Bold").fontSize(fontSize);
+      return doc.widthOfString(text);
+    };
 
   const renderTable = (
     rows: string[][],
@@ -343,21 +351,23 @@ export const generatePdfFromMarkdown = async (
     if (colCount === 0) {
       return;
     }
-    // The logo sits in the page margin, so the letterhead always spans the
-    // full content width; its columns are sized to their content.
-    const widths = isHeader
-      ? computeColumnWidths({
-          rows,
-          totalWidth: usableWidth,
-          measure: measureHeaderText,
-          padding: HEADER_COLUMN_GAP,
-          emptyWidth: EMPTY_HEADER_COLUMN_WIDTH,
-        })
-      : Array(colCount).fill(usableWidth / colCount);
+    // The letterhead renders slightly smaller than the body.
+    const fontSize = isHeader ? HEADER_FONT_SIZE : BODY_FONT_SIZE;
+    // Columns are sized to their content, like the DOCX export. Tables always
+    // span the full content width — the letterhead logo sits in the page
+    // margin.
+    const widths = computeColumnWidths({
+      rows,
+      totalWidth: usableWidth,
+      measure: measureTableText(fontSize),
+      padding: isHeader ? HEADER_COLUMN_GAP : BODY_CELL_PADDING * 2,
+      emptyWidth: EMPTY_COLUMN_WIDTH,
+    });
     // Separator-row markers mean the letterhead layout was chosen to mirror the
     // reference document; without them it's a legacy agency letterhead.
     const isExplicitLayout = hasExplicitAlignment(alignments);
     const isLegacyHeader = isHeader && !isExplicitLayout;
+    const cellPadding = isHeader ? CELL_PADDING : BODY_CELL_PADDING;
 
     // Horizontal text insets: letterhead columns sit flush with the content
     // edges with a gutter after every column but the last; body table cells
@@ -365,7 +375,7 @@ export const generatePdfFromMarkdown = async (
     const insetsFor = (ci: number) =>
       isHeader
         ? { left: 0, right: ci < colCount - 1 ? HEADER_COLUMN_GAP : 0 }
-        : { left: CELL_PADDING, right: CELL_PADDING };
+        : { left: cellPadding, right: cellPadding };
     let columnX = doc.page.margins.left;
     const textBoxes = widths.map((width, ci) => {
       const { left, right } = insetsFor(ci);
@@ -380,29 +390,46 @@ export const generatePdfFromMarkdown = async (
       (isLegacyHeader && ci === colCount - 1 ? "right" : "left");
 
     // Legacy letterheads bold every agency identity column but the last
-    // (address); explicit layouts and body tables take bold from the markdown.
-    const runsFor = (cellText: string, ci: number): Run[] => {
+    // (address) and body tables bold their header row; other cells (and
+    // explicit letterhead layouts) take bold from the markdown.
+    const runsFor = (cellText: string, ri: number, ci: number): Run[] => {
       const runs = parseRuns(cellText);
-      return isLegacyHeader && ci < colCount - 1
-        ? runs.map((run) => ({ ...run, bold: true }))
-        : runs;
+      const isBold = isHeader ? isLegacyHeader && ci < colCount - 1 : ri === 0;
+      return isBold ? runs.map((run) => ({ ...run, bold: true })) : runs;
     };
 
-    // The letterhead renders slightly smaller than the body.
-    doc.fontSize(isHeader ? HEADER_FONT_SIZE : BODY_FONT_SIZE);
+    // Body tables get a visible grid (the letterhead stays invisible): one
+    // rectangle per cell, stroked in its own graphics state so the line style
+    // never leaks into later drawing.
+    const strokeCellBorders = (rowY: number, rowBoxHeight: number) => {
+      doc.save().lineWidth(TABLE_BORDER_WIDTH).strokeColor("#000000");
+      let cellX = doc.page.margins.left;
+      for (const width of widths) {
+        doc.rect(cellX, rowY, width, rowBoxHeight);
+        cellX += width;
+      }
+      doc.stroke().restore();
+    };
+
+    // Line height depends on the current face, and measuring left it bold.
+    // The letterhead keeps the bold metrics it has always been laid out with;
+    // body cells reset to the regular face so their lines match body
+    // paragraphs. (Cell text sets its own font per run when drawn.)
+    doc.font(isHeader ? "Times-Bold" : "Times-Roman").fontSize(fontSize);
     const lineHeight = doc.currentLineHeight(true);
 
-    for (const cells of rows) {
+    for (const [ri, cells] of rows.entries()) {
       const cellLines = cells
         .slice(0, colCount)
         .map((cellText, ci) =>
-          layoutRuns(runsFor(cellText, ci), textBoxes[ci].width),
+          layoutRuns(runsFor(cellText, ri, ci), textBoxes[ci].width),
         );
-      // Row height from the tallest cell.
-      const rowHeight =
-        Math.max(...cellLines.map((lines) => lines.length)) * lineHeight;
+      // Row height from the tallest cell, plus the vertical insets.
+      const rowBoxHeight =
+        Math.max(...cellLines.map((lines) => lines.length)) * lineHeight +
+        cellPadding * 2;
 
-      if (doc.y + rowHeight > doc.page.height - doc.page.margins.bottom) {
+      if (doc.y + rowBoxHeight > doc.page.height - doc.page.margins.bottom) {
         doc.addPage();
       }
 
@@ -412,15 +439,18 @@ export const generatePdfFromMarkdown = async (
           drawLine(
             line,
             textBoxes[ci].x,
-            rowY + CELL_PADDING + li * lineHeight,
+            rowY + cellPadding + li * lineHeight,
             textBoxes[ci].width,
             alignFor(ci),
           );
         });
       });
+      if (!isHeader) {
+        strokeCellBorders(rowY, rowBoxHeight);
+      }
 
       doc.x = doc.page.margins.left;
-      doc.y = rowY + rowHeight + CELL_PADDING * 2;
+      doc.y = rowY + rowBoxHeight;
     }
     doc.moveDown(PARAGRAPH_GAP / BODY_FONT_SIZE);
   };
