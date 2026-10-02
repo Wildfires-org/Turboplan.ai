@@ -9,12 +9,11 @@ const createJestConfig = nextJest({
 // Add any custom config to be passed to Jest
 const config: Config = {
   testEnvironment: "jest-environment-node",
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
 };
 
 module.exports = async () => ({
   ...(await createJestConfig(config)()),
-  testPathIgnorePatterns: ["/node_modules/", "/e2e/"],
+  testPathIgnorePatterns: ["/node_modules/"],
   // Build output (`next build` standalone, `opennextjs-cloudflare build`)
   // contains copies of workspace packages that collide in jest's module map.
   modulePathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/.open-next/"],

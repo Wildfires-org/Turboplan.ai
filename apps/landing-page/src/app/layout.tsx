@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 
-import * as dotenv from "dotenv";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata, Viewport } from "next";
 import { Geist, Inter } from "next/font/google";
@@ -25,7 +24,6 @@ import { brand } from "@/lib/brand";
 import { resolveMetadataBase } from "@/lib/metadata-base";
 import { cn } from "@/lib/utils";
 import "../globals.css";
-dotenv.config();
 
 // One variable file per family (latin only). The nine static Geist weights
 // this replaced were all preloaded, 375 KB that held up first paint on phones.
