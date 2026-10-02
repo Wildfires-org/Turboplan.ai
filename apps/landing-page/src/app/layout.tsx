@@ -54,6 +54,10 @@ export const metadata: Metadata = {
   metadataBase: resolveMetadataBase(getLandingPageEnv().LANDING_URL),
   title: `${APP_TITLE} | ${APP_TAGLINE}`,
   description: APP_DESCRIPTION,
+  // public/favicon.ico holds 16, 32 and 48px images.
+  icons: {
+    icon: [{ url: "/favicon.ico", sizes: "16x16 32x32 48x48" }],
+  },
   openGraph: {
     title: APP_TAGLINE,
     description: APP_DESCRIPTION,

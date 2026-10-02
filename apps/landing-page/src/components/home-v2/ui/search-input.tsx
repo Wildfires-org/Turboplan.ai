@@ -229,7 +229,10 @@ export function SearchInput({
             isDragActive && "outline-dashed outline-brand-600/60",
           )}
         >
-          <input {...getInputProps()} accept={PROJECT_DOCUMENT_ACCEPT} />
+          <input
+            {...getInputProps({ "aria-label": "Attach documents" })}
+            accept={PROJECT_DOCUMENT_ACCEPT}
+          />
 
           {/* Stays mounted (hidden while empty) so it is a live region before
               the first chip arrives and the last chip can animate out. */}
