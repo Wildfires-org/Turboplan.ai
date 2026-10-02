@@ -21,7 +21,7 @@ import { publicUploadRouter } from "@wildfires-org/turboplan-upload/server";
 import { publicInvitationsRouter } from "@wildfires-org/turboplan-workspace/server";
 
 import { magicLinkAnalyticsMiddleware } from "../middleware/magic-link-analytics.js";
-import { createIpRateLimiter } from "../utils/ip-rate-limit.js";
+import { createIpRateLimitMiddleware } from "../utils/ip-rate-limit.js";
 import { tokenRouter } from "./auth/token.js";
 import { publicEnhanceProjectPromptRouter } from "./enhance-project-prompt.js";
 import { generateTitleRouter } from "./generate-title.js";
@@ -29,8 +29,11 @@ import { publicValidateProjectPromptRouter } from "./validate-project-prompt.js"
 
 // Anonymous presigns for documents attached on the landing page. There is no
 // identity to gate on, so the per-IP limit is the abuse control: 10/min is two
-// full attempts at the 5-file maximum.
-const checkPublicUploadRateLimit = createIpRateLimiter({
+// full attempts at the 5-file maximum. On Workers it is enforced by the
+// PUBLIC_UPLOAD_RATE_LIMITER binding (wrangler.jsonc, same 10 per 60 s), not
+// per isolate.
+const publicUploadRateLimit = createIpRateLimitMiddleware({
+  binding: "PUBLIC_UPLOAD_RATE_LIMITER",
   windowMs: 60_000,
   maxRequests: 10,
 });
@@ -74,15 +77,7 @@ export async function registerPublicRoutes(router: Hono) {
   router.route("/api/public", publicEnhanceProjectPromptRouter);
 
   // Landing-page document attachments (no auth, per-IP rate limited)
-  router.use("/api/public/uploads/*", async (c, next) => {
-    if (!checkPublicUploadRateLimit(c)) {
-      return c.json(
-        { error: "Rate limit exceeded. Please try again later." },
-        429,
-      );
-    }
-    await next();
-  });
+  router.use("/api/public/uploads/*", publicUploadRateLimit);
   router.route("/api/public/uploads", publicUploadRouter);
 
   // Public invitation details (for acceptance page before login)

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import {
   classifyProjectFile,
+  MAX_LANDING_UPLOADS,
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
   resolveProjectFileContentType,
 } from "@wildfires-org/turboplan-upload/types";
@@ -37,8 +38,6 @@ interface QueuedUpload {
   file: File;
   contentType: string;
 }
-
-export const MAX_PROMPT_ATTACHMENTS = 5;
 
 const MB = 1024 * 1024;
 
@@ -131,7 +130,7 @@ export const usePromptAttachments = () => {
     const seen = new Set(
       kept.map((attachment) => getDedupeKey(attachment.name, attachment.size)),
     );
-    const remainingSlots = MAX_PROMPT_ATTACHMENTS - kept.length;
+    const remainingSlots = MAX_LANDING_UPLOADS - kept.length;
     const queued: QueuedUpload[] = [];
     const turnedAway: string[] = [];
     let skippedOverLimit = 0;
@@ -166,9 +165,7 @@ export const usePromptAttachments = () => {
     }
 
     if (skippedOverLimit > 0) {
-      turnedAway.push(
-        `You can attach up to ${MAX_PROMPT_ATTACHMENTS} documents.`,
-      );
+      turnedAway.push(`You can attach up to ${MAX_LANDING_UPLOADS} documents.`);
     }
     setRejections(turnedAway);
 

@@ -21,6 +21,12 @@ const getS3Client = (): S3Client => {
         accessKeyId: env.R2_ACCESS_KEY_ID,
         secretAccessKey: env.R2_SECRET_ACCESS_KEY,
       },
+      // Since 3.729 the SDK adds a CRC32 checksum to every PutObject by
+      // default, so a presigned URL carries the checksum of an EMPTY body
+      // (`x-amz-checksum-crc32=AAAAAA==`) that the real upload cannot match.
+      // Checksum only when an operation requires it.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
   }
   return _s3Client;
@@ -218,13 +224,16 @@ export const headStorageObject = async (
 
 /**
  * Server-side copy within the bucket. With `ifMatch`, storage refuses the copy
- * unless the source still has that ETag, so the destination is exactly the
- * object the caller inspected (no swap between HEAD and COPY).
+ * unless the source still has that ETag, so the destination holds exactly the
+ * bytes the caller inspected (no swap between HEAD and COPY). With
+ * `contentType`, the destination's metadata is replaced and stored with that
+ * type instead of inheriting the source's — the ETag covers the body only, so
+ * this is what pins the type.
  */
 export const copyStorageObject = async (
   sourceKey: string,
   destinationKey: string,
-  ifMatch?: string,
+  { ifMatch, contentType }: { ifMatch?: string; contentType?: string } = {},
 ): Promise<void> => {
   const bucket = getBucketName();
 
@@ -237,10 +246,21 @@ export const copyStorageObject = async (
         .map(encodeURIComponent)
         .join("/"),
       CopySourceIfMatch: ifMatch,
+      ...(contentType
+        ? { MetadataDirective: "REPLACE" as const, ContentType: contentType }
+        : {}),
     }),
   );
 };
 
+/**
+ * Presigned PUT for exactly `contentType` and `contentLength`. Both are signed
+ * into the URL, so a PUT with any other `Content-Type` (e.g. `text/html` on a
+ * URL presigned for a PDF) fails with `SignatureDoesNotMatch` instead of
+ * storing a publicly served object of the caller's choosing. The presigner
+ * leaves `content-type` unsigned unless it is listed in `signableHeaders`.
+ * Callers must PUT with the very same `Content-Type` string.
+ */
 export const generatePresignedUploadUrl = async (
   key: string,
   contentType: string,
@@ -255,6 +275,7 @@ export const generatePresignedUploadUrl = async (
 
   const uploadUrl = await getSignedUrl(getS3Client(), command, {
     expiresIn: 300,
+    signableHeaders: new Set(["content-type"]),
   });
 
   return {

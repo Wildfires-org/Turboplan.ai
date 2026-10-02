@@ -5,12 +5,14 @@ import { resetEnvCache } from "@wildfires-org/turboplan-env";
 
 import {
   canonicalStorageKey,
+  generatePresignedUploadUrl,
   isOwnedUploadUrl,
   isStorageUrl,
 } from "../src/server/r2-client";
 import { uniqueStorageName } from "../src/server/storage-key";
 import {
   assertAllowedContentType,
+  sanitizeFilename,
   UploadService,
 } from "../src/server/UploadService";
 import {
@@ -271,5 +273,87 @@ describe("storage key format", () => {
     );
     assert.strictEqual(publicUrl, `${PUBLIC_URL}/${key}`);
     assert.ok(isOwnedUploadUrl(publicUrl, USER_ID));
+  });
+});
+
+describe("generatePresignedUploadUrl", () => {
+  // Built offline from dummy credentials: presigning never touches the network.
+  const presignedParams = async (contentType: string) => {
+    const { uploadUrl } = await generatePresignedUploadUrl(
+      "landing-uploads/x.pdf",
+      contentType,
+      1024,
+    );
+    return new URL(uploadUrl).searchParams;
+  };
+
+  it("signs the Content-Type, so a PUT with another type is refused", async () => {
+    const params = await presignedParams("application/pdf");
+    const signed = params.get("X-Amz-SignedHeaders")?.split(";") ?? [];
+
+    assert.ok(signed.includes("content-type"), signed.join(";"));
+    assert.ok(signed.includes("content-length"), signed.join(";"));
+    assert.ok(signed.includes("host"), signed.join(";"));
+  });
+
+  it("carries no checksum of an empty body", async () => {
+    const params = await presignedParams("application/pdf");
+    const names = [...params.keys()].map((name) => name.toLowerCase());
+
+    assert.ok(
+      !names.some((name) => name.startsWith("x-amz-checksum-")),
+      names.join(","),
+    );
+    assert.ok(!names.includes("x-amz-sdk-checksum-algorithm"), names.join(","));
+  });
+
+  it("signs the type for both the authenticated and the landing presign", async () => {
+    const service = new UploadService();
+    for (const { uploadUrl } of [
+      await service.generatePresignedUrl(
+        "a.pdf",
+        "application/pdf",
+        10,
+        USER_ID,
+      ),
+      await service.generateLandingPresignedUrl("a.pdf", "application/pdf", 10),
+    ]) {
+      const signed = new URL(uploadUrl).searchParams.get("X-Amz-SignedHeaders");
+      assert.ok(signed?.split(";").includes("content-type"), String(signed));
+    }
+  });
+});
+
+describe("sanitizeFilename", () => {
+  const hasLoneSurrogate = (value: string) => /\p{Cs}/u.test(value);
+
+  it("never cuts an emoji in half when shortening a long name", () => {
+    // 251 code units are left before ".pdf", so a cut by code units would end
+    // on the high half of the 126th emoji.
+    const sanitized = sanitizeFilename(`${"😀".repeat(300)}.pdf`);
+
+    assert.strictEqual(sanitized, `${"😀".repeat(125)}.pdf`);
+    assert.ok(sanitized.length <= 255);
+    assert.ok(!hasLoneSurrogate(sanitized));
+    assert.doesNotThrow(() => encodeURIComponent(sanitized));
+  });
+
+  it("drops lone surrogate halves from crafted input", () => {
+    const sanitized = sanitizeFilename("a\uD83Db\uDE00c😀.pdf");
+
+    assert.strictEqual(sanitized, "abc😀.pdf");
+    assert.doesNotThrow(() => encodeURIComponent(sanitized));
+  });
+
+  it("presigns a long emoji name instead of failing with URI malformed", async () => {
+    const { key } = await new UploadService().generatePresignedUrl(
+      `${"😀".repeat(300)}.pdf`,
+      "application/pdf",
+      10,
+      USER_ID,
+    );
+
+    assert.ok(key.endsWith(`${"😀".repeat(125)}.pdf`), key);
+    assert.doesNotThrow(() => encodeURIComponent(key));
   });
 });

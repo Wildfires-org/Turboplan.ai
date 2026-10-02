@@ -16,6 +16,7 @@ import useSWRMutation from "swr/mutation";
 
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import {
+  MAX_LANDING_UPLOADS,
   PROJECT_DOCUMENT_ACCEPT,
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
 } from "@wildfires-org/turboplan-upload/types";
@@ -31,7 +32,6 @@ import {
 import { useBillingAccess } from "@/hooks/use-billing-access";
 import {
   formatMegabytes,
-  MAX_PROMPT_ATTACHMENTS,
   type PromptAttachment,
   usePromptAttachments,
 } from "@/hooks/use-prompt-attachments";
@@ -43,7 +43,7 @@ import {
 import { cn } from "@/lib/utils";
 import { events } from "@/types/analytics";
 
-const ATTACH_HINT = `PDF or Word, up to ${formatMegabytes(PROJECT_DOCUMENT_MAX_FILE_SIZE)} each, max ${MAX_PROMPT_ATTACHMENTS} files`;
+const ATTACH_HINT = `PDF or Word, up to ${formatMegabytes(PROJECT_DOCUMENT_MAX_FILE_SIZE)} each, max ${MAX_LANDING_UPLOADS} files`;
 
 const ATTACHMENT_STATUS_LABEL: Record<PromptAttachment["status"], string> = {
   uploading: "uploading",
@@ -221,6 +221,19 @@ export function SearchInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingSend, isBillingLoading, isUploading]);
 
+  // Removing a file that is still uploading cancels a send waiting on it: the
+  // user is still editing what they send, and once the last upload is gone
+  // the deferred send would otherwise fire without that file. Removing a
+  // finished or failed file leaves the send alone (e.g. one only waiting on
+  // billing status).
+  const handleRemoveAttachment = (id: string) => {
+    const removed = attachments.find((attachment) => attachment.id === id);
+    if (removed?.status === "uploading") {
+      setPendingSend(false);
+    }
+    removeAttachment(id);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value.replace(/\n/g, " ");
     setInputValue(newValue);
@@ -259,7 +272,7 @@ export function SearchInput({
                 <AttachmentChip
                   key={attachment.id}
                   attachment={attachment}
-                  onRemove={removeAttachment}
+                  onRemove={handleRemoveAttachment}
                 />
               ))}
             </AnimatePresence>

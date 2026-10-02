@@ -278,6 +278,56 @@ Workers prefer the Hyperdrive connection string over `POSTGRES_URL` and fall bac
 to the raw secret when the binding is absent (local dev, or a deploy run without
 `HYPERDRIVE_ID`), so `POSTGRES_URL` stays required either way.
 
+### R2 bucket
+
+Browsers upload straight to R2 through presigned `PUT` URLs, both from the web
+app and, without an account, from the landing-page prompt. Two bucket settings
+are needed for that:
+
+- **CORS.** The bucket must allow `PUT` with the `Content-Type` header from the
+  web app origin and every landing-page origin (custom domain and
+  `workers.dev`). Without it every upload fails in the browser as a CORS error.
+  The type is signed into the URL, so the `PUT` must send exactly the type it
+  was presigned for. Set the rule once in the dashboard, or with
+  `wrangler r2 bucket cors set <bucket> --file cors.json`. That command
+  replaces the bucket's whole CORS configuration, so include any rules already
+  there:
+
+  ```json
+  {
+    "rules": [
+      {
+        "allowed": {
+          "origins": ["https://app.example.com", "https://example.com"],
+          "methods": ["PUT"],
+          "headers": ["content-type"]
+        },
+        "maxAgeSeconds": 3600
+      }
+    ]
+  }
+  ```
+
+- **Lifecycle.** Landing-page attachments are staged under `landing-uploads/`
+  and moved out when a signup claims them. A rule named
+  `expire-landing-uploads` deletes whatever is left after 2 days.
+  `scripts/deploy-api.sh` adds it to `R2_BUCKET_NAME` as its last step when no
+  rule of that name exists. If a rule of that name exists but is disabled or
+  has another prefix or expiry, the script warns and leaves it alone. It also
+  only warns when it cannot read the rules or add the rule, for example
+  because the API token lacks R2 permission. In that case add the rule by hand:
+  `wrangler r2 bucket lifecycle add <bucket> expire-landing-uploads landing-uploads/ --expire-days 2 --force`.
+  No R2 jurisdiction is supported: the app talks to the default S3 endpoint.
+
+The anonymous presign endpoint (`/api/public/uploads/*`) is rate limited per IP
+by the `PUBLIC_UPLOAD_RATE_LIMITER` binding in `apps/server/wrangler.jsonc`
+(10 per minute). Off Workers, or if the binding errors, it falls back to a
+per-process in-memory limit with the same numbers. Rate-limit namespace ids
+are account-wide, so each environment gets its own and previews or staging
+never spend production's budget: `scripts/deploy-api.sh` swaps the committed
+local id `1010` for `1011` (production), `1012` (staging) or `1013` (all
+previews). The MCP server uses `1001`-`1003`.
+
 ### GitHub Actions secrets
 
 Set under **Settings → Secrets and variables → Actions → Secrets**. The deploy

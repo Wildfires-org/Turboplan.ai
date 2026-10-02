@@ -2,16 +2,14 @@ import {
   ABSOLUTE_MAX_FILE_SIZE,
   isAllowedUploadContentType,
   isProjectDocumentMimeType,
+  LANDING_FILENAME_MAX_LENGTH,
+  LANDING_UPLOAD_PREFIX,
   normalizeContentType,
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
   UploadError,
   UploadErrorCode,
 } from "../types";
-import {
-  LANDING_FILENAME_MAX_LENGTH,
-  LANDING_FILENAME_STRIP_CHARS,
-  LANDING_UPLOAD_PREFIX,
-} from "./landing-uploads";
+import { LANDING_FILENAME_STRIP_CHARS } from "./landing-uploads";
 import { generatePresignedUploadUrl } from "./r2-client";
 import { uniqueStorageName } from "./storage-key";
 
@@ -26,6 +24,12 @@ const MAX_FILENAME_LENGTH = 255;
 const INVALID_FILENAME_CHARS = /[<>:"|?*/\\\x00-\x1F]/g;
 
 const PATH_TRAVERSAL_PATTERN = /\.\.[\/\\]/;
+
+// A surrogate half with no partner (only possible from crafted input) is not
+// a character and makes `encodeURIComponent` throw "URI malformed". Line and
+// paragraph separators (U+2028/U+2029) render as line breaks in some places a
+// name is shown or quoted.
+const UNSAFE_UNICODE_CHARS = /[\p{Cs}\p{Zl}\p{Zp}]/gu;
 
 // Content types a browser will render/execute inline. Storing an object with
 // one of these plus a public, inline-served URL turns any upload endpoint into
@@ -66,6 +70,23 @@ export const assertAllowedContentType = (contentType: string): void => {
 // Helper Functions
 // ============================================================================
 
+/**
+ * Cut `value` to at most `maxUnits` UTF-16 code units without splitting a code
+ * point: a cut through a surrogate pair (any emoji) leaves a lone half, which
+ * makes the key unencodable. Measuring in code units keeps every existing
+ * bound (key segment, filename column, R2's 1024-byte key limit) intact.
+ */
+const truncateToCodePoints = (value: string, maxUnits: number): string => {
+  let result = "";
+  for (const codePoint of value) {
+    if (result.length + codePoint.length > maxUnits) {
+      break;
+    }
+    result += codePoint;
+  }
+  return result;
+};
+
 export const sanitizeFilename = (
   filename: string,
   maxLength: number = MAX_FILENAME_LENGTH,
@@ -86,7 +107,9 @@ export const sanitizeFilename = (
     );
   }
 
-  let sanitized = filename.replace(INVALID_FILENAME_CHARS, "");
+  let sanitized = filename
+    .replace(INVALID_FILENAME_CHARS, "")
+    .replace(UNSAFE_UNICODE_CHARS, "");
 
   sanitized = sanitized.trim().replace(/^\.+/, "");
 
@@ -97,8 +120,7 @@ export const sanitizeFilename = (
   if (sanitized.length > maxLength) {
     const extMatch = sanitized.match(/\.[^.]+$/);
     const ext = extMatch && extMatch[0].length < maxLength ? extMatch[0] : "";
-    const nameLength = maxLength - ext.length;
-    sanitized = sanitized.slice(0, nameLength) + ext;
+    sanitized = truncateToCodePoints(sanitized, maxLength - ext.length) + ext;
   }
 
   return sanitized;
@@ -159,8 +181,9 @@ export class UploadService {
    * page. No identity, so the rules are the strict project-document ones
    * (PDF / Word, project document size cap) and the key lands in the
    * `landing-uploads/` staging prefix until `claimLandingUpload` moves it.
-   * The content type must match exactly: it is signed into the URL, so the
-   * browser's PUT has to send the same `Content-Type`.
+   * The content type must match exactly: it is signed into the URL (see
+   * `generatePresignedUploadUrl`), so the browser's PUT has to send the same
+   * `Content-Type` and storage refuses any other.
    */
   async generateLandingPresignedUrl(
     filename: string,

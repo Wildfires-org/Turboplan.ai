@@ -31,6 +31,7 @@ import { buildAttributionEventProperties } from "@/lib/signup-attribution";
 import { buildMagicLinkUrl } from "../(auth)/actions";
 import {
   attachLandingUploads,
+  findAttachableLandingUploads,
   withAttachedDocumentsNote,
 } from "./attach-landing-uploads";
 import {
@@ -250,15 +251,6 @@ export async function createUserWithOrganization(
       isInitial: true,
     });
 
-    // Documents attached on the landing page move into the new user's uploads
-    // and onto the project now, so the first chat turn can read them.
-    const attachedDocumentNames = await attachLandingUploads({
-      keys: validated.landingUploadKeys,
-      projectId: newProject.id,
-      userId: newUser.id,
-      logPrefix: "[Self-Service]",
-    });
-
     // Cover image generation and the research agent bootstrap are deferred to
     // the user's first magic-link verification (email ownership proven) — see
     // runDeferredSelfServiceProjectSetup. Running them here would let
@@ -275,6 +267,14 @@ export async function createUserWithOrganization(
       projectSlug: newProject.slug,
     };
 
+    // Landing-page documents are only claimed once the verification email is
+    // out (see below), so the first chat message names the ones storage holds
+    // now and the claim will accept — checked without consuming them.
+    const attachableUploads = await findAttachableLandingUploads({
+      keys: validated.landingUploadKeys,
+      logPrefix: "[Self-Service]",
+    });
+
     // Build redirect URL to the new project chat
     const redirectTo = buildProjectChatUrl(
       redirectLocation.organizationSlug,
@@ -284,7 +284,7 @@ export async function createUserWithOrganization(
         chatId: initialChatId,
         initialMessageContent: withAttachedDocumentsNote(
           validated.projectDescription,
-          attachedDocumentNames,
+          attachableUploads.map((upload) => upload.name),
         ),
       },
     );
@@ -319,6 +319,19 @@ export async function createUserWithOrganization(
       );
       return { status: "failed", error: "Failed to send verification email" };
     }
+
+    // The checked landing-page documents move into the new user's uploads and
+    // onto the project only after the email went out: a claim consumes the
+    // staging keys, so claiming before a failed email would leave the retry
+    // (login -> createProjectForAuthenticatedUser) with nothing to attach.
+    // Best-effort and never throws. A document still missing when the first
+    // chat turn runs is tolerated there like any pending or absent document.
+    await attachLandingUploads({
+      keys: attachableUploads.map((upload) => upload.key),
+      projectId: newProject.id,
+      userId: newUser.id,
+      logPrefix: "[Self-Service]",
+    });
 
     // Return email_sent status - user needs to verify email before accessing the app
     return {

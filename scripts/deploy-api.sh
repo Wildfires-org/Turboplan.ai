@@ -21,6 +21,10 @@ set -euo pipefail
 #   SERVER_API_KEY
 #   R2_ACCESS_KEY_ID
 #   R2_SECRET_ACCESS_KEY
+#
+# Optional:
+#   R2_BUCKET_NAME        also ensures the bucket's landing-uploads lifecycle
+#                         rule (needs R2 read/edit permission on the API token)
 
 ENVIRONMENT="${1:?Usage: deploy-api.sh <environment> [pr-number]}"
 PR_NUMBER="${2:-}"
@@ -119,6 +123,24 @@ if [[ -n "${HYPERDRIVE_ID:-}" ]]; then
   sed -i.bak "s/HYPERDRIVE_ID_PLACEHOLDER/${HYPERDRIVE_ID}/" wrangler.jsonc
 fi
 
+# Rate-limit namespace for the anonymous upload presign: one per environment,
+# so preview and staging traffic never spends production's budget (all previews
+# share one). Ids are account-wide; 1001-1003 belong to the MCP server, and
+# wrangler.jsonc commits 1010 for local runs and dry-runs.
+case "$ENVIRONMENT" in
+  production) UPLOAD_RATE_LIMIT_NAMESPACE_ID="1011" ;;
+  staging)    UPLOAD_RATE_LIMIT_NAMESPACE_ID="1012" ;;
+  preview)    UPLOAD_RATE_LIMIT_NAMESPACE_ID="1013" ;;
+esac
+echo "==> Configuring upload rate-limit namespace: ${UPLOAD_RATE_LIMIT_NAMESPACE_ID}"
+[ -f wrangler.jsonc.bak ] || cp wrangler.jsonc wrangler.jsonc.bak
+sed -i.ratelimit "s/\"namespace_id\": \"1010\"/\"namespace_id\": \"${UPLOAD_RATE_LIMIT_NAMESPACE_ID}\"/" wrangler.jsonc
+rm -f wrangler.jsonc.ratelimit
+grep -q "\"namespace_id\": \"${UPLOAD_RATE_LIMIT_NAMESPACE_ID}\"" wrangler.jsonc || {
+  echo "ERROR: rate-limit namespace substitution failed (sed anchor drifted?)" >&2
+  exit 1
+}
+
 # Production can serve a custom domain when PRODUCTION_API_DOMAIN is set; otherwise
 # (and for every other environment) the worker stays on its workers.dev subdomain.
 if [[ "$ENVIRONMENT" == "production" && -n "${PRODUCTION_API_DOMAIN:-}" ]]; then
@@ -216,6 +238,62 @@ for VAR_NAME in AUTH_COOKIE_DOMAIN R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY MAP_SER
 done
 
 echo "$SECRETS_JSON" | npx wrangler secret bulk --name "$WORKER_NAME"
+
+# Landing-page attachments are presigned anonymously into `landing-uploads/` and
+# moved out when a signup claims them; whatever is never claimed must expire.
+# Idempotent and non-fatal: it adds the rule only when no rule of that name
+# exists, and anything it cannot read or fix only warns, never failing the
+# deploy. Rules are read from the API as JSON (the `wrangler r2 bucket
+# lifecycle list` output is a table for humans). No R2 jurisdiction is
+# configured anywhere (the app's S3 endpoint is the default one); a bucket in
+# a jurisdiction would need the `cf-r2-jurisdiction` header below and `-J` on
+# the add.
+LANDING_UPLOADS_RULE="expire-landing-uploads"
+LANDING_UPLOADS_PREFIX="landing-uploads/"
+LANDING_UPLOADS_MAX_AGE=$((2 * 86400))
+if [[ -n "${R2_BUCKET_NAME:-}" ]]; then
+  echo "==> Ensuring R2 lifecycle rule '${LANDING_UPLOADS_RULE}' on ${R2_BUCKET_NAME}"
+  LIFECYCLE_RULE_STATE=$(curl -sf \
+    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID:-}/r2/buckets/${R2_BUCKET_NAME}/lifecycle" \
+    -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN:-}" \
+    | jq -r \
+      --arg id "$LANDING_UPLOADS_RULE" \
+      --arg prefix "$LANDING_UPLOADS_PREFIX" \
+      --argjson maxAge "$LANDING_UPLOADS_MAX_AGE" '
+        (.result.rules // []) as $rules
+        | if .success != true or ($rules | type) != "array" then "unknown"
+          else [$rules[] | select(.id == $id)] as $named
+            | if ($named | length) == 0 then "absent"
+              elif any($named[];
+                .enabled == true
+                and .conditions.prefix == $prefix
+                and .deleteObjectsTransition.condition.type == "Age"
+                and .deleteObjectsTransition.condition.maxAge == $maxAge)
+              then "present"
+              else "different"
+              end
+          end') || LIFECYCLE_RULE_STATE="unknown"
+
+  case "$LIFECYCLE_RULE_STATE" in
+    present)
+      echo "    Rule already present"
+      ;;
+    absent)
+      if npx wrangler r2 bucket lifecycle add "$R2_BUCKET_NAME" \
+        "$LANDING_UPLOADS_RULE" "$LANDING_UPLOADS_PREFIX" --expire-days 2 --force; then
+        echo "    Rule added: ${LANDING_UPLOADS_PREFIX} expires after 2 days"
+      else
+        echo "WARNING: could not add lifecycle rule '${LANDING_UPLOADS_RULE}' to ${R2_BUCKET_NAME}; unclaimed landing uploads will not expire" >&2
+      fi
+      ;;
+    different)
+      echo "WARNING: lifecycle rule '${LANDING_UPLOADS_RULE}' on ${R2_BUCKET_NAME} is disabled or has another prefix or expiry; expected ${LANDING_UPLOADS_PREFIX} after 2 days. Fix it by hand" >&2
+      ;;
+    *)
+      echo "WARNING: could not read lifecycle rules for ${R2_BUCKET_NAME}; skipping '${LANDING_UPLOADS_RULE}'" >&2
+      ;;
+  esac
+fi
 
 echo "==> Deployed ${WORKER_NAME} successfully"
 

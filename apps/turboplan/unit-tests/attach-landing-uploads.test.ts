@@ -34,9 +34,18 @@ const claimedFor = (name: string): Claimed => {
 let claimOutcomes: Record<string, Claimed | null | Error> = {};
 let failRegistrationFor = new Set<string>();
 let failTimelineFor = new Set<string>();
+// Per-key behaviour of the mocked inspection: a result, null (missing) or a throw.
+let inspectOutcomes: Record<string, { originalFilename: string } | Error> = {};
 
 const claimLandingUpload = mock.fn(async (key: string, _userId: string) => {
   const outcome = claimOutcomes[key];
+  if (outcome instanceof Error) {
+    throw outcome;
+  }
+  return outcome ?? null;
+});
+const inspectLandingUpload = mock.fn(async (key: string) => {
+  const outcome = inspectOutcomes[key];
   if (outcome instanceof Error) {
     throw outcome;
   }
@@ -61,7 +70,11 @@ const createTimelineRecord = mock.fn(async (input: { entityName: string }) => {
 
 mock.module("server-only", { namedExports: {} });
 mock.module("@wildfires-org/turboplan-upload/server", {
-  namedExports: { claimLandingUpload, deleteOwnedStorageFile },
+  namedExports: {
+    claimLandingUpload,
+    deleteOwnedStorageFile,
+    inspectLandingUpload,
+  },
 });
 mock.module("@wildfires-org/turboplan-db/queries", {
   namedExports: { createProjectDocument },
@@ -80,8 +93,10 @@ beforeEach(() => {
   claimOutcomes = {};
   failRegistrationFor = new Set();
   failTimelineFor = new Set();
+  inspectOutcomes = {};
   for (const fn of [
     claimLandingUpload,
+    inspectLandingUpload,
     deleteOwnedStorageFile,
     createProjectDocument,
     createTimelineRecord,
@@ -196,6 +211,49 @@ describe("attachLandingUploads", () => {
   });
 });
 
+describe("findAttachableLandingUploads", () => {
+  const find = (keys: unknown) =>
+    attach.findAttachableLandingUploads({
+      keys: keys as string[] | undefined,
+      logPrefix: "[test]",
+    });
+
+  it("names only uploads storage holds and the claim would accept", async () => {
+    inspectOutcomes = {
+      [stagingKey("plan.pdf")]: { originalFilename: "plan.pdf" },
+      [stagingKey("brief.docx")]: { originalFilename: "brief.docx" },
+      [stagingKey("page.html")]: new Error("Unsupported file type"),
+    };
+
+    assert.deepStrictEqual(
+      await find([
+        stagingKey("plan.pdf"),
+        // Missing: expired, never uploaded, or a key made up on the link
+        stagingKey("missing.pdf"),
+        stagingKey("page.html"),
+        stagingKey("plan.pdf"),
+        stagingKey("brief.docx"),
+      ]),
+      [
+        { key: stagingKey("plan.pdf"), name: "plan.pdf" },
+        { key: stagingKey("brief.docx"), name: "brief.docx" },
+      ],
+    );
+    // Inspecting never claims.
+    assert.strictEqual(inspectLandingUpload.mock.callCount(), 4);
+    assert.strictEqual(claimLandingUpload.mock.callCount(), 0);
+  });
+
+  it("finds nothing for missing or malformed keys", async () => {
+    assert.deepStrictEqual(await find(undefined), []);
+    assert.deepStrictEqual(
+      await find(Array.from({ length: 6 }, (_, i) => stagingKey(`${i}.pdf`))),
+      [],
+    );
+    assert.strictEqual(inspectLandingUpload.mock.callCount(), 0);
+  });
+});
+
 describe("withAttachedDocumentsNote", () => {
   it("leaves the prompt alone when nothing was attached", () => {
     assert.strictEqual(
@@ -216,6 +274,13 @@ describe("withAttachedDocumentsNote", () => {
     assert.strictEqual(
       attach.withAttachedDocumentsNote(undefined, ["a.pdf", "b.docx"]),
       'I\'ve attached "a.pdf", "b.docx" to the project documents — please read them and use what you learn as context for the project.',
+    );
+  });
+
+  it("JSON-quotes names so one cannot close its quotes", () => {
+    assert.strictEqual(
+      attach.withAttachedDocumentsNote(undefined, ['a".pdf']),
+      'I\'ve attached "a\\".pdf" to the project documents — please read it and use what you learn as context for the project.',
     );
   });
 });

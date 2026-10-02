@@ -296,4 +296,5 @@ export interface UseFileUploadReturn {
   reset: () => void;
 }
 
+export * from "./landing-uploads";
 export * from "./project-files";

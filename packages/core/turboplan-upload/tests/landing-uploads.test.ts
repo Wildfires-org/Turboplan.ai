@@ -11,13 +11,14 @@ import { resetEnvCache } from "@wildfires-org/turboplan-env";
 
 import {
   claimLandingUpload,
-  parseLandingUploadKey,
+  inspectLandingUpload,
 } from "../src/server/landing-uploads";
 import { publicUploadRouter } from "../src/server/public-router";
 import { isOwnedUploadUrl } from "../src/server/r2-client";
 import { UploadService } from "../src/server/UploadService";
 import {
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
+  parseLandingUploadKey,
   UploadError,
   UploadErrorCode,
 } from "../src/types";
@@ -88,6 +89,10 @@ describe("parseLandingUploadKey", () => {
       `landing-uploads/1730000000000-${UUID}-x\r\n.pdf`,
       `landing-uploads/1730000000000-${UUID}-x\u007f.pdf`,
       `landing-uploads/1730000000000-${UUID}-fdp.exe‮.pdf`,
+      // Line / paragraph separators and lone surrogates
+      `landing-uploads/1730000000000-${UUID}-x\u2028y.pdf`,
+      `landing-uploads/1730000000000-${UUID}-x\u2029y.pdf`,
+      `landing-uploads/1730000000000-${UUID}-x\uD83D.pdf`,
       // Longer than the 255-char filename column
       `landing-uploads/1730000000000-${UUID}-${"a".repeat(201)}.pdf`,
     ]) {
@@ -139,6 +144,46 @@ const notFound = () => {
   });
 };
 
+describe("inspectLandingUpload", () => {
+  it("reports the stored object without consuming it", async () => {
+    const { sent } = mockStorage();
+
+    assert.deepStrictEqual(await inspectLandingUpload(KEY), {
+      originalFilename: "site plan.pdf",
+      size: 2048,
+      contentType: PDF,
+      etag: '"etag-1"',
+    });
+    assert.deepStrictEqual(
+      sent.map((command) => command instanceof HeadObjectCommand),
+      [true],
+    );
+  });
+
+  it("returns null for a missing object and refuses a malformed key unseen", async () => {
+    const { sent } = mockStorage({ head: notFound });
+
+    assert.strictEqual(await inspectLandingUpload(KEY), null);
+    await assert.rejects(
+      inspectLandingUpload("landing-uploads/report.pdf"),
+      isValidationError,
+    );
+    assert.strictEqual(sent.length, 1);
+  });
+
+  it("applies the same type and size rules as the claim", async () => {
+    for (const head of [
+      { ContentType: "text/html", ContentLength: 10 },
+      { ContentType: PDF, ContentLength: 0 },
+      { ContentType: PDF, ContentLength: PROJECT_DOCUMENT_MAX_FILE_SIZE + 1 },
+    ]) {
+      mockStorage({ head: () => head });
+      await assert.rejects(inspectLandingUpload(KEY), isValidationError);
+      mock.restoreAll();
+    }
+  });
+});
+
 describe("claimLandingUpload", () => {
   it("refuses a malformed key before touching storage", async () => {
     const { send } = mockStorage();
@@ -187,7 +232,7 @@ describe("claimLandingUpload", () => {
     }
   });
 
-  it("copies into the owner's uploads prefix, pinned to the inspected ETag", async () => {
+  it("copies into the owner's uploads prefix, pinned to the inspected ETag and type", async () => {
     const { sent } = mockStorage();
 
     const claimed = await claimLandingUpload(KEY, USER_ID);
@@ -208,6 +253,10 @@ describe("claimLandingUpload", () => {
       Key: destinationKey,
       CopySource: `test-bucket/landing-uploads/${encodeURIComponent(SEGMENT)}`,
       CopySourceIfMatch: '"etag-1"',
+      // The ETag covers the body only; the stored type is rewritten to the
+      // validated one so a same-bytes re-upload as text/html cannot carry over.
+      MetadataDirective: "REPLACE",
+      ContentType: PDF,
     });
 
     const deleted = sent.find(
@@ -217,7 +266,7 @@ describe("claimLandingUpload", () => {
   });
 
   it("normalises a stored content type with parameters", async () => {
-    mockStorage({
+    const { sent } = mockStorage({
       head: () => ({
         ContentType: "Application/PDF; charset=binary",
         ContentLength: 1,
@@ -225,6 +274,9 @@ describe("claimLandingUpload", () => {
     });
     const claimed = await claimLandingUpload(KEY, USER_ID);
     assert.strictEqual(claimed?.contentType, PDF);
+
+    const copy = sent.find((command) => command instanceof CopyObjectCommand);
+    assert.strictEqual(copy?.input.ContentType, PDF);
   });
 
   it("still succeeds when deleting the staging object fails", async () => {
@@ -327,13 +379,29 @@ describe("UploadService.generateLandingPresignedUrl", () => {
 
   it("strips separators, URL delimiters and spoofing characters from the name", async () => {
     const { key } = await service.generateLandingPresignedUrl(
-      "q3/#2 50%‮\u0000 report.pdf",
+      "q3/#2 50%‮\u0000\u2028\u2029 report.pdf",
       PDF,
       10,
     );
 
     assert.ok(key.endsWith("-q32 50 report.pdf"), key);
     assert.ok(parseLandingUploadKey(key));
+  });
+
+  it("never cuts an emoji in half when shortening a long name", async () => {
+    // 199 code units are left for the name before ".docx", so a cut by code
+    // units would end on the high half of the 100th emoji.
+    const { uploadUrl, key } = await service.generateLandingPresignedUrl(
+      `${"😀".repeat(150)}.docx`,
+      PDF,
+      10,
+    );
+
+    const parsed = parseLandingUploadKey(key);
+    assert.ok(parsed, key);
+    assert.strictEqual(parsed.originalFilename, `${"😀".repeat(99)}.docx`);
+    assert.doesNotThrow(() => encodeURIComponent(key));
+    assert.ok(uploadUrl.includes(encodeURIComponent("😀")));
   });
 
   it("refuses path traversal in the name", async () => {

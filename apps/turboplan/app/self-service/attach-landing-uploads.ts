@@ -6,6 +6,7 @@ import {
   type ClaimedLandingUpload,
   claimLandingUpload,
   deleteOwnedStorageFile,
+  inspectLandingUpload,
 } from "@wildfires-org/turboplan-upload/server";
 
 import { landingUploadKeysSchema } from "./types";
@@ -98,6 +99,24 @@ const attachLandingUpload = async (
   return document.originalFilename;
 };
 
+// The client-supplied keys, deduped, or none when the payload is malformed.
+const parseLandingUploadKeys = (
+  keys: string[] | undefined,
+  logPrefix: string,
+): string[] => {
+  if (keys === undefined) {
+    return [];
+  }
+
+  const parsed = landingUploadKeysSchema.safeParse(keys);
+  if (!parsed.success) {
+    console.error(`${logPrefix} Ignoring malformed landing upload keys`);
+    return [];
+  }
+
+  return [...new Set(parsed.data)];
+};
+
 /**
  * Attach the documents a visitor uploaded with their landing-page prompt to
  * the project just created for them. Best-effort per file: a bad key, a
@@ -110,23 +129,57 @@ export const attachLandingUploads = async ({
   keys,
   ...context
 }: AttachLandingUploadsParams): Promise<string[]> => {
-  if (keys === undefined) {
-    return [];
-  }
-
-  const parsed = landingUploadKeysSchema.safeParse(keys);
-  if (!parsed.success) {
-    console.error(
-      `${context.logPrefix} Ignoring malformed landing upload keys`,
-    );
-    return [];
-  }
-
   const names = await Promise.all(
-    [...new Set(parsed.data)].map((key) => attachLandingUpload(key, context)),
+    parseLandingUploadKeys(keys, context.logPrefix).map((key) =>
+      attachLandingUpload(key, context),
+    ),
   );
 
   return names.filter((name): name is string => name !== null);
+};
+
+export type AttachableLandingUpload = {
+  key: string;
+  /** Display name, as `attachLandingUploads` would return it */
+  name: string;
+};
+
+/**
+ * The landing uploads a claim would accept right now: each key is checked in
+ * storage (`inspectLandingUpload`, nothing consumed) against the claim's own
+ * type and size rules. For when the first chat message has to name the
+ * documents before they are claimed. Never throws; a missing, disallowed or
+ * unreadable upload is logged and left out.
+ */
+export const findAttachableLandingUploads = async ({
+  keys,
+  logPrefix,
+}: Pick<AttachLandingUploadsParams, "keys" | "logPrefix">): Promise<
+  AttachableLandingUpload[]
+> => {
+  const uploads = await Promise.all(
+    parseLandingUploadKeys(keys, logPrefix).map(
+      async (key): Promise<AttachableLandingUpload | null> => {
+        try {
+          const upload = await inspectLandingUpload(key);
+          if (!upload) {
+            console.warn(
+              `${logPrefix} Landing upload ${key} not found (expired, already claimed or never uploaded)`,
+            );
+            return null;
+          }
+          return { key, name: upload.originalFilename };
+        } catch (error) {
+          console.error(`${logPrefix} Skipping landing upload ${key}:`, error);
+          return null;
+        }
+      },
+    ),
+  );
+
+  return uploads.filter(
+    (upload): upload is AttachableLandingUpload => upload !== null,
+  );
 };
 
 /**
@@ -141,7 +194,9 @@ export const withAttachedDocumentsNote = (
     return prompt;
   }
 
-  const names = documentNames.map((name) => `"${name}"`).join(", ");
+  // JSON-quoted: the names are user-controlled text inside a prompt, so
+  // quotes and escapes keep each one a single quoted string.
+  const names = documentNames.map((name) => JSON.stringify(name)).join(", ");
   const pronoun = documentNames.length === 1 ? "it" : "them";
   const note = `I've attached ${names} to the project documents — please read ${pronoun} and use what you learn as context for the project.`;
 

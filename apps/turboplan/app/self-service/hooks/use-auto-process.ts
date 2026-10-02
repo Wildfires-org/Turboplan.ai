@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { useSearchParams } from "next/navigation";
 
-import { parseLandingUploadKeys } from "@/lib/landing-uploads";
+import {
+  parseLandingUploadKeys,
+  requiresLandingUploadConfirmation,
+} from "@/lib/landing-uploads";
 import { parseSignupAttribution } from "@/lib/signup-attribution";
 import type { AuthUser } from "@/lib/types/auth";
 import { checkEmailMismatch, generateAutoProcessKey } from "./email-helpers";
@@ -49,6 +52,12 @@ export function useAutoProcess({
     user?.email,
   );
 
+  // A signed-in user confirms landing-page documents on the form instead.
+  const needsAttachmentConfirmation = requiresLandingUploadConfirmation(
+    isAuthenticated,
+    landingUploadKeys,
+  );
+
   useEffect(() => {
     // Check if we've already processed this exact request
     const alreadyProcessed = sessionStorage.getItem(requestKey);
@@ -59,6 +68,10 @@ export function useAutoProcess({
     // CRITICAL: Check for email mismatch - don't auto-submit if emails don't match
     if (hasEmailMismatch) {
       return; // Don't auto-submit, let user see the warning
+    }
+
+    if (needsAttachmentConfirmation) {
+      return; // The form lists the attached files; the user submits it
     }
 
     // If all required params are present, auto-submit
@@ -106,7 +119,8 @@ export function useAutoProcess({
     (isAuthenticated || urlEmail) &&
     urlProjectTitle &&
     !wasAlreadyProcessed &&
-    !hasEmailMismatch; // Don't auto-process if there's an email mismatch
+    !hasEmailMismatch && // Don't auto-process if there's an email mismatch
+    !needsAttachmentConfirmation;
 
   const showLoadingState =
     (isSubmitting && autoProcessed) ||

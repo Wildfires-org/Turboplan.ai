@@ -1,9 +1,8 @@
 import { z } from "zod";
 
-import { signupAttributionSchema } from "@/lib/signup-attribution";
+import { MAX_LANDING_UPLOADS } from "@wildfires-org/turboplan-upload/types";
 
-/** Most documents a visitor can attach to the landing-page prompt. */
-export const MAX_LANDING_UPLOADS = 5;
+import { signupAttributionSchema } from "@/lib/signup-attribution";
 
 /**
  * Staging keys from `POST /api/public/uploads/presign`. Only the shape is

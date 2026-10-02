@@ -13,13 +13,13 @@ import {
 } from "@wildfires-org/turboplan-ai/client";
 import { useSession } from "@wildfires-org/turboplan-auth/client";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
+import { LANDING_UPLOADS_PARAM } from "@wildfires-org/turboplan-upload/types";
 import { BrandGradientIcon } from "@wildfires-org/turboplan-utils";
 
 import DialogBase from "@/components/dialogs/dialog-base/dialog-base";
 import {
   CONTEXT_RESOURCES_PARAM,
   EMAIL_PARAM,
-  LANDING_UPLOADS_PARAM,
   OFFICE_ID_PARAM,
   ORGANIZATION_ID_PARAM,
   POSTHOG_DISTINCT_ID_PARAM,

@@ -14,6 +14,19 @@
       "id": "HYPERDRIVE_ID_PLACEHOLDER"
     }
   ],
+  // Per-IP limit for the anonymous landing-page presign (/api/public/uploads/*),
+  // shared across isolates. Must match the in-memory fallback in
+  // src/routes/publicRoutes.ts. namespace_id is account-wide (1001-1003 belong
+  // to the MCP server). 1010 is the local / dry-run id: scripts/deploy-api.sh
+  // swaps in one id per environment, so previews never spend production's
+  // budget.
+  "ratelimits": [
+    {
+      "name": "PUBLIC_UPLOAD_RATE_LIMITER",
+      "namespace_id": "1010",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "observability": {
     "logs": {
       "enabled": true,

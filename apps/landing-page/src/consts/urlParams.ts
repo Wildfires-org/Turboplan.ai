@@ -1,3 +1,5 @@
+import { LANDING_UPLOADS_PARAM } from "@wildfires-org/turboplan-upload/types";
+
 export const PROJECT_TITLE_PARAM = "projectTitle";
 export const PROJECT_DESCRIPTION_PARAM = "projectDescription";
 export const ORGANIZATION_NAME_PARAM = "organizationName";
@@ -10,10 +12,6 @@ export const EMAIL_PARAM = "email";
 // post-signup app session stitch into one person. Contract with the app side —
 // do not rename.
 export const POSTHOG_DISTINCT_ID_PARAM = "ph_did";
-// Storage keys of documents attached in the hero, one param per key. The app
-// adds them to the new project as documents. Contract with the app side — do
-// not rename.
-export const LANDING_UPLOADS_PARAM = "landingUploads";
 
 export const clearUrlParams = () => {
   const url = new URL(window.location.href);
