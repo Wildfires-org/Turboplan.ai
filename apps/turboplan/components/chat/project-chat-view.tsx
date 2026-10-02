@@ -206,7 +206,8 @@ const ProjectChatViewInner = ({
   });
   // The chat route starts the research agent server-side when the first message
   // of the initial chat is sent — after this view already fetched an idle
-  // status. Poll until the run shows up (bounded, in case the start is rejected,
+  // status. From submit on, show a starting state instead of the Start button
+  // and poll until the run shows up (bounded, in case the start is rejected,
   // e.g. no credits) instead of waiting for a focus revalidation.
   const [isAwaitingResearchStart, setIsAwaitingResearchStart] = useState(false);
   useEffect(() => {
@@ -225,6 +226,8 @@ const ProjectChatViewInner = ({
       researchEnabled && effectiveIsInitialChat ? project.id : null,
       { awaitRunStart: isAwaitingResearchStart },
     );
+  const isResearchStartPending =
+    isAwaitingResearchStart && !researchAgentStatus?.runId;
   const {
     isResearchPhaseCompleted,
     completeResearchPhase,
@@ -348,6 +351,20 @@ const ProjectChatViewInner = ({
     setResearchPanelOpen,
   ]);
 
+  const handleFirstMessageSubmitted = useCallback(() => {
+    if (
+      researchEnabled &&
+      effectiveIsInitialChat &&
+      !project.isResearchPhaseCompleted
+    ) {
+      setIsAwaitingResearchStart(true);
+    }
+  }, [
+    researchEnabled,
+    effectiveIsInitialChat,
+    project.isResearchPhaseCompleted,
+  ]);
+
   // Update URL and sidebar immediately when first message is sent
   const handleChatCreated = useCallback(
     (newChatId: string) => {
@@ -358,10 +375,6 @@ const ProjectChatViewInner = ({
         newChatId,
       );
       window.history.replaceState(null, "", newUrl);
-
-      if (researchEnabled && effectiveIsInitialChat) {
-        setIsAwaitingResearchStart(true);
-      }
 
       // Optimistically inject the new chat into the sidebar SWR cache
       mutate(
@@ -388,7 +401,6 @@ const ProjectChatViewInner = ({
       project.id,
       sidebarChatsKey,
       userId,
-      researchEnabled,
       effectiveIsInitialChat,
     ],
   );
@@ -512,6 +524,9 @@ const ProjectChatViewInner = ({
                     projectId={project.id}
                     isMapEnabled={isMapEnabled}
                     onChatCreated={chat ? undefined : handleChatCreated}
+                    onFirstMessageSubmitted={
+                      chat ? undefined : handleFirstMessageSubmitted
+                    }
                     isInitialChat={effectiveIsInitialChat}
                     isResearchPhaseCompleted={
                       effectiveIsInitialChat
@@ -575,6 +590,7 @@ const ProjectChatViewInner = ({
                         onComplete={() => setResearchPanelOpen(false)}
                         onItemsSaved={handleResearchItemsSaved}
                         canEdit={canEditResearch}
+                        isStartPending={isResearchStartPending}
                       />
                     </div>
                   </div>

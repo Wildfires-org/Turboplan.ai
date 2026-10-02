@@ -43,6 +43,8 @@ type ResearchPanelProps = {
   onItemsSaved?: (details: SaveDetails) => void;
   /** Whether the current user can trigger research (UPDATE permission). */
   canEdit?: boolean;
+  /** A run is being started server-side but has no record yet. */
+  isStartPending?: boolean;
 };
 
 const RENDERABLE_TYPES = new Set<string>([
@@ -78,6 +80,7 @@ export const ResearchPanel = ({
   onComplete,
   onItemsSaved,
   canEdit,
+  isStartPending,
 }: ResearchPanelProps) => {
   // Always fetch messages so we can detect when content arrives (for auto-open)
   const {
@@ -258,6 +261,7 @@ export const ResearchPanel = ({
               progressMessages={progressMessages}
               projectId={projectId}
               canEdit={canEdit}
+              isStartPending={isStartPending}
             />
           ) : (
             <div className="space-y-1.5">

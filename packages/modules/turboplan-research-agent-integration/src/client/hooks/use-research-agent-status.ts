@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+
 import useSWR from "swr";
 
 import { fetcher } from "@wildfires-org/turboplan-api-client";
@@ -20,17 +22,21 @@ export function useResearchAgentStatus(
   projectId: string | null,
   { awaitRunStart = false }: UseResearchAgentStatusOptions = {},
 ) {
+  // Memoized: SWR restarts its poll timer whenever refreshInterval changes.
+  const refreshInterval = useCallback(
+    (latestData?: ResearchAgentStatus) =>
+      latestData?.hasActiveRun || (awaitRunStart && !latestData?.runId)
+        ? getWebEnv().RESEARCH_AGENT_POLLING_INTERVAL
+        : 0,
+    [awaitRunStart],
+  );
+
   const { data: status, mutate } = useSWR<ResearchAgentStatus>(
     projectId
       ? `/api/ai/research-agent/bootstrapper/project/${projectId}/status`
       : null,
     fetcher,
-    {
-      refreshInterval: (latestData) =>
-        latestData?.hasActiveRun || (awaitRunStart && !latestData?.runId)
-          ? getWebEnv().RESEARCH_AGENT_POLLING_INTERVAL
-          : 0,
-    },
+    { refreshInterval },
   );
 
   return {

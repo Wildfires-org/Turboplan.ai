@@ -44,6 +44,8 @@ type ProjectChatProps = {
   /** Map module enabled (resolved on the server) */
   isMapEnabled?: boolean;
   onChatCreated?: (chatId: string) => void;
+  /** Fires once when the first message of a new chat is sent, before the reply streams. */
+  onFirstMessageSubmitted?: () => void;
   isInitialChat?: boolean;
   isInputDisabled?: boolean;
   disabledPlaceholder?: string;
@@ -67,6 +69,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       projectId,
       isMapEnabled,
       onChatCreated,
+      onFirstMessageSubmitted,
       isInputDisabled,
       disabledPlaceholder,
       isResearchPhaseCompleted,
@@ -329,6 +332,26 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         notifyChatCreated();
       }
     }, [status, notifyChatCreated]);
+
+    // Fire onFirstMessageSubmitted exactly once, as soon as the first message is
+    // sent (the server kicks off work for it before the reply starts streaming)
+    const hasNotifiedFirstMessage = useRef(false);
+    const notifyFirstMessageSubmitted = useCallback(() => {
+      if (
+        !hasNotifiedFirstMessage.current &&
+        initialMessages.length === 0 &&
+        onFirstMessageSubmitted
+      ) {
+        hasNotifiedFirstMessage.current = true;
+        onFirstMessageSubmitted();
+      }
+    }, [initialMessages.length, onFirstMessageSubmitted]);
+
+    useEffect(() => {
+      if (status === "submitted" || status === "streaming") {
+        notifyFirstMessageSubmitted();
+      }
+    }, [status, notifyFirstMessageSubmitted]);
 
     // Auto-send initial message from URL parameter
     // Empty deps array is intentional - this should only run on mount when URL param is present
