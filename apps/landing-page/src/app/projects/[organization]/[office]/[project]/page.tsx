@@ -30,6 +30,7 @@ import { PublicProjectProgress } from "@/components/public-project/public-projec
 import { PublicTasksSection } from "@/components/public-project/public-tasks-section";
 import { PublicTimelineSection } from "@/components/public-project/public-timeline-section";
 import { ReadOnlyModulesRenderer } from "@/components/public-project/read-only-modules-renderer";
+import { getPublicEntity } from "@/handlers/public-entity";
 import { brand } from "@/lib/brand";
 import { routing } from "@/utils/routing";
 
@@ -112,35 +113,14 @@ interface ProjectPageProps {
   }>;
 }
 
-async function getPublicProject(
+const getPublicProject = (
   orgSlug: string,
   officeSlug: string,
   projectSlug: string,
-): Promise<PublicProjectDetail | null> {
-  const { SERVER_URL } = getLandingPageEnv();
-
-  try {
-    const response = await fetch(
-      `${SERVER_URL}/api/public/projects/${orgSlug}/${officeSlug}/${projectSlug}`,
-      {
-        next: { revalidate: 60 }, // Revalidate every 60 seconds
-      },
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      console.error("Failed to fetch public project:", response.statusText);
-      return null;
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching public project:", error);
-    return null;
-  }
-}
+) =>
+  getPublicEntity<PublicProjectDetail>(
+    `projects/${orgSlug}/${officeSlug}/${projectSlug}`,
+  );
 
 async function getPublicProjectModules(
   orgSlug: string,

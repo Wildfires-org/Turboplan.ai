@@ -24,6 +24,7 @@ import { PublicFieldsSection } from "@/components/public-project/public-fields-s
 import { PublicModuleSection } from "@/components/public-project/public-module-section";
 import { PublicTasksSection } from "@/components/public-project/public-tasks-section";
 import { ReadOnlyModulesRenderer } from "@/components/public-project/read-only-modules-renderer";
+import { getPublicEntity } from "@/handlers/public-entity";
 import { brand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import { routing } from "@/utils/routing";
@@ -90,35 +91,14 @@ interface TemplatePageProps {
   }>;
 }
 
-async function getPublicTemplate(
+const getPublicTemplate = (
   orgSlug: string,
   officeSlug: string,
   templateSlug: string,
-): Promise<PublicTemplateDetail | null> {
-  const { SERVER_URL } = getLandingPageEnv();
-
-  try {
-    const response = await fetch(
-      `${SERVER_URL}/api/public/templates/${orgSlug}/${officeSlug}/${templateSlug}`,
-      {
-        next: { revalidate: 60 },
-      },
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      console.error("Failed to fetch public template:", response.statusText);
-      return null;
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching public template:", error);
-    return null;
-  }
-}
+) =>
+  getPublicEntity<PublicTemplateDetail>(
+    `templates/${orgSlug}/${officeSlug}/${templateSlug}`,
+  );
 
 async function getPublicTemplateModules(
   orgSlug: string,

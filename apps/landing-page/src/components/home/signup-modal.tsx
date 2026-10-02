@@ -101,7 +101,8 @@ type SignupModalProps = {
 
 // The modal reads search params (prefilled email, attribution), so it carries
 // its own Suspense boundary: rendered unwrapped on a statically prerendered
-// page it would opt the whole page out of server rendering. It starts closed, so nothing visible waits on the boundary.
+// page it would opt the whole page out of server rendering. It starts closed,
+// so nothing visible waits on the boundary.
 export const SignupModal = (props: SignupModalProps) => {
   return (
     <Suspense>
