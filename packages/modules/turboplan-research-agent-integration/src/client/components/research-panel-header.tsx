@@ -19,6 +19,7 @@ import type {
   ResearchAgentStatus,
 } from "../../types";
 import { useElapsedTime } from "../hooks/use-elapsed-time";
+import { getActiveStep } from "../utils";
 import { AvatarThinking } from "./avatar-thinking";
 
 type ResearchPanelHeaderProps = {
@@ -48,7 +49,7 @@ export function ResearchPanelHeader({
 
   const currentStep = isCompleted
     ? "Project Bootstrapped Successfully"
-    : status?.currentStep || "Processing...";
+    : getActiveStep(status, progressMessages) || "Processing...";
 
   return (
     <div>

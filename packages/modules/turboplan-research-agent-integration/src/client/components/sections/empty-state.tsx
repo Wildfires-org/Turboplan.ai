@@ -24,6 +24,7 @@ import {
   type ResearchAgentStatus,
 } from "../../../types";
 import { useElapsedTime } from "../../hooks/use-elapsed-time";
+import { getActiveStep } from "../../utils";
 import { AvatarThinking } from "../avatar-thinking";
 import { StartResearchButton } from "../start-research-button";
 
@@ -160,7 +161,7 @@ function AgentRunningState({
   const isActive = status?.hasActiveRun ?? false;
   // No run record yet: the run is still being started server-side.
   const currentStep =
-    status?.currentStep ||
+    getActiveStep(status, progressMessages) ||
     (status?.runId ? "Processing..." : "Starting research…");
 
   const elapsedTime = useElapsedTime(

@@ -12,6 +12,7 @@ import type {
 } from "../../types";
 import { ResearchAgentMessageType } from "../../types";
 import { useElapsedTime } from "../hooks/use-elapsed-time";
+import { getActiveStep } from "../utils";
 import { AvatarThinking } from "./avatar-thinking";
 
 type CompactProgressProps = {
@@ -28,7 +29,7 @@ export const CompactProgress = ({
   const isCompleted = status?.status === "completed";
   const currentStep = isCompleted
     ? "Research completed"
-    : status?.currentStep || "Processing...";
+    : getActiveStep(status, progressMessages) || "Processing...";
   const elapsedTime = useElapsedTime(
     status?.createdAt,
     status?.updatedAt,

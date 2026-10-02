@@ -42,7 +42,8 @@ import {
   updateResearchAgentChatStatus,
 } from "../repository";
 import { saveMilestonesToProjectSchema, saveToProjectSchema } from "../schemas";
-import { handleRouteError } from "../utils";
+import { handleRouteError, runInBackground } from "../utils";
+import { isExternalReconcileDue } from "./reconcile-throttle";
 import {
   forwardNewMessagesToResearchAgent,
   generateProjectSuggestions,
@@ -282,41 +283,38 @@ bootstrapperRouter.get(
 
       const stepsCount = await countProgressMessagesByChatId(chatId);
 
-      let isActive =
+      const isActive =
         researchAgentRecord.status === ResearchAgentChatStatus.INITIALIZING ||
         researchAgentRecord.status === ResearchAgentChatStatus.QUEUED ||
         researchAgentRecord.status === ResearchAgentChatStatus.RUNNING;
 
-      let { status, currentStep } = researchAgentRecord;
+      const { externalRunId, lastForwardedAt } = researchAgentRecord;
 
-      // Fallback: if run looks active but the external agent already finished,
-      // reconcile our DB so the client stops polling.
-      if (isActive && researchAgentRecord.externalRunId) {
-        const reconciled = await reconcileExternalStatus(
-          chatId,
-          researchAgentRecord.externalRunId,
-        );
-        if (reconciled) {
-          isActive = false;
-          status = reconciled.status;
-          currentStep = reconciled.currentStep;
+      if (isActive && externalRunId) {
+        // Fallback for missed webhooks: if the run has gone quiet, ask the
+        // external agent whether it already finished. Runs after the response
+        // (the external call can be slow); the next poll reads the reconciled row.
+        if (isExternalReconcileDue(researchAgentRecord.updatedAt, new Date())) {
+          runInBackground(c, "bootstrapper-status-reconcile", () =>
+            reconcileExternalStatus(chatId, externalRunId),
+          );
         }
-      }
 
-      // Forward new chat messages to research agent (fire-and-forget, runs on each poll)
-      if (isActive && researchAgentRecord.externalRunId) {
-        forwardNewMessagesToResearchAgent(
-          chatId,
-          researchAgentRecord.externalRunId,
-          researchAgentRecord.lastForwardedAt,
+        // Forward new chat messages to research agent (runs on each poll)
+        runInBackground(c, "bootstrapper-status-forward", () =>
+          forwardNewMessagesToResearchAgent(
+            chatId,
+            externalRunId,
+            lastForwardedAt,
+          ),
         );
       }
 
       return c.json({
         hasActiveRun: isActive,
         runId: researchAgentRecord.id,
-        status,
-        currentStep,
+        status: researchAgentRecord.status,
+        currentStep: researchAgentRecord.currentStep,
         stepsCount,
         createdAt: researchAgentRecord.createdAt?.toISOString(),
         updatedAt: researchAgentRecord.updatedAt?.toISOString(),

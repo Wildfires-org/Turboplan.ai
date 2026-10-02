@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { zValidator } from "@hono/zod-validator";
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 
-import { runWithWorkerConnection } from "@wildfires-org/turboplan-db/db-client";
 import {
   isDocumentsPackageEnabled,
   isFieldsPackageEnabled,
@@ -37,7 +36,7 @@ import {
   bootstrapperAddTimelineSchema,
   bootstrapperProgressSchema,
 } from "../schemas";
-import { handleRouteError } from "../utils";
+import { handleRouteError, runInBackground } from "../utils";
 import { webhookLoggerMiddleware } from "../webhook-logger-middleware";
 
 type WebhookContext = RBACContext & {
@@ -94,27 +93,6 @@ const appendOrCreateArrayMessage = <T>(params: {
     items,
     dedupeKey,
   });
-};
-
-/**
- * Run `task` after the response is sent. On Workers, waitUntil keeps the
- * isolate (and the task's own DB connection) alive until it settles; a bare
- * fire-and-forget would be reaped after the response. Other runtimes (Bun)
- * have no executionCtx, and the promise simply survives on its own.
- */
-const runInBackground = (
-  c: Context<WebhookContext>,
-  label: string,
-  task: () => Promise<void>,
-): void => {
-  const promise = runWithWorkerConnection(task).catch((error: unknown) => {
-    console.error(`[${label}] Background task failed:`, error);
-  });
-  try {
-    c.executionCtx.waitUntil(promise);
-  } catch {
-    // No executionCtx outside Workers — the promise is already running.
-  }
 };
 
 /**

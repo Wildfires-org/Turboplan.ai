@@ -24,6 +24,10 @@ type AgentRunStatusResponse = {
 
 type ClientResult<T> = { data: T; error: null } | { data: null; error: string };
 
+// The agent's status handler reads the run plus all of its logs, so it can be
+// slow while the agent is busy. Callers treat a failed check as "unknown".
+const RUN_STATUS_TIMEOUT_MS = 10_000;
+
 class ResearchAgentClient {
   private baseUrl: string;
   private apiKey: string;
@@ -115,6 +119,7 @@ class ResearchAgentClient {
         headers: {
           "x-api-key": this.apiKey,
         },
+        signal: AbortSignal.timeout(RUN_STATUS_TIMEOUT_MS),
       });
 
       if (!response.ok) {
