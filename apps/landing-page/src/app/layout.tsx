@@ -127,23 +127,6 @@ export const viewport: Viewport = {
 };
 
 /**
- * Minimal loading fallback shown during static generation.
- * Does NOT render children since they may depend on NuqsAdapter context.
- * Content appears immediately after hydration.
- */
-function LayoutFallback() {
-  return (
-    <div className="min-h-screen flex flex-col justify-between">
-      <main className="relative flex w-full justify-center">
-        <div className="flex w-screen 2xl:max-w-3xl px-5 lg:px-10 xl:px-[100px] 3xl:max-w-3xl justify-center flex-col">
-          {/* Loading placeholder - content renders after hydration */}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-/**
  * Honours the interface scale the user picked in the app (Profile →
  * Appearance), shared through a cookie scoped to the parent domain. Read-only
  * here: the landing page offers no control of its own.
@@ -201,28 +184,30 @@ export default async function RootLayout({
             theme.enabled=false disables next-themes entirely: this app has no
             dark-mode design system (global Navbar/SiteFooter/home are light-only),
             so we never render the ThemeProvider and the `dark` class is never
-            applied — not even from OS-level prefers-color-scheme. */}
+            applied — not even from OS-level prefers-color-scheme.
+            No Suspense around the page: a boundary here flushes a 200 before
+            the page runs, so its notFound() can no longer send a 404. A
+            component that reads search params wraps itself instead (the
+            build fails on a statically prerendered page that doesn't). */}
         <RootProvider theme={{ enabled: false }}>
-          <Suspense fallback={<LayoutFallback />}>
-            <NuqsAdapter>
-              <SessionProvider session={session}>
-                <AnalyticsContextProvider>
-                  <GlobalProvider>
-                    <div className="min-h-screen flex flex-col justify-between">
-                      <Navbar />
-                      <main className="relative flex w-full flex-1 justify-center">
-                        <LayoutWrapper>{children}</LayoutWrapper>
-                      </main>
-                      <SiteFooter />
-                    </div>
-                  </GlobalProvider>
-                  <Suspense>
-                    <InitializeAnalyticsContext />
-                  </Suspense>
-                </AnalyticsContextProvider>
-              </SessionProvider>
-            </NuqsAdapter>
-          </Suspense>
+          <NuqsAdapter>
+            <SessionProvider session={session}>
+              <AnalyticsContextProvider>
+                <GlobalProvider>
+                  <div className="min-h-screen flex flex-col justify-between">
+                    <Navbar />
+                    <main className="relative flex w-full flex-1 justify-center">
+                      <LayoutWrapper>{children}</LayoutWrapper>
+                    </main>
+                    <SiteFooter />
+                  </div>
+                </GlobalProvider>
+                <Suspense>
+                  <InitializeAnalyticsContext />
+                </Suspense>
+              </AnalyticsContextProvider>
+            </SessionProvider>
+          </NuqsAdapter>
         </RootProvider>
         <Toaster />
         {/* Suspense boundary required: GoogleAnalytics reads useSearchParams

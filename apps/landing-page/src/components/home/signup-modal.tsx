@@ -1,4 +1,10 @@
-import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import {
+  type KeyboardEvent,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { cx } from "class-variance-authority";
 import { FileText, Loader2, Sparkles } from "lucide-react";
@@ -82,15 +88,7 @@ type FormErrors = {
 
 const NO_DOCUMENTS: AttachedDocument[] = [];
 
-export const SignupModal = ({
-  initialProjectTitle,
-  initialOrganizationName,
-  initialOfficeName,
-  isOpen,
-  onOpenChange,
-  projectDescription,
-  attachedDocuments = NO_DOCUMENTS,
-}: {
+type SignupModalProps = {
   initialProjectTitle?: string;
   initialOrganizationName?: string;
   initialOfficeName?: string;
@@ -99,7 +97,28 @@ export const SignupModal = ({
   projectDescription?: string;
   /** Documents already uploaded from the hero; they come along as params. */
   attachedDocuments?: AttachedDocument[];
-}) => {
+};
+
+// The modal reads search params (prefilled email, attribution), so it carries
+// its own Suspense boundary: rendered unwrapped on a statically prerendered
+// page it would opt the whole page out of server rendering. It starts closed, so nothing visible waits on the boundary.
+export const SignupModal = (props: SignupModalProps) => {
+  return (
+    <Suspense>
+      <SignupModalContent {...props} />
+    </Suspense>
+  );
+};
+
+const SignupModalContent = ({
+  initialProjectTitle,
+  initialOrganizationName,
+  initialOfficeName,
+  isOpen,
+  onOpenChange,
+  projectDescription,
+  attachedDocuments = NO_DOCUMENTS,
+}: SignupModalProps) => {
   const searchParams = useSearchParams();
   const ENV = getLandingPageEnv();
   const session = useSession();

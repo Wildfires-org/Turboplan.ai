@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 import { motion } from "framer-motion";
 import { ArrowUpRight, Menu, X } from "lucide-react";
@@ -87,7 +87,6 @@ export function Navbar() {
   const session = useSession();
   const isAuthenticated = !!session?.user;
 
-  const [search, setSearch] = useSearch();
   const isLargeScreen = useBreakpoint("lg");
   const isHeroSearchVisible = useSearchVisibilityStore(
     (state) => state.isHeroSearchVisible,
@@ -223,15 +222,9 @@ export function Navbar() {
                 transition={{ duration: 0.2, ease: EASE_OUT }}
                 className="mx-4 max-w-screen-lg flex-1"
               >
-                <OmniSearch.Root
-                  variant="compact"
-                  value={search}
-                  onValueChange={setSearch}
-                >
-                  <OmniSearch.Input placeholder="Search agencies, offices and projects..." />
-                  <OmniSearch.Overlay className="top-[80px]" />
-                  <OmniSearch.Content />
-                </OmniSearch.Root>
+                <Suspense>
+                  <HeaderSearch />
+                </Suspense>
               </motion.div>
             ) : (
               <div className="flex items-center gap-8">
@@ -392,5 +385,20 @@ const CreateProjectButton = ({ onClick }: CreateProjectButtonProps) => {
       Create Project
       <ArrowUpRight className="size-4" />
     </button>
+  );
+};
+
+// Reads the `q` search param, so it needs its own Suspense boundary: on a
+// statically prerendered page (/docs) an unwrapped search-param read would
+// opt the whole page out of server rendering.
+const HeaderSearch = () => {
+  const [search, setSearch] = useSearch();
+
+  return (
+    <OmniSearch.Root variant="compact" value={search} onValueChange={setSearch}>
+      <OmniSearch.Input placeholder="Search agencies, offices and projects..." />
+      <OmniSearch.Overlay className="top-[80px]" />
+      <OmniSearch.Content />
+    </OmniSearch.Root>
   );
 };
