@@ -104,9 +104,9 @@ By default returns highlights (query-relevant excerpts) and a summary per URL �
 - Deep-read mode (pass maxCharacters): also returns full sequential text — use only when you need document structure, full context, or to quote specific passages
 - For most queries, the default highlights + summary from multiple URLs is enough to synthesize a well-cited answer`;
 
-export const toolDescReadProjectDocuments = `Read the full text of documents uploaded to this project (PDF and .docx files).
+export const toolDescReadProjectDocuments = `Read the full text of documents saved to this project (PDF, .docx and legacy .doc files): the user's uploads and any documents saved by the research agent.
 
-The project's uploaded documents are listed in the "Saved Project Documents" section of the system prompt, each with its title and an ID (ID: <uuid>). That list only shows titles and metadata — it does NOT include the documents' actual content. Use this tool to read the real text inside them.
+The project's saved documents are listed in the "Saved Project Documents" section of the system prompt, each with its title and an ID (ID: <uuid>). That list only shows titles and metadata — it does NOT include the documents' actual content. Use this tool to read the real text inside them.
 
 When to use:
 - The user asks a question about an uploaded document or its contents (e.g. "what does the EIS say about wetlands?", "summarize the uploaded report").
@@ -115,13 +115,18 @@ When to use:
 - IMPORTANT: Word files (.doc and .docx) attached in the chat are NOT directly readable by the model. If the user references a Word document, you MUST use this tool to read it — you cannot see its content otherwise.
 
 How to call:
-- Pass documentIds with the specific IDs from the "Saved Project Documents" list when the user refers to particular documents.
-- Omit documentIds (or pass an empty array) to read ALL of the project's uploaded documents.
+- documentIds: the specific IDs from the "Saved Project Documents" list when the user refers to particular documents.
+- filenames: original filenames (e.g. ["Scoping Letter.docx"]), especially for a file just attached in the chat that is not in the list yet. Matched case-insensitively. The user's uploads are checked first and the newest upload with that name is read; a name no upload has is matched against the project's other saved documents (newest first).
+- documentIds and filenames can be combined. Omit both (or pass empty arrays) to read ALL of the project's saved documents, uploads and research documents alike; a call that names files never falls back to reading all of them.
 
 Results:
-- Returns each document's extracted text plus a filename and id.
-- Text may be truncated (a per-document cap and a total budget across documents apply); truncated: true means only the beginning of that document was returned. Documents that could not be read (e.g. a corrupt or password-protected file, an unsupported file type, or the total budget was exceeded) are listed under "skipped" with a reason — relay any actionable message to the user, such as asking them to re-save the file as PDF or .docx.
-- Documents are indexed shortly after being saved. A document skipped with reason "extraction-pending" is still being processed — tell the user so and offer to retry in a moment. "extraction-failed" and "unsupported-format" cannot be read at all; do not retry those.`;
+- documents: each read document's id, filename and extracted text. truncated: true means only the beginning of that document was returned (a per-document cap and a total budget across documents apply).
+- totalDocuments: how many documents the call matched.
+- skipped: documents that were not returned, each with a reason (and sometimes a message):
+  - "extraction-pending": indexing is still running (documents are indexed shortly after being saved). Tell the user it is still being processed and offer to retry in a moment.
+  - "not-found": no saved document in this project has that ID or filename. A file attached moments ago may still be registering, so offer to retry shortly; it may also have been renamed. After a filename miss, availableFilenames lists the names of the 20 newest saved documents (uploads and research documents) — use a matching one or ask the user; an older document may not be in that list, so check "Saved Project Documents" too.
+  - "extraction-failed" or "unsupported-format": the file cannot be read (e.g. corrupt or password-protected, or not a supported type). Relay any actionable message to the user, such as re-saving the file as PDF or .docx. Do not retry these.
+  - "too-many-documents" or "budget-exceeded": over the per-call document limit or text budget. Request those documents in a follow-up call if needed.`;
 
 export const toolDescUpdateProjectContext = `Create or update labeled context entries for this project. Context entries are confirmed, factual background about the project that is saved to the project's Context library and injected into future conversations.
 

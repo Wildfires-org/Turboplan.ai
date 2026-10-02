@@ -3,6 +3,12 @@ import { getDocumentProxy } from "unpdf";
 import WordExtractor from "word-extractor";
 
 import { DOC_MIME, DOCX_MIME, PDF_MIME } from "./document-mime";
+import {
+  DocumentReadError,
+  getGenericExtractionError,
+  WORD_RESAVE_HINT,
+} from "./errors";
+import { installFieldCodeGuard } from "./word-fields";
 
 /**
  * Maximum number of characters returned for a single document. Extracted text
@@ -98,12 +104,20 @@ export type ExtractionResult =
   | {
       ok: false;
       reason: "unsupported-format" | "fetch-failed" | "extraction-failed";
+      /** Written for the user; safe to store as `extraction_error`. */
       message?: string;
+      /** Raw library error, for server logs only. Never store or show it. */
+      detail?: string;
     };
 
 type FetchResult =
   | { ok: true; buffer: Buffer }
-  | { ok: false; reason: "fetch-failed"; message: string };
+  | { ok: false; reason: "fetch-failed"; message: string; detail?: string };
+
+const GENERIC_FETCH_ERROR = "Could not download the document.";
+
+const describeError = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 /**
  * Collapse runs of 3+ newlines down to a blank line and trim surrounding
@@ -282,9 +296,12 @@ const fetchDocument = async (
     chunks.length = 0;
     return { ok: true, buffer };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown fetch error";
-    return { ok: false, reason: "fetch-failed", message };
+    return {
+      ok: false,
+      reason: "fetch-failed",
+      message: GENERIC_FETCH_ERROR,
+      detail: describeError(error),
+    };
   } finally {
     clearTimeout(timeout);
     externalSignal?.removeEventListener("abort", abortFromCaller);
@@ -437,7 +454,7 @@ const validateDocxArchive = (buffer: Buffer): string | null => {
 const extractDocxText = async (buffer: Buffer): Promise<string> => {
   const archiveIssue = validateDocxArchive(buffer);
   if (archiveIssue) {
-    throw new Error(archiveIssue);
+    throw new DocumentReadError(archiveIssue);
   }
   const { value } = await mammoth.extractRawText({ buffer });
   return value;
@@ -450,6 +467,52 @@ const OLE_SIGNATURE = Buffer.from([
 const ZIP_LOCAL_HEADER_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 
 /**
+ * Word's "Save as" offers RTF, web page and Word XML formats, and some web
+ * apps export HTML under a .doc name. None is a Word 97-2003 file, so name
+ * what the file really is rather than calling it corrupt. Returns null for
+ * anything else.
+ */
+const describeMislabelledDoc = (buffer: Buffer): string | null => {
+  const head = buffer
+    .subarray(0, 1024)
+    .toString("latin1")
+    // UTF-8 / UTF-16 byte-order marks, and the NULs of UTF-16 text
+    .replace(/^(?:\u00ef\u00bb\u00bf|\u00ff\u00fe|\u00fe\u00ff)/, "")
+    .replace(/\u0000/g, "")
+    .trimStart()
+    .toLowerCase();
+
+  const describe = (format: string) =>
+    `This file is ${format} saved with a .doc extension, which can't be read. ${WORD_RESAVE_HINT}`;
+
+  if (head.startsWith("{\\rtf")) {
+    return describe("a Rich Text (RTF) document");
+  }
+  // Word 2003 XML (<w:wordDocument>) and flat Word XML (<pkg:package>), both
+  // announced by the mso-application processing instruction.
+  const isWordXml =
+    head.includes('progid="word.document"') ||
+    head.includes("<w:worddocument") ||
+    head.includes("<pkg:package");
+  if (isWordXml) {
+    return describe("a Word XML document");
+  }
+  const isMhtml =
+    head.includes("mime-version:") && head.includes("multipart/related");
+  const isHtml = head.includes("<html") || head.includes("<!doctype html");
+  if (isMhtml || isHtml) {
+    return describe("a web page (HTML)");
+  }
+  if (head.startsWith("<?xml")) {
+    return describe("an XML document");
+  }
+  if (head.startsWith("<")) {
+    return describe("a web page (HTML)");
+  }
+  return null;
+};
+
+/**
  * Legacy Word (.doc) text via `word-extractor` (pure JS, safe in a worker
  * thread): the body plus footnotes and endnotes. Headers and footers are left
  * out — they repeat on every page and add noise, not content.
@@ -457,7 +520,8 @@ const ZIP_LOCAL_HEADER_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
  * The input is already capped at MAX_DOCUMENT_BYTES by the fetch, and the
  * extractor reads only that buffer (never a path). A file saved as .docx but
  * labelled .doc (a common rename) is routed to the .docx extractor so it keeps
- * the zip-bomb prescan.
+ * the zip-bomb prescan. Field codes are stripped in linear time before the
+ * library's quadratic field regex runs (see `installFieldCodeGuard`).
  */
 const extractDocText = async (buffer: Buffer): Promise<string> => {
   if (buffer.subarray(0, 4).equals(ZIP_LOCAL_HEADER_SIGNATURE)) {
@@ -465,15 +529,38 @@ const extractDocText = async (buffer: Buffer): Promise<string> => {
   }
 
   if (!buffer.subarray(0, OLE_SIGNATURE.length).equals(OLE_SIGNATURE)) {
-    throw new Error("Not a valid Word 97-2003 (.doc) file");
+    throw new DocumentReadError(
+      describeMislabelledDoc(buffer) ??
+        `Not a valid Word 97-2003 (.doc) file. ${WORD_RESAVE_HINT}`,
+    );
+  }
+
+  // Without the guard the parser is open to the quadratic regex, so fail
+  // closed — with a message that says this is our fault, not the file's.
+  try {
+    installFieldCodeGuard();
+  } catch (error) {
+    throw new DocumentReadError(
+      `Word 97-2003 (.doc) files can't be read right now because of a problem on our side. ${WORD_RESAVE_HINT}`,
+      {
+        cause: new Error(
+          `word-extractor field-code guard unavailable: ${describeError(error)}`,
+        ),
+      },
+    );
   }
 
   let document: WordExtractor.Document;
   try {
     document = await new WordExtractor().extract(buffer);
   } catch (error) {
-    const detail = error instanceof Error ? `: ${error.message}` : "";
-    throw new Error(`Could not read the .doc file${detail}`);
+    if (error instanceof DocumentReadError) {
+      throw error;
+    }
+    throw new DocumentReadError(
+      `Could not read the .doc file. It may be damaged or password-protected. ${WORD_RESAVE_HINT}`,
+      { cause: error },
+    );
   }
 
   return [document.getBody(), document.getFootnotes(), document.getEndnotes()]
@@ -538,8 +625,21 @@ export const extractDocumentText = async (
 
     return { ok: true, text, truncated: truncated || extracted.truncated };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown extraction error";
-    return { ok: false, reason: "extraction-failed", message };
+    if (error instanceof DocumentReadError) {
+      return {
+        ok: false,
+        reason: "extraction-failed",
+        message: error.message,
+        ...(error.cause !== undefined
+          ? { detail: describeError(error.cause) }
+          : {}),
+      };
+    }
+    return {
+      ok: false,
+      reason: "extraction-failed",
+      message: getGenericExtractionError(normalizedMime),
+      detail: describeError(error),
+    };
   }
 };

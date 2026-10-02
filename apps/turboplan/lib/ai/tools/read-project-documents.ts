@@ -9,6 +9,11 @@ import {
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 
+import {
+  isReadAllRequest,
+  resolveDocumentFilenames,
+} from "./resolve-document-filenames";
+
 /**
  * Reads the text of a project's uploaded documents.
  *
@@ -45,7 +50,14 @@ const MAX_REQUESTED_DOCUMENT_IDS = 100;
 /** Upper bound on requested filenames per call. */
 const MAX_REQUESTED_FILENAMES = 20;
 
-const normalizeFilename = (filename: string) => filename.trim().toLowerCase();
+/**
+ * How many filenames (newest first) to list when a requested name misses, so
+ * the model can spot a rename without another call.
+ */
+const MAX_AVAILABLE_FILENAMES = 20;
+
+const FILENAME_NOT_FOUND_MESSAGE =
+  "No project document has this filename. A file attached moments ago may still be registering, or the document may have been renamed; availableFilenames lists the newest current names.";
 
 /**
  * Mirrors `MAX_EXTRACTED_CHARS` in
@@ -94,7 +106,7 @@ export const readProjectDocuments = async ({
         .max(MAX_REQUESTED_FILENAMES)
         .optional()
         .describe(
-          "Original filenames of documents to read, e.g. a file the user just attached in the chat. Matched case-insensitively; the newest document with that name is read. Can be combined with documentIds.",
+          "Original filenames of project documents, e.g. a file just attached in the chat. Matched case-insensitively; the newest upload with that name is read, else the newest other project document (such as a research document) with it. Can be combined with documentIds.",
         ),
     }),
     execute: async ({ documentIds, filenames }) => {
@@ -112,36 +124,27 @@ export const readProjectDocuments = async ({
       }
 
       const skipped: SkippedEntry[] = [];
+      let availableFilenames: string[] | undefined;
 
-      // Resolve filenames to ids of this project's documents (newest match
-      // wins — the listing is ordered newest first). A name that matches
-      // nothing is usually a chat attachment whose registration has not
-      // finished yet.
+      // Resolve filenames to ids of this project's documents: the user's
+      // uploads first, then research documents (see resolveDocumentFilenames).
       const idsFromFilenames: string[] = [];
-      // Keyed by normalized name so case/whitespace variants count once.
-      const requestedFilenames = new Map(
-        (filenames ?? []).map((filename) => [
-          normalizeFilename(filename),
-          filename,
-        ]),
-      );
-      if (requestedFilenames.size > 0) {
+      if (filenames && filenames.length > 0) {
         const listed = await getProjectDocumentsByProjectId(projectId);
-        for (const [normalized, filename] of requestedFilenames) {
-          const match = listed.find(
-            (record) =>
-              normalizeFilename(record.originalFilename) === normalized,
-          );
-          if (match) {
-            idsFromFilenames.push(match.id);
-          } else {
-            skipped.push({
-              filename,
-              reason: "not-found",
-              message:
-                "No project document with this filename yet. A file attached moments ago may still be registering; try again shortly.",
-            });
-          }
+        const resolved = resolveDocumentFilenames(filenames, listed);
+        idsFromFilenames.push(...resolved.ids);
+        for (const filename of resolved.missingFilenames) {
+          skipped.push({
+            filename,
+            reason: "not-found",
+            message: FILENAME_NOT_FOUND_MESSAGE,
+          });
+        }
+        if (resolved.missingFilenames.length > 0) {
+          // Newest first across all sources, the order of the listing.
+          availableFilenames = [
+            ...new Set(listed.map((record) => record.originalFilename)),
+          ].slice(0, MAX_AVAILABLE_FILENAMES);
         }
       }
 
@@ -156,7 +159,9 @@ export const readProjectDocuments = async ({
       > = [];
       let totalDocuments = 0;
 
-      if (requestedIds.length > 0) {
+      if (!isReadAllRequest({ documentIds, filenames })) {
+        // Only the named documents are read. When every name missed this
+        // reads nothing: a miss is reported, never widened to all documents.
         const records = await getProjectDocumentExtractionByIds(requestedIds);
 
         // SECURITY: only keep documents that belong to THIS project. Any id
@@ -193,10 +198,6 @@ export const readProjectDocuments = async ({
           });
         }
         orderedRecords = orderedRecords.slice(0, MAX_DOCUMENTS_PER_CALL);
-      } else if (requestedFilenames.size > 0) {
-        // Only filenames were requested and none matched: report them as
-        // skipped rather than falling back to reading every document.
-        totalDocuments = 0;
       } else {
         // No ids: list the project's documents (query order, newest first) to
         // establish the order and the cap, then read the stored text only for
@@ -297,6 +298,7 @@ export const readProjectDocuments = async ({
         documents,
         skipped,
         totalDocuments,
+        ...(availableFilenames ? { availableFilenames } : {}),
       };
     },
   });

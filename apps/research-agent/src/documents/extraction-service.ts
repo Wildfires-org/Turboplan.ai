@@ -6,6 +6,7 @@
  */
 
 import type { ExtractionResult } from "@wildfires-org/turboplan-document-extraction";
+import { getGenericExtractionError } from "@wildfires-org/turboplan-document-extraction/errors";
 
 import { logger as defaultLogger, type Logger } from "../infra/logger";
 import type { ExtractionInput } from "./run-extraction-in-worker";
@@ -103,7 +104,8 @@ export const createDocumentExtractionService = ({
       result = {
         ok: false,
         reason: "extraction-failed",
-        message: err instanceof Error ? err.message : String(err),
+        message: getGenericExtractionError(doc.mimeType),
+        detail: err instanceof Error ? err.message : String(err),
       };
     }
 
@@ -112,8 +114,10 @@ export const createDocumentExtractionService = ({
       processed += 1;
     } else {
       failed += 1;
+      // Only the user-facing message is stored; the raw cause goes to logs.
+      const detail = !result.ok && result.detail ? ` (${result.detail})` : "";
       logger.log(
-        `Extraction ${update.extractionStatus} for ${doc.originalFilename}: ${update.extractionError}`,
+        `Extraction ${update.extractionStatus} for ${doc.originalFilename}: ${update.extractionError}${detail}`,
         "warning",
       );
     }

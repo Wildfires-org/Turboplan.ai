@@ -22,12 +22,17 @@
       "types": "./dist/document-mime.d.ts",
       "import": "./dist/document-mime.js",
       "default": "./dist/document-mime.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js",
+      "default": "./dist/errors.js"
     }
   },
   "dependencies": {
     "mammoth": "^1.12.0",
     "unpdf": "^1.6.2",
-    "word-extractor": "^1.0.4"
+    "word-extractor": "1.0.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.4",

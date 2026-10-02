@@ -1780,7 +1780,7 @@ importers:
         specifier: ^1.6.2
         version: 1.6.2
       word-extractor:
-        specifier: ^1.0.4
+        specifier: 1.0.4
         version: 1.0.4
     devDependencies:
       '@biomejs/biome':

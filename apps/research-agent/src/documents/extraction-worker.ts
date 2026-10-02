@@ -11,6 +11,7 @@ import { parentPort, workerData } from "node:worker_threads";
 import {
   type ExtractionResult,
   extractDocumentText,
+  getGenericExtractionError,
 } from "@wildfires-org/turboplan-document-extraction";
 
 export type ExtractionWorkerData = {
@@ -31,7 +32,8 @@ const main = async (): Promise<void> => {
     post({
       ok: false,
       reason: "extraction-failed",
-      message: err instanceof Error ? err.message : String(err),
+      message: getGenericExtractionError(mimeType),
+      detail: err instanceof Error ? err.message : String(err),
     });
   }
 };

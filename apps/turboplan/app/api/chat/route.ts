@@ -441,6 +441,11 @@ export async function POST(request: Request) {
       canReadProjectDocuments: promptArgs.activeTools.includes(
         "readProjectDocuments",
       ),
+      // createDocument is off in the research phase, and only offers the map
+      // kind when the map package is enabled.
+      canCreateMap:
+        promptArgs.activeTools.includes("createDocument") &&
+        promptArgs.enabledFeatures.map,
     };
     const isModelReadableType = (contentType?: string) =>
       Boolean(

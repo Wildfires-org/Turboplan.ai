@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ExtractionResult } from "@wildfires-org/turboplan-document-extraction";
+import { getGenericExtractionError } from "@wildfires-org/turboplan-document-extraction/errors";
 
 import {
   createDocumentExtractionService,
@@ -119,6 +120,53 @@ describe("document extraction service", () => {
     expect(status.failed).toBe(2);
     expect(status.inFlight).toBe(false);
     expect(status.lastRunAt).not.toBeNull();
+  });
+
+  it("stores only the user-facing message and logs the raw detail", async () => {
+    const persisted: Persisted[] = [];
+    const warnings: string[] = [];
+    let served = false;
+
+    const service = createDocumentExtractionService({
+      fetchPending: async () => {
+        if (served) {
+          return [];
+        }
+        served = true;
+        return [doc("broken"), doc("throws")];
+      },
+      persist: async (id, data) => {
+        persisted.push({ id, data });
+      },
+      runExtraction: async ({ url }) => {
+        if (url.includes("throws")) {
+          throw new RangeError("offset 4096 is out of bounds");
+        }
+        return {
+          ok: false,
+          reason: "extraction-failed",
+          message: "Could not read this file.",
+          detail: "Invalid PDF structure at 0x1f",
+        };
+      },
+      logger: {
+        log: (message) => {
+          warnings.push(message);
+        },
+        error: () => {},
+      },
+    });
+
+    service.start();
+    await waitFor(() => persisted.length === 2);
+    await service.stop();
+
+    expect(persisted[0].data.extractionError).toBe("Could not read this file.");
+    expect(persisted[1].data.extractionError).toBe(
+      getGenericExtractionError("application/pdf"),
+    );
+    expect(warnings.join("\n")).toContain("Invalid PDF structure at 0x1f");
+    expect(warnings.join("\n")).toContain("offset 4096 is out of bounds");
   });
 
   it("wake() triggers an immediate run without waiting for the poll interval", async () => {
