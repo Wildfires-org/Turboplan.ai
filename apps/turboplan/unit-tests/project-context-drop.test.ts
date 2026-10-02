@@ -1,25 +1,42 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 
-import { isExtractionStale } from "@wildfires-org/turboplan-documents/types";
+import { EXTRACTION_STALE_AFTER_MS } from "@wildfires-org/turboplan-documents/types";
+import type { GisZipSaveResult } from "@wildfires-org/turboplan-map/client";
+import {
+  GIS_MAX_FILE_SIZE,
+  PROJECT_DOCUMENT_MAX_FILE_SIZE,
+  SHAPEFILE_PART_MESSAGE,
+} from "@wildfires-org/turboplan-upload/types";
 
 import {
+  type DropFlags,
   type DropRow,
-  EXTRACTION_POLL_INTERVAL_MS,
   formatGisResult,
+  formatSkippedLayers,
   getDocumentDedupeKey,
   getDropRowStatus,
   getDropRowTypeLabel,
-  getExtractionPollInterval,
+  getGisResultMessage,
   getGisResultPhase,
   getNextStaleDelay,
-  hasPendingExtraction,
+  joinSentences,
+  planDrop,
 } from "../lib/project-context-drop";
 
 // Fixed clock: FRESH was created 10s ago, STALE 3 minutes ago.
 const NOW = Date.parse("2026-09-29T12:00:00.000Z");
 const FRESH = new Date(NOW - 10_000).toISOString();
 const STALE = new Date(NOW - 3 * 60_000).toISOString();
+const MINUTE = 60_000;
+
+const PDF = "application/pdf";
+const DOCX =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const ALL_ENABLED: DropFlags = {
+  acceptsDocuments: true,
+  acceptsGisLayers: true,
+};
 
 const makeRow = (overrides: Partial<DropRow> = {}): DropRow => ({
   id: "drop-1",
@@ -31,8 +48,8 @@ const makeRow = (overrides: Partial<DropRow> = {}): DropRow => ({
 });
 
 const makeResult = (
-  overrides: Partial<Parameters<typeof formatGisResult>[0]> = {},
-) => ({
+  overrides: Partial<GisZipSaveResult> = {},
+): GisZipSaveResult => ({
   added: 0,
   skipped: 0,
   failed: 0,
@@ -41,15 +58,16 @@ const makeResult = (
   ...overrides,
 });
 
+const pending = (createdAt: string) => [
+  { id: "doc-1", extractionStatus: "pending" as const, createdAt },
+];
+
 describe("getDropRowStatus for documents", () => {
   it("shows extraction progress while the document is pending", () => {
-    const status = getDropRowStatus(
-      makeRow(),
-      [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
-      NOW,
-    );
+    const status = getDropRowStatus(makeRow(), pending(FRESH), NOW);
     assert.strictEqual(status.label, "Extracting text");
     assert.strictEqual(status.isFinished, false);
+    assert.strictEqual(status.isDismissable, false);
   });
 
   it("stops waiting for a document removed from the list", () => {
@@ -88,6 +106,27 @@ describe("getDropRowStatus for documents", () => {
     }
   });
 
+  it("lets a waiting row be dismissed, but not one already uploading", () => {
+    assert.strictEqual(
+      getDropRowStatus(makeRow({ phase: "queued" }), []).isDismissable,
+      true,
+    );
+    for (const phase of ["uploading", "processing"] as const) {
+      assert.strictEqual(
+        getDropRowStatus(makeRow({ phase }), []).isDismissable,
+        false,
+        phase,
+      );
+    }
+    for (const phase of ["error", "duplicate", "done"] as const) {
+      assert.strictEqual(
+        getDropRowStatus(makeRow({ phase }), []).isDismissable,
+        true,
+        phase,
+      );
+    }
+  });
+
   it("shows the stored message for errors", () => {
     const status = getDropRowStatus(
       makeRow({ phase: "error", message: "Unsupported file type" }),
@@ -96,47 +135,149 @@ describe("getDropRowStatus for documents", () => {
     assert.strictEqual(status.tone, "error");
     assert.strictEqual(status.detail, "Unsupported file type");
   });
-});
 
-describe("hasPendingExtraction", () => {
-  it("is true only while a registered document waits for its text", () => {
-    const rows = [makeRow(), makeRow({ id: "drop-2", phase: "uploading" })];
+  it("shows a skipped duplicate as finished, not as an error", () => {
+    const status = getDropRowStatus(makeRow({ phase: "duplicate" }), []);
+    assert.strictEqual(status.label, "Already in project");
+    assert.strictEqual(status.tone, "neutral");
+    assert.strictEqual(status.isFinished, true);
+  });
+
+  it("treats .doc uploads like .docx", () => {
+    const row = makeRow({ name: "old-plan.doc" });
     assert.strictEqual(
-      hasPendingExtraction(
-        rows,
-        [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
-        NOW,
-      ),
-      true,
+      getDropRowStatus(row, pending(FRESH), NOW).label,
+      "Extracting text",
     );
     assert.strictEqual(
-      hasPendingExtraction(
-        rows,
+      getDropRowStatus(
+        row,
         [{ id: "doc-1", extractionStatus: "done", createdAt: FRESH }],
         NOW,
-      ),
-      false,
+      ).tone,
+      "success",
+    );
+  });
+});
+
+describe("stale extraction", () => {
+  it("shows a static waiting state once the wait is stale", () => {
+    const status = getDropRowStatus(makeRow(), pending(STALE), NOW);
+    assert.strictEqual(status.label, "Waiting for text extraction");
+    assert.strictEqual(status.tone, "neutral");
+    assert.strictEqual(status.isFinished, true);
+  });
+
+  it("measures from registeredAt, not the server createdAt", () => {
+    // Server clock 10 minutes ahead: createdAt lies in the future.
+    const future = new Date(NOW + 10 * MINUTE).toISOString();
+    const staleRow = makeRow({ registeredAt: NOW - 3 * MINUTE });
+    assert.strictEqual(
+      getDropRowStatus(staleRow, pending(future), NOW).label,
+      "Waiting for text extraction",
+    );
+
+    // Server clock behind: createdAt looks old, but the row was just added.
+    const freshRow = makeRow({ registeredAt: NOW - 10_000 });
+    assert.strictEqual(
+      getDropRowStatus(freshRow, pending(STALE), NOW).label,
+      "Extracting text",
+    );
+    assert.strictEqual(
+      getNextStaleDelay([freshRow], pending(STALE), NOW),
+      EXTRACTION_STALE_AFTER_MS - 10_000,
+    );
+  });
+
+  it("schedules a re-render for when the next fresh row goes stale", () => {
+    assert.strictEqual(
+      getNextStaleDelay([makeRow()], pending(FRESH), NOW),
+      EXTRACTION_STALE_AFTER_MS - 10_000,
+    );
+    assert.strictEqual(
+      getNextStaleDelay([makeRow()], pending(STALE), NOW),
+      null,
+    );
+    assert.strictEqual(
+      getNextStaleDelay([makeRow()], pending("bad"), NOW),
+      null,
     );
   });
 });
 
 describe("GIS results", () => {
-  it("summarises added, skipped and failed layers", () => {
+  it("summarises added and failed layers", () => {
     assert.strictEqual(
       formatGisResult(makeResult({ added: 1 })),
-      "1 layer added to the map",
+      "1 layer added to the map.",
     );
     assert.strictEqual(
-      formatGisResult(makeResult({ added: 3, skipped: 1, failed: 2 })),
-      "3 layers added to the map, 1 already in the project, 2 could not be saved",
+      formatGisResult(makeResult({ added: 3, failed: 2 })),
+      "3 layers added to the map, 2 could not be saved.",
     );
     assert.strictEqual(formatGisResult(makeResult()), "No layers added");
+  });
+
+  it("names skipped layers and says how to replace them", () => {
+    assert.strictEqual(
+      formatGisResult(
+        makeResult({ added: 2, skipped: 1, skippedLayerNames: ["units"] }),
+      ),
+      '2 layers added to the map. "units" is already in the project. To replace it, delete that layer first, then upload the file again.',
+    );
+    assert.strictEqual(
+      formatSkippedLayers(
+        makeResult({ skipped: 2, skippedLayerNames: ["units", "roads"] }),
+      ),
+      '"units", "roads" are already in the project. To replace them, delete those layers first, then upload the file again.',
+    );
+  });
+
+  it("falls back to a count when the skipped names are missing", () => {
+    assert.strictEqual(
+      formatSkippedLayers(makeResult({ skipped: 1 })),
+      "1 already in the project (delete it first to replace)",
+    );
+    assert.strictEqual(
+      formatSkippedLayers(makeResult({ skipped: 3, skippedLayerNames: [] })),
+      "3 already in the project (delete them first to replace)",
+    );
+    assert.strictEqual(formatSkippedLayers(makeResult({ added: 1 })), null);
+  });
+
+  it("adds the first layer error and every save warning to the row message", () => {
+    assert.strictEqual(
+      getGisResultMessage(
+        makeResult({
+          added: 1,
+          failed: 1,
+          errors: ["roads: no geometry", "rivers: bad CRS"],
+          warnings: [
+            "Units layer saved as a regular layer, the project already has one",
+            '3 features of "parcels" could not be saved',
+          ],
+        }),
+      ),
+      '1 layer added to the map, 1 could not be saved. roads: no geometry. Units layer saved as a regular layer, the project already has one. 3 features of "parcels" could not be saved.',
+    );
+    assert.strictEqual(
+      getGisResultMessage(makeResult({ added: 1 })),
+      "1 layer added to the map.",
+    );
   });
 
   it("is an error only when nothing was added or already present", () => {
     assert.strictEqual(getGisResultPhase(makeResult({ added: 2 })), "done");
     assert.strictEqual(getGisResultPhase(makeResult({ skipped: 2 })), "done");
     assert.strictEqual(getGisResultPhase(makeResult({ failed: 2 })), "error");
+  });
+
+  it("joins messages into sentences", () => {
+    assert.strictEqual(
+      joinSentences(["One", null, "Two.", "  ", undefined, "Three?"]),
+      "One. Two. Three?",
+    );
+    assert.strictEqual(joinSentences([]), "");
   });
 });
 
@@ -160,9 +301,33 @@ describe("getDropRowTypeLabel", () => {
       "Unsupported file",
     );
   });
+
+  it("labels an extensionless document from its MIME type", () => {
+    assert.strictEqual(
+      getDropRowTypeLabel(makeRow({ name: "report", mimeType: PDF })),
+      "PDF",
+    );
+    assert.strictEqual(
+      getDropRowTypeLabel(makeRow({ name: "report", mimeType: DOCX })),
+      "Word document",
+    );
+  });
+
+  it("lets the extension win over the MIME type", () => {
+    assert.strictEqual(
+      getDropRowTypeLabel(makeRow({ name: "notes.docx", mimeType: PDF })),
+      "Word document",
+    );
+    assert.strictEqual(
+      getDropRowTypeLabel(makeRow({ name: "Plan.PDF", mimeType: "" })),
+      "PDF",
+    );
+  });
 });
 
-describe("duplicate documents", () => {
+describe("planDrop", () => {
+  const file = (name: string, type = "", size = 1024) => ({ name, type, size });
+
   it("keys documents by file name and size", () => {
     assert.strictEqual(getDocumentDedupeKey("plan.pdf", 1024), "plan.pdf:1024");
     assert.notStrictEqual(
@@ -171,115 +336,124 @@ describe("duplicate documents", () => {
     );
   });
 
-  it("shows a skipped duplicate as finished, not as an error", () => {
-    const status = getDropRowStatus(makeRow({ phase: "duplicate" }), []);
-    assert.strictEqual(status.label, "Already in project");
-    assert.strictEqual(status.tone, "neutral");
-    assert.strictEqual(status.isFinished, true);
-  });
-});
-
-describe("stale extraction", () => {
-  const pending = (createdAt: string) => [
-    { id: "doc-1", extractionStatus: "pending" as const, createdAt },
-  ];
-
-  it("marks only pending documents older than the threshold as stale", () => {
-    assert.strictEqual(
-      isExtractionStale({ extractionStatus: "pending", createdAt: FRESH }, NOW),
-      false,
+  it("plans a mixed drop in drop order", () => {
+    const existing = new Set([getDocumentDedupeKey("old.pdf", 1024)]);
+    const plan = planDrop(
+      [
+        file("photo.png", "image/png"),
+        file("roads.shp"),
+        file("old.pdf", PDF),
+        file("layers.zip", "application/zip"),
+        file("notes.docx", DOCX),
+        file("huge.pdf", PDF, PROJECT_DOCUMENT_MAX_FILE_SIZE + 1),
+        file("huge.zip", "application/zip", GIS_MAX_FILE_SIZE + 1),
+      ],
+      existing,
+      ALL_ENABLED,
     );
-    assert.strictEqual(
-      isExtractionStale({ extractionStatus: "pending", createdAt: STALE }, NOW),
-      true,
-    );
-    assert.strictEqual(
-      isExtractionStale({ extractionStatus: "done", createdAt: STALE }, NOW),
-      false,
-    );
-    assert.strictEqual(
-      isExtractionStale({ extractionStatus: "pending", createdAt: "bad" }, NOW),
-      false,
-    );
-  });
 
-  it("keeps spinning while pending is fresh", () => {
-    const status = getDropRowStatus(makeRow(), pending(FRESH), NOW);
-    assert.strictEqual(status.label, "Extracting text");
-    assert.strictEqual(status.isFinished, false);
-  });
-
-  it("shows a static waiting state once pending is stale", () => {
-    const status = getDropRowStatus(makeRow(), pending(STALE), NOW);
-    assert.strictEqual(status.label, "Waiting for text extraction");
-    assert.strictEqual(status.tone, "neutral");
-    assert.strictEqual(status.isFinished, true);
+    assert.deepStrictEqual(
+      plan.map(({ name, kind, phase }) => [name, kind, phase]),
+      [
+        ["photo.png", "unsupported", "error"],
+        ["roads.shp", "unsupported", "error"],
+        ["old.pdf", "document", "duplicate"],
+        ["layers.zip", "gis", "queued"],
+        ["notes.docx", "document", "queued"],
+        ["huge.pdf", "document", "error"],
+        ["huge.zip", "gis", "error"],
+      ],
+    );
+    assert.strictEqual(plan[0].message, "Unsupported file type");
+    assert.strictEqual(plan[1].message, SHAPEFILE_PART_MESSAGE);
+    assert.strictEqual(plan[3].dedupeKey, undefined);
+    assert.strictEqual(
+      plan[4].dedupeKey,
+      getDocumentDedupeKey("notes.docx", 1024),
+    );
+    assert.match(plan[5].message ?? "", /^File too large/);
+    assert.match(plan[6].message ?? "", /^GIS file too large/);
   });
 
-  it("polls only while a pending document is fresh", () => {
-    const rows = [makeRow()];
-    assert.strictEqual(
-      getExtractionPollInterval(rows, pending(FRESH), NOW),
-      EXTRACTION_POLL_INTERVAL_MS,
+  it("collapses the loose parts of one shapefile into one item", () => {
+    const plan = planDrop(
+      [
+        file("Roads.shp"),
+        file("plan.pdf", PDF),
+        file("roads.dbf"),
+        file("roads.shx"),
+        file("roads.prj"),
+        file("rivers.shp"),
+        file("roads.cpg"),
+      ],
+      new Set(),
+      ALL_ENABLED,
     );
-    assert.strictEqual(getExtractionPollInterval(rows, pending(STALE), NOW), 0);
-    assert.strictEqual(
-      getExtractionPollInterval(
-        rows,
-        [{ id: "doc-1", extractionStatus: "done", createdAt: FRESH }],
-        NOW,
-      ),
-      0,
+    assert.deepStrictEqual(
+      plan.map(({ name, phase }) => [name, phase]),
+      [
+        ["Roads.shp, roads.dbf, roads.shx, roads.prj, roads.cpg", "error"],
+        ["plan.pdf", "queued"],
+        ["rivers.shp", "error"],
+      ],
     );
-    assert.strictEqual(getExtractionPollInterval([], pending(FRESH), NOW), 0);
+    assert.strictEqual(plan[0].message, SHAPEFILE_PART_MESSAGE);
   });
 
-  it("keeps polling when one pending document is stale and another fresh", () => {
-    const rows = [makeRow(), makeRow({ id: "drop-2", documentId: "doc-2" })];
-    const documents = [
-      ...pending(STALE),
-      { id: "doc-2", extractionStatus: "pending" as const, createdAt: FRESH },
-    ];
-    assert.strictEqual(
-      getExtractionPollInterval(rows, documents, NOW),
-      EXTRACTION_POLL_INTERVAL_MS,
+  it("rejects empty files", () => {
+    const plan = planDrop(
+      [file("blank.pdf", PDF, 0), file("blank.zip", "application/zip", 0)],
+      new Set(),
+      ALL_ENABLED,
+    );
+    assert.deepStrictEqual(
+      plan.map(({ phase, message }) => [phase, message]),
+      [
+        ["error", "The file is empty (0 bytes)"],
+        ["error", "The file is empty (0 bytes)"],
+      ],
     );
   });
 
-  it("schedules a re-render for when the next fresh row goes stale", () => {
-    assert.strictEqual(
-      getNextStaleDelay([makeRow()], pending(FRESH), NOW),
-      2 * 60_000 - 10_000,
+  it("queues both copies of a new document dropped twice", () => {
+    const plan = planDrop(
+      [file("a.pdf", PDF), file("a.pdf", PDF)],
+      new Set(),
+      ALL_ENABLED,
     );
-    assert.strictEqual(
-      getNextStaleDelay([makeRow()], pending(STALE), NOW),
-      null,
+    assert.deepStrictEqual(
+      plan.map(({ phase }) => phase),
+      ["queued", "queued"],
+    );
+    assert.strictEqual(plan[0].dedupeKey, plan[1].dedupeKey);
+  });
+
+  it("rejects files of a disabled module", () => {
+    const plan = planDrop(
+      [
+        file("a.pdf", PDF),
+        file("layers.zip", "application/zip"),
+        file("roads.dbf"),
+      ],
+      new Set(),
+      { acceptsDocuments: false, acceptsGisLayers: false },
+    );
+    assert.deepStrictEqual(
+      plan.map(({ phase, message }) => [phase, message]),
+      [
+        ["error", "Documents are not enabled for this project"],
+        ["error", "Map layers are not enabled for this project"],
+        ["error", "Map layers are not enabled for this project"],
+      ],
     );
   });
-});
 
-describe(".doc uploads", () => {
-  it("go through text extraction like .docx", () => {
-    const pending = getDropRowStatus(
-      makeRow({ name: "old-plan.doc" }),
-      [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
-      NOW,
+  it("does not flag a document of another size as a duplicate", () => {
+    const plan = planDrop(
+      [file("old.pdf", PDF, 2048)],
+      new Set([getDocumentDedupeKey("old.pdf", 1024)]),
+      ALL_ENABLED,
     );
-    assert.strictEqual(pending.label, "Extracting text");
-    assert.strictEqual(
-      getExtractionPollInterval(
-        [makeRow({ name: "old-plan.doc" })],
-        [{ id: "doc-1", extractionStatus: "pending", createdAt: FRESH }],
-        NOW,
-      ),
-      EXTRACTION_POLL_INTERVAL_MS,
-    );
-
-    const done = getDropRowStatus(
-      makeRow({ name: "old-plan.doc" }),
-      [{ id: "doc-1", extractionStatus: "done", createdAt: FRESH }],
-      NOW,
-    );
-    assert.strictEqual(done.tone, "success");
+    assert.strictEqual(plan[0].phase, "queued");
   });
 });

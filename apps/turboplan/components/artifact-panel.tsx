@@ -18,12 +18,14 @@ import { useDebounceCallback, useWindowSize } from "usehooks-ts";
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
 import type { Document } from "@wildfires-org/turboplan-db/types";
 
+import { CHAT_COMPOSER_SHELL_CLASS } from "@/components/chat/chat-classes";
+import { ProjectMultimodalInput } from "@/components/chat/project-multimodal-input";
 import { useResearchPanel } from "@/contexts/research-panel-context";
 import { initialArtifactData, useArtifact } from "@/hooks/use-artifact";
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useSidebarPinnedState } from "@/hooks/use-sidebar-pinned-state";
-import { fetcher } from "@/lib/utils";
+import { cn, fetcher } from "@/lib/utils";
 import { artifactDefinitions, type UIArtifact } from "./artifact";
 import { ArtifactActions } from "./artifact-actions";
 import { ArtifactCloseButton } from "./artifact-close-button";
@@ -49,6 +51,10 @@ export interface ArtifactPanelProps {
   reload: ChatHelpers["reload"];
   isReadonly: boolean;
   projectId?: string;
+  /** Map module enabled (resolved on the server) */
+  isMapEnabled?: boolean;
+  isInputDisabled?: boolean;
+  disabledPlaceholder?: string;
 }
 
 const DASHBOARD_HEADER_HEIGHT = 64;
@@ -105,6 +111,9 @@ export function ArtifactPanel({
   reload,
   isReadonly,
   projectId,
+  isMapEnabled,
+  isInputDisabled,
+  disabledPlaceholder,
 }: ArtifactPanelProps) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
   const { isOpen: isResearchPanelOpen, width: researchPanelWidth } =
@@ -410,20 +419,44 @@ export function ArtifactPanel({
                 />
 
                 <form className="relative flex w-full flex-row items-end gap-2 px-4 pb-4">
-                  <MultimodalInput
-                    chatId={chatId}
-                    input={input}
-                    setInput={setInput}
-                    handleSubmit={handleSubmit}
-                    status={status}
-                    stop={stop}
-                    attachments={attachments}
-                    setAttachments={setAttachments}
-                    messages={messages}
-                    append={append}
-                    className="bg-background dark:bg-muted"
-                    setMessages={setMessages}
-                  />
+                  {/* A project chat's input also adds attached documents and
+                      GIS files to the project, as the main chat input does. */}
+                  {projectId ? (
+                    <div className={cn(CHAT_COMPOSER_SHELL_CLASS, "w-full")}>
+                      <ProjectMultimodalInput
+                        chatId={chatId}
+                        projectId={projectId}
+                        isMapEnabled={isMapEnabled}
+                        input={input}
+                        setInput={setInput}
+                        handleSubmit={handleSubmit}
+                        status={status}
+                        stop={stop}
+                        attachments={attachments}
+                        setAttachments={setAttachments}
+                        messages={messages}
+                        setMessages={setMessages}
+                        append={append}
+                        isInputDisabled={isInputDisabled}
+                        disabledPlaceholder={disabledPlaceholder}
+                      />
+                    </div>
+                  ) : (
+                    <MultimodalInput
+                      chatId={chatId}
+                      input={input}
+                      setInput={setInput}
+                      handleSubmit={handleSubmit}
+                      status={status}
+                      stop={stop}
+                      attachments={attachments}
+                      setAttachments={setAttachments}
+                      messages={messages}
+                      append={append}
+                      className="bg-background dark:bg-muted"
+                      setMessages={setMessages}
+                    />
+                  )}
                 </form>
               </div>
 

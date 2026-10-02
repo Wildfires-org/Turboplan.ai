@@ -112,6 +112,9 @@ export function ProjectContextPageSection({
               assistant once extracted.
             </p>
           </div>
+          {/* The only poller of this list on the page (showExtractionStatus
+              polls while text is pending); the dropzone rows above read the
+              same SWR cache and update with it. */}
           <DocumentsSectionUI
             projectId={projectId}
             userId={userId}

@@ -70,6 +70,8 @@ interface ProjectChatViewProps {
   chat: Chat | null;
   isInitialChat: boolean;
   userId: string;
+  /** Map module enabled (resolved on the server): chat saves GIS files to it */
+  isMapEnabled?: boolean;
 }
 
 const NEW_CHAT_PATH_PATTERN = /\/chats\/new\/?$/;
@@ -80,6 +82,7 @@ export const ProjectChatView = ({
   chat,
   isInitialChat,
   userId,
+  isMapEnabled = false,
 }: ProjectChatViewProps) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -122,6 +125,7 @@ export const ProjectChatView = ({
         chat={chat}
         isInitialChat={isInitialChat}
         userId={userId}
+        isMapEnabled={isMapEnabled}
       />
     </ResearchPanelProvider>
   );
@@ -132,6 +136,7 @@ const ProjectChatViewInner = ({
   chat,
   isInitialChat,
   userId,
+  isMapEnabled,
 }: ProjectChatViewProps) => {
   const HEADER_MIN_HEIGHT_CLASS = 72;
   const chatRef = useRef<ProjectChatRef>(null);
@@ -505,6 +510,7 @@ const ProjectChatViewInner = ({
                     initialMessages={uiMessages}
                     isReadonly={false}
                     projectId={project.id}
+                    isMapEnabled={isMapEnabled}
                     onChatCreated={chat ? undefined : handleChatCreated}
                     isInitialChat={effectiveIsInitialChat}
                     isResearchPhaseCompleted={

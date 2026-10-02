@@ -26,16 +26,29 @@ import {
   ALLOWED_MIME_TYPES,
   MAX_FILE_SIZE,
 } from "@wildfires-org/turboplan-documents/client";
-import { processAndSaveGisFile } from "@wildfires-org/turboplan-map/client";
+import {
+  type GisZipSaveResult,
+  processAndSaveGisFile,
+} from "@wildfires-org/turboplan-map/client";
 import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
 import {
   classifyProjectFile,
-  resolveProjectFileContentType,
+  isShapefilePart,
+  withResolvedContentType,
 } from "@wildfires-org/turboplan-upload/types";
 import { Button, Textarea } from "@wildfires-org/turboplan-utils";
 
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
 import { isChatBusy } from "@/lib/chat-status";
+import {
+  DROP_TIMEOUTS,
+  formatSkippedLayers,
+  getDocumentDedupeKey,
+  getGisProcessingTimeoutMessage,
+  joinSentences,
+  projectGisSaveQueue,
+  withTimeout,
+} from "@/lib/project-context-drop";
 import { registerProjectDocument } from "@/lib/project-documents";
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from "../icons";
 import { PreviewAttachment } from "../preview-attachment";
@@ -58,22 +71,47 @@ const isProjectDocument = (file: File): boolean =>
 // explanation.
 const isGisFile = (file: File): boolean => classifyProjectFile(file) === "gis";
 
-// Browsers often report no type (or a generic one) for GIS and Word files, and
-// the upload allow list refuses those. Re-wrap such files with the type their
-// extension maps to; files the project does not recognise are left alone.
-const withResolvedContentType = (file: File): File => {
-  const contentType = resolveProjectFileContentType(file);
-  if (!contentType || contentType === file.type) {
-    return file;
-  }
-  return new File([file], file.name, {
-    type: contentType,
-    lastModified: file.lastModified,
-  });
-};
-
 const pluralizeLayers = (count: number) =>
   `${count} GIS layer${count === 1 ? "" : "s"}`;
+
+/** Replaces a GIS file's loading toast with what saving it did. */
+const showGisSaveResult = (
+  toastId: string | number,
+  fileName: string,
+  result: GisZipSaveResult,
+) => {
+  const skipped = formatSkippedLayers(result);
+  const warnings = result.warnings ?? [];
+
+  if (result.added > 0) {
+    toast.success(`Added ${pluralizeLayers(result.added)} to project map`, {
+      id: toastId,
+      description:
+        joinSentences([
+          result.failed > 0
+            ? `${pluralizeLayers(result.failed)} could not be added: ${result.errors.join(" ")}`
+            : null,
+          skipped,
+          ...warnings,
+        ]) || undefined,
+    });
+    return;
+  }
+
+  if (result.skipped > 0 && result.failed === 0) {
+    toast.info(`GIS layers from ${fileName} are already on the project map`, {
+      id: toastId,
+      description: joinSentences([skipped, ...warnings]) || undefined,
+    });
+    return;
+  }
+
+  toast.error(`Could not add GIS layers from ${fileName}`, {
+    id: toastId,
+    description:
+      joinSentences([...result.errors, skipped, ...warnings]) || undefined,
+  });
+};
 
 // Dragging text or a link also fires drag events — only files should open the
 // dropzone overlay.
@@ -83,6 +121,8 @@ const hasDraggedFiles = (event: DragEvent<HTMLElement>): boolean =>
 function PureProjectMultimodalInput({
   input,
   projectId,
+  isMapEnabled = false,
+  autoFocus = true,
   setInput,
   status,
   stop,
@@ -95,6 +135,13 @@ function PureProjectMultimodalInput({
 }: {
   chatId: string;
   projectId?: string;
+  /** Map module enabled (resolved on the server): save GIS files to the map */
+  isMapEnabled?: boolean;
+  /**
+   * Take focus on mount and when a reply finishes. Off for the main chat
+   * input while the artifact panel, with its own input, is open.
+   */
+  autoFocus?: boolean;
   input: ChatHelpers["input"];
   setInput: ChatHelpers["setInput"];
   status: ChatHelpers["status"];
@@ -219,12 +266,13 @@ function PureProjectMultimodalInput({
         `/api/project-documents?projectId=${encodeURIComponent(projectId)}&source=upload`,
       );
       const existingKeys = new Set(
-        (existingDocuments ?? []).map(
-          (doc) => `${doc.originalFilename}:${doc.size}`,
+        (existingDocuments ?? []).map((doc) =>
+          getDocumentDedupeKey(doc.originalFilename, doc.size),
         ),
       );
       const newUploads = documentUploads.filter(
-        ({ file }) => !existingKeys.has(`${file.name}:${file.size}`),
+        ({ file }) =>
+          !existingKeys.has(getDocumentDedupeKey(file.name, file.size)),
       );
 
       if (newUploads.length === 0) {
@@ -257,12 +305,14 @@ function PureProjectMultimodalInput({
   );
 
   // Save the layers of attached GIS files (already stored in R2 by the chat
-  // upload) to the project map. One toast per file, updated in place, since
-  // processing a large file can take a while. Never blocks or fails the
-  // chat attachment.
+  // upload) to the project map, which only exists with the map module on.
+  // Saves go through one queue per project, shared with the other chat input
+  // and the Project Context dropzone: parallel saves race the existing-layer
+  // lookup. One toast per file, updated in place, since processing a large
+  // file can take a while. Never blocks or fails the chat attachment.
   const persistGisArchives = useCallback(
     async (uploads: Array<UploadedFile>) => {
-      if (!projectId) {
+      if (!projectId || !isMapEnabled) {
         return;
       }
 
@@ -276,67 +326,59 @@ function PureProjectMultimodalInput({
       });
 
       await Promise.all(
-        gisUploads.map(async ({ file, attachment }) => {
+        gisUploads.map(({ file, attachment }) => {
           const toastId = toast.loading(
             `Adding GIS layers from ${file.name} to the project map…`,
           );
 
-          try {
-            const result = await processAndSaveGisFile({
-              projectId,
-              url: attachment.url,
-              fileName: file.name,
-            });
-
-            if (result.added > 0) {
-              toast.success(
-                `Added ${pluralizeLayers(result.added)} to project map`,
-                {
-                  id: toastId,
-                  description:
-                    result.failed > 0
-                      ? `${pluralizeLayers(result.failed)} could not be added: ${result.errors.join(" ")}`
-                      : undefined,
-                },
+          return projectGisSaveQueue.run(projectId, async () => {
+            try {
+              const result = await withTimeout(
+                processAndSaveGisFile({
+                  projectId,
+                  url: attachment.url,
+                  fileName: file.name,
+                }),
+                DROP_TIMEOUTS.gisProcessing,
+                getGisProcessingTimeoutMessage(DROP_TIMEOUTS.gisProcessing),
               );
-              return;
+              showGisSaveResult(toastId, file.name, result);
+            } catch (error) {
+              toast.error(`Could not add GIS layers from ${file.name}`, {
+                id: toastId,
+                description:
+                  error instanceof Error ? error.message : "Unknown error",
+              });
             }
-
-            if (result.skipped > 0 && result.failed === 0) {
-              toast.info(
-                `GIS layers from ${file.name} are already on the project map`,
-                {
-                  id: toastId,
-                },
-              );
-              return;
-            }
-
-            toast.error(`Could not add GIS layers from ${file.name}`, {
-              id: toastId,
-              description: result.errors.join(" ") || undefined,
-            });
-          } catch (error) {
-            toast.error(`Could not add GIS layers from ${file.name}`, {
-              id: toastId,
-              description:
-                error instanceof Error ? error.message : "Unknown error",
-            });
-          }
+          });
         }),
       );
     },
-    [projectId],
+    [projectId, isMapEnabled],
   );
 
   // Shared upload path for both the paperclip file picker and drag-and-drop.
   const processFiles = useCallback(
     async (selectedFiles: Array<File>) => {
-      if (selectedFiles.length === 0) {
-        return;
+      // Loose shapefile parts cannot be read one by one; say how to send
+      // them instead of letting the upload refuse them as an unknown type.
+      const canSaveGisLayers = Boolean(projectId) && isMapEnabled;
+      const shapefileParts = canSaveGisLayers
+        ? selectedFiles.filter(isShapefilePart)
+        : [];
+      if (shapefileParts.length > 0) {
+        // One toast for the whole selection, however many parts it has.
+        toast.error("Shapefile parts can't be attached on their own", {
+          description: `${shapefileParts.map((file) => file.name).join(", ")}: zip the .shp together with its .dbf, .shx and .prj files and attach the ZIP to add its layers to the project map.`,
+        });
       }
 
-      const files = selectedFiles.map(withResolvedContentType);
+      const files = selectedFiles
+        .filter((file) => !shapefileParts.includes(file))
+        .map(withResolvedContentType);
+      if (files.length === 0) {
+        return;
+      }
 
       setUploadQueue(files.map((file) => file.name));
 
@@ -367,7 +409,14 @@ function PureProjectMultimodalInput({
         setUploadQueue([]);
       }
     },
-    [setAttachments, uploadFile, persistProjectDocuments, persistGisArchives],
+    [
+      projectId,
+      isMapEnabled,
+      setAttachments,
+      uploadFile,
+      persistProjectDocuments,
+      persistGisArchives,
+    ],
   );
 
   const handleFileChange = useCallback(
@@ -457,6 +506,7 @@ function PureProjectMultimodalInput({
     // Only restore focus when a reply ends — finished or failed. The textarea
     // is disabled while streaming, so it lost focus either way.
     if (
+      autoFocus &&
       isChatBusy(prevStatusRef.current) &&
       !isChatBusy(status) &&
       textareaRef.current
@@ -466,7 +516,7 @@ function PureProjectMultimodalInput({
 
     // Always update the ref
     prevStatusRef.current = status;
-  }, [status]);
+  }, [status, autoFocus]);
 
   const isLoading = status === "streaming";
 
@@ -528,7 +578,7 @@ function PureProjectMultimodalInput({
           className,
         )}
         rows={1}
-        autoFocus={!isInputDisabled}
+        autoFocus={autoFocus && !isInputDisabled}
         onKeyDown={handleKeyDown}
         disabled={isLoading || isInputDisabled}
       />
@@ -600,14 +650,33 @@ function PureProjectMultimodalInput({
 export const ProjectMultimodalInput = memo(
   PureProjectMultimodalInput,
   (prevProps, nextProps) => {
-    if (prevProps.input !== nextProps.input) return false;
-    if (prevProps.projectId !== nextProps.projectId) return false;
-    if (prevProps.status !== nextProps.status) return false;
-    if (prevProps.messages.length !== nextProps.messages.length) return false;
-    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
-    if (prevProps.isInputDisabled !== nextProps.isInputDisabled) return false;
-    if (prevProps.disabledPlaceholder !== nextProps.disabledPlaceholder)
+    if (prevProps.input !== nextProps.input) {
       return false;
+    }
+    if (prevProps.projectId !== nextProps.projectId) {
+      return false;
+    }
+    if (prevProps.isMapEnabled !== nextProps.isMapEnabled) {
+      return false;
+    }
+    if (prevProps.autoFocus !== nextProps.autoFocus) {
+      return false;
+    }
+    if (prevProps.status !== nextProps.status) {
+      return false;
+    }
+    if (prevProps.messages.length !== nextProps.messages.length) {
+      return false;
+    }
+    if (!equal(prevProps.attachments, nextProps.attachments)) {
+      return false;
+    }
+    if (prevProps.isInputDisabled !== nextProps.isInputDisabled) {
+      return false;
+    }
+    if (prevProps.disabledPlaceholder !== nextProps.disabledPlaceholder) {
+      return false;
+    }
 
     return true;
   },

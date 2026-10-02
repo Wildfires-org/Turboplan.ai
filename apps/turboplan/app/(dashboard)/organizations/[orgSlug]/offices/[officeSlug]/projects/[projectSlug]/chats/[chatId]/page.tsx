@@ -4,7 +4,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getChatById } from "@wildfires-org/turboplan-db/queries";
-import { isResearchAgentPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
+import {
+  isMapPackageEnabled,
+  isResearchAgentPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
 
 import { AccessError } from "@/components/access-error";
 import {
@@ -178,6 +181,7 @@ async function ChatByIdPageContent({
         chat={chat}
         isInitialChat={chat.isInitial}
         userId={userId}
+        isMapEnabled={isMapPackageEnabled()}
       />
     </ProjectChatPageShell>
   );

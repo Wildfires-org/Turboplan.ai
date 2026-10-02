@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import useSWR from "swr";
 
@@ -12,15 +12,19 @@ import {
   PROJECT_DOCUMENT_MIME_TYPES,
 } from "@wildfires-org/turboplan-upload/types";
 
-import type {
-  ProjectDocument,
-  UseProjectDocumentsOptions,
-  UseProjectDocumentsReturn,
+import {
+  getPendingExtractionPollInterval,
+  type ProjectDocument,
+  trackPendingSince,
+  type UseProjectDocumentsOptions,
+  type UseProjectDocumentsReturn,
 } from "../types";
 
 const apiClient = new ApiClient();
 
 const ALLOWED_MIME_TYPES = Object.keys(PROJECT_DOCUMENT_MIME_TYPES);
+
+const NOTHING_PENDING: ReadonlyMap<string, number> = new Map();
 
 /**
  * Hook for managing project documents
@@ -29,12 +33,31 @@ export function useProjectDocuments({
   projectId,
   source,
   refreshInterval = 0,
+  pollPendingExtraction = false,
 }: UseProjectDocumentsOptions): UseProjectDocumentsReturn {
   const url = source
     ? `/api/project-documents?projectId=${encodeURIComponent(projectId)}&source=${encodeURIComponent(source)}`
     : `/api/project-documents?projectId=${encodeURIComponent(projectId)}`;
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isRenaming, setIsRenaming] = useState<string | null>(null);
+
+  // When this client first saw each document pending. Server `createdAt`
+  // would do, but a skewed server clock would stretch or cut the schedule.
+  const [pendingSince, setPendingSince] =
+    useState<ReadonlyMap<string, number>>(NOTHING_PENDING);
+
+  // SWR evaluates a function interval only when polling (re)starts and after
+  // each poll, so a list that loads, or gains a pending document, while
+  // polling is off would never start it. A new function per set of pending
+  // documents restarts polling whenever that set changes.
+  const pendingExtractionInterval = useMemo(
+    () =>
+      pendingSince.size > 0
+        ? (latest: ProjectDocument[] | undefined) =>
+            getPendingExtractionPollInterval(latest ?? [], pendingSince)
+        : 0,
+    [pendingSince],
+  );
 
   const {
     data: documents,
@@ -44,8 +67,20 @@ export function useProjectDocuments({
   } = useSWR<ProjectDocument[]>(url, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
-    refreshInterval,
+    refreshInterval: pollPendingExtraction
+      ? pendingExtractionInterval
+      : refreshInterval,
   });
+
+  // Updated while rendering rather than in an effect, so no card renders a
+  // pending document before its start time is known. `trackPendingSince`
+  // returns the same map when nothing changed, which ends the re-render.
+  const nextPendingSince = pollPendingExtraction
+    ? trackPendingSince(pendingSince, documents)
+    : NOTHING_PENDING;
+  if (nextPendingSince !== pendingSince) {
+    setPendingSince(nextPendingSince);
+  }
 
   // Use the upload hook from turboplan-upload
   const {
@@ -194,5 +229,6 @@ export function useProjectDocuments({
     isDeleting,
     isRenaming,
     refreshDocuments,
+    pendingSince,
   };
 }

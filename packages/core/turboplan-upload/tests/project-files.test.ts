@@ -9,11 +9,13 @@ import {
   GIS_UPLOAD_CONTENT_TYPES,
   getProjectFileMaxSize,
   isAllowedUploadContentType,
+  isShapefilePart,
   PROJECT_DOCUMENT_ACCEPT,
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
   PROJECT_DOCUMENT_MIME_TYPES,
   PROJECT_FILE_ACCEPT,
   resolveProjectFileContentType,
+  withResolvedContentType,
 } from "../src/types";
 
 const DOCX =
@@ -205,5 +207,63 @@ describe("project file limits and accept strings", () => {
     }
     assert.ok(!PROJECT_FILE_ACCEPT.split(",").includes(".json"));
     assert.ok(PROJECT_FILE_ACCEPT.includes(PROJECT_DOCUMENT_ACCEPT));
+  });
+});
+
+describe("withResolvedContentType", () => {
+  it("re-wraps a file the browser could not type", () => {
+    const original = new File(["%PDF"], "report.docx", {
+      type: "",
+      lastModified: 1234,
+    });
+    const resolved = withResolvedContentType(original);
+    assert.notStrictEqual(resolved, original);
+    assert.strictEqual(resolved.type, DOCX);
+    assert.strictEqual(resolved.name, "report.docx");
+    assert.strictEqual(resolved.size, original.size);
+    assert.strictEqual(resolved.lastModified, 1234);
+  });
+
+  it("re-wraps KML with its upload type", () => {
+    const original = new File(["<kml/>"], "sites.kml", {
+      type: "application/vnd.google-earth.kml+xml",
+    });
+    assert.strictEqual(withResolvedContentType(original).type, "text/plain");
+  });
+
+  it("returns already typed and unsupported files unchanged", () => {
+    const pdf = new File(["%PDF"], "plan.pdf", { type: "application/pdf" });
+    const image = new File(["png"], "photo.png", { type: "image/png" });
+    assert.strictEqual(withResolvedContentType(pdf), pdf);
+    assert.strictEqual(withResolvedContentType(image), image);
+  });
+});
+
+describe("isShapefilePart", () => {
+  it("recognises loose shapefile parts, in any case", () => {
+    for (const name of [
+      "roads.shp",
+      "roads.DBF",
+      "roads.shx",
+      "roads.prj",
+      "roads.cpg",
+      "roads.sbn",
+      "roads.sbx",
+    ]) {
+      assert.strictEqual(isShapefilePart({ name }), true, name);
+    }
+  });
+
+  it("does not flag zipped shapefiles or other files", () => {
+    for (const name of ["roads.zip", "plan.pdf", "shp", "notes.txt"]) {
+      assert.strictEqual(isShapefilePart({ name }), false, name);
+    }
+  });
+
+  it("leaves shapefile parts unsupported", () => {
+    assert.strictEqual(
+      classifyProjectFile({ name: "roads.shp", type: "" }),
+      "unsupported",
+    );
   });
 });

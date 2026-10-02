@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 
 import {
   AlertCircle,
@@ -16,20 +16,12 @@ import {
 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 
-import { useProjectDocuments } from "@wildfires-org/turboplan-documents/client";
-import { processAndSaveGisFile } from "@wildfires-org/turboplan-map/client";
-import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
 import {
-  classifyProjectFile,
   GIS_FILE_EXTENSIONS,
   GIS_MAX_FILE_SIZE,
   GIS_MIME_TYPES,
-  GIS_UPLOAD_CONTENT_TYPES,
-  getProjectFileMaxSize,
   PROJECT_DOCUMENT_ACCEPT,
   PROJECT_DOCUMENT_MAX_FILE_SIZE,
-  type ProjectFileKind,
-  resolveProjectFileContentType,
 } from "@wildfires-org/turboplan-upload/types";
 import { Button } from "@wildfires-org/turboplan-utils";
 
@@ -38,16 +30,12 @@ import {
   type DropRow,
   type DropRowStatus,
   type DropRowTone,
-  formatGisResult,
   formatMegabytes,
-  getDocumentDedupeKey,
   getDropRowStatus,
   getDropRowTypeLabel,
-  getExtractionPollInterval,
-  getGisResultPhase,
-  getNextStaleDelay,
 } from "@/lib/project-context-drop";
 import { cn } from "@/lib/utils";
+import { useProjectContextDrop } from "./use-project-context-drop";
 
 interface ProjectContextDropzoneProps {
   projectId: string;
@@ -58,31 +46,12 @@ interface ProjectContextDropzoneProps {
   className?: string;
 }
 
-// Upload types, not the dropped types: KML goes up as text/plain.
-const GIS_ALLOWED_TYPES = [...GIS_UPLOAD_CONTENT_TYPES];
-
 const TONE_CHIP: Record<DropRowTone, ChipTone> = {
   progress: "info",
   neutral: "neutral",
   success: "brand",
   warning: "neutral",
   error: "danger",
-};
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  return error instanceof Error && error.message ? error.message : fallback;
-};
-
-/** Re-wrap a file whose browser-reported type is missing or generic. */
-const withResolvedContentType = (file: File): File => {
-  const contentType = resolveProjectFileContentType(file);
-  if (!contentType || contentType === file.type) {
-    return file;
-  }
-  return new File([file], file.name, {
-    type: contentType,
-    lastModified: file.lastModified,
-  });
 };
 
 const getDropHint = (acceptsDocuments: boolean, acceptsGisLayers: boolean) => {
@@ -123,166 +92,11 @@ export function ProjectContextDropzone({
   acceptsGisLayers,
   className,
 }: ProjectContextDropzoneProps) {
-  const [rows, setRows] = useState<DropRow[]>([]);
-  const nextRowIdRef = useRef(0);
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
-
-  // Function form: SWR re-evaluates it on every render and after every poll,
-  // so polling starts when a document is registered and stops once its text
-  // extraction settles.
-  const { documents: uploadedDocuments, uploadDocument } = useProjectDocuments({
+  const { rows, documents, handleDrop, removeRows } = useProjectContextDrop({
     projectId,
-    source: "upload",
-    refreshInterval: (latestDocuments) =>
-      getExtractionPollInterval(rowsRef.current, latestDocuments ?? []),
+    acceptsDocuments,
+    acceptsGisLayers,
   });
-  const documentsRef = useRef(uploadedDocuments);
-  documentsRef.current = uploadedDocuments;
-
-  // Staleness is time-based: re-render when the next pending row goes stale
-  // so it swaps its spinner for the static "waiting" state.
-  const [, setStaleTick] = useState(0);
-  const nextStaleDelay = getNextStaleDelay(rows, uploadedDocuments);
-  useEffect(() => {
-    if (nextStaleDelay === null) {
-      return;
-    }
-    const timer = setTimeout(
-      () => setStaleTick((tick) => tick + 1),
-      nextStaleDelay,
-    );
-    return () => clearTimeout(timer);
-  }, [nextStaleDelay]);
-  const { upload: uploadToStorage } = useFileUpload({
-    maxSize: GIS_MAX_FILE_SIZE,
-    allowedTypes: GIS_ALLOWED_TYPES,
-  });
-
-  const updateRow = useCallback((id: string, patch: Partial<DropRow>) => {
-    setRows((current) =>
-      current.map((row) => (row.id === id ? { ...row, ...patch } : row)),
-    );
-  }, []);
-
-  const getRejection = useCallback(
-    (file: File, kind: ProjectFileKind): string | null => {
-      if (kind === "unsupported") {
-        return "Unsupported file type";
-      }
-      if (kind === "document" && !acceptsDocuments) {
-        return "Documents are not enabled for this project";
-      }
-      if (kind === "gis" && !acceptsGisLayers) {
-        return "Map layers are not enabled for this project";
-      }
-      const maxSize = getProjectFileMaxSize(kind);
-      if (maxSize && file.size > maxSize) {
-        return kind === "gis"
-          ? `GIS file too large, max ${formatMegabytes(maxSize)}`
-          : `File too large, max ${formatMegabytes(maxSize)}`;
-      }
-      return null;
-    },
-    [acceptsDocuments, acceptsGisLayers],
-  );
-
-  const importDocument = useCallback(
-    async (row: DropRow, file: File) => {
-      updateRow(row.id, { phase: "uploading" });
-      try {
-        const document = await uploadDocument(file);
-        if (!document) {
-          throw new Error("The document could not be registered");
-        }
-        updateRow(row.id, { phase: "registered", documentId: document.id });
-      } catch (error) {
-        updateRow(row.id, {
-          phase: "error",
-          message: getErrorMessage(error, "Upload failed"),
-        });
-      }
-    },
-    [updateRow, uploadDocument],
-  );
-
-  const importGisFile = useCallback(
-    async (row: DropRow, file: File) => {
-      updateRow(row.id, { phase: "uploading" });
-      try {
-        const stored = await uploadToStorage(file);
-        updateRow(row.id, { phase: "processing" });
-        const result = await processAndSaveGisFile({
-          projectId,
-          url: stored.url,
-          fileName: file.name,
-        });
-        const summary = formatGisResult(result);
-        updateRow(row.id, {
-          phase: getGisResultPhase(result),
-          message:
-            result.errors.length > 0
-              ? `${summary}. ${result.errors[0]}`
-              : summary,
-        });
-      } catch (error) {
-        updateRow(row.id, {
-          phase: "error",
-          message: getErrorMessage(error, "Could not read GIS layers"),
-        });
-      }
-    },
-    [projectId, updateRow, uploadToStorage],
-  );
-
-  const handleDrop = useCallback(
-    async (files: File[]) => {
-      const queued = files.map((original) => {
-        const file = withResolvedContentType(original);
-        const kind = classifyProjectFile(file);
-        const rejection = getRejection(file, kind);
-        nextRowIdRef.current += 1;
-        const row: DropRow = {
-          id: `drop-${nextRowIdRef.current}`,
-          name: file.name,
-          kind,
-          phase: rejection ? "error" : "queued",
-          message: rejection ?? undefined,
-        };
-        return { row, file };
-      });
-
-      setRows((current) => [...queued.map(({ row }) => row), ...current]);
-
-      // Documents already in the project (same name + size) are not uploaded
-      // again; the set also catches the same file twice in one drop.
-      const documentKeys = new Set(
-        documentsRef.current.map((doc) =>
-          getDocumentDedupeKey(doc.originalFilename, doc.size),
-        ),
-      );
-
-      // One file at a time: GIS processing is heavy, and a steady sequence
-      // is easier to follow in the list than everything spinning at once.
-      for (const { row, file } of queued) {
-        if (row.phase === "error") {
-          continue;
-        }
-        if (row.kind === "document") {
-          const key = getDocumentDedupeKey(file.name, file.size);
-          if (documentKeys.has(key)) {
-            updateRow(row.id, { phase: "duplicate" });
-            continue;
-          }
-          documentKeys.add(key);
-          await importDocument(row, file);
-        } else {
-          await importGisFile(row, file);
-        }
-      }
-    },
-    [getRejection, importDocument, importGisFile, updateRow],
-  );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: handleDrop,
@@ -304,21 +118,22 @@ export function ProjectContextDropzone({
 
   const rowStatuses = rows.map((row) => ({
     row,
-    status: getDropRowStatus(row, uploadedDocuments),
+    status: getDropRowStatus(row, documents),
   }));
   const hasFinishedRows = rowStatuses.some(({ status }) => status.isFinished);
 
   const handleDismiss = (id: string) => {
-    setRows((current) => current.filter((row) => row.id !== id));
+    removeRows(new Set([id]));
   };
 
   const handleClearFinished = () => {
-    const finishedIds = new Set(
-      rowStatuses
-        .filter(({ status }) => status.isFinished)
-        .map(({ row }) => row.id),
+    removeRows(
+      new Set(
+        rowStatuses
+          .filter(({ status }) => status.isFinished)
+          .map(({ row }) => row.id),
+      ),
     );
-    setRows((current) => current.filter((row) => !finishedIds.has(row.id)));
   };
 
   return (
@@ -427,7 +242,7 @@ function DropRowItem({ row, status, onDismiss }: DropRowItemProps) {
         </p>
         <p
           className={cn(
-            "text-xs leading-5",
+            "text-xs leading-5 [overflow-wrap:anywhere]",
             status.tone === "error" ? "text-error-700" : "text-gray-550",
           )}
         >
@@ -445,11 +260,15 @@ function DropRowItem({ row, status, onDismiss }: DropRowItemProps) {
         <StatusIcon tone={status.tone} phase={row.phase} />
         {status.label}
       </span>
-      {status.isFinished && (
+      {status.isDismissable && (
         <button
           type="button"
           onClick={() => onDismiss(row.id)}
-          aria-label={`Dismiss ${row.name}`}
+          aria-label={
+            status.isFinished
+              ? `Dismiss ${row.name}`
+              : `Remove ${row.name} from the upload queue`
+          }
           className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-gray-550 hover:bg-white hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700 dark:hover:bg-white/10"
         >
           <X className="size-4" />

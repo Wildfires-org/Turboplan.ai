@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import type { UIMessage } from "ai";
+import equal from "fast-deep-equal";
 import dynamic from "next/dynamic";
 
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
@@ -73,6 +74,9 @@ interface ArtifactProps {
   reload: ChatHelpers["reload"];
   isReadonly: boolean;
   projectId?: string;
+  isMapEnabled?: boolean;
+  isInputDisabled?: boolean;
+  disabledPlaceholder?: string;
 }
 
 function PureArtifact(props: ArtifactProps) {
@@ -93,10 +97,31 @@ function PureArtifact(props: ArtifactProps) {
 }
 
 export const Artifact = memo(PureArtifact, (prevProps, nextProps) => {
-  if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.projectId !== nextProps.projectId) return false;
-  if (prevProps.input !== nextProps.input) return false;
-  if (prevProps.messages.length !== nextProps.messages.length) return false;
+  if (prevProps.status !== nextProps.status) {
+    return false;
+  }
+  if (prevProps.projectId !== nextProps.projectId) {
+    return false;
+  }
+  if (prevProps.isMapEnabled !== nextProps.isMapEnabled) {
+    return false;
+  }
+  if (prevProps.input !== nextProps.input) {
+    return false;
+  }
+  if (prevProps.messages.length !== nextProps.messages.length) {
+    return false;
+  }
+  // The panel's input shows the attachments and submits them.
+  if (!equal(prevProps.attachments, nextProps.attachments)) {
+    return false;
+  }
+  if (prevProps.isInputDisabled !== nextProps.isInputDisabled) {
+    return false;
+  }
+  if (prevProps.disabledPlaceholder !== nextProps.disabledPlaceholder) {
+    return false;
+  }
 
   return true;
 });

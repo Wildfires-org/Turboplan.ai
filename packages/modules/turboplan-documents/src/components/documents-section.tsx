@@ -51,6 +51,8 @@ type DocumentCardWithActionsProps = {
   document: ProjectDocument;
   readOnly: boolean;
   showExtractionStatus: boolean;
+  /** When this client first saw the document pending */
+  pendingSince?: number;
   isDeleting: string | null;
   canModify: boolean;
   onPreview: (doc: ProjectDocument) => void;
@@ -62,6 +64,7 @@ const DocumentCardWithActions = ({
   document,
   readOnly,
   showExtractionStatus,
+  pendingSince,
   isDeleting,
   canModify,
   onPreview,
@@ -71,6 +74,7 @@ const DocumentCardWithActions = ({
   <DocumentCardEditable
     document={document}
     showExtractionStatus={showExtractionStatus}
+    pendingSince={pendingSince}
     onClick={() => onPreview(document)}
     actions={
       <DropdownMenu>
@@ -170,6 +174,7 @@ type DocumentCardsGridProps = {
   documents: ProjectDocument[];
   readOnly: boolean;
   showExtractionStatus: boolean;
+  pendingSince: ReadonlyMap<string, number>;
   isDeleting: string | null;
   canModifyDocument: (doc: ProjectDocument) => boolean;
   onPreview: (doc: ProjectDocument) => void;
@@ -181,6 +186,7 @@ const DocumentCardsGrid = ({
   documents,
   readOnly,
   showExtractionStatus,
+  pendingSince,
   isDeleting,
   canModifyDocument,
   onPreview,
@@ -202,6 +208,7 @@ const DocumentCardsGrid = ({
             document={document}
             readOnly={readOnly}
             showExtractionStatus={showExtractionStatus}
+            pendingSince={pendingSince.get(document.id)}
             isDeleting={isDeleting}
             canModify={canModifyDocument(document)}
             onPreview={onPreview}
@@ -238,6 +245,7 @@ const DocumentCardsGrid = ({
                 document={document}
                 readOnly={readOnly}
                 showExtractionStatus={showExtractionStatus}
+                pendingSince={pendingSince.get(document.id)}
                 isDeleting={isDeleting}
                 canModify={canModifyDocument(document)}
                 onPreview={onPreview}
@@ -267,6 +275,7 @@ const DocumentCardsGrid = ({
                 document={document}
                 readOnly={readOnly}
                 showExtractionStatus={showExtractionStatus}
+                pendingSince={pendingSince.get(document.id)}
                 isDeleting={isDeleting}
                 canModify={canModifyDocument(document)}
                 onPreview={onPreview}
@@ -350,9 +359,12 @@ export function DocumentsSectionUI({
     renameDocument,
     isDeleting,
     isRenaming,
+    pendingSince,
   } = useProjectDocuments({
     projectId,
     source,
+    // Pick up text extraction results while a card shows "Extracting text"
+    pollPendingExtraction: showExtractionStatus,
   });
 
   // Check if user has UPDATE permission (Editor+) on the project
@@ -538,6 +550,7 @@ export function DocumentsSectionUI({
               documents={documents}
               readOnly={readOnly}
               showExtractionStatus={showExtractionStatus}
+              pendingSince={pendingSince}
               isDeleting={isDeleting}
               canModifyDocument={canModifyDocument}
               onPreview={setPreviewDoc}

@@ -7,7 +7,10 @@ import {
   getChatsByProjectId,
   getInitialChatByProjectId,
 } from "@wildfires-org/turboplan-db/queries";
-import { isResearchAgentPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
+import {
+  isMapPackageEnabled,
+  isResearchAgentPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
 
 import { AccessError } from "@/components/access-error";
 import {
@@ -217,6 +220,7 @@ async function NewChatPageContent({
         chat={null}
         isInitialChat={existingChats.length === 0}
         userId={userId}
+        isMapEnabled={isMapPackageEnabled()}
       />
     </ProjectChatPageShell>
   );

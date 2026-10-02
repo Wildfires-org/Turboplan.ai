@@ -22,9 +22,17 @@ export class TurboplanProjectChatPage {
     await this.expectComposerReady();
   }
 
+  /**
+   * The main chat composer. Scoped to it because the artifact panel, when
+   * open, has an input with the same placeholder and buttons.
+   */
+  getComposerForm(): Locator {
+    return this.page.getByTestId("project-chat-composer");
+  }
+
   /** The chat message textarea */
   getComposer(): Locator {
-    return this.page.getByPlaceholder("Send a message...");
+    return this.getComposerForm().getByPlaceholder("Send a message...");
   }
 
   /** Assert the composer is editable (page loaded and no reply streaming) */
@@ -35,7 +43,9 @@ export class TurboplanProjectChatPage {
   /** Type a message and send it with the send button */
   async sendMessage(text: string): Promise<void> {
     await this.getComposer().fill(text);
-    await this.page.getByRole("button", { name: "Send message" }).click();
+    await this.getComposerForm()
+      .getByRole("button", { name: "Send message" })
+      .click();
   }
 
   /** A rendered user message containing `text` */

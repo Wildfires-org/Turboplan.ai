@@ -187,6 +187,46 @@ export const resolveProjectFileContentType = (
   return null;
 };
 
+/**
+ * Re-wraps a file whose browser-reported type is missing or generic with the
+ * type its extension maps to, since the upload allow list refuses those.
+ * Files the project does not recognise, or already typed right, come back
+ * as they are.
+ */
+export const withResolvedContentType = (file: File): File => {
+  const contentType = resolveProjectFileContentType(file);
+  if (!contentType || contentType === file.type) {
+    return file;
+  }
+  return new File([file], file.name, {
+    type: contentType,
+    lastModified: file.lastModified,
+  });
+};
+
+/**
+ * Sidecar files of an Esri shapefile. Dropped loose they cannot be read; the
+ * map service needs them zipped together with the `.shp`.
+ */
+const SHAPEFILE_PART_EXTENSIONS = [
+  ".shp",
+  ".dbf",
+  ".shx",
+  ".prj",
+  ".cpg",
+  ".sbn",
+  ".sbx",
+];
+
+/** Shown when a loose shapefile part is dropped instead of a ZIP. */
+export const SHAPEFILE_PART_MESSAGE =
+  "Shapefile parts can't be added one by one. Zip the .shp together with its .dbf, .shx and .prj files and drop the ZIP.";
+
+/** True for a loose shapefile part (.shp, .dbf, .shx, .prj, .cpg, .sbn, .sbx). */
+export const isShapefilePart = (file: Pick<FileLike, "name">): boolean => {
+  return SHAPEFILE_PART_EXTENSIONS.includes(getExtension(file.name));
+};
+
 /** Size limit for a classified file, or null for unsupported files. */
 export const getProjectFileMaxSize = (kind: ProjectFileKind): number | null => {
   if (kind === "document") {
