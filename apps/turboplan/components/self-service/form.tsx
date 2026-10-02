@@ -9,10 +9,7 @@ import {
   useUrlParams,
 } from "@/app/self-service/hooks";
 import { useLogout } from "@/hooks/use-logout";
-import {
-  appendLandingUploadParams,
-  getLandingUploadNames,
-} from "@/lib/landing-uploads";
+import { appendLandingUploadParams } from "@/lib/landing-uploads";
 import { appendAttributionParams } from "@/lib/signup-attribution";
 import type { AuthUser } from "@/lib/types/auth";
 import { EmailMismatchScreen } from "./email-mismatch-screen";
@@ -42,7 +39,6 @@ export function SelfServiceForm({
     landingUploadKeys,
     hasEmailMismatch,
   } = useUrlParams({ isAuthenticated, user });
-  const attachedDocumentNames = getLandingUploadNames(landingUploadKeys);
 
   // Form state management
   const { email, setEmail, projectTitle, setProjectTitle } = useFormState({
@@ -120,7 +116,6 @@ export function SelfServiceForm({
         urlEmail={urlEmail || ""}
         projectTitle={projectTitle}
         projectDescription={urlProjectDescription}
-        attachedDocumentNames={attachedDocumentNames}
         isSubmitting={isSubmitting}
         onContinueWithLoggedInEmail={async () => {
           setIsSubmitting(true);
@@ -157,7 +152,6 @@ export function SelfServiceForm({
             isCheckingEmail={isCheckingEmail}
             emailExists={emailExists}
             errors={errors}
-            attachedDocumentNames={attachedDocumentNames}
           />
 
           <FormSubmitButton

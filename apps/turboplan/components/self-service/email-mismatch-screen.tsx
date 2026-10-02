@@ -3,15 +3,12 @@
 import { Button } from "@wildfires-org/turboplan-utils";
 
 import type { AuthUser } from "@/lib/types/auth";
-import { AttachedDocuments } from "./attached-documents";
 
 interface EmailMismatchScreenProps {
   user: AuthUser;
   urlEmail: string;
   projectTitle: string;
   projectDescription: string;
-  /** Landing-page documents continuing will add to the project */
-  attachedDocumentNames: string[];
   isSubmitting: boolean;
   onContinueWithLoggedInEmail: () => Promise<void>;
   onLogout: () => Promise<void>;
@@ -21,7 +18,6 @@ export function EmailMismatchScreen({
   user,
   urlEmail,
   projectTitle,
-  attachedDocumentNames,
   isSubmitting,
   onContinueWithLoggedInEmail,
   onLogout,
@@ -82,11 +78,6 @@ export function EmailMismatchScreen({
                     {projectTitle}
                   </span>
                 </p>
-              )}
-              {attachedDocumentNames.length > 0 && (
-                <div className="pt-2">
-                  <AttachedDocuments names={attachedDocumentNames} />
-                </div>
               )}
             </div>
           </div>

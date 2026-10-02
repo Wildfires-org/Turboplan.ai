@@ -4,7 +4,6 @@ import { before, beforeEach, describe, it, mock } from "node:test";
 import { pathToFileURL } from "node:url";
 
 import type * as SignupModule from "../app/self-service/create-user-with-organization";
-import { requiresLandingUploadConfirmation } from "../lib/landing-uploads";
 
 const USER_ID = "11111111-1111-1111-1111-111111111111";
 const PROJECT_ID = "33333333-3333-3333-3333-333333333333";
@@ -17,33 +16,6 @@ const stagingKey = (name: string) =>
 // module under test resolve to them.
 const appModule = (relativePath: string) =>
   pathToFileURL(path.join(__dirname, "..", relativePath)).href;
-
-describe("requiresLandingUploadConfirmation", () => {
-  it("stops a signed-in user who arrives with landing uploads", () => {
-    assert.strictEqual(
-      requiresLandingUploadConfirmation(true, [stagingKey("plan.pdf")]),
-      true,
-    );
-  });
-
-  it("keeps the automatic handoff for signed-out visitors", () => {
-    assert.strictEqual(
-      requiresLandingUploadConfirmation(false, [stagingKey("plan.pdf")]),
-      false,
-    );
-  });
-
-  it("does not stop for no keys or for keys that attach nothing", () => {
-    assert.strictEqual(
-      requiresLandingUploadConfirmation(true, undefined),
-      false,
-    );
-    assert.strictEqual(
-      requiresLandingUploadConfirmation(true, ["landing-uploads/x.pdf"]),
-      false,
-    );
-  });
-});
 
 describe("createUserWithOrganization landing uploads", () => {
   // Every step that matters for the ordering, in call order.

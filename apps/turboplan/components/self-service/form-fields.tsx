@@ -1,7 +1,6 @@
 "use client";
 
 import type { AuthUser } from "@/lib/types/auth";
-import { AttachedDocuments } from "./attached-documents";
 import { FormField } from "./form-field";
 
 interface FormFieldsProps {
@@ -15,8 +14,6 @@ interface FormFieldsProps {
   isCheckingEmail: boolean;
   emailExists: boolean;
   errors: Record<string, string>;
-  /** Landing-page documents the submit will add to the project */
-  attachedDocumentNames: string[];
 }
 
 export function FormFields({
@@ -30,7 +27,6 @@ export function FormFields({
   isCheckingEmail,
   emailExists,
   errors,
-  attachedDocumentNames,
 }: FormFieldsProps) {
   return (
     <div className="space-y-4">
@@ -81,10 +77,6 @@ export function FormFields({
         error={errors.projectTitle}
         required
       />
-
-      {attachedDocumentNames.length > 0 && (
-        <AttachedDocuments names={attachedDocumentNames} />
-      )}
     </div>
   );
 }
