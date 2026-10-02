@@ -321,6 +321,7 @@ jobs:
           API_DOMAIN: ${{ vars.PRODUCTION_API_DOMAIN }}
           APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
           COOKIE_DOMAIN: ${{ vars.PRODUCTION_COOKIE_DOMAIN }}
+          LANDING_DOMAIN: ${{ vars.PRODUCTION_LANDING_DOMAIN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           SUFFIX="$WORKERS_SUBDOMAIN"
@@ -343,12 +344,15 @@ jobs:
             fi
             echo "server_url=https://${API_DOMAIN:-turboplan-api-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
             echo "turboplan_url=https://${APP_DOMAIN:-turboplan-web-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://${LANDING_DOMAIN:-turboplan-landing-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
           elif [ "$REF_NAME" = "develop" ]; then
             echo "server_url=https://turboplan-api-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
             echo "turboplan_url=https://turboplan-web-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
           else
             echo "server_url=https://turboplan-api-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
             echo "turboplan_url=https://turboplan-web-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install dependencies
@@ -365,6 +369,9 @@ jobs:
         env:
           NEXT_PUBLIC_SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
           NEXT_PUBLIC_TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          # The site's own origin: metadataBase and social card URLs. Unset, Next
+          # falls back to http://localhost:3000.
+          NEXT_PUBLIC_LANDING_URL: ${{ steps.service-urls.outputs.landing_url }}
           NEXT_PUBLIC_LINKEDIN_URL: https://linkedin.com
           NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
@@ -397,6 +404,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           NEXT_PUBLIC_SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
           NEXT_PUBLIC_TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          NEXT_PUBLIC_LANDING_URL: ${{ steps.service-urls.outputs.landing_url }}
           NEXT_PUBLIC_LINKEDIN_URL: https://linkedin.com
           NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
