@@ -174,6 +174,8 @@ const nextConfig: NextConfig = {
   },
 
   async redirects() {
+    const appOrigin = toOrigin(process.env.NEXT_PUBLIC_TURBOPLAN_URL);
+
     return [
       // Specific rule must precede the wildcard below so it wins.
       {
@@ -194,6 +196,23 @@ const nextConfig: NextConfig = {
         destination: "/#contact",
         permanent: false,
       },
+      // Pricing is a homepage section too; /pricing was a 404. Temporary for
+      // the same reason as /contact.
+      {
+        source: "/pricing",
+        destination: "/#pricing",
+        permanent: false,
+      },
+      // Sign-in lives on the app; /login on the marketing domain was a 404.
+      ...(appOrigin
+        ? [
+            {
+              source: "/login",
+              destination: `${appOrigin}/login`,
+              permanent: false,
+            },
+          ]
+        : []),
       {
         source: "/user-guide",
         destination: "/docs",
