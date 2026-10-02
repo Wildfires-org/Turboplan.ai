@@ -38,6 +38,7 @@ export type {
 } from "./types";
 export { analyzeLayerStatus } from "./utils/layer-status";
 export {
+  formatSkippedLayersMessage,
   getDefaultVisibleLayers,
   getDisplayableLayers,
   getFailedLayers,

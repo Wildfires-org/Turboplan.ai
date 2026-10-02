@@ -62,6 +62,15 @@ Allowed origins are configured via `ALLOWED_ORIGINS` and enforced by FastAPI's C
 
 If `ALLOWED_ORIGINS` is empty or set to `*`, all origins are allowed (credentials disabled) — not recommended for production.
 
+### Untrusted GIS Files
+
+GDAL picks a driver from a file's content, and some drivers follow references inside a file to other files or URLs (VRT, WFS, GML schemas). Before any upload is read, `app/core/gdal_config.py`:
+
+- unregisters every vector driver except Shapefile, GeoPackage, GeoJSON, KML/LIBKML and OpenFileGDB (`GDAL_SKIP`, built from the drivers this GDAL build registers; startup fails if one cannot be removed);
+- sets `GDAL_HTTP_PROXY` and `GDAL_HTTPS_PROXY` to a closed local port and removes `NO_PROXY`/`no_proxy` from the process environment (libcurl would bypass the proxy for the hosts listed, and GDAL has no setting to stop that), so GDAL itself never reaches the network; `PROJ_NETWORK` is `OFF`. Downloads use `requests` with `trust_env=False`, which ignores all of these.
+
+Each layer is also opened with the one driver its file type implies, never by content sniffing.
+
 ## Health Check
 
 The `/api/health` endpoint remains **unsecured** and publicly accessible for monitoring purposes.

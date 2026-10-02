@@ -95,14 +95,15 @@ class TestGISFileProcessorService:
         mock_src.crs = None
         mock_src.driver = 'FileGDB'
         mock_src.schema = {'properties': {}, 'geometry': 'Point'}
-        mock_src.bounds = None
+        mock_src.bounds = (0, 0, 0, 0)
         mock_src.__len__ = Mock(return_value=1)
         
         feature = {
             'geometry': {'type': 'Point', 'coordinates': [0, 0]},
             'properties': {}
         }
-        mock_src.__iter__ = Mock(return_value=iter([feature]))
+        # One fresh iterator per layer opened.
+        mock_src.__iter__ = Mock(side_effect=lambda: iter([feature]))
         mock_src.__enter__ = Mock(return_value=mock_src)
         mock_src.__exit__ = Mock(return_value=None)
         
@@ -177,6 +178,21 @@ class TestGISFileProcessorService:
         assert result is not None
         assert result['geometry']['coordinates'] == [100, 50]
     
+    def test_crs_probe_without_bounds_is_inconclusive_not_fatal(self):
+        """(1, 1) is outside EPSG:28418's domain; without bounds that proves nothing."""
+        gis_file = {'path': '/path/to/file.gpkg'}
+
+        assert self.service._converts_to_target(CRS.from_epsg(28418), None, gis_file)
+
+    def test_crs_probe_without_bounds_still_catches_untransformable_crs(self):
+        local = CRS.from_wkt(
+            'LOCAL_CS["Site grid",LOCAL_DATUM["Unknown",0],UNIT["metre",1],'
+            'AXIS["X",EAST],AXIS["Y",NORTH]]'
+        )
+        gis_file = {'path': '/path/to/file.shp'}
+
+        assert not self.service._converts_to_target(local, None, gis_file)
+
     def test_extract_geometry_various_formats(self):
         """Test extraction of geometry from various formats."""
         # Test dict geometry

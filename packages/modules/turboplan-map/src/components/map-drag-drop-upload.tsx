@@ -13,9 +13,11 @@ import {
 
 // Browsers report GIS files inconsistently (a .gpkg or .kmz often comes
 // through as application/octet-stream or with no type), so accept by
-// extension as well as by type.
+// extension as well as by type. Plain .json is accepted like in the file
+// picker: the map service detects GeoJSON by content.
 const GIS_ACCEPT: Record<string, string[]> = {
   ...Object.fromEntries(GIS_MIME_TYPES.map((mimeType) => [mimeType, []])),
+  "application/json": [".json"],
   "application/octet-stream": [...GIS_FILE_EXTENSIONS],
 };
 

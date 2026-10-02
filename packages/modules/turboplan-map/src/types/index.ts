@@ -322,6 +322,7 @@ export interface MapRepository {
 
   // Layer management operations
   updateLayerFeatureCount(id: string, count: number): Promise<Layer | null>;
+  getLayersForProject(projectId: string): Promise<Layer[]>;
   getLayersWithFeaturesForProject(
     projectId: string,
   ): Promise<GeospatialLayer[]>;

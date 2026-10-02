@@ -8,20 +8,29 @@ import { mutate } from "swr";
 
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
 
+import type { LayerUploadResult } from "../hooks/use-layer-upload";
 import type { GeospatialLayer, ServerResponse } from "../types";
+import { hasMapFeatures } from "./layer-utils";
 import { detectUnits } from "./unit-detector";
 
 export type GisZipSaveResult = {
   /** Layers saved to the project map */
   added: number;
-  /** Layers already in the project (same name, source and feature count) */
+  /** Layers already in the project (same name and source file) */
   skipped: number;
-  /** Layers unreadable in the ZIP or rejected by the save endpoint */
+  /** Layers unreadable in the file or rejected by the save endpoint */
   failed: number;
   /** Names of the layers that were added */
   layerNames: string[];
   /** One readable message per failed layer */
   errors: string[];
+  /**
+   * Names of the skipped layers; `formatSkippedLayersMessage` turns them
+   * into a message that says how to replace them
+   */
+  skippedLayerNames?: string[];
+  /** Notes from the save endpoint, e.g. features it could not save */
+  warnings?: string[];
 };
 
 type ProcessAndSaveGisFileParams = {
@@ -45,12 +54,6 @@ const apiClient = new ApiClient();
 const getProjectLayersKey = (projectId: string) =>
   `/api/maps/layers/project/${projectId}`;
 
-const getFeatureCount = (layer: GeospatialLayer): number =>
-  layer.data?.features.length ?? 0;
-
-const getDedupeKey = (layer: GeospatialLayer): string =>
-  `${layer.name}\u0000${layer.source}\u0000${getFeatureCount(layer)}`;
-
 const toUploadPayload = (
   layer: GeospatialLayer & { data: NonNullable<GeospatialLayer["data"]> },
 ): LayerUploadPayload => ({
@@ -61,25 +64,12 @@ const toUploadPayload = (
   geoData: layer.data,
 });
 
-const hasData = (
-  layer: GeospatialLayer,
-): layer is GeospatialLayer & {
-  data: NonNullable<GeospatialLayer["data"]>;
-} => !layer.error && Boolean(layer.data);
-
-// Best-effort: when the lookup fails every layer is saved.
-const getExistingLayerKeys = async (projectId: string) => {
-  const { data } = await apiClient.get<GeospatialLayer[]>(
-    getProjectLayersKey(projectId),
-  );
-  return new Set((data ?? []).map(getDedupeKey));
-};
-
 /**
- * Save every readable layer to the project map. Layers that look like
- * management units (see `detectUnits`) are saved as the units layer, all
- * others as project layers. Never throws for per-layer problems — they are
- * counted in `failed` / `errors`.
+ * Save every readable layer to the project map. The first layer that looks
+ * like management units (see `detectUnits`) is saved as the units layer, all
+ * others as project layers; the server keeps a project to one units layer and
+ * skips layers the project already has. Never throws for per-layer problems —
+ * they are counted in `failed` / `errors`.
  */
 export const saveGisLayersToProject = async (
   projectId: string,
@@ -91,48 +81,58 @@ export const saveGisLayersToProject = async (
     failed: 0,
     layerNames: [],
     errors: [],
+    skippedLayerNames: [],
+    warnings: [],
   };
 
   for (const layer of layers) {
-    if (!hasData(layer)) {
+    if (layer.error) {
       result.failed += 1;
-      result.errors.push(layer.error || `${layer.name}: no data to display`);
+      result.errors.push(layer.error);
     }
   }
 
-  const readableLayers = layers.filter(hasData);
-  if (readableLayers.length === 0) {
-    return result;
-  }
+  let hasUnitLayer = false;
 
-  const existingKeys = await getExistingLayerKeys(projectId);
-
-  for (const layer of readableLayers) {
-    if (existingKeys.has(getDedupeKey(layer))) {
-      result.skipped += 1;
-      continue;
-    }
-
+  // A layer without features (e.g. an empty KML folder) has nothing to save:
+  // the save endpoint rejects it, so it is neither saved nor reported.
+  for (const layer of layers.filter(hasMapFeatures)) {
     const unitDetection = detectUnits(layer.data);
+    const isUnitLayer = unitDetection.isUnitLayer && !hasUnitLayer;
     const payload = toUploadPayload(layer);
-    const { error } = await apiClient.post("/api/maps/layers/upload", {
-      projectId,
-      projectLayer: unitDetection.isUnitLayer ? null : payload,
-      unitLayer: unitDetection.isUnitLayer ? payload : null,
-      unitIdKey: unitDetection.isUnitLayer
-        ? unitDetection.unitIdKey
-        : undefined,
-    });
+    const { data, error } = await apiClient.post<LayerUploadResult>(
+      "/api/maps/layers/upload",
+      {
+        projectId,
+        projectLayer: isUnitLayer ? null : payload,
+        unitLayer: isUnitLayer ? payload : null,
+        unitIdKey: isUnitLayer ? unitDetection.unitIdKey : undefined,
+      },
+    );
 
-    if (error) {
+    if (error || !data) {
       result.failed += 1;
-      result.errors.push(`${layer.name}: ${error}`);
+      result.errors.push(`${layer.name}: ${error || "could not be saved"}`);
       continue;
     }
 
-    existingKeys.add(getDedupeKey(layer));
-    result.added += 1;
-    result.layerNames.push(layer.name);
+    const savedLayers = data.layers ?? [];
+    const skippedLayers = data.skippedLayers ?? [];
+    result.warnings?.push(...(data.warnings ?? []));
+
+    if (savedLayers.length === 0 && skippedLayers.length === 0) {
+      result.failed += 1;
+      result.errors.push(`${layer.name}: could not be saved`);
+      continue;
+    }
+
+    if (isUnitLayer) {
+      hasUnitLayer = true;
+    }
+    result.skipped += skippedLayers.length;
+    result.skippedLayerNames?.push(...skippedLayers);
+    result.added += savedLayers.length;
+    result.layerNames.push(...savedLayers.map((saved) => saved.name));
   }
 
   if (result.added > 0) {
@@ -161,7 +161,7 @@ export const processAndSaveGisFile = async ({
     throw new Error(error || `Could not process ${fileName}`);
   }
 
-  if (!layers.some(hasData)) {
+  if (!layers.some(hasMapFeatures)) {
     const reasons = layers
       .map((layer) => layer.error)
       .filter((reason): reason is string => Boolean(reason));

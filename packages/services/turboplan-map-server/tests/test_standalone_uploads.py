@@ -10,6 +10,7 @@ import json
 import shutil
 import socket
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -50,6 +51,25 @@ requires_kml = pytest.mark.skipif(
     not gis_file_processor.KML_DRIVER,
     reason='GDAL build without a KML driver',
 )
+
+
+GEOMETRY_COLLECTION = {
+    'type': 'GeometryCollection',
+    'geometries': [
+        {'type': 'Point', 'coordinates': [-120.5, 38.25]},
+        {'type': 'LineString', 'coordinates': [[-120.5, 38.25], [-120.0, 38.5]]},
+    ],
+}
+
+
+def feature_collection(*geometries) -> dict:
+    return {
+        'type': 'FeatureCollection',
+        'features': [
+            {'type': 'Feature', 'geometry': geometry, 'properties': {'name': 'x'}}
+            for geometry in geometries
+        ],
+    }
 
 
 def geojson_bytes(indent=None) -> bytes:
@@ -165,6 +185,25 @@ class TestStandaloneUploads:
         assert 'broken.gpkg' in results[0]['error']
         assert str(self.temp_path) not in results[0]['error']
 
+    def test_layer_of_only_geometry_collections_reports_why(self):
+        data = json.dumps(feature_collection(GEOMETRY_COLLECTION)).encode()
+
+        results = self.processor.process_bytes(data, 'mixed.geojson')
+
+        assert len(results) == 1
+        assert results[0]['success'] is False
+        assert 'mixed.geojson' in results[0]['error']
+        assert 'not supported' in results[0]['error']
+
+    def test_geometry_collections_next_to_other_features_are_dropped(self):
+        point = {'type': 'Point', 'coordinates': [-120.5, 38.25]}
+        data = json.dumps(feature_collection(GEOMETRY_COLLECTION, point)).encode()
+
+        results = self.processor.process_bytes(data, 'mixed.geojson')
+
+        assert [r['success'] for r in results] == [True]
+        assert len(results[0]['data']['features']) == 1
+
     def test_kml_without_driver_reports_clear_error(self):
         with patch.object(gis_file_processor, 'KML_DRIVER', None):
             results = self.processor.process_bytes(KML_DOCUMENT.encode(), 'places.kml')
@@ -181,12 +220,44 @@ class TestDetectUploadFormat:
         (b'SQLite format 3\x00rest', None, 'geopackage'),
         (b'\xef\xbb\xbf  <?xml version="1.0"?><kml>', None, 'kml'),
         (b'\n{ "type" : "FeatureCollection", "features": [] }', None, 'geojson'),
+        (b'<?xml version="1.0"?>\n<!-- exported -- by hand -->\n<kml xmlns="x">', None, 'kml'),
+        (b'<kml:kml xmlns:kml="http://www.opengis.net/kml/2.2">', None, 'kml'),
+        (b'<?xml version="1.0"?>\n<?xml-stylesheet type="text/xsl" href="kml.xsl"?>\n'
+         b'<!DOCTYPE kml SYSTEM "kml.dtd">\n<kml>', None, 'kml'),
+        # A "<kml" inside GeoJSON is just text.
+        (b'{"type": "FeatureCollection", "features": [{"type": "Feature", '
+         b'"properties": {"note": "<kml>"}, "geometry": null}]}', 'notes.kml', 'geojson'),
         # Leading huge geometry: no type marker in the sniff window, the
         # extension breaks the tie.
         (b'{"bbox": [' + b'1,' * 40000 + b'1]}', 'big.geojson', 'geojson'),
     ])
     def test_detects(self, data, filename, expected):
         assert detect_upload_format(data, filename) == expected
+
+    @pytest.mark.parametrize('data', [
+        b'<OGRVRTDataSource><!-- <kml --></OGRVRTDataSource>',
+        b'<Document><kml></kml></Document>',
+        b'<kmlish/>',
+        # Internal DTD subsets are not accepted in front of the root.
+        b'<!DOCTYPE kml [<!ENTITY site "x">]><kml>',
+    ])
+    def test_kml_must_be_the_root_element(self, data):
+        with pytest.raises(UnsupportedFileTypeError):
+            detect_upload_format(data, 'places.kml')
+
+    @pytest.mark.parametrize('data', [
+        b'<!---->' * 9000,
+        b'<!--' + b'-' * 60000,
+        b'<?' * 30000,
+        b'<!DOCTYPE' * 7000,
+    ])
+    def test_kml_sniff_stays_fast_on_hostile_prologs(self, data):
+        started = time.monotonic()
+
+        with pytest.raises(UnsupportedFileTypeError):
+            detect_upload_format(data, 'places.kml')
+
+        assert time.monotonic() - started < 1
 
     def test_long_extension_is_not_echoed(self):
         with pytest.raises(UnsupportedFileTypeError) as exc_info:

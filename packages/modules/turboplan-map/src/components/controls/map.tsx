@@ -20,7 +20,11 @@ import {
 import { useLayerUpload, useMapFileUpload } from "../../client";
 import { useLayerStatus } from "../../hooks/use-layer-status";
 import type { GeospatialLayer, MapType } from "../../types";
-import { getLayerKey } from "../../utils/layer-utils";
+import {
+  formatSkippedLayersMessage,
+  getLayerKey,
+  hasMapFeatures,
+} from "../../utils/layer-utils";
 import { AddUnitLayerDialog } from "../map-settings/add-unit-layer-dialog";
 import { LayerStatusItem } from "../map-settings/layer-status-item";
 
@@ -55,7 +59,15 @@ export function MapControls({ href, projectId }: MapControlsProps) {
 
   // Use layer upload hook
   const { uploadLayer } = useLayerUpload({
-    onSuccess: () => {
+    onSuccess: (result) => {
+      const skippedLayers = result.skippedLayers ?? [];
+      if ((result.layers?.length ?? 0) === 0 && skippedLayers.length > 0) {
+        toast({
+          type: "error",
+          description: formatSkippedLayersMessage(skippedLayers),
+        });
+        return;
+      }
       toast({
         type: "success",
         description: "Layer uploaded successfully",
@@ -80,22 +92,14 @@ export function MapControls({ href, projectId }: MapControlsProps) {
       if (file) {
         try {
           const processedLayers = await uploadFile(file);
-          const hasValidLayers = processedLayers.some(
-            (layer) => !layer.error && layer.data,
-          );
 
-          if (!hasValidLayers) {
-            toast({
-              type: "error",
-              description: "No valid layers found in the uploaded file",
-            });
+          // uploadFile has already said why nothing can be shown.
+          if (!processedLayers.some(hasMapFeatures)) {
             return;
           }
 
           setPreviewLayers(processedLayers);
-          const firstValidLayer = processedLayers.find(
-            (layer) => !layer.error && layer.data,
-          );
+          const firstValidLayer = processedLayers.find(hasMapFeatures);
           if (firstValidLayer) {
             setPreviewSelectedLayerId(getLayerKey(firstValidLayer));
           }

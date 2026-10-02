@@ -12,6 +12,7 @@ import { toast } from "@wildfires-org/turboplan-utils";
 
 import type { GeospatialLayer } from "../types";
 import { processGeospatialFileFromUrl } from "../utils/geospatial-api-client";
+import { hasMapFeatures } from "../utils/layer-utils";
 
 // Browsers often report no type (or a generic one) for GIS files, and the
 // upload allow list refuses those: re-wrap with the type the extension maps to.
@@ -24,6 +25,20 @@ const withResolvedContentType = (file: File): File => {
     type: contentType,
     lastModified: file.lastModified,
   });
+};
+
+// The map service drops layers with nothing to draw, so a file can come back
+// with no layers at all, or with only the reasons its layers were rejected.
+const getNoFeaturesMessage = (
+  fileName: string,
+  layers: GeospatialLayer[],
+): string => {
+  const reasons = layers
+    .map((layer) => layer.error)
+    .filter((reason): reason is string => Boolean(reason));
+  return reasons.length > 0
+    ? reasons.join(" ")
+    : `No map features found in "${fileName}"`;
 };
 
 interface UseMapFileUploadResult {
@@ -81,6 +96,15 @@ export function useMapFileUpload(): UseMapFileUploadResult {
 
         // Complete
         setUploadProgress(100);
+
+        // Callers stop at a file without features; this is its only message.
+        if (!processedLayers.some(hasMapFeatures)) {
+          toast({
+            type: "error",
+            description: getNoFeaturesMessage(file.name, processedLayers),
+          });
+          return processedLayers;
+        }
 
         toast({
           type: "success",

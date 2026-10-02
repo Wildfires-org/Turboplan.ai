@@ -41,6 +41,8 @@ export interface ProcessFileResult {
   success: boolean;
   layer?: Layer;
   layers?: Layer[];
+  /** Names of layers not inserted because the project already has them */
+  skippedLayers?: string[];
   error?: string;
   warnings?: string[];
 }
@@ -312,70 +314,85 @@ export class MapService {
         }
       }
 
+      // Re-dropping a file must not duplicate its layers: a layer is already
+      // saved when the project has one of the same type with the same
+      // (stored, i.e. sanitized) name and source file. A regular layer does
+      // not stand in for a units layer made from the same file. Checked here
+      // rather than by the caller, which would have to download every
+      // layer's geometry to compare.
+      const existingLayers = await this.mapRepository.getLayersForProject(
+        data.projectId,
+      );
+      const skippedLayers: string[] = [];
+      const findSavedLayerName = (
+        layerData: IndividualLayerData,
+        layerType: Layer["layerType"],
+      ): string | null => {
+        const name = this.sanitizeLayerName(layerData.name);
+        const sourceFilename = this.sanitizeSourceFilename(
+          layerData.sourceFilename,
+        );
+        const isSaved = existingLayers.some(
+          (layer) =>
+            layer.layerType === layerType &&
+            layer.name === name &&
+            layer.sourceFilename === sourceFilename,
+        );
+        return isSaved ? name : null;
+      };
+
       // Create project boundary layer if provided
       if (data.projectLayer) {
-        // Extract properties list from project layer GeoJSON features
-        const projectPropertiesList = data.projectLayer.geoData
-          ? this.extractPropertiesList(data.projectLayer.geoData)
-          : [];
-
-        // Create project boundary layer
-        const projectBoundaryLayer = {
-          projectId: data.projectId,
-          name: this.sanitizeString(
-            data.projectLayer.name,
-            MAP_SERVICE_CONFIG.MAX_LAYER_NAME_LENGTH,
-          ),
-          layerName: this.sanitizeString(
-            data.projectLayer.layerName,
-            MAP_SERVICE_CONFIG.MAX_LAYER_NAME_LENGTH,
-          ),
-          sourceFilename: this.sanitizeString(
-            data.projectLayer.sourceFilename,
-            MAP_SERVICE_CONFIG.MAX_FILENAME_LENGTH,
-          ),
-          fileType: data.projectLayer.fileType.toLowerCase(),
-          layerType: LAYER_TYPES.PROJECT_BOUNDARY,
-          propertiesList:
-            projectPropertiesList.length > 0
-              ? projectPropertiesList
-              : undefined,
-        } as NewLayer;
-
-        const createdProjectLayer =
-          await this.mapRepository.createLayer(projectBoundaryLayer);
-
-        // Process geospatial data for project boundary
-        if (data.projectLayer.geoData) {
-          const featureResult = await this.processGeoJSONFeatures(
-            createdProjectLayer.id,
-            data.projectLayer.geoData,
-          );
-
-          // Update layer feature count
-          await this.mapRepository.updateLayerFeatureCount(
-            createdProjectLayer.id,
-            featureResult.created.length,
-          );
-
-          if (featureResult.failed.length > 0) {
-            warnings.push(
-              `${featureResult.failed.length} features failed to process in project boundary`,
-            );
-          }
-        }
-
-        const updatedProjectLayer = await this.mapRepository.getLayerById(
-          createdProjectLayer.id,
+        const savedName = findSavedLayerName(
+          data.projectLayer,
+          LAYER_TYPES.PROJECT_BOUNDARY,
         );
-
-        if (updatedProjectLayer) {
-          createdLayers.push(updatedProjectLayer);
+        if (savedName) {
+          skippedLayers.push(savedName);
+        } else {
+          const createdProjectLayer = await this.createProjectBoundaryLayer(
+            data.projectId,
+            data.projectLayer,
+            warnings,
+          );
+          if (createdProjectLayer) {
+            createdLayers.push(createdProjectLayer);
+          }
         }
       }
 
-      // Create units boundary layer if unit layer data provided
-      if (data.unitLayer && data.unitLayer.geoData) {
+      // The map settings show and delete a single units layer per project
+      // (and offer an upload only when there is none), so a project never
+      // gets a second one: a further units layer is saved as a regular one.
+      const hasUnitsLayer = existingLayers.some(
+        (layer) => layer.layerType === LAYER_TYPES.UNITS_BOUNDARY,
+      );
+      // Already the units layer; otherwise, when the project has another
+      // units layer, this one would be saved as a regular layer, so compare
+      // it with the regular layers.
+      const unitLayerSavedName = data.unitLayer
+        ? (findSavedLayerName(data.unitLayer, LAYER_TYPES.UNITS_BOUNDARY) ??
+          (hasUnitsLayer
+            ? findSavedLayerName(data.unitLayer, LAYER_TYPES.PROJECT_BOUNDARY)
+            : null))
+        : null;
+
+      if (data.unitLayer && unitLayerSavedName) {
+        skippedLayers.push(unitLayerSavedName);
+      } else if (data.unitLayer?.geoData && hasUnitsLayer) {
+        const demotedLayer = await this.createProjectBoundaryLayer(
+          data.projectId,
+          data.unitLayer,
+          warnings,
+        );
+        if (demotedLayer) {
+          warnings.push(
+            `The project already has a units layer, so "${demotedLayer.name}" was added as a regular layer.`,
+          );
+          createdLayers.push(demotedLayer);
+        }
+      } else if (data.unitLayer?.geoData) {
+        // Create units boundary layer if unit layer data provided
         // Detect units in the unit layer
         const unitDetection = detectUnits(data.unitLayer.geoData);
 
@@ -394,17 +411,10 @@ export class MapService {
 
           const unitsBoundaryLayer = {
             projectId: data.projectId,
-            name: this.sanitizeString(
-              data.unitLayer.name,
-              MAP_SERVICE_CONFIG.MAX_LAYER_NAME_LENGTH,
-            ),
-            layerName: this.sanitizeString(
-              data.unitLayer.layerName,
-              MAP_SERVICE_CONFIG.MAX_LAYER_NAME_LENGTH,
-            ),
-            sourceFilename: this.sanitizeString(
+            name: this.sanitizeLayerName(data.unitLayer.name),
+            layerName: this.sanitizeLayerName(data.unitLayer.layerName),
+            sourceFilename: this.sanitizeSourceFilename(
               data.unitLayer.sourceFilename,
-              MAP_SERVICE_CONFIG.MAX_FILENAME_LENGTH,
             ),
             fileType: data.unitLayer.fileType.toLowerCase(),
             layerType: LAYER_TYPES.UNITS_BOUNDARY,
@@ -432,7 +442,10 @@ export class MapService {
 
           if (featureResult.failed.length > 0) {
             warnings.push(
-              `${featureResult.failed.length} features failed to process in units boundary`,
+              this.getFailedFeaturesWarning(
+                featureResult.failed.length,
+                unitsBoundaryLayer.name,
+              ),
             );
           }
 
@@ -450,6 +463,7 @@ export class MapService {
         success: true,
         layers: createdLayers,
         layer: createdLayers[0], // For backward compatibility
+        skippedLayers,
         warnings: warnings.length > 0 ? warnings : undefined,
       };
     } catch (error) {
@@ -460,6 +474,56 @@ export class MapService {
         error: errorMessage,
       };
     }
+  }
+
+  private async createProjectBoundaryLayer(
+    projectId: string,
+    layerData: IndividualLayerData,
+    warnings: string[],
+  ): Promise<Layer | null> {
+    // Extract properties list from project layer GeoJSON features
+    const projectPropertiesList = layerData.geoData
+      ? this.extractPropertiesList(layerData.geoData)
+      : [];
+
+    const projectBoundaryLayer = {
+      projectId,
+      name: this.sanitizeLayerName(layerData.name),
+      layerName: this.sanitizeLayerName(layerData.layerName),
+      sourceFilename: this.sanitizeSourceFilename(layerData.sourceFilename),
+      fileType: layerData.fileType.toLowerCase(),
+      layerType: LAYER_TYPES.PROJECT_BOUNDARY,
+      propertiesList:
+        projectPropertiesList.length > 0 ? projectPropertiesList : undefined,
+    } as NewLayer;
+
+    const createdProjectLayer =
+      await this.mapRepository.createLayer(projectBoundaryLayer);
+
+    // Process geospatial data for project boundary
+    if (layerData.geoData) {
+      const featureResult = await this.processGeoJSONFeatures(
+        createdProjectLayer.id,
+        layerData.geoData,
+      );
+
+      // Update layer feature count
+      await this.mapRepository.updateLayerFeatureCount(
+        createdProjectLayer.id,
+        featureResult.created.length,
+      );
+
+      if (featureResult.failed.length > 0) {
+        warnings.push(
+          this.getFailedFeaturesWarning(
+            featureResult.failed.length,
+            projectBoundaryLayer.name,
+          ),
+        );
+      }
+    }
+
+    return this.mapRepository.getLayerById(createdProjectLayer.id);
   }
 
   // Feature operations
@@ -781,6 +845,18 @@ export class MapService {
     }
 
     return null;
+  }
+
+  private getFailedFeaturesWarning(count: number, layerName: string): string {
+    return `${count} feature${count === 1 ? "" : "s"} of "${layerName}" could not be saved`;
+  }
+
+  private sanitizeLayerName(input: string): string {
+    return this.sanitizeString(input, MAP_SERVICE_CONFIG.MAX_LAYER_NAME_LENGTH);
+  }
+
+  private sanitizeSourceFilename(input: string): string {
+    return this.sanitizeString(input, MAP_SERVICE_CONFIG.MAX_FILENAME_LENGTH);
   }
 
   private sanitizeString(input: string, maxLength: number): string {

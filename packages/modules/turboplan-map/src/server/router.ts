@@ -15,6 +15,7 @@ import {
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 import { assertSafeFetchUrl } from "@wildfires-org/turboplan-utils/ssrf";
 
+import { formatSkippedLayersMessage } from "../utils/layer-utils";
 import { createMapRepository } from "./repository";
 import { createMapService, type IndividualLayerData } from "./service";
 
@@ -192,6 +193,7 @@ router.post("/layers/upload", async (c) => {
     }
 
     const layers = result.layers || (result.layer ? [result.layer] : []);
+    const skippedLayers = result.skippedLayers ?? [];
 
     // Record a single timeline entry for the upload (not one per layer)
     if (layers.length > 0) {
@@ -211,7 +213,10 @@ router.post("/layers/upload", async (c) => {
     // Return success response with information about all created layers
     return c.json({
       success: true,
-      message: `${layers.length} layer${layers.length > 1 ? "s" : ""} uploaded successfully`,
+      message:
+        layers.length === 0 && skippedLayers.length > 0
+          ? formatSkippedLayersMessage(skippedLayers)
+          : `${layers.length} layer${layers.length === 1 ? "" : "s"} uploaded successfully`,
       layerId: result.layer?.id, // For backward compatibility
       featureCount: result.layer?.featureCount || 0, // For backward compatibility
       layers: layers.map((layer) => ({
@@ -222,6 +227,9 @@ router.post("/layers/upload", async (c) => {
         unitIdKey: layer.unitIdKey,
         unitAcresKey: layer.unitAcresKey,
       })),
+      // Layers the project already had (same name and source file): not
+      // inserted again, still a success.
+      skippedLayers,
       warnings: result.warnings,
     });
   } catch (error) {

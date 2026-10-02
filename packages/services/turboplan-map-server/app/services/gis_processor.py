@@ -1,3 +1,4 @@
+import re
 import tempfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import List, Dict, Any, Optional
@@ -26,6 +27,17 @@ SUPPORTED_UPLOADS_MESSAGE = (
 ZIP_SIGNATURES = (b'PK\x03\x04', b'PK\x05\x06')
 SQLITE_SIGNATURE = b'SQLite format 3\x00'
 TEXT_SNIFF_BYTES = 64 * 1024
+# KML only when <kml> is the root element. Before it, the XML prolog may hold
+# whitespace, processing instructions (<?xml ...?>, <?xml-stylesheet ...?>),
+# comments and a DOCTYPE without an internal subset. Anywhere else (a
+# comment, a property value) "<kml" proves nothing.
+# Each prolog item matches one way only (a PI or DOCTYPE ends at its first
+# ">", a comment at its first "-->"), so a long prolog cannot backtrack badly.
+KML_ROOT = re.compile(
+    rb'(?:\s|<\?[^>]*\?>|<!DOCTYPE[^>\[]*>|<!--(?:[^-]|-(?!->))*-->)*'
+    rb'<(?:[\w.-]+:)?kml[\s/>]',
+    re.IGNORECASE,
+)
 
 MAX_FILENAME_LENGTH = 255
 
@@ -68,10 +80,6 @@ def detect_upload_format(data: bytes, filename: Optional[str] = None) -> str:
         return 'geopackage'
 
     head = data[:TEXT_SNIFF_BYTES].lstrip(b'\xef\xbb\xbf \t\r\n')
-    lowered = head.lower()
-
-    if b'<kml' in lowered:
-        return 'kml'
 
     if head.startswith(b'{'):
         compact = b''.join(head.split())
@@ -83,6 +91,9 @@ def detect_upload_format(data: bytes, filename: Optional[str] = None) -> str:
             # A FeatureCollection whose first 64KB happen to be one huge
             # geometry: trust the extension and let Fiona decide.
             return 'geojson'
+
+    if KML_ROOT.match(head):
+        return 'kml'
 
     extension = Path(filename or '').suffix.lower()
     # Echo the extension only when it is short and plain: it is user input.

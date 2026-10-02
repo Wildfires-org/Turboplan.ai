@@ -87,26 +87,22 @@ export const createPointStyle = (color: string): L.CircleMarkerOptions => ({
   fillOpacity: 0.8,
 });
 
-const isPointFeature = (feature?: GeoJSON.Feature) => {
-  const type = feature?.geometry?.type;
-  return type === "Point" || type === "MultiPoint";
-};
-
 /**
- * Per-feature style: GeoJSON applies `style` to every feature after
- * `pointToLayer`, so points need their own entry or they would get the
- * polygon fill (or none, on unit layers).
+ * GeoJSON applies `style` to every feature after `pointToLayer`, and a
+ * GeometryCollection's style reaches each of its members, points included.
+ * Each point marker therefore turns any style it gets into the point style,
+ * or it would take the polygon fill (or none: hollow rings on unit layers).
+ * The colour comes from that style: react-leaflet re-applies `style` when the
+ * layer colour changes but never re-runs `pointToLayer`.
  */
-export const createFeatureStyle = (layer: GeospatialLayer, color: string) => {
-  const areaStyle = createGeoJsonStyle(layer, color);
-  const pointStyle = createPointStyle(color);
-  return (feature?: GeoJSON.Feature): L.PathOptions =>
-    isPointFeature(feature) ? pointStyle : areaStyle;
-};
-
 export const createPointToLayer =
-  (color: string) => (_feature: GeoJSON.Feature, latlng: L.LatLng) =>
-    L.circleMarker(latlng, createPointStyle(color));
+  (color: string) => (_feature: GeoJSON.Feature, latlng: L.LatLng) => {
+    const marker = L.circleMarker(latlng, createPointStyle(color));
+    const applyStyle = marker.setStyle.bind(marker);
+    marker.setStyle = (style: L.PathOptions) =>
+      applyStyle({ ...style, ...createPointStyle(style.color ?? color) });
+    return marker;
+  };
 
 // Feature properties come from user-uploaded GeoJSON/shapefiles, and Leaflet
 // renders string popup/tooltip content as HTML. Build DOM nodes and set only
@@ -196,7 +192,7 @@ export function MapLayers({
           <GeoJSON
             key={`${getLayerKey(layer)}-${labelPropertyKey || "default"}`}
             data={layer.data!}
-            style={createFeatureStyle(layer, color)}
+            style={createGeoJsonStyle(layer, color)}
             pointToLayer={createPointToLayer(color)}
             onEachFeature={createOnEachFeature(layer, labelPropertyKey)}
           />

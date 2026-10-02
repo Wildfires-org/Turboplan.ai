@@ -32,6 +32,12 @@ SQUARE = {
                      (-120.0, 39.0), (-120.0, 38.0)]],
 }
 
+# A local engineering CRS: GDAL has no way to turn it into longitude/latitude.
+LOCAL_CRS_WKT = (
+    'LOCAL_CS["Site grid",LOCAL_DATUM["Unknown",0],UNIT["metre",1],'
+    'AXIS["X",EAST],AXIS["Y",NORTH]]'
+)
+
 FEATURE_COLLECTION = {
     'type': 'FeatureCollection',
     'features': [{
@@ -44,6 +50,16 @@ FEATURE_COLLECTION = {
 KML_DOCUMENT = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"><Document>
 <Placemark><name>site</name><Point><coordinates>-120.5,38.25</coordinates></Point></Placemark>
+</Document></kml>"""
+
+
+# LIBKML reports every Folder as a layer, empty ones included.
+KML_WITH_EMPTY_FOLDER = """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+<Folder><name>Sites</name>
+<Placemark><name>site</name><Point><coordinates>-120.5,38.25</coordinates></Point></Placemark>
+</Folder>
+<Folder><name>Planned</name></Folder>
 </Document></kml>"""
 
 
@@ -204,6 +220,75 @@ class TestGISFormats:
         results = self.process_source()
 
         assert results[0]['success'] is True
+
+    @pytest.mark.parametrize('crs, point, lon_lat', [
+        # Gauss-Kruger with the zone number in the false easting: a fixed
+        # probe point such as (1, 1) is outside the projection's domain.
+        ('EPSG:28418', (18499978.52, 5540881.33), (105.0, 50.0)),
+        ('EPSG:2334', (18748938.14, 3460573.76), (99.0, 30.0)),
+    ])
+    def test_crs_with_large_false_easting_is_reprojected(self, crs, point, lon_lat):
+        self.write_layer('survey.gpkg', 'GPKG', POINT_SCHEMA,
+                         [({'type': 'Point', 'coordinates': point}, 'a')],
+                         crs=crs, layer='sites')
+
+        results = self.process_source()
+
+        assert [r['success'] for r in results] == [True]
+        lon, lat = results[0]['data']['features'][0]['geometry']['coordinates']
+        assert lon == pytest.approx(lon_lat[0], abs=0.01)
+        assert lat == pytest.approx(lon_lat[1], abs=0.01)
+
+    def test_layer_whose_crs_cannot_reach_wgs84_is_rejected(self):
+        path = self.source / 'site.shp'
+        with fiona.open(path, 'w', driver='ESRI Shapefile', schema=POINT_SCHEMA,
+                        crs_wkt=LOCAL_CRS_WKT) as dst:
+            dst.write({'geometry': {'type': 'Point', 'coordinates': (10, 20)},
+                       'properties': {'name': 'x'}})
+
+        results = self.process_source()
+
+        assert len(results) == 1
+        assert results[0]['success'] is False
+        assert 'cannot be converted to WGS84' in results[0]['error']
+
+    # -- empty layers ----------------------------------------------------
+
+    def test_empty_projected_layer_is_skipped(self):
+        """GDAL cannot compute bounds of an empty layer; that is not a CRS problem."""
+        gpkg = 'project.gpkg'
+        self.write_layer(gpkg, 'GPKG', POINT_SCHEMA, [(MERCATOR_POINT, 'a')],
+                         crs='EPSG:3857', layer='sites')
+        self.write_layer(gpkg, 'GPKG', POINT_SCHEMA, [], crs='EPSG:3857',
+                         layer='planned')
+
+        results = self.process_source()
+
+        assert [(r['layer'], r['success']) for r in results] == [('sites', True)]
+
+    def test_layers_without_drawable_features_are_dropped(self):
+        gpkg = 'project.gpkg'
+        self.write_layer(gpkg, 'GPKG', POINT_SCHEMA, [(LON_LAT_POINT, 'a')],
+                         layer='sites')
+        self.write_layer(gpkg, 'GPKG', POINT_SCHEMA, [], layer='empty')
+        self.write_layer(gpkg, 'GPKG', POINT_SCHEMA, [(None, 'no geometry')],
+                         layer='unmapped')
+
+        results = self.process_source()
+
+        assert [r['layer'] for r in results] == ['sites']
+        assert all(r['data']['features'] for r in results)
+
+    def test_empty_kml_folder_is_dropped(self):
+        if not gis_file_processor.KML_DRIVER:
+            pytest.skip('GDAL build without a KML driver')
+        self.write_text('places.kml', KML_WITH_EMPTY_FOLDER)
+
+        results = self.process_source()
+
+        assert results
+        assert all(r['success'] for r in results)
+        assert all(r['data']['features'] for r in results)
 
 
 class TestFindGisFilesExtras:
