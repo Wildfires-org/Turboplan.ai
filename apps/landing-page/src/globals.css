@@ -190,7 +190,9 @@
   --color-brand-500: rgba(60, 215, 156, 1);
   --color-brand-600: rgba(39, 193, 135, 1);
   --color-brand-700: rgba(32, 158, 110, 1);
-  --color-brand-800: rgba(27, 132, 92, 1);
+  /* brand-800 and egray-600 are body-text colors: each clears 4.5:1 on every
+     light surface we set text on (white, egray-50/75, brandAlt-100). */
+  --color-brand-800: rgba(25, 122, 82, 1);
   --color-brand-900: rgba(18, 86, 60, 1);
   --color-brand-950: rgba(10, 51, 35, 1);
   /* Decorative accent: the showcase hint icon. */
@@ -253,7 +255,7 @@
   --color-egray-300: #c2c5cb;
   --color-egray-400: #aaafb6;
   --color-egray-500: #9299a1;
-  --color-egray-600: #72767d;
+  --color-egray-600: #696d74;
   --color-egray-700: #505358;
   --color-egray-800: #2e3033;
   --color-egray-900: #0c0d0e;
