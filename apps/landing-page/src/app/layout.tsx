@@ -3,8 +3,7 @@ import { Suspense } from "react";
 import * as dotenv from "dotenv";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import localFont from "next/font/local";
+import { Geist, Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
@@ -28,55 +27,12 @@ import { cn } from "@/lib/utils";
 import "../globals.css";
 dotenv.config();
 
-const geist = localFont({
-  src: [
-    {
-      path: "../../public/fonts/Geist-Thin.woff2",
-      style: "normal",
-      weight: "100",
-    },
-    {
-      path: "../../public/fonts/Geist-ExtraLight.woff2",
-      style: "normal",
-      weight: "200",
-    },
-    {
-      path: "../../public/fonts/Geist-Light.woff2",
-      style: "normal",
-      weight: "300",
-    },
-    {
-      path: "../../public/fonts/Geist-Regular.woff2",
-      style: "normal",
-      weight: "400",
-    },
-    {
-      path: "../../public/fonts/Geist-Medium.woff2",
-      style: "normal",
-      weight: "500",
-    },
-    {
-      path: "../../public/fonts/Geist-SemiBold.woff2",
-      style: "normal",
-      weight: "600",
-    },
-    {
-      path: "../../public/fonts/Geist-Bold.woff2",
-      style: "normal",
-      weight: "700",
-    },
-    {
-      path: "../../public/fonts/Geist-ExtraBold.woff2",
-      style: "normal",
-      weight: "800",
-    },
-    {
-      path: "../../public/fonts/Geist-Black.woff2",
-      style: "normal",
-      weight: "900",
-    },
-  ],
+// One variable file per family (latin only). The nine static Geist weights
+// this replaced were all preloaded, 375 KB that held up first paint on phones.
+const geist = Geist({
+  subsets: ["latin"],
   variable: "--font-geist",
+  display: "swap",
 });
 
 const inter = Inter({

@@ -19,6 +19,14 @@ test.describe("Landing Page - session loaded in the browser", () => {
     expect(html).toContain("Accelerate your");
   });
 
+  test("preloads one font file per family", async ({ request }) => {
+    // Geist and Inter, one variable file each. Preloads compete with the
+    // render-blocking CSS, so a static file per weight delays first paint.
+    const html = await (await request.get(LANDING_URL)).text();
+    const fontPreloads = html.match(/<link[^>]+as="font"[^>]*>/g) ?? [];
+    expect(fontPreloads).toHaveLength(2);
+  });
+
   test("anonymous visitors see Sign In once the session settles", async ({
     browser,
   }) => {
