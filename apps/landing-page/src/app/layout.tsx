@@ -122,8 +122,17 @@ export default function RootLayout({
               <AnalyticsContextProvider>
                 <GlobalProvider>
                   <div className="min-h-screen flex flex-col justify-between">
+                    <a
+                      href="#main-content"
+                      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:font-inter focus:text-[14px] focus:text-egray-900 focus:shadow-lg"
+                    >
+                      Skip to content
+                    </a>
                     <Navbar />
-                    <main className="relative flex w-full flex-1 justify-center">
+                    <main
+                      id="main-content"
+                      className="relative flex w-full flex-1 justify-center"
+                    >
                       <LayoutWrapper>{children}</LayoutWrapper>
                     </main>
                     <SiteFooter />
