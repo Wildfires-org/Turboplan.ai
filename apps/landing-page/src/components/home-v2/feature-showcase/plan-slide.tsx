@@ -82,9 +82,10 @@ export function PlanSlide({ reduce }: { reduce: boolean }) {
                       Manager view
                     </span>
                   </span>
-                  <h2 className="max-w-full font-heading text-[16px] font-semibold leading-[22px] text-neutral-black sm:truncate sm:text-[18px] sm:leading-[24px]">
+                  {/* Mock app chrome, not page structure: no heading element. */}
+                  <p className="max-w-full font-heading text-[16px] font-semibold leading-[22px] text-neutral-black sm:truncate sm:text-[18px] sm:leading-[24px]">
                     Canyon Three Fuels Reduction
-                  </h2>
+                  </p>
                 </Reveal>
                 <Reveal
                   index={2}

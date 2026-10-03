@@ -83,9 +83,9 @@ export function SectionCard({
     >
       <div className="flex items-center gap-2 border-b border-egray-100 px-4 py-3">
         <span className="flex items-center text-neutral-black">{icon}</span>
-        <h3 className="shrink-0 font-heading text-[14px] font-bold leading-[21px] text-neutral-black">
+        <p className="shrink-0 font-heading text-[14px] font-bold leading-[21px] text-neutral-black">
           {title}
-        </h3>
+        </p>
         {subtitle && (
           <span className="truncate font-inter text-[11.5px] font-medium text-egray-500">
             {subtitle}
