@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createToken } from "@wildfires-org/turboplan-api-client";
+import { createToken } from "@wildfires-org/turboplan-api-client/server";
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
 
 import { getCitizenCredentials } from "../../config/test-credentials";

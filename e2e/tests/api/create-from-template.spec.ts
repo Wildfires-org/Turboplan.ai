@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { and, eq } from "drizzle-orm";
 
-import { createToken } from "@wildfires-org/turboplan-api-client";
+import { createToken } from "@wildfires-org/turboplan-api-client/server";
 import { createTestDB } from "@wildfires-org/turboplan-db/db-client";
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
 import {

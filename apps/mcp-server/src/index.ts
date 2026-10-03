@@ -1,7 +1,10 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import * as Sentry from "@sentry/cloudflare";
 
-import { hashPAT, isPATToken } from "@wildfires-org/turboplan-api-client";
+import {
+  hashPAT,
+  isPATToken,
+} from "@wildfires-org/turboplan-api-client/server";
 import { runWithWorkerConnection } from "@wildfires-org/turboplan-db/db-client";
 import {
   findPATByHash,

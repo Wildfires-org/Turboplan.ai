@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
 
-import { createUploadToken } from "@wildfires-org/turboplan-api-client";
+import { createUploadToken } from "@wildfires-org/turboplan-api-client/server";
 
 export const authRouter = new Hono();
 

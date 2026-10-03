@@ -5,7 +5,7 @@ import {
   hashPAT,
   isPATToken,
   verifyToken,
-} from "@wildfires-org/turboplan-api-client";
+} from "@wildfires-org/turboplan-api-client/server";
 import {
   findPATByHash,
   updatePATLastUsed,

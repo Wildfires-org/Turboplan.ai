@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { request as apiRequest, expect, test } from "@playwright/test";
 import { eq } from "drizzle-orm";
 
-import { createToken } from "@wildfires-org/turboplan-api-client";
+import { createToken } from "@wildfires-org/turboplan-api-client/server";
 import { createTestDB } from "@wildfires-org/turboplan-db/db-client";
 import {
   chat,

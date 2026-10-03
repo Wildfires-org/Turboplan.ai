@@ -33,6 +33,15 @@ describe("generateSlug", () => {
     assert.strictEqual(generateSlug(longTitle).length, 40);
   });
 
+  it("should not end in a hyphen when the cut lands between words", () => {
+    // 40th character is the space before "Administration".
+    const slug = generateSlug(
+      "Pipeline and Hazardous Materials Safety Administration",
+    );
+    assert.strictEqual(slug, "pipeline-and-hazardous-materials-safety");
+    assert.ok(isValidSlug(slug));
+  });
+
   it("should return empty string for empty input", () => {
     assert.strictEqual(generateSlug(""), "");
   });
@@ -53,6 +62,12 @@ describe("generateSlug", () => {
 });
 
 describe("generateUniqueSlug", () => {
+  it("should not leave a double hyphen when the base is cut between words", () => {
+    // 32nd character is the space before "Safety".
+    const slug = generateUniqueSlug("Pipeline and Hazardous Material Safety");
+    assert.match(slug, /^pipeline-and-hazardous-material-[a-z0-9]{6}$/);
+  });
+
   it("should append a 6-character suffix", () => {
     const slug = generateUniqueSlug("Hello World");
     assert.match(slug, /^hello-world-[a-z0-9]{6}$/);

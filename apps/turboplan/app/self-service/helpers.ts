@@ -1,6 +1,6 @@
 import { and, eq, gt, isNotNull, isNull } from "drizzle-orm";
 
-import { createToken } from "@wildfires-org/turboplan-api-client";
+import { createToken } from "@wildfires-org/turboplan-api-client/server";
 import { project } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getWebEnv } from "@wildfires-org/turboplan-env";

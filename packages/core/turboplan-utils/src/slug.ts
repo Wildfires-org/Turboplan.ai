@@ -27,8 +27,8 @@ export function generateSlug(title: string): string {
     .trim()
     .replace(/[^\w\s-]/g, "") // Remove special characters
     .replace(/[\s_-]+/g, "-") // Replace spaces/underscores with hyphens
-    .replace(/^-+|-+$/g, "") // Remove leading/trailing hyphens
-    .slice(0, MAX_SLUG_LENGTH); // Truncate to max length
+    .slice(0, MAX_SLUG_LENGTH) // Truncate to max length
+    .replace(/^-+|-+$/g, ""); // Then trim edge hyphens, incl. one left by the cut
 }
 
 /**
@@ -55,8 +55,8 @@ export function generateUniqueSlug(title: string): string {
     .trim()
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, MAX_BASE_SLUG_LENGTH);
+    .slice(0, MAX_BASE_SLUG_LENGTH)
+    .replace(/^-+|-+$/g, "");
 
   if (!baseSlug) {
     return generateShortId();

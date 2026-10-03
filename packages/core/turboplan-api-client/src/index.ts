@@ -1,3 +1,6 @@
+// Browser-safe entry. Token signing (`jwt`, jose) and personal access tokens
+// (`pat`, node:crypto) live in `./server`: re-exporting them here pulled a
+// ~90 KiB crypto polyfill into every client bundle that imports a fetcher.
 export * from "./api-client";
 export {
   deleteFetcher,
@@ -6,6 +9,4 @@ export {
   postFetcher,
   putFetcher,
 } from "./fetcher";
-export * from "./jwt";
-export * from "./pat";
 export { publicFetcher } from "./public-fetcher";
