@@ -1,21 +1,25 @@
-"use client";
-
 import { Compass } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import BeaverLeft from "@/../public/images/beaver_left.png";
 import {
   GLASS_BUTTON_CLASS,
   PRIMARY_BUTTON_CLASS,
 } from "@/components/catalog/catalog-layout";
+import { GoBackButton } from "@/components/shared/go-back-button";
 import { StatusPanel } from "@/components/shared/status-panel";
 import { cn } from "@/lib/utils";
 import { routing } from "@/utils/routing";
 
-export default function NotFound() {
-  const router = useRouter();
+// A server component so it can set its own title; it used to inherit the home
+// page's on every 404.
+export const metadata: Metadata = {
+  title: "Page not found",
+  robots: { index: false, follow: true },
+};
 
+export default function NotFound() {
   return (
     <StatusPanel
       icon={Compass}
@@ -31,13 +35,7 @@ export default function NotFound() {
           >
             Go to homepage
           </Link>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className={cn(GLASS_BUTTON_CLASS, "h-11")}
-          >
-            Go back
-          </button>
+          <GoBackButton className={cn(GLASS_BUTTON_CLASS, "h-11")} />
         </>
       }
     />
