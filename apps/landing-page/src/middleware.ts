@@ -12,6 +12,10 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
+// Lives in src/: with a src directory Next.js only loads src/middleware.ts.
+// From the v1.0.0 release until this move the file sat at the app root and
+// never ran, so neither the /ingest header stripping nor the CORS preflight
+// took effect.
 export function middleware(request: NextRequest) {
   // Telemetry proxy: strip cookies so session cookies never reach the
   // third-party ingestion host through the /ingest rewrite.
