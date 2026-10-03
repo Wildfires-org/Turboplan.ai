@@ -777,7 +777,7 @@ export const OFFICE_SEEDS: OfficeSeed[] = [
   },
   {
     name: "Pipeline and Hazardous Materials Safety Administration (PHMSA)",
-    slug: "pipeline-and-hazardous-materials-safety-",
+    slug: "pipeline-and-hazardous-materials-safety",
     description:
       "PHMSA regulates the safety of pipeline transportation and the transportation of hazardous materials by all modes.",
     organizationSlug: "dot",
