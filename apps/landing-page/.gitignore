@@ -45,3 +45,6 @@ next-env.d.ts
 
 # playwright stuff
 playwright/
+
+# OpenNext / Cloudflare build output
+/.open-next/

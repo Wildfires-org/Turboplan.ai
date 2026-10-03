@@ -813,6 +813,24 @@
     transform: translateY(0);
   }
 }
+/* Hero entrance. A CSS animation rather than framer-motion's whileInView:
+   the hero H1 is the page's largest paint, and a JS-driven reveal kept it at
+   opacity 0 until the bundle hydrated (mobile LCP 6-9 s). This runs from the
+   first frame. Distance and delay come from --hero-in-distance and
+   animation-delay on the element. */
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--hero-in-distance, 20px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.hero-in {
+  animation: hero-in 0.45s var(--ease-out-expo) both;
+}
 @keyframes showcase-progress {
   from {
     transform: scaleX(0);
@@ -826,6 +844,7 @@
   /* Also neutralize the inline pre-animation state (opacity: 0 / scaleX(0))
      set during SSR before the useReducedMotion hook resolves — otherwise
      content stays invisible for reduced-motion users until hydration. */
+  .hero-in,
   .showcase-tab-fill,
   .showcase-reveal-row,
   .showcase-progress-fill {
