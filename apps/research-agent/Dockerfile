@@ -10,6 +10,7 @@ WORKDIR /repo
 ARG GITHUB_TOKEN
 COPY .npmrc tsconfig.json biome.jsonc ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY patches patches
 COPY apps/research-agent/package.json apps/research-agent/package.json
 COPY packages/core/turboplan-auth/package.json packages/core/turboplan-auth/package.json
 COPY packages/core/turboplan-db/package.json packages/core/turboplan-db/package.json

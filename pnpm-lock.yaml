@@ -17,6 +17,11 @@ overrides:
   '@auth/core>nodemailer': ^9.1.1
   next-auth>nodemailer: ^9.1.1
 
+patchedDependencies:
+  postgres@3.4.7:
+    hash: 1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9
+    path: patches/postgres@3.4.7.patch
+
 importers:
 
   .:
@@ -345,7 +350,7 @@ importers:
         version: link:../../packages/core/turboplan-workspace
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -397,7 +402,7 @@ importers:
         version: link:../../packages/core/turboplan-utils
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -518,7 +523,7 @@ importers:
         version: 6.0.191(zod@4.4.3)
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -741,7 +746,7 @@ importers:
         version: 16.6.1
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       fast-deep-equal:
         specifier: ^3.1.3
         version: 3.1.3
@@ -777,7 +782,7 @@ importers:
         version: 1.2.2
       postgres:
         specifier: ^3.4.4
-        version: 3.4.7
+        version: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
       posthog-js:
         specifier: ^1.417.1
         version: 1.417.1(preact-render-to-string@6.5.11)
@@ -934,7 +939,7 @@ importers:
         version: 5.0.3
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       imapflow:
         specifier: ^1.0.171
         version: 1.2.0
@@ -986,7 +991,7 @@ importers:
         version: link:../turboplan-workspace
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       framer-motion:
         specifier: ^11.3.19
         version: 11.18.2(@emotion/is-prop-valid@1.4.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
@@ -1170,10 +1175,10 @@ importers:
         version: 16.6.1
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       postgres:
         specifier: ^3.4.4
-        version: 3.4.7
+        version: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
     devDependencies:
       '@types/node':
         specifier: ^20.11.5
@@ -1299,7 +1304,7 @@ importers:
         version: 6.0.191(zod@4.4.3)
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -1330,7 +1335,7 @@ importers:
         version: link:../turboplan-env
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -1339,7 +1344,7 @@ importers:
         version: 15.5.25(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(babel-plugin-macros@3.1.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       postgres:
         specifier: ^3.4.4
-        version: 3.4.7
+        version: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
       react:
         specifier: 19.1.7
         version: 19.1.7
@@ -1379,7 +1384,7 @@ importers:
         version: link:../turboplan-utils
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -1601,7 +1606,7 @@ importers:
         version: 1.1.1(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -1680,7 +1685,7 @@ importers:
         version: link:../../core/turboplan-utils
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -1897,7 +1902,7 @@ importers:
         version: link:../../core/turboplan-utils
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -2039,7 +2044,7 @@ importers:
         version: 6.0.191(zod@4.4.3)
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       eslint:
         specifier: ^9.25.1
         version: 9.25.1(jiti@2.6.1)
@@ -2054,7 +2059,7 @@ importers:
         version: 0.446.0(react@19.1.7)
       postgres:
         specifier: ^3.4.5
-        version: 3.4.7
+        version: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
       react-dropzone:
         specifier: ^14.3.8
         version: 14.3.8(react@19.1.7)
@@ -2124,7 +2129,7 @@ importers:
         version: 4.1.0
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -2221,7 +2226,7 @@ importers:
         version: 0.7.1
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       framer-motion:
         specifier: ^12.14.0
         version: 12.33.0(@emotion/is-prop-valid@1.4.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
@@ -2233,7 +2238,7 @@ importers:
         version: 0.446.0(react@19.1.7)
       postgres:
         specifier: ^3.4.4
-        version: 3.4.7
+        version: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
       sonner:
         specifier: ^1.7.4
         version: 1.7.4(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
@@ -2315,7 +2320,7 @@ importers:
         version: link:../../core/turboplan-utils
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -2418,7 +2423,7 @@ importers:
         version: 4.1.0
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -2433,7 +2438,7 @@ importers:
         version: 5.0.0-beta.32(next@15.5.25(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@9.1.1)(react@19.1.7)
       postgres:
         specifier: ^3.4.4
-        version: 3.4.7
+        version: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
       react-hook-form:
         specifier: ^7.75.0
         version: 7.75.0(react@19.1.7)
@@ -2497,7 +2502,7 @@ importers:
         version: link:../../core/turboplan-utils
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7)
+        version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       hono:
         specifier: ^4.12.25
         version: 4.13.8
@@ -24780,7 +24785,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7):
+  drizzle-orm@0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)):
     optionalDependencies:
       '@cloudflare/workers-types': 4.20260511.1
       '@opentelemetry/api': 1.9.1
@@ -24788,7 +24793,7 @@ snapshots:
       '@vercel/postgres': 0.10.0
       bun-types: 1.4.2
       gel: 2.1.1
-      postgres: 3.4.7
+      postgres: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
 
   dts-resolver@2.1.2: {}
 
@@ -30167,7 +30172,7 @@ snapshots:
 
   postgres-range@1.1.4: {}
 
-  postgres@3.4.7: {}
+  postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9): {}
 
   posthog-js@1.417.1(preact-render-to-string@6.5.11):
     dependencies:
