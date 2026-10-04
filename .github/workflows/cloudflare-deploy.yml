@@ -47,6 +47,12 @@ jobs:
             shared:
               - 'packages/core/**'
               - 'packages/modules/**'
+              # Dependencies (a version bump, an override, a pnpm patch) end up
+              # in every service's bundle without touching apps/ or packages/.
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'patches/**'
             landing_only:
               - 'apps/landing-page/**'
             server_only:
