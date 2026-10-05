@@ -1,12 +1,12 @@
-import { Section, Text } from "@react-email/components";
-
 import { BaseLayout } from "./base-layout";
 import {
-  BrandCard,
   CtaButton,
-  Disclaimer,
+  DetailItem,
+  DetailsBox,
+  DetailTitle,
+  EmailHeading,
   FallbackUrl,
-  GreetingPill,
+  Paragraph,
 } from "./email-card";
 
 export interface SigningRequestEmailProps {
@@ -26,38 +26,30 @@ export function SigningRequestEmail({
   projectName,
   signingUrl,
 }: SigningRequestEmailProps) {
-  const greeting = recipientName ? `Hello, ${recipientName}!` : "Hello!";
-
   return (
     <BaseLayout
       preview={`${requesterName} requested your signature on "${documentTitle}"`}
       label="Signature Request"
+      footer={`This notification was sent to ${recipientEmail} because you are a member of the ${projectName} project.`}
     >
-      <BrandCard>
-        <GreetingPill>{greeting}</GreetingPill>
+      <EmailHeading>
+        {recipientName
+          ? `${recipientName}, your signature is needed`
+          : "Your signature is needed"}
+      </EmailHeading>
 
-        <Text style={bodyText}>
-          <strong>{requesterName}</strong>
-          <span style={bodyTextLight}>
-            {" "}
-            has requested your signature on a document in the{" "}
-          </span>
-          <strong>{projectName}</strong>
-          <span style={bodyTextLight}> project.</span>
-        </Text>
+      <Paragraph>
+        <strong style={strong}>{requesterName}</strong> has requested your
+        signature on a document in the{" "}
+        <strong style={strong}>{projectName}</strong> project.
+      </Paragraph>
 
-        <Section style={detailsBox}>
-          <Text style={documentTitleStyle}>&#9998; {documentTitle}</Text>
-          <Text style={detailItem}>Project: {projectName}</Text>
-        </Section>
+      <DetailsBox>
+        <DetailTitle>{documentTitle}</DetailTitle>
+        <DetailItem label="Project">{projectName}</DetailItem>
+      </DetailsBox>
 
-        <CtaButton href={signingUrl} label="Sign Document" />
-      </BrandCard>
-
-      <Disclaimer>
-        This notification was sent to {recipientEmail} because you are a member
-        of the {projectName} project.
-      </Disclaimer>
+      <CtaButton href={signingUrl} label="Sign Document" />
 
       <FallbackUrl url={signingUrl} />
     </BaseLayout>
@@ -65,37 +57,6 @@ export function SigningRequestEmail({
 }
 
 // Styles
-const bodyText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "#ffffff",
-  textAlign: "center" as const,
-  margin: "0 0 24px",
-};
-
-const bodyTextLight = {
-  color: "rgba(255, 255, 255, 0.8)",
-};
-
-const detailsBox = {
-  backgroundColor: "rgba(255, 255, 255, 0.15)",
-  borderRadius: "8px",
-  padding: "16px",
-  margin: "0 0 36px",
-  textAlign: "left" as const,
-};
-
-const documentTitleStyle = {
-  fontSize: "16px",
-  fontWeight: "600" as const,
-  lineHeight: "24px",
-  color: "#ffffff",
-  margin: "0 0 6px",
-};
-
-const detailItem = {
-  fontSize: "13px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.9)",
-  margin: "0",
+const strong = {
+  color: "#111827",
 };

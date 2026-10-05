@@ -1,26 +1,5 @@
-import { Heading, Img, Section, Text } from "@react-email/components";
-
-import { getAppName } from "@wildfires-org/turboplan-env";
-
-import { BaseLayout, preventAutoLink } from "./base-layout";
-import {
-  badge,
-  badgeTable,
-  bodyText,
-  bodyTextLight,
-  card,
-  ctaButtonTd,
-  ctaLink,
-  ctaTable,
-  disclaimer,
-  fallbackLabel,
-  fallbackUrl,
-  fallbackUrlBox,
-  mascotImage,
-  signatureText,
-  title,
-} from "./billing-email-styles";
-import { getBeaverUrl } from "./email-images";
+import { BaseLayout } from "./base-layout";
+import { CtaButton, EmailHeading, FallbackUrl, Paragraph } from "./email-card";
 
 export interface DiscountEndingEmailProps {
   /** Name of the organization whose discount is expiring */
@@ -50,89 +29,37 @@ export function DiscountEndingEmail({
   billingUrl,
   recipientEmail,
 }: DiscountEndingEmailProps) {
-  const appName = getAppName();
   const daysLabel = `${daysLeft} ${daysLeft === 1 ? "day" : "days"}`;
 
   return (
     <BaseLayout
       preview={`${orgName}'s ${percentOff}% discount ends in ${daysLabel}`}
-      label="Billing Update"
+      label={`${daysLabel} left`}
+      tone="warning"
+      footer={`This email was sent to ${recipientEmail} because you are an owner of ${orgName}.`}
     >
-      <Heading style={title}>Discount Ending Soon</Heading>
+      <EmailHeading>Your discount ends soon</EmailHeading>
 
-      <Section style={card}>
-        <Img
-          src={getBeaverUrl()}
-          width="120"
-          height="120"
-          alt="Beaver mascot"
-          style={mascotImage}
-        />
+      <Paragraph>
+        The <strong style={strong}>{percentOff}% discount</strong> on{" "}
+        <strong style={strong}>{orgName}</strong>'s subscription ends on{" "}
+        <strong style={strong}>{endsAtLabel}</strong>.
+      </Paragraph>
 
-        <table
-          role="presentation"
-          cellPadding="0"
-          cellSpacing="0"
-          style={badgeTable}
-        >
-          <tr>
-            <td align="center">
-              <span style={badge}>{daysLabel} left</span>
-            </td>
-          </tr>
-        </table>
+      <Paragraph>
+        From the next renewal after that date, the base subscription returns to
+        the regular list price automatically — no action is required to keep
+        your plan.
+      </Paragraph>
 
-        <Text style={bodyText}>
-          The <strong>{percentOff}% discount</strong> on{" "}
-          <strong>{orgName}</strong>'s subscription ends on{" "}
-          <strong>{endsAtLabel}</strong>.
-        </Text>
+      <CtaButton href={billingUrl} label="Review billing" />
 
-        <Text style={bodyTextLight}>
-          From the next renewal after that date, the base subscription returns
-          to the regular list price automatically — no action is required to
-          keep your plan.
-        </Text>
-
-        <table
-          role="presentation"
-          cellPadding="0"
-          cellSpacing="0"
-          style={ctaTable}
-        >
-          <tr>
-            <td align="center" style={ctaButtonTd}>
-              <a href={billingUrl} style={ctaLink} className="cta-link">
-                <span
-                  style={{ color: "#ffffff", textDecoration: "none" }}
-                  className="cta-link"
-                >
-                  Review billing
-                </span>
-              </a>
-            </td>
-          </tr>
-        </table>
-
-        <Text style={signatureText}>
-          Best regards,
-          <br />
-          The {preventAutoLink(appName)} Team
-        </Text>
-      </Section>
-
-      <Text style={disclaimer}>
-        This email was sent to {recipientEmail} because you are an owner of{" "}
-        {orgName}.
-      </Text>
-
-      <Text style={fallbackLabel}>
-        If you're having trouble with the button, copy and paste this URL into
-        your browser:
-      </Text>
-      <Section style={fallbackUrlBox}>
-        <Text style={fallbackUrl}>{billingUrl}</Text>
-      </Section>
+      <FallbackUrl url={billingUrl} />
     </BaseLayout>
   );
 }
+
+// Styles
+const strong = {
+  color: "#111827",
+};

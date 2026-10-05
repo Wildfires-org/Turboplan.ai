@@ -1,15 +1,7 @@
-import { Text } from "@react-email/components";
-
 import { getAppName } from "@wildfires-org/turboplan-env";
 
 import { BaseLayout, preventAutoLink } from "./base-layout";
-import {
-  BrandCard,
-  CtaButton,
-  Disclaimer,
-  FallbackUrl,
-  GreetingPill,
-} from "./email-card";
+import { CtaButton, EmailHeading, FallbackUrl, Paragraph } from "./email-card";
 
 export type MemberAddedEntityType = "organization" | "office" | "project";
 
@@ -72,33 +64,23 @@ export function MemberAddedEmail({
     <BaseLayout
       preview={`${inviterName} added you to ${entityName} on ${appName}`}
       label={getUpdateLabel(entityType)}
+      footer={`This notification was sent to ${memberEmail} because you were added to ${entityName}.`}
     >
-      <BrandCard>
-        <GreetingPill>
-          {memberName ? `Hello, ${memberName}!` : "Hello"}
-        </GreetingPill>
+      <EmailHeading>
+        {memberName ? `${memberName}, you're in!` : "You're in!"}
+      </EmailHeading>
 
-        <Text style={inviteText}>
-          <strong>{inviterName}</strong>
-          <span style={inviteTextLight}> has added you to the </span>
-          <strong>{entityName}</strong>
-          <span style={inviteTextLight}>
-            {" "}
-            {entityType} on {preventAutoLink(appName)}
-          </span>
-        </Text>
+      <Paragraph>
+        <strong style={strong}>{inviterName}</strong> has added you to the{" "}
+        <strong style={strong}>{entityName}</strong> {entityType} on{" "}
+        {preventAutoLink(appName)}.
+      </Paragraph>
 
-        <Text style={descriptionText}>
-          You already have an account, so you're all set — jump right in.
-        </Text>
+      <Paragraph>
+        You already have an account, so you're all set — jump right in.
+      </Paragraph>
 
-        <CtaButton href={entityUrl} label={getOpenLabel(entityType)} />
-      </BrandCard>
-
-      <Disclaimer>
-        This notification was sent to {memberEmail} because you were added to{" "}
-        {entityName}.
-      </Disclaimer>
+      <CtaButton href={entityUrl} label={getOpenLabel(entityType)} />
 
       <FallbackUrl url={entityUrl} />
     </BaseLayout>
@@ -106,22 +88,6 @@ export function MemberAddedEmail({
 }
 
 // Styles
-const inviteText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "#ffffff",
-  textAlign: "center" as const,
-  margin: "0 0 16px",
-};
-
-const inviteTextLight = {
-  color: "rgba(255, 255, 255, 0.8)",
-};
-
-const descriptionText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.8)",
-  textAlign: "center" as const,
-  margin: "0 0 36px",
+const strong = {
+  color: "#111827",
 };

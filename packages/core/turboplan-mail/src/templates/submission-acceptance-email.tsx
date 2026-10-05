@@ -1,13 +1,5 @@
-import { Text } from "@react-email/components";
-
 import { BaseLayout } from "./base-layout";
-import {
-  BrandCard,
-  CtaButton,
-  Disclaimer,
-  FallbackUrl,
-  GreetingPill,
-} from "./email-card";
+import { CtaButton, EmailHeading, FallbackUrl, Paragraph } from "./email-card";
 
 export interface SubmissionAcceptanceEmailProps {
   /** Email of the citizen who submitted */
@@ -33,47 +25,23 @@ export const SubmissionAcceptanceEmail = ({
   return (
     <BaseLayout
       preview={`Your citizen submission "${projectName}" has been approved by ${organizationName}`}
-      label="Citizen Submission Update"
+      label="Accepted"
+      footer={`This email was sent to ${citizenEmail}. If you weren't expecting it, you can safely ignore it.`}
     >
-      <BrandCard>
-        <GreetingPill>Hello</GreetingPill>
+      <EmailHeading>Your submission was approved</EmailHeading>
 
-        {/* Accepted Badge */}
-        <table
-          role="presentation"
-          cellPadding="0"
-          cellSpacing="0"
-          style={badgeTable}
-        >
-          <tr>
-            <td align="center">
-              <span style={acceptedBadge}>Accepted</span>
-            </td>
-          </tr>
-        </table>
+      <Paragraph>
+        Your citizen submission <strong style={strong}>{projectName}</strong>{" "}
+        has been reviewed by <strong style={strong}>{organizationName}</strong>{" "}
+        and converted into a project.
+      </Paragraph>
 
-        <Text style={bodyText}>
-          Your citizen submission "<strong>{projectName}</strong>" has been
-          reviewed by the <strong>{organizationName}</strong>.
-        </Text>
+      <Paragraph>
+        You can review the project details and follow its progress in your
+        workspace.
+      </Paragraph>
 
-        <Text style={bodyText}>
-          We're pleased to inform you that your submission has been approved and
-          converted into a project.
-        </Text>
-
-        <Text style={bodyTextLight}>
-          You can review the project details and follow its progress in your
-          workspace.
-        </Text>
-
-        <CtaButton href={projectUrl} label="View Project" />
-      </BrandCard>
-
-      <Disclaimer>
-        This email was sent to {citizenEmail}. If you weren't expecting this
-        email, you can safely ignore it.
-      </Disclaimer>
+      <CtaButton href={projectUrl} label="View Project" />
 
       <FallbackUrl url={projectUrl} />
     </BaseLayout>
@@ -81,35 +49,6 @@ export const SubmissionAcceptanceEmail = ({
 };
 
 // Styles
-const badgeTable = {
-  width: "100%",
-  margin: "0 0 24px",
-};
-
-const acceptedBadge = {
-  display: "inline-block",
-  backgroundColor: "#ebfef7",
-  border: "1px solid #c2fde5",
-  borderRadius: "8px",
-  padding: "12px 24px",
-  fontSize: "16px",
-  fontWeight: "500" as const,
-  color: "#05b871",
-  letterSpacing: "0.065px",
-};
-
-const bodyText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "#ffffff",
-  textAlign: "center" as const,
-  margin: "0 0 16px",
-};
-
-const bodyTextLight = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.8)",
-  textAlign: "center" as const,
-  margin: "0 0 36px",
+const strong = {
+  color: "#111827",
 };

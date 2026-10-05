@@ -1,14 +1,14 @@
-import { Section, Text } from "@react-email/components";
-
 import { getAppName } from "@wildfires-org/turboplan-env";
 
 import { BaseLayout, preventAutoLink } from "./base-layout";
 import {
-  BrandCard,
   CtaButton,
-  Disclaimer,
+  DetailItem,
+  DetailsBox,
+  DetailTitle,
+  EmailHeading,
   FallbackUrl,
-  GreetingPill,
+  Paragraph,
 } from "./email-card";
 
 export interface ProjectInvitationEmailProps {
@@ -54,50 +54,33 @@ export function ProjectInvitationEmail({
     <BaseLayout
       preview={`${inviterName} invited you to join ${projectName} on ${appName}`}
       label="Project Invitation"
+      footer={`This invitation was sent to ${inviteeEmail}. If you weren't expecting it, you can safely ignore this email.`}
     >
-      <BrandCard>
-        <GreetingPill>Hello</GreetingPill>
+      <EmailHeading>Join {projectName}</EmailHeading>
 
-        <Text style={inviteText}>
-          <strong>{inviterName}</strong>
-          <span style={inviteTextLight}> has invited you to join the </span>
-          <strong>{projectName}</strong>
-          <span style={inviteTextLight}>
-            {" "}
-            project on {preventAutoLink(appName)} as{" "}
-          </span>
-          <strong>{formatRole(role)}</strong>
-        </Text>
+      <Paragraph>
+        <strong style={strong}>{inviterName}</strong> has invited you to join
+        the <strong style={strong}>{projectName}</strong> project on{" "}
+        {preventAutoLink(appName)} as{" "}
+        <strong style={strong}>{formatRole(role)}</strong>.
+      </Paragraph>
 
-        {(taskTitle || milestoneTitle) && (
-          <Section style={assignmentSection}>
-            <Text style={assignmentTitle}>You'll be assigned to:</Text>
-            {taskTitle && (
-              <Text style={assignmentItem}>
-                &#9745; Task: <strong>{taskTitle}</strong>
-              </Text>
-            )}
-            {milestoneTitle && (
-              <Text style={assignmentItem}>
-                &#9632; Milestone: <strong>{milestoneTitle}</strong>
-              </Text>
-            )}
-          </Section>
-        )}
+      {(taskTitle || milestoneTitle) && (
+        <DetailsBox>
+          <DetailTitle>You'll be assigned to</DetailTitle>
+          {taskTitle && <DetailItem label="Task">{taskTitle}</DetailItem>}
+          {milestoneTitle && (
+            <DetailItem label="Milestone">{milestoneTitle}</DetailItem>
+          )}
+        </DetailsBox>
+      )}
 
-        <Text style={descriptionText}>
-          {preventAutoLink(appName)} helps teams collaborate more effectively
-          with AI-powered chat, task management and project coordination. Join
-          your team and start collaborating today!
-        </Text>
+      <Paragraph>
+        {preventAutoLink(appName)} brings AI-powered chat, task management and
+        project coordination together in one place.
+      </Paragraph>
 
-        <CtaButton href={inviteUrl} label="Accept Invitation" />
-      </BrandCard>
-
-      <Disclaimer>
-        This invitation was sent to {inviteeEmail}. If you weren't expecting
-        this invitation, you can safely ignore this email.
-      </Disclaimer>
+      <CtaButton href={inviteUrl} label="Accept Invitation" />
 
       <FallbackUrl url={inviteUrl} />
     </BaseLayout>
@@ -105,47 +88,6 @@ export function ProjectInvitationEmail({
 }
 
 // Styles
-const inviteText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "#ffffff",
-  textAlign: "center" as const,
-  margin: "0 0 16px",
-};
-
-const inviteTextLight = {
-  color: "rgba(255, 255, 255, 0.8)",
-};
-
-const assignmentSection = {
-  backgroundColor: "rgba(255, 255, 255, 0.15)",
-  borderRadius: "8px",
-  padding: "16px",
-  margin: "0 0 16px",
-};
-
-const assignmentTitle = {
-  fontSize: "12px",
-  fontWeight: "600" as const,
-  color: "rgba(255, 255, 255, 0.9)",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.05em",
-  margin: "0 0 8px",
-  textAlign: "center" as const,
-};
-
-const assignmentItem = {
-  fontSize: "14px",
-  lineHeight: "22px",
-  color: "#ffffff",
-  margin: "0 0 4px",
-  textAlign: "center" as const,
-};
-
-const descriptionText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.8)",
-  textAlign: "center" as const,
-  margin: "0 0 36px",
+const strong = {
+  color: "#111827",
 };
