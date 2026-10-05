@@ -5,6 +5,7 @@ import { AccessError } from "@/components/access-error";
 import { DashboardProvider } from "@/components/providers/dashboard-provider";
 import {
   getCachedSession,
+  getOfficeAllowedActions,
   getValidatedOfficeBySlug,
 } from "@/lib/cache/dashboard";
 import { AppUrls } from "@/lib/nav/urls";
@@ -47,9 +48,17 @@ export default async function OfficeLayout({
     }
 
     const { organization, office } = data;
+    const officeActions = await getOfficeAllowedActions(
+      session.user.id,
+      office.id,
+    );
 
     return (
-      <DashboardProvider organization={organization} office={office}>
+      <DashboardProvider
+        organization={organization}
+        office={office}
+        officeActions={officeActions}
+      >
         {children}
       </DashboardProvider>
     );

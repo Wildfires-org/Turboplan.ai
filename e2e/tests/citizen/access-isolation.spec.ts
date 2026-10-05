@@ -92,6 +92,43 @@ test.describe("Access Isolation", () => {
     await govContext.close();
   });
 
+  test("only office members get office management actions", async ({
+    page,
+    browser,
+  }) => {
+    // Government offices are readable by any signed-in user; a citizen is
+    // not a member, so the banner must not offer actions the API rejects.
+    const citizenDashboard = new TurboplanDashboardPage(page);
+    await citizenDashboard.gotoOffice(govOrgSlug, govOfficeSlug);
+    await citizenDashboard.expectOfficeHeading(GOV_WORKSPACE.OFFICE_NAME);
+
+    const citizenMain = citizenDashboard.getMain();
+    await expect(
+      citizenMain.getByRole("button", { name: "Manage Office" }),
+    ).toHaveCount(0);
+    await expect(
+      citizenMain.getByRole("button", { name: /^New Project$/ }),
+    ).toHaveCount(0);
+
+    const govContext = await browser.newContext({
+      storageState: "./storage/auth/gov.json",
+    });
+    const govPage = await govContext.newPage();
+    const govDashboard = new TurboplanDashboardPage(govPage);
+    await govDashboard.gotoOffice(govOrgSlug, govOfficeSlug);
+    await govDashboard.expectOfficeHeading(GOV_WORKSPACE.OFFICE_NAME);
+
+    const govMain = govDashboard.getMain();
+    await expect(
+      govMain.getByRole("button", { name: "Manage Office" }),
+    ).toBeVisible();
+    await expect(
+      govMain.getByRole("button", { name: /^New Project$/ }),
+    ).toBeVisible();
+
+    await govContext.close();
+  });
+
   test("citizen draft project is not returned in the public projects API", async ({
     request,
   }) => {
