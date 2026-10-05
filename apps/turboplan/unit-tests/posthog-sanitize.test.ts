@@ -15,6 +15,36 @@ describe("redactUrl", () => {
     );
     assert.equal(redactUrl("/projects?page=2"), "/projects?page=2");
   });
+
+  it("redacts the invite token in the path, raw and URL-encoded", () => {
+    assert.equal(
+      redactUrl("https://app.example.test/invite/abc123XYZ"),
+      "https://app.example.test/invite/[redacted]",
+    );
+    assert.equal(
+      redactUrl("https://app.example.test/invite/abc123XYZ?x=1"),
+      "https://app.example.test/invite/[redacted]?x=1",
+    );
+    assert.equal(
+      redactUrl("/verify?type=login&next=%2Finvite%2Fabc123"),
+      "/verify?type=login&next=%2Finvite%2F[redacted]",
+    );
+    assert.equal(redactUrl("/docs/invite-members"), "/docs/invite-members");
+    assert.equal(redactUrl("/invite"), "/invite");
+  });
+
+  it("redacts callbackUrl and redirectTo (they carry invite and workspace paths)", () => {
+    assert.equal(
+      redactUrl("/login?email=a%40b.c&callbackUrl=%2Finvite%2Fabc123"),
+      "/login?email=[redacted]&callbackUrl=[redacted]",
+    );
+    assert.equal(
+      redactUrl(
+        "/verify?token=t&type=login&redirectTo=%2Fjane-doe%2Fmain%2Fplan&setupProjectId=p1",
+      ),
+      "/verify?token=[redacted]&type=login&redirectTo=[redacted]&setupProjectId=p1",
+    );
+  });
 });
 
 describe("sanitizeProperties", () => {
