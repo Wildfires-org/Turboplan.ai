@@ -16,6 +16,13 @@ export {
   PUBLICLY_LISTED_ORG_TYPES,
 } from "../schemas/workspace/organization";
 export type {
+  NewOrganizationContext,
+  NewOrganizationDocument,
+  OrganizationContext,
+  OrganizationDocument,
+  OrganizationDocumentExtractionStatus,
+} from "../schemas/workspace/organization-context";
+export type {
   NewOrganizationSigningConfig,
   OrganizationSigningConfig,
 } from "../schemas/workspace/organization-signing-config";

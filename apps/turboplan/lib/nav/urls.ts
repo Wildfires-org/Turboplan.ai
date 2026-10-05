@@ -53,6 +53,14 @@ export const AppUrls = {
     return `/organizations/${orgSlug}/billing`;
   },
 
+  /**
+   * Get the URL for the organization context (AI prompt + documents) page
+   * @example AppUrls.organizationContext("my-org") → "/organizations/my-org/context"
+   */
+  organizationContext(orgSlug: string): string {
+    return `/organizations/${orgSlug}/context`;
+  },
+
   // ============================================================================
   // Office Routes
   // ============================================================================

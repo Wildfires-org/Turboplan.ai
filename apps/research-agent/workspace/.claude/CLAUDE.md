@@ -539,6 +539,7 @@ After completing your task, include a `---MEMORIES---` block at the end of your 
 - Task-specific details that won't help future runs
 - Speculation or unverified claims
 - Information already in CLAUDE.md or skill docs
+- Anything from `<organization-context>`, `<uploaded-documents>` or other organization-specific or uploaded material (names, contacts, internal standards, codenames) — memories are shared across ALL organizations
 
 ### Format
 

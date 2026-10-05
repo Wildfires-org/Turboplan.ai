@@ -23,6 +23,7 @@ const TOOL_ERROR_LABELS: Record<string, string> = {
   updateDocument: "updating the document",
   requestSuggestions: "adding suggestions",
   readProjectDocuments: "reading the project documents",
+  readOrganizationDocuments: "reading the organization documents",
   updateProjectContext: "updating the project context",
   updateProjectFields: "updating the project fields",
 };

@@ -1,8 +1,10 @@
 /**
- * Background poller that turns pending project documents into extracted text.
+ * Background poller that turns pending documents into extracted text.
  *
- * Every dependency is injected so the loop can be unit-tested without a
- * database or a real worker thread.
+ * One loop serves every document table ("source"): sources take turns within a
+ * pass, so there is never more than one extraction worker at a time. Every
+ * dependency is injected so the loop can be unit-tested without a database or
+ * a real worker thread.
  */
 
 import type { ExtractionResult } from "@wildfires-org/turboplan-document-extraction";
@@ -17,7 +19,7 @@ export type ExtractionStatusValue =
   | "failed"
   | "unsupported";
 
-/** The subset of a project document this loop needs. */
+/** The subset of a document row this loop needs. */
 export type PendingDocument = {
   id: string;
   url: string;
@@ -29,6 +31,28 @@ export type ExtractionUpdate = {
   extractionStatus: ExtractionStatusValue;
   extractedText?: string | null;
   extractionError?: string | null;
+  /** Only ever set for sources with a `summarize` step. */
+  summary?: string | null;
+};
+
+/** Short key-facts summary of extracted text, or null when there is none. */
+export type DocumentSummarizer = (input: {
+  text: string;
+  filename: string;
+}) => Promise<string | null>;
+
+/** One document table the loop drains. */
+export type ExtractionSource = {
+  /** Used in log lines, e.g. "project" or "organization". */
+  name: string;
+  fetchPending: (limit: number) => Promise<PendingDocument[]>;
+  persist: (id: string, data: ExtractionUpdate) => Promise<unknown>;
+  /**
+   * Runs after a successful extraction; its result is persisted as `summary`.
+   * A throw is logged and stored as `summary: null` — the extraction itself
+   * still counts as done.
+   */
+  summarize?: DocumentSummarizer;
 };
 
 export type DocumentExtractionStatus = {
@@ -46,16 +70,20 @@ export type DocumentExtractionService = {
 };
 
 export type DocumentExtractionServiceDeps = {
-  fetchPending: (limit: number) => Promise<PendingDocument[]>;
-  persist: (id: string, data: ExtractionUpdate) => Promise<unknown>;
+  /** Drained in array order within each pass. */
+  sources: ExtractionSource[];
   runExtraction: (input: ExtractionInput) => Promise<ExtractionResult>;
   pollIntervalMs?: number;
+  /** Documents fetched per source per pass. */
   batchSize?: number;
   logger?: Logger;
 };
 
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 const DEFAULT_BATCH_SIZE = 5;
+
+const describeError = (err: unknown): string =>
+  err instanceof Error ? err.message : String(err);
 
 const toUpdate = (result: ExtractionResult): ExtractionUpdate => {
   if (result.ok) {
@@ -82,8 +110,7 @@ const toUpdate = (result: ExtractionResult): ExtractionUpdate => {
 };
 
 export const createDocumentExtractionService = ({
-  fetchPending,
-  persist,
+  sources,
   runExtraction,
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   batchSize = DEFAULT_BATCH_SIZE,
@@ -96,7 +123,28 @@ export const createDocumentExtractionService = ({
   let processed = 0;
   let failed = 0;
 
-  const processDocument = async (doc: PendingDocument): Promise<void> => {
+  const summarizeDocument = async (
+    source: ExtractionSource,
+    summarize: DocumentSummarizer,
+    doc: PendingDocument,
+    text: string,
+  ): Promise<string | null> => {
+    try {
+      return await summarize({ text, filename: doc.originalFilename });
+    } catch (err) {
+      // Filename and error message only: the document text never reaches logs.
+      logger.log(
+        `[${source.name}] Summary failed for ${doc.originalFilename}: ${describeError(err)}`,
+        "warning",
+      );
+      return null;
+    }
+  };
+
+  const processDocument = async (
+    source: ExtractionSource,
+    doc: PendingDocument,
+  ): Promise<void> => {
     let result: ExtractionResult;
     try {
       result = await runExtraction({ url: doc.url, mimeType: doc.mimeType });
@@ -105,19 +153,27 @@ export const createDocumentExtractionService = ({
         ok: false,
         reason: "extraction-failed",
         message: getGenericExtractionError(doc.mimeType),
-        detail: err instanceof Error ? err.message : String(err),
+        detail: describeError(err),
       };
     }
 
     const update = toUpdate(result);
-    if (update.extractionStatus === "done") {
+    if (result.ok) {
       processed += 1;
+      if (source.summarize) {
+        update.summary = await summarizeDocument(
+          source,
+          source.summarize,
+          doc,
+          result.text,
+        );
+      }
     } else {
       failed += 1;
       // Only the user-facing message is stored; the raw cause goes to logs.
-      const detail = !result.ok && result.detail ? ` (${result.detail})` : "";
+      const detail = result.detail ? ` (${result.detail})` : "";
       logger.log(
-        `Extraction ${update.extractionStatus} for ${doc.originalFilename}: ${update.extractionError}${detail}`,
+        `[${source.name}] Extraction ${update.extractionStatus} for ${doc.originalFilename}: ${update.extractionError}${detail}`,
         "warning",
       );
     }
@@ -125,18 +181,24 @@ export const createDocumentExtractionService = ({
     // A persist failure must not abort the rest of the batch — the document
     // stays "pending" and is picked up on a later pass.
     try {
-      await persist(doc.id, update);
+      await source.persist(doc.id, update);
     } catch (err) {
-      logger.error(`Failed to persist extraction for ${doc.id}`, err);
+      logger.error(
+        `[${source.name}] Failed to persist extraction for ${doc.id}`,
+        err,
+      );
     }
   };
 
-  const runOnce = async (): Promise<void> => {
+  const drainSource = async (source: ExtractionSource): Promise<void> => {
     let documents: PendingDocument[];
     try {
-      documents = await fetchPending(batchSize);
+      documents = await source.fetchPending(batchSize);
     } catch (err) {
-      logger.error("Failed to load documents pending extraction", err);
+      logger.error(
+        `[${source.name}] Failed to load documents pending extraction`,
+        err,
+      );
       return;
     }
 
@@ -144,11 +206,29 @@ export const createDocumentExtractionService = ({
       return;
     }
 
-    logger.log(`Extracting text for ${documents.length} document(s)`, "info");
+    logger.log(
+      `[${source.name}] Extracting text for ${documents.length} document(s)`,
+      "info",
+    );
 
-    // Sequential on purpose: one worker thread at a time on a 512MB box.
     for (const doc of documents) {
-      await processDocument(doc);
+      // Leave the rest "pending" for the next boot rather than delay shutdown.
+      if (stopped) {
+        return;
+      }
+      await processDocument(source, doc);
+    }
+  };
+
+  const runOnce = async (): Promise<void> => {
+    // Sequential on purpose: one worker thread at a time on a 512MB box, so
+    // sources take turns instead of running side by side. Each source fails
+    // independently — a broken query in one never skips the others.
+    for (const source of sources) {
+      if (stopped) {
+        return;
+      }
+      await drainSource(source);
     }
   };
 
@@ -183,7 +263,8 @@ export const createDocumentExtractionService = ({
         clearInterval(timer);
         timer = null;
       }
-      // Bounded by the per-document worker timeout.
+      // Bounded by the current document: its worker timeout plus, for a
+      // summarized source, the summary request timeout.
       await inFlight;
     },
 

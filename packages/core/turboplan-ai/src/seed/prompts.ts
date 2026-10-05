@@ -52,6 +52,7 @@ const {
   toolDescCreateDocumentTasks,
   toolDescGetContents,
   toolDescGenerateQuickResponses,
+  toolDescReadOrganizationDocuments,
   toolDescReadProjectDocuments,
   toolDescRequestSuggestions,
   toolDescUpdateDocument,
@@ -179,6 +180,13 @@ const PROMPT_SEEDS: PromptSeed[] = [
     category: C.Tools,
   },
   {
+    name: "tool-desc-read-organization-documents",
+    title: "Tool Description: Read Organization Documents",
+    description: "Description for readOrganizationDocuments tool",
+    content: toolDescReadOrganizationDocuments,
+    category: C.Tools,
+  },
+  {
     name: "tool-desc-update-project-context",
     title: "Tool Description: Update Project Context",
     description: "Description for updateProjectContext tool",
@@ -266,7 +274,7 @@ const PROMPT_SEEDS: PromptSeed[] = [
     name: "research-agent-start-prompt",
     title: "Research Agent Start Prompt",
     description:
-      "Prompt sent to research agent to start analysis. Uses {{projectName}}, {{projectDescription}}, {{projectFields}}, {{projectContext}}, {{projectDocuments}}, {{recentConversation}} variables.",
+      "Prompt sent to research agent to start analysis. Uses {{projectName}}, {{projectDescription}}, {{projectFields}}, {{projectContext}}, {{projectDocuments}}, {{recentConversation}}, {{organizationContext}} variables.",
     content: researchAgentStartPromptTemplate,
     category: C.ResearchAgent,
   },

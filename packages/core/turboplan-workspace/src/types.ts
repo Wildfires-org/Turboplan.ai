@@ -141,3 +141,13 @@ export {
   type EditProjectFormData,
   editProjectSchema,
 } from "./server/projects/validation";
+
+// ============================================================================
+// ORGANIZATION CONTEXT
+// ============================================================================
+
+/** Maximum length of an organization's standing AI prompt (after trimming). */
+export const ORGANIZATION_PROMPT_MAX_CHARS = 4_000;
+
+/** Maximum number of reference documents an organization can hold. */
+export const ORGANIZATION_DOCUMENTS_MAX = 100;

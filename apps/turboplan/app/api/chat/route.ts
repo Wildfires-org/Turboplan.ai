@@ -54,6 +54,7 @@ import { generateTitleFromUserMessage } from "@/lib/ai/generate-title";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { generateQuickResponses } from "@/lib/ai/tools/generate-quick-responses";
 import { getContents } from "@/lib/ai/tools/get-contents";
+import { readOrganizationDocuments } from "@/lib/ai/tools/read-organization-documents";
 import { readProjectDocuments } from "@/lib/ai/tools/read-project-documents";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { researchNotes } from "@/lib/ai/tools/research-notes";
@@ -128,6 +129,7 @@ const createTools = async ({
   session,
   writer,
   projectId,
+  organizationId,
   chatId,
   userMessage,
   activeTools,
@@ -139,6 +141,8 @@ const createTools = async ({
   session: Session;
   writer: UIMessageStreamWriter;
   projectId?: string;
+  /** Organization whose context block was injected (binds its reader tool) */
+  organizationId?: string;
   chatId?: string;
   userMessage?: UIMessage;
   activeTools: string[];
@@ -195,6 +199,20 @@ const createTools = async ({
   if (activeTools.includes("readProjectDocuments") && projectId && userId) {
     tools.readProjectDocuments = await readProjectDocuments({
       projectId,
+      userId,
+    });
+  }
+
+  // Conditional organization-documents reader — only when the organization
+  // block was injected (activeTools reflects that). Bound to the organization
+  // resolved server-side; the tool re-checks READ at execution time.
+  if (
+    activeTools.includes("readOrganizationDocuments") &&
+    organizationId &&
+    userId
+  ) {
+    tools.readOrganizationDocuments = await readOrganizationDocuments({
+      organizationId,
       userId,
     });
   }
@@ -420,6 +438,7 @@ export async function POST(request: Request) {
 
     const projectContext =
       [
+        promptArgs.organizationContextData,
         promptArgs.projectContextData,
         promptArgs.projectFieldsContext,
         promptArgs.savedResearchContext,
@@ -583,6 +602,7 @@ export async function POST(request: Request) {
             session,
             writer,
             projectId: chatProjectId,
+            organizationId: promptArgs.organizationId,
             chatId: id,
             userMessage,
             activeTools: promptArgs.activeTools,

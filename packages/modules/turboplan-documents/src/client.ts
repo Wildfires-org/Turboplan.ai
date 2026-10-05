@@ -22,6 +22,7 @@ export {
   ProjectDocumentsSection,
   type ProjectDocumentsSectionProps,
 } from "./components/project-documents-section";
+export { RenameDocumentDialog } from "./components/rename-document-dialog";
 // Constants
 export {
   ACCEPT_STRING,
@@ -30,6 +31,7 @@ export {
 } from "./components/utils";
 export { getPreviewDocumentMimeType } from "./document-mime";
 // Hooks
+export { useIsExtractionStale } from "./hooks/use-is-extraction-stale";
 export { useProjectDocuments } from "./hooks/use-project-documents";
 // Types
 export type {

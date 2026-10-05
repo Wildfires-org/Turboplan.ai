@@ -15,13 +15,19 @@ import {
   getProjectDocumentsByProjectId,
 } from "@wildfires-org/turboplan-db/queries";
 import type { ResearchAgentMessage as DbResearchAgentMessage } from "@wildfires-org/turboplan-db/schemas";
+import { isProjectContextPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 import {
   getProjectContextByProjectId,
   insertProjectContext,
 } from "@wildfires-org/turboplan-project-context/server";
 import { createTimelineRecordOrThrow } from "@wildfires-org/turboplan-timeline-records/server";
 import { uploadFile } from "@wildfires-org/turboplan-upload/server";
-import { getProjectById } from "@wildfires-org/turboplan-workspace/server";
+import {
+  getOrganizationContextForProject,
+  getProjectById,
+  ORG_CONTEXT_RESEARCH_BUDGET,
+  ORG_CONTEXT_RESEARCH_PROMPT_MAX_CHARS,
+} from "@wildfires-org/turboplan-workspace/server";
 
 import { isDownloadableDocument } from "../../document-preview-utils";
 import {
@@ -114,9 +120,11 @@ export function formatChatMessagesForResearchAgent(
 // Gather additional project context for the research agent start prompt
 // ---------------------------------------------------------------------------
 
-// Per-section character budgets. Their sum plus template overhead and
-// sanitizePromptValue expansion is kept comfortably under MAX_START_PROMPT_CHARS
-// so the assembled start prompt clears the external service's hard 20k limit.
+// Per-section character budgets. With every project section full the assembled
+// start prompt is ~18.4k chars, under the external service's hard 20k limit
+// (MAX_START_PROMPT_CHARS). The organization block (up to
+// ORG_CONTEXT_RESEARCH_BUDGET) can push that case ~1.3k over; the trim loop in
+// startResearchAgent then takes the difference from documents.
 // Uploaded documents get the largest share: a user's own scope/proposal lets
 // the agent skip web research for facts it would otherwise rediscover.
 const MAX_FIELDS_CHARS = 800;
@@ -303,6 +311,38 @@ async function gatherProjectDocumentsForResearchAgent(
   }
 }
 
+/**
+ * The owning organization's budgeted context block (guidance + document key
+ * facts), at most {@link ORG_CONTEXT_RESEARCH_BUDGET} chars. No read-tool hint:
+ * the research agent cannot open organization documents. No separate READ
+ * check: starting a run needs project UPDATE, which implies organization READ.
+ * Never throws — any failure degrades to "N/A" so it can't fail or delay the
+ * research run.
+ */
+async function gatherOrganizationContextForResearchAgent(
+  projectId: string,
+): Promise<string> {
+  if (!isProjectContextPackageEnabled()) {
+    return "N/A";
+  }
+  try {
+    const organizationContext = await getOrganizationContextForProject(
+      projectId,
+      {
+        budgetChars: ORG_CONTEXT_RESEARCH_BUDGET,
+        promptMaxChars: ORG_CONTEXT_RESEARCH_PROMPT_MAX_CHARS,
+      },
+    );
+    return organizationContext?.block ?? "N/A";
+  } catch (error) {
+    console.error(
+      "[bootstrapper] Failed to gather organization context for research agent:",
+      error,
+    );
+    return "N/A";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Start external service
 // ---------------------------------------------------------------------------
@@ -356,17 +396,21 @@ export const startResearchAgent = async ({
 
     // Gather DB-backed project data in parallel. Each gatherer degrades to
     // "N/A" on failure and never throws, so this can't fail or delay the run.
-    const [projectFields, projectContext, projectDocuments] = await Promise.all(
-      [
-        gatherProjectFieldsForResearchAgent(projectId),
-        gatherProjectContextForResearchAgent(projectId),
-        gatherProjectDocumentsForResearchAgent(projectId),
-      ],
-    );
+    const [
+      projectFields,
+      projectContext,
+      projectDocuments,
+      organizationContext,
+    ] = await Promise.all([
+      gatherProjectFieldsForResearchAgent(projectId),
+      gatherProjectContextForResearchAgent(projectId),
+      gatherProjectDocumentsForResearchAgent(projectId),
+      gatherOrganizationContextForResearchAgent(projectId),
+    ]);
 
     // Apply per-section budgets, then sanitize at the choke point. (Fields,
-    // context, documents and conversation are already capped by their gatherers;
-    // name and description are capped here.)
+    // context, documents, conversation and organization context are already
+    // capped by their gatherers; name and description are capped here.)
     const cappedName = projectName.slice(0, MAX_NAME_CHARS);
     const cappedDescription = capValueToBudget(
       projectDescription ?? "N/A",
@@ -385,6 +429,7 @@ export const startResearchAgent = async ({
         projectContext: sanitizePromptValue(projectContext),
         projectDocuments: sanitizePromptValue(documentsValue),
         recentConversation: sanitizePromptValue(conversationValue),
+        organizationContext: sanitizePromptValue(organizationContext),
       });
 
     let documentsValue = projectDocuments;

@@ -34,6 +34,7 @@ export * from "./workspace/invitations";
 export * from "./workspace/office";
 export * from "./workspace/office-users";
 export * from "./workspace/organization";
+export * from "./workspace/organization-context";
 export * from "./workspace/organization-signing-config";
 export * from "./workspace/organization-users";
 export * from "./workspace/project";

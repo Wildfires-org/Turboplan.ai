@@ -7,7 +7,8 @@ import { ChatMode } from "../types";
  *   1. Base Identity (always included)
  *   2. Mode Prompt (research-mode | full-mode)
  *   2.5. Feature Prompts (tasks, etc. — conditional on feature flags)
- *   3. Context Sections (project data, research, documents, tasks)
+ *   3. Context Sections (organization context, project data, research,
+ *      documents, tasks)
  *
  * Tool instructions are NOT part of the system prompt — they live in
  * tool descriptions (tool-descriptions.ts) passed via the SDK's tool() field.
@@ -16,6 +17,7 @@ export const systemPrompt = async ({
   mode = ChatMode.Full,
   enabledFeatures,
   projectName,
+  organizationContextData,
   researchAgentStatus,
   projectContextData,
   projectFieldsContext,
@@ -41,8 +43,10 @@ export const systemPrompt = async ({
   // Assemble layers
   const layers = [basePrompt, currentDate, modePrompt, ...featurePrompts];
 
-  // Context sections in priority order
+  // Context sections in priority order. Organization context goes first: it
+  // is the most stable section, so it extends the prompt-cached prefix.
   const contextSections = [
+    organizationContextData,
     researchAgentStatus,
     projectContextData,
     projectFieldsContext,

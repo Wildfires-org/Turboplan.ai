@@ -36,6 +36,7 @@ import {
   toolDescCreateDocumentTasks,
   toolDescGenerateQuickResponses,
   toolDescGetContents,
+  toolDescReadOrganizationDocuments,
   toolDescReadProjectDocuments,
   toolDescRequestSuggestions,
   toolDescResearchNotes,
@@ -77,6 +78,7 @@ const HARDCODED_PROMPTS = {
   "tool-desc-web-search": toolDescWebSearch,
   "tool-desc-get-contents": toolDescGetContents,
   "tool-desc-read-project-documents": toolDescReadProjectDocuments,
+  "tool-desc-read-organization-documents": toolDescReadOrganizationDocuments,
   "tool-desc-update-project-context": toolDescUpdateProjectContext,
   "tool-desc-update-project-fields": toolDescUpdateProjectFields,
   "tool-desc-update-project-fields-proactive":

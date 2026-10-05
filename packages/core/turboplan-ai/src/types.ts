@@ -34,6 +34,12 @@ export interface SystemPromptProps {
   /** Project name — injected into base-identity via {{projectName}} */
   projectName: string;
   // Context sections
+  /**
+   * Budgeted block from the project's organization (standing prompt + document
+   * key facts). Placed first among context sections: it changes least often,
+   * so it extends the prompt-cached prefix.
+   */
+  organizationContextData?: string;
   researchAgentStatus?: string;
   projectContextData?: string;
   projectFieldsContext?: string;

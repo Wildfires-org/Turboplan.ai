@@ -1,5 +1,5 @@
+import type { FastModelClient } from "../infra/fast-model-client";
 import { logger } from "../infra/logger";
-import type { FastModelClient } from "./ai-client";
 import type { MemoryRecord, MemoryRepository } from "./repository";
 import { extractKeywordsFromPrompt } from "./utils/extract-search-keywords";
 import { parseMemoriesFromResult } from "./utils/parse-memory-block";

@@ -5,6 +5,7 @@ import { getGenericExtractionError } from "@wildfires-org/turboplan-document-ext
 
 import {
   createDocumentExtractionService,
+  type ExtractionSource,
   type ExtractionUpdate,
   type PendingDocument,
 } from "../../../src/documents/extraction-service";
@@ -46,6 +47,26 @@ const waitFor = async (
 
 type Persisted = { id: string; data: ExtractionUpdate };
 
+/** A source that serves `documents` on its first fetch and nothing after. */
+const oneBatchSource = (
+  documents: PendingDocument[],
+  overrides: Partial<ExtractionSource> = {},
+): ExtractionSource => {
+  let served = false;
+  return {
+    name: "project",
+    fetchPending: async () => {
+      if (served) {
+        return [];
+      }
+      served = true;
+      return documents;
+    },
+    persist: async () => {},
+    ...overrides,
+  };
+};
+
 describe("document extraction service", () => {
   it("processes a batch sequentially and maps every result kind", async () => {
     const pending = [doc("a"), doc("b"), doc("c")];
@@ -70,19 +91,15 @@ describe("document extraction service", () => {
     const persisted: Persisted[] = [];
     let concurrent = 0;
     let maxConcurrent = 0;
-    let served = false;
 
     const service = createDocumentExtractionService({
-      fetchPending: async () => {
-        if (served) {
-          return [];
-        }
-        served = true;
-        return pending;
-      },
-      persist: async (id, data) => {
-        persisted.push({ id, data });
-      },
+      sources: [
+        oneBatchSource(pending, {
+          persist: async (id, data) => {
+            persisted.push({ id, data });
+          },
+        }),
+      ],
       runExtraction: async ({ url }) => {
         concurrent += 1;
         maxConcurrent = Math.max(maxConcurrent, concurrent);
@@ -125,19 +142,15 @@ describe("document extraction service", () => {
   it("stores only the user-facing message and logs the raw detail", async () => {
     const persisted: Persisted[] = [];
     const warnings: string[] = [];
-    let served = false;
 
     const service = createDocumentExtractionService({
-      fetchPending: async () => {
-        if (served) {
-          return [];
-        }
-        served = true;
-        return [doc("broken"), doc("throws")];
-      },
-      persist: async (id, data) => {
-        persisted.push({ id, data });
-      },
+      sources: [
+        oneBatchSource([doc("broken"), doc("throws")], {
+          persist: async (id, data) => {
+            persisted.push({ id, data });
+          },
+        }),
+      ],
       runExtraction: async ({ url }) => {
         if (url.includes("throws")) {
           throw new RangeError("offset 4096 is out of bounds");
@@ -176,13 +189,18 @@ describe("document extraction service", () => {
     const service = createDocumentExtractionService({
       // Long enough that only wake() can produce a run within the test.
       pollIntervalMs: 60_000,
-      fetchPending: async () => {
-        batches += 1;
-        return batches === 1 ? [] : [doc("late")];
-      },
-      persist: async (id, data) => {
-        persisted.push({ id, data });
-      },
+      sources: [
+        {
+          name: "project",
+          fetchPending: async () => {
+            batches += 1;
+            return batches === 1 ? [] : [doc("late")];
+          },
+          persist: async (id, data) => {
+            persisted.push({ id, data });
+          },
+        },
+      ],
       runExtraction: async () => ({ ok: true, text: "x", truncated: false }),
       logger: silentLogger,
     });
@@ -202,22 +220,18 @@ describe("document extraction service", () => {
 
   it("keeps processing the batch when a persist call fails", async () => {
     const attempted: string[] = [];
-    let served = false;
 
     const service = createDocumentExtractionService({
-      fetchPending: async () => {
-        if (served) {
-          return [];
-        }
-        served = true;
-        return [doc("a"), doc("b")];
-      },
-      persist: async (id) => {
-        attempted.push(id);
-        if (id === "a") {
-          throw new Error("db down");
-        }
-      },
+      sources: [
+        oneBatchSource([doc("a"), doc("b")], {
+          persist: async (id) => {
+            attempted.push(id);
+            if (id === "a") {
+              throw new Error("db down");
+            }
+          },
+        }),
+      ],
       runExtraction: async () => ({ ok: true, text: "x", truncated: false }),
       logger: silentLogger,
     });
@@ -232,19 +246,15 @@ describe("document extraction service", () => {
   it("stop() waits for the in-flight batch to finish", async () => {
     const gate = createDeferred<void>();
     const persisted: Persisted[] = [];
-    let served = false;
 
     const service = createDocumentExtractionService({
-      fetchPending: async () => {
-        if (served) {
-          return [];
-        }
-        served = true;
-        return [doc("slow")];
-      },
-      persist: async (id, data) => {
-        persisted.push({ id, data });
-      },
+      sources: [
+        oneBatchSource([doc("slow")], {
+          persist: async (id, data) => {
+            persisted.push({ id, data });
+          },
+        }),
+      ],
       runExtraction: async () => {
         await gate.promise;
         return { ok: true, text: "done", truncated: false };
@@ -270,5 +280,234 @@ describe("document extraction service", () => {
     expect(stopResolved).toBe(true);
     expect(persisted).toHaveLength(1);
     expect(service.getStatus().inFlight).toBe(false);
+  });
+
+  describe("multiple sources", () => {
+    it("persists the summary for a source that summarizes, only for done results", async () => {
+      const persisted: Persisted[] = [];
+      const summarized: { text: string; filename: string }[] = [];
+
+      const service = createDocumentExtractionService({
+        sources: [
+          oneBatchSource([doc("ok"), doc("bad")], {
+            name: "organization",
+            persist: async (id, data) => {
+              persisted.push({ id, data });
+            },
+            summarize: async (input) => {
+              summarized.push(input);
+              return "- Agency mandate: wildfire risk";
+            },
+          }),
+        ],
+        runExtraction: async ({ url }) =>
+          url.includes("ok")
+            ? { ok: true, text: "full text", truncated: false }
+            : { ok: false, reason: "fetch-failed", message: "404" },
+        logger: silentLogger,
+      });
+
+      service.start();
+      await waitFor(() => persisted.length === 2);
+      await service.stop();
+
+      expect(summarized).toEqual([{ text: "full text", filename: "ok.pdf" }]);
+      expect(persisted[0].data).toEqual({
+        extractionStatus: "done",
+        extractedText: "full text",
+        extractionError: null,
+        summary: "- Agency mandate: wildfire risk",
+      });
+      expect(persisted[1].data).toEqual({
+        extractionStatus: "failed",
+        extractedText: null,
+        extractionError: "404",
+      });
+      expect(service.getStatus().processed).toBe(1);
+    });
+
+    it("stores a null summary and keeps the document done when summarizing throws", async () => {
+      const persisted: Persisted[] = [];
+      const warnings: string[] = [];
+
+      const service = createDocumentExtractionService({
+        sources: [
+          oneBatchSource([doc("policy")], {
+            name: "organization",
+            persist: async (id, data) => {
+              persisted.push({ id, data });
+            },
+            summarize: async () => {
+              throw new Error("upstream overloaded");
+            },
+          }),
+        ],
+        runExtraction: async () => ({
+          ok: true,
+          text: "CONFIDENTIAL BODY TEXT",
+          truncated: false,
+        }),
+        logger: {
+          log: (message) => {
+            warnings.push(message);
+          },
+          error: () => {},
+        },
+      });
+
+      service.start();
+      await waitFor(() => persisted.length === 1);
+      await service.stop();
+
+      expect(persisted[0].data).toEqual({
+        extractionStatus: "done",
+        extractedText: "CONFIDENTIAL BODY TEXT",
+        extractionError: null,
+        summary: null,
+      });
+      const log = warnings.join("\n");
+      expect(log).toContain("[organization] Summary failed for policy.pdf");
+      expect(log).toContain("upstream overloaded");
+      expect(log).not.toContain("CONFIDENTIAL BODY TEXT");
+      expect(service.getStatus()).toMatchObject({ processed: 1, failed: 0 });
+    });
+
+    it("never adds a summary key for a source without summarize", async () => {
+      const persisted: Persisted[] = [];
+
+      const service = createDocumentExtractionService({
+        sources: [
+          oneBatchSource([doc("p")], {
+            name: "project",
+            persist: async (id, data) => {
+              persisted.push({ id, data });
+            },
+          }),
+          oneBatchSource([doc("o")], {
+            name: "organization",
+            persist: async (id, data) => {
+              persisted.push({ id, data });
+            },
+            summarize: async () => "- fact",
+          }),
+        ],
+        runExtraction: async () => ({ ok: true, text: "x", truncated: false }),
+        logger: silentLogger,
+      });
+
+      service.start();
+      await waitFor(() => persisted.length === 2);
+      await service.stop();
+
+      expect(persisted.map((p) => p.id)).toEqual(["p", "o"]);
+      expect(Object.keys(persisted[0].data).sort()).toEqual([
+        "extractedText",
+        "extractionError",
+        "extractionStatus",
+      ]);
+      expect(persisted[1].data.summary).toBe("- fact");
+    });
+
+    it.each(["fetch", "persist"] as const)(
+      "keeps draining other sources when one source's %s fails",
+      async (failing) => {
+        const persisted: Persisted[] = [];
+        const errors: string[] = [];
+
+        const broken: ExtractionSource =
+          failing === "fetch"
+            ? {
+                name: "project",
+                fetchPending: async () => {
+                  throw new Error("relation does not exist");
+                },
+                persist: async () => {},
+              }
+            : oneBatchSource([doc("p")], {
+                name: "project",
+                persist: async () => {
+                  throw new Error("db down");
+                },
+              });
+
+        const service = createDocumentExtractionService({
+          sources: [
+            broken,
+            oneBatchSource([doc("o")], {
+              name: "organization",
+              persist: async (id, data) => {
+                persisted.push({ id, data });
+              },
+            }),
+          ],
+          runExtraction: async () => ({
+            ok: true,
+            text: "x",
+            truncated: false,
+          }),
+          logger: {
+            log: () => {},
+            error: (message) => {
+              errors.push(message);
+            },
+          },
+        });
+
+        service.start();
+        await waitFor(() => persisted.length === 1);
+        await service.stop();
+
+        expect(persisted[0].id).toBe("o");
+        expect(errors.some((message) => message.startsWith("[project]"))).toBe(
+          true,
+        );
+      },
+    );
+
+    it("processes documents across sources strictly one at a time, in source order", async () => {
+      const events: string[] = [];
+      let busy = 0;
+      let maxBusy = 0;
+
+      const track = async (label: string): Promise<void> => {
+        busy += 1;
+        maxBusy = Math.max(maxBusy, busy);
+        events.push(label);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        busy -= 1;
+      };
+
+      const service = createDocumentExtractionService({
+        sources: [
+          oneBatchSource([doc("p1"), doc("p2")], { name: "project" }),
+          oneBatchSource([doc("o1"), doc("o2")], {
+            name: "organization",
+            summarize: async ({ filename }) => {
+              await track(`summarize:${filename}`);
+              return "- fact";
+            },
+          }),
+        ],
+        runExtraction: async ({ url }) => {
+          await track(`extract:${url.split("/").pop()}`);
+          return { ok: true, text: "x", truncated: false };
+        },
+        logger: silentLogger,
+      });
+
+      service.start();
+      await waitFor(() => events.length === 6);
+      await service.stop();
+
+      expect(maxBusy).toBe(1);
+      expect(events).toEqual([
+        "extract:p1.pdf",
+        "extract:p2.pdf",
+        "extract:o1.pdf",
+        "summarize:o1.pdf",
+        "extract:o2.pdf",
+        "summarize:o2.pdf",
+      ]);
+    });
   });
 });

@@ -16,6 +16,8 @@ export * from "./core";
 export * from "./errors";
 // Generated images queries
 export * from "./generated-images";
+// Organization context (prompt + reference documents) queries
+export * from "./organization-context";
 // Organization queries
 export * from "./organizations";
 // Personal access token queries

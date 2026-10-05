@@ -134,6 +134,13 @@ export const PROMPT_VARIABLES: PromptVariable[] = [
     applicablePrompts: ["research-agent-start-prompt"],
   },
   {
+    name: "organizationContext",
+    description:
+      "Owning organization's guidance and key facts from its documents, for the research agent start prompt",
+    isProtected: true,
+    applicablePrompts: ["research-agent-start-prompt"],
+  },
+  {
     name: "sections",
     description:
       "Formatted markdown sections (fields, milestones, documents) from research agent analysis",
@@ -171,6 +178,7 @@ export interface VariableContext {
   projectMilestones?: string;
   projectActivity?: string;
   recentConversation?: string;
+  organizationContext?: string;
   sections?: string;
   messages?: string;
 }
@@ -263,6 +271,14 @@ export function parsePromptVariables(
     result = result.replace(
       /\{\{recentConversation\}\}/g,
       () => recentConversation,
+    );
+  }
+
+  if (context.organizationContext !== undefined) {
+    const organizationContext = context.organizationContext;
+    result = result.replace(
+      /\{\{organizationContext\}\}/g,
+      () => organizationContext,
     );
   }
 

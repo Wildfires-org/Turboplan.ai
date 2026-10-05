@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
 import { Loader2, User } from "lucide-react";
 
@@ -11,10 +11,8 @@ import {
   generateInitials,
 } from "@wildfires-org/turboplan-utils";
 
-import {
-  getMsUntilStale,
-  type ProjectDocumentExtractionStatus,
-} from "../types";
+import { useIsExtractionStale } from "../hooks/use-is-extraction-stale";
+import type { ProjectDocumentExtractionStatus } from "../types";
 import { formatDateTime, getFileTypeLabel } from "./utils";
 
 interface DocumentCardBase {
@@ -210,37 +208,6 @@ export function DocumentCardReadOnly({
 
 const EXTRACTION_CHIP_CLASS =
   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset";
-
-/**
- * Whether a document pending since `pendingSince` (epoch ms) has waited past
- * the stale threshold. Re-renders once when the threshold passes, so the
- * spinner does not run forever.
- */
-const useIsExtractionStale = (isPending: boolean, pendingSince: number) => {
-  const [isStale, setIsStale] = useState(
-    () => isPending && getMsUntilStale(pendingSince) === 0,
-  );
-
-  useEffect(() => {
-    if (!isPending) {
-      setIsStale(false);
-      return;
-    }
-    const delay = getMsUntilStale(pendingSince);
-    if (delay === 0) {
-      setIsStale(true);
-      return;
-    }
-    setIsStale(false);
-    if (!Number.isFinite(delay)) {
-      return;
-    }
-    const timer = setTimeout(() => setIsStale(true), delay);
-    return () => clearTimeout(timer);
-  }, [isPending, pendingSince]);
-
-  return isStale;
-};
 
 type ExtractionStatusChipProps = {
   status?: ProjectDocumentExtractionStatus;

@@ -1,5 +1,5 @@
+import type { FastModelClient } from "../../infra/fast-model-client";
 import { logger } from "../../infra/logger";
-import type { FastModelClient } from "../ai-client";
 
 const SYSTEM_PROMPT = `Extract 3-7 specific, searchable keywords from the user's prompt that would help find relevant past memories. Return ONLY a JSON array of lowercase strings, nothing else. Example: ["habitat restoration","environmental assessment","wetland","protected species","permit"]`;
 

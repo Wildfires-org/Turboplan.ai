@@ -51,6 +51,13 @@ describe("AppUrls", () => {
         "/organizations/my-organization-abc123",
       );
     });
+
+    it("should generate correct organization context URL", () => {
+      assert.strictEqual(
+        AppUrls.organizationContext("my-org"),
+        "/organizations/my-org/context",
+      );
+    });
   });
 
   describe("office routes", () => {

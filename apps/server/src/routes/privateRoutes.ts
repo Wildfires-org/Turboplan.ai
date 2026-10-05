@@ -23,6 +23,8 @@ import {
   configureWorkspaceAnalytics,
   invitationsRouter,
   officesRouter,
+  organizationContextRouter,
+  organizationDocumentsRouter,
   organizationSigningConfigRouter,
   organizationsRouter,
   projectDocumentsRouter,
@@ -163,6 +165,11 @@ export async function registerPrivateRoutes(router: Hono) {
 
   // Conditionally add project context router if feature is enabled
   if (isProjectContextPackageEnabled()) {
+    // Organization context: standing AI prompt + reference documents (from
+    // workspace package, no dynamic import needed)
+    router.route("/api/organizations", organizationContextRouter);
+    router.route("/api/organization-documents", organizationDocumentsRouter);
+
     try {
       const { contextRouter } = await import(
         "@wildfires-org/turboplan-project-context/server"

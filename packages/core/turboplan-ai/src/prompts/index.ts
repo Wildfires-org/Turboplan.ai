@@ -61,6 +61,7 @@ export {
   toolDescCreateDocumentTasks,
   toolDescGenerateQuickResponses,
   toolDescGetContents,
+  toolDescReadOrganizationDocuments,
   toolDescReadProjectDocuments,
   toolDescRequestSuggestions,
   toolDescResearchNotes,

@@ -39,6 +39,33 @@ const canUserUpdateProject = async (
   }
 };
 
+/**
+ * Whether the user may READ the organization (includes READ inherited upward
+ * from project membership). Fails closed: any error means no organization
+ * context is shared.
+ */
+const canUserReadOrganization = async (
+  userId: string,
+  organizationId: string,
+): Promise<boolean> => {
+  try {
+    const rbac = getRBACService();
+    const result = await rbac.checkPermission(
+      userId,
+      organizationId,
+      EntityType.ORGANIZATION,
+      Action.READ,
+    );
+    return result.allowed;
+  } catch (error) {
+    console.error(
+      "[SystemPromptContext] Failed to check organization READ permission:",
+      error,
+    );
+    return false;
+  }
+};
+
 type SystemPromptContext = {
   /** Defaults to ChatMode.Full when omitted. Only set to ChatMode.Research during active research phase. */
   mode?: ChatMode;
@@ -49,6 +76,12 @@ type SystemPromptContext = {
    */
   isBroughtProject?: boolean;
   projectName: string;
+  /** Budgeted block from the project's organization (prompt + document facts) */
+  organizationContextData?: string;
+  /** Organization the block came from; binds readOrganizationDocuments */
+  organizationId?: string;
+  /** Organization documents whose full text readOrganizationDocuments can return */
+  readableOrganizationDocumentIds?: string[];
   researchAgentStatus?: string;
   projectTasksContext?: string;
   savedResearchContext?: string;
@@ -75,7 +108,7 @@ export const buildSystemPromptArgs = async ({
   chatId?: string;
   userId?: string;
 } = {}) => {
-  const context = await fetchSystemPromptContext({ projectId, chatId });
+  const context = await fetchSystemPromptContext({ projectId, chatId, userId });
 
   const isResearchPhase = context.mode === ChatMode.Research;
 
@@ -88,6 +121,14 @@ export const buildSystemPromptArgs = async ({
   // package enabled.
   const hasReadProjectDocumentsTool =
     !!projectId && isDocumentsPackageEnabled();
+
+  // Reading organization documents needs the organization block in the prompt
+  // (it carries the ids, and was only added after an organization READ check)
+  // and at least one document with extracted text. Works in both modes.
+  const hasReadOrganizationDocumentsTool =
+    !!context.organizationContextData &&
+    !!context.organizationId &&
+    (context.readableOrganizationDocumentIds?.length ?? 0) > 0;
 
   // Project write tools require UPDATE permission on the project. They work in
   // BOTH research and full mode (not research-phase-gated).
@@ -104,6 +145,9 @@ export const buildSystemPromptArgs = async ({
         ? ["createDocument", "updateDocument", "requestSuggestions"]
         : []),
       ...(hasReadProjectDocumentsTool ? ["readProjectDocuments"] : []),
+      ...(hasReadOrganizationDocumentsTool
+        ? ["readOrganizationDocuments"]
+        : []),
       ...(hasUpdateProjectContextTool ? ["updateProjectContext"] : []),
       ...(hasUpdateProjectFieldsTool ? ["updateProjectFields"] : []),
       "generateQuickResponses",
@@ -126,9 +170,11 @@ export const buildSystemPromptArgs = async ({
 const fetchSystemPromptContext = async ({
   projectId,
   chatId,
+  userId,
 }: {
   projectId?: string;
   chatId?: string;
+  userId?: string;
 } = {}): Promise<SystemPromptContext> => {
   if (!projectId) {
     return { projectName: "" };
@@ -287,6 +333,49 @@ const fetchSystemPromptContext = async ({
         } catch (error) {
           console.error(
             "[SystemPromptContext] Failed to fetch project context:",
+            error,
+          );
+        }
+      })(),
+    );
+  }
+
+  // Organization context (standing prompt + document key facts) is shared
+  // only with users who may READ the organization. No user → nothing.
+  if (isProjectContextPackageEnabled() && userId) {
+    fetchers.push(
+      (async () => {
+        try {
+          const {
+            getOrganizationContextForProject,
+            ORG_CONTEXT_CHAT_BUDGET,
+            ORGANIZATION_PROMPT_MAX_CHARS,
+          } = await import("@wildfires-org/turboplan-workspace/server");
+          const organizationContext = await getOrganizationContextForProject(
+            projectId,
+            {
+              budgetChars: ORG_CONTEXT_CHAT_BUDGET,
+              promptMaxChars: ORGANIZATION_PROMPT_MAX_CHARS,
+              readToolName: "readOrganizationDocuments",
+            },
+          );
+          if (!organizationContext) {
+            return;
+          }
+          const canRead = await canUserReadOrganization(
+            userId,
+            organizationContext.organizationId,
+          );
+          if (!canRead) {
+            return;
+          }
+          context.organizationContextData = organizationContext.block;
+          context.organizationId = organizationContext.organizationId;
+          context.readableOrganizationDocumentIds =
+            organizationContext.readableDocumentIds;
+        } catch (error) {
+          console.error(
+            "[SystemPromptContext] Failed to fetch organization context:",
             error,
           );
         }

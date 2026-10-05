@@ -15,6 +15,30 @@ import {
   SHAPEFILE_PART_MESSAGE,
 } from "@wildfires-org/turboplan-upload/types";
 
+import {
+  createSerialQueue,
+  formatDuration,
+  formatMegabytes,
+  getDocumentDedupeKey,
+  getErrorMessage,
+  getUploadTimeoutMessage,
+  type SerialQueue,
+  withTimeout,
+} from "./document-upload-queue";
+
+// The generic document-import helpers live in ./document-upload-queue (shared
+// with the Organization Context dropzone); re-exported for existing callers.
+export {
+  createSerialQueue,
+  formatMegabytes,
+  getDocumentDedupeKey,
+  getKnownDocumentKeys,
+  getUploadTimeoutMessage,
+  pruneImportedDocuments,
+  type SerialQueue,
+  withTimeout,
+} from "./document-upload-queue";
+
 // Logic for the Project Context dropzone (and the GIS saves the project chat
 // shares with it), kept free of React so it can be unit tested: planning a
 // drop, importing it through serial queues with timeouts, and the status of
@@ -98,13 +122,6 @@ export type DropPlanItem<TFile extends DropFile> = {
   dedupeKey?: string;
 };
 
-type ListedDocument = {
-  id: string;
-  originalFilename: string;
-  size: number;
-};
-
-const MB = 1024 * 1024;
 const MINUTE = 60_000;
 
 const DOCUMENT_EXTENSION_PATTERN = /\.(pdf|docx?)$/i;
@@ -119,21 +136,6 @@ const IN_PROGRESS_PHASES: ReadonlySet<DropRowPhase> = new Set([
 // ---------------------------------------------------------------------------
 // Formatting
 
-/** Duplicate key for a document: file name + size, as the chat input uses. */
-export const getDocumentDedupeKey = (name: string, size: number) =>
-  `${name}:${size}`;
-
-export const formatMegabytes = (bytes: number) => `${Math.round(bytes / MB)}MB`;
-
-const formatDuration = (ms: number) => {
-  if (ms >= MINUTE) {
-    const minutes = Math.round(ms / MINUTE);
-    return `${minutes} minute${minutes === 1 ? "" : "s"}`;
-  }
-  const seconds = Math.max(1, Math.round(ms / 1000));
-  return `${seconds} second${seconds === 1 ? "" : "s"}`;
-};
-
 /** Joins messages into sentences, ending each with a full stop if needed. */
 export const joinSentences = (parts: Array<string | null | undefined>) =>
   parts
@@ -143,10 +145,6 @@ export const joinSentences = (parts: Array<string | null | undefined>) =>
       return SENTENCE_END_PATTERN.test(text) ? text : `${text}.`;
     })
     .join(" ");
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  return error instanceof Error && error.message ? error.message : fallback;
-};
 
 /** Short type label shown under the file name. */
 export const getDropRowTypeLabel = (
@@ -331,68 +329,7 @@ export const planDrop = <TFile extends DropFile>(
 };
 
 // ---------------------------------------------------------------------------
-// Duplicate documents
-
-/**
- * Name + size keys of the project's documents: those in the cached list, plus
- * documents imported this session that the list does not show yet (it can
- * lag a render behind an upload). `imported` maps document id to key.
- */
-export const getKnownDocumentKeys = (
-  documents: ListedDocument[],
-  imported: ReadonlyMap<string, string>,
-): Set<string> => {
-  const keys = new Set<string>();
-  const listedIds = new Set<string>();
-  for (const document of documents) {
-    keys.add(getDocumentDedupeKey(document.originalFilename, document.size));
-    listedIds.add(document.id);
-  }
-  for (const [documentId, key] of imported) {
-    if (!listedIds.has(documentId)) {
-      keys.add(key);
-    }
-  }
-  return keys;
-};
-
-/**
- * Forgets imported documents the cached list has caught up with: from then
- * on the list alone says whether they are in the project, so one deleted
- * later can be dropped again. Returns `imported` itself when unchanged.
- */
-export const pruneImportedDocuments = (
-  imported: ReadonlyMap<string, string>,
-  documents: Pick<ListedDocument, "id">[],
-): ReadonlyMap<string, string> => {
-  const listedIds = new Set(documents.map((document) => document.id));
-  const remaining = new Map(
-    Array.from(imported).filter(([documentId]) => !listedIds.has(documentId)),
-  );
-  return remaining.size === imported.size ? imported : remaining;
-};
-
-// ---------------------------------------------------------------------------
 // Queues and timeouts
-
-export type SerialQueue = {
-  run: <T>(task: () => Promise<T>) => Promise<T>;
-};
-
-/**
- * Runs tasks one after another, in the order they were added. A failing task
- * rejects its own promise but does not stop the tasks after it.
- */
-export const createSerialQueue = (): SerialQueue => {
-  let tail: Promise<unknown> = Promise.resolve();
-  return {
-    run: (task) => {
-      const result = tail.then(task);
-      tail = result.catch(() => undefined);
-      return result;
-    },
-  };
-};
 
 /** One {@link createSerialQueue} per key; different keys run side by side. */
 export const createKeyedSerialQueue = () => {
@@ -416,27 +353,6 @@ export const createKeyedSerialQueue = () => {
  */
 export const projectGisSaveQueue = createKeyedSerialQueue();
 
-/** Rejects with `message` when `promise` takes longer than `ms`. */
-export const withTimeout = <T>(
-  promise: Promise<T>,
-  ms: number,
-  message: string,
-): Promise<T> => {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error: unknown) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
-};
-
 export type DropTimeouts = {
   /** Document upload and registration */
   documentUpload: number;
@@ -455,9 +371,6 @@ export const DROP_TIMEOUTS: DropTimeouts = {
   gisUpload: 10 * MINUTE,
   gisProcessing: 5 * MINUTE,
 };
-
-export const getUploadTimeoutMessage = (ms: number) =>
-  `Upload timed out after ${formatDuration(ms)}`;
 
 export const getGisProcessingTimeoutMessage = (ms: number) =>
   `Reading the GIS layers timed out after ${formatDuration(ms)}`;
