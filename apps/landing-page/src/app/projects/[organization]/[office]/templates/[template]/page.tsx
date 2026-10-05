@@ -7,7 +7,6 @@ import {
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { getSession } from "@wildfires-org/turboplan-auth/session";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import type { MilestoneWithTasks } from "@wildfires-org/turboplan-tasks/types";
 
@@ -170,10 +169,9 @@ export default async function PublicTemplatePage({
   params,
 }: TemplatePageProps) {
   const { organization, office, template: templateSlug } = await params;
-  const [template, modules, session] = await Promise.all([
+  const [template, modules] = await Promise.all([
     getPublicTemplate(organization, office, templateSlug),
     getPublicTemplateModules(organization, office, templateSlug),
-    getSession(),
   ]);
 
   if (!template) {
@@ -194,7 +192,6 @@ export default async function PublicTemplatePage({
   const taskMilestones = modules?.tasks?.milestones || [];
   const fieldsData = modules?.fields?.fields || [];
   const documentsData = modules?.documents?.documents || [];
-  const showCreateFromTemplateCta = !!session?.user;
 
   return (
     <div className={CATALOG_PAGE_CLASS}>
@@ -237,14 +234,14 @@ export default async function PublicTemplatePage({
           </span>
         }
         actions={
-          showCreateFromTemplateCta ? (
-            <CreateProjectFromTemplateButton
-              templateId={template.id}
-              templateName={template.name}
-              templateDescription={template.description}
-              initialOrganization={template.organization}
-            />
-          ) : undefined
+          // Renders only for a signed-in visitor, once the browser has
+          // loaded the session.
+          <CreateProjectFromTemplateButton
+            templateId={template.id}
+            templateName={template.name}
+            templateDescription={template.description}
+            initialOrganization={template.organization}
+          />
         }
       />
 

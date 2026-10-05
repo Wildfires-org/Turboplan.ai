@@ -8,7 +8,6 @@ import {
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { getSession } from "@wildfires-org/turboplan-auth/session";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import type { GeospatialLayer } from "@wildfires-org/turboplan-map/client";
 import type { MilestoneWithTasks } from "@wildfires-org/turboplan-tasks/types";
@@ -244,14 +243,14 @@ export async function generateMetadata({
 
 export default async function PublicProjectPage({ params }: ProjectPageProps) {
   const { organization, office, project: projectSlug } = await params;
-  const [project, modules, commentsData, timelineData, session] =
-    await Promise.all([
-      getPublicProject(organization, office, projectSlug),
-      getPublicProjectModules(organization, office, projectSlug),
-      getPublicComments(organization, office, projectSlug),
-      getPublicTimeline(organization, office, projectSlug),
-      getSession(),
-    ]);
+  // No session read here: it would make every catalog page dynamic. The
+  // comment box reads the session in the browser.
+  const [project, modules, commentsData, timelineData] = await Promise.all([
+    getPublicProject(organization, office, projectSlug),
+    getPublicProjectModules(organization, office, projectSlug),
+    getPublicComments(organization, office, projectSlug),
+    getPublicTimeline(organization, office, projectSlug),
+  ]);
 
   if (!project) {
     notFound();
@@ -275,9 +274,6 @@ export default async function PublicProjectPage({ params }: ProjectPageProps) {
   const fieldsData = modules?.fields?.fields || [];
   const timelineRecords = timelineData?.records || [];
   const publicComments = commentsData?.comments || [];
-
-  // Get session user for comments (if logged in)
-  const sessionUser = session?.user ? { id: session.user.id } : null;
 
   return (
     <div className={CATALOG_PAGE_CLASS}>
@@ -382,7 +378,6 @@ export default async function PublicProjectPage({ params }: ProjectPageProps) {
                     officeSlug={office}
                     projectSlug={projectSlug}
                     initialComments={publicComments}
-                    sessionUser={sessionUser}
                   />
                 ),
               },
