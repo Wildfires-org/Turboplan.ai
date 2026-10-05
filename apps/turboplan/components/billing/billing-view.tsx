@@ -35,6 +35,7 @@ import {
   toast,
 } from "@wildfires-org/turboplan-utils";
 
+import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
 import { CreditUsageCard } from "./credit-usage-card";
 import { daysUntil } from "./format";
@@ -404,10 +405,12 @@ const StarterPlanCard = ({ onUpgrade }: StarterPlanCardProps) => {
 
         <Button
           onClick={onUpgrade}
-          className="bg-brand-800 text-white hover:bg-brand-900"
+          size="sm"
+          variant="brand"
+          className={HEADER_ACTION_BUTTON_CLASS}
         >
           Upgrade plan
-          <ArrowRight className="size-4" />
+          <ArrowRight aria-hidden className="size-4" />
         </Button>
       </CardContent>
     </Card>
