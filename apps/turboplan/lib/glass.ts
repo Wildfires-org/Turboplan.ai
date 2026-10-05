@@ -102,3 +102,18 @@ export const PANEL_TITLE_CLASS =
 
 /** Edge-to-edge panel for content with its own toolbar (tasks table). */
 export const FLUSH_PANEL_CLASS = "glass-card overflow-hidden rounded-[20px]";
+
+/** Toast surface: popover-grade glass (near-opaque so it reads over any page)
+ * with a soft green-tinted drop. Shared by our custom toasts and the default
+ * sonner toasts styled through the Toaster. */
+export const TOAST_SURFACE_CLASS =
+  "flex items-center gap-3 rounded-2xl border-[1.5px] border-white bg-white/[0.92] py-2.5 pl-2.5 pr-4 text-[13px] leading-5 text-foreground shadow-[0_18px_48px_-20px_rgba(15,40,30,0.32),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.92]";
+
+/** Round icon badge at the start of a toast, tinted by type. */
+export const TOAST_ICON_CLASS =
+  "flex size-7 shrink-0 items-center justify-center rounded-full ring-1 ring-inset [&_svg]:size-4";
+
+export const TOAST_ICON_TONE_CLASS = {
+  success: "bg-brand-50 text-brand-800 ring-brand-800/15",
+  error: "bg-error-50 text-error-700 ring-error-700/15",
+} as const;

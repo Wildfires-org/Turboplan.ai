@@ -2,14 +2,20 @@
 
 import React, { ReactNode } from "react";
 
+import { AlertTriangle, Check } from "lucide-react";
 import Link from "next/link";
 import { toast as sonnerToast } from "sonner";
 
-import { CheckCircleFillIcon, WarningIcon } from "./icons";
+import {
+  TOAST_ICON_CLASS,
+  TOAST_ICON_TONE_CLASS,
+  TOAST_SURFACE_CLASS,
+} from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 const iconsByType: Record<"success" | "error", ReactNode> = {
-  success: <CheckCircleFillIcon />,
-  error: <WarningIcon />,
+  success: <Check aria-hidden strokeWidth={2.5} />,
+  error: <AlertTriangle aria-hidden />,
 };
 
 export function toast(props: Omit<ToastProps, "id">) {
@@ -31,19 +37,19 @@ function Toast(props: ToastProps) {
       <div
         data-testid="toast"
         key={id}
-        className="bg-zinc-100 p-3 rounded-lg w-full toast-mobile:w-fit flex flex-row gap-2 items-center"
+        className={cn(TOAST_SURFACE_CLASS, "w-full")}
       >
         <div
           data-type={type}
-          className="data-[type=error]:text-red-600 data-[type=success]:text-green-600"
+          className={cn(TOAST_ICON_CLASS, TOAST_ICON_TONE_CLASS[type])}
         >
           {iconsByType[type]}
         </div>
-        <div className="text-zinc-950 text-sm">{description}</div>
+        <div>{description}</div>
         {action ? (
           <Link
             href={action.href}
-            className="text-sm font-medium text-brand-800 hover:text-brand-900 underline whitespace-nowrap"
+            className="whitespace-nowrap font-medium text-brand-800 underline underline-offset-2 hover:text-brand-900"
             onClick={() => sonnerToast.dismiss(id)}
           >
             {action.label}
