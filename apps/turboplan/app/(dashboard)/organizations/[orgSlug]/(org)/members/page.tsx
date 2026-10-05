@@ -2,13 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AccessError } from "@/components/access-error";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { InviteMembersProvider } from "@/components/dashboard/invite-members-context";
-import { OrgBannerActions } from "@/components/dashboard/org-banner-actions";
 import { OrgMembersSection } from "@/components/dashboard/org-members-section";
-import { StickyEntityBanner } from "@/components/dashboard/sticky-entity-banner";
-import { DashboardProvider } from "@/components/providers/dashboard-provider";
-import { SidebarOrgRegistrar } from "@/components/sidebar/sidebar-org-registrar";
 import {
   canReadOrganizationAsMember,
   getCachedSession,
@@ -93,32 +87,11 @@ export default async function OrganizationMembersPage({
     );
   }
 
-  const breadcrumbs = [
-    { label: organization.name, href: `/organizations/${organization.slug}` },
-    { label: "Members", isActive: true },
-  ];
-
   return (
-    <DashboardProvider organization={organization}>
-      <InviteMembersProvider>
-        <SidebarOrgRegistrar />
-        <div className="flex flex-col shrink-0 min-h-screen">
-          <DashboardHeader breadcrumbs={breadcrumbs} />
-          <StickyEntityBanner
-            logoUrl={organization.logoUrl}
-            title={organization.name}
-            description={organization.description}
-            actions={<OrgBannerActions organization={organization} />}
-          />
-          <div className="flex-1 container mx-auto px-6">
-            <OrgMembersSection
-              user={session.user}
-              organization={organization}
-              orgSlug={organization.slug}
-            />
-          </div>
-        </div>
-      </InviteMembersProvider>
-    </DashboardProvider>
+    <OrgMembersSection
+      user={session.user}
+      organization={organization}
+      orgSlug={organization.slug}
+    />
   );
 }

@@ -21,6 +21,9 @@ interface DashboardContext {
   /** Resolved project cover URL, so loading states can paint the real
    * header without refetching it. */
   projectCoverImageUrl: string | null;
+  /** Government orgs are readable by non-members; member-only tabs and
+   * actions hide for them. */
+  isOrgMember: boolean;
 }
 
 // ============================================================================
@@ -39,6 +42,7 @@ interface DashboardProviderProps {
   office?: Office | null;
   project?: Project | null;
   projectCoverImageUrl?: string | null;
+  isOrgMember?: boolean;
 }
 
 export function DashboardProvider({
@@ -47,6 +51,7 @@ export function DashboardProvider({
   office = null,
   project = null,
   projectCoverImageUrl = null,
+  isOrgMember = true,
 }: DashboardProviderProps) {
   useEffect(() => {
     // Group analytics: scope subsequent events to the active workspace
@@ -87,6 +92,7 @@ export function DashboardProvider({
     office,
     project,
     projectCoverImageUrl,
+    isOrgMember,
   };
 
   return (

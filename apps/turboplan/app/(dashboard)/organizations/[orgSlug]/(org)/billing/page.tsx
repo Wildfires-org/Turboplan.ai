@@ -5,11 +5,6 @@ import { isBillingPackageEnabled } from "@wildfires-org/turboplan-feature-flags"
 
 import { AccessError } from "@/components/access-error";
 import { BillingSettingsSection } from "@/components/billing/billing-settings-section";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { OrgBannerActions } from "@/components/dashboard/org-banner-actions";
-import { StickyEntityBanner } from "@/components/dashboard/sticky-entity-banner";
-import { DashboardProvider } from "@/components/providers/dashboard-provider";
-import { SidebarOrgRegistrar } from "@/components/sidebar/sidebar-org-registrar";
 import {
   canReadOrganizationAsMember,
   getCachedSession,
@@ -98,31 +93,12 @@ export default async function OrganizationBillingPage({
     return <AccessError type="organization" />;
   }
 
-  const breadcrumbs = [
-    { label: organization.name, href: `/organizations/${organization.slug}` },
-    { label: "Billing", isActive: true },
-  ];
-
   return (
-    <DashboardProvider organization={organization}>
-      <SidebarOrgRegistrar />
-      <div className="flex flex-col shrink-0 min-h-screen">
-        <DashboardHeader breadcrumbs={breadcrumbs} />
-        <StickyEntityBanner
-          logoUrl={organization.logoUrl}
-          title={organization.name}
-          description={organization.description}
-          actions={<OrgBannerActions organization={organization} />}
-        />
-        <div className="flex-1 container mx-auto px-6">
-          <BillingSettingsSection
-            userId={session.user.id}
-            organizationId={organization.id}
-            orgSlug={organization.slug}
-            checkoutSucceeded={resolvedSearchParams.checkout === "success"}
-          />
-        </div>
-      </div>
-    </DashboardProvider>
+    <BillingSettingsSection
+      userId={session.user.id}
+      organizationId={organization.id}
+      orgSlug={organization.slug}
+      checkoutSucceeded={resolvedSearchParams.checkout === "success"}
+    />
   );
 }

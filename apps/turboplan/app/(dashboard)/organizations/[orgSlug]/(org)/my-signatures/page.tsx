@@ -4,12 +4,7 @@ import { redirect } from "next/navigation";
 import { MySignaturesPage } from "@wildfires-org/turboplan-signing/client";
 
 import { AccessError } from "@/components/access-error";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { OrgBannerActions } from "@/components/dashboard/org-banner-actions";
 import { OrgTabNav } from "@/components/dashboard/org-tab-nav";
-import { StickyEntityBanner } from "@/components/dashboard/sticky-entity-banner";
-import { DashboardProvider } from "@/components/providers/dashboard-provider";
-import { SidebarOrgRegistrar } from "@/components/sidebar/sidebar-org-registrar";
 import {
   canReadOrganizationAsMember,
   getCachedSession,
@@ -89,29 +84,12 @@ export default async function OrganizationMySignaturesPage({
     return <AccessError type="organization" />;
   }
 
-  const breadcrumbs = [
-    { label: organization.name, href: `/organizations/${organization.slug}` },
-    { label: "My Signatures", isActive: true },
-  ];
-
   return (
-    <DashboardProvider organization={organization}>
-      <SidebarOrgRegistrar />
-      <div className="flex flex-col shrink-0 min-h-screen">
-        <DashboardHeader breadcrumbs={breadcrumbs} />
-        <StickyEntityBanner
-          logoUrl={organization.logoUrl}
-          title={organization.name}
-          description={organization.description}
-          actions={<OrgBannerActions organization={organization} />}
-        />
-        <div className="flex-1 container mx-auto px-6">
-          <div className={STICKY_TOOLBAR_CLASS}>
-            <OrgTabNav orgSlug={organization.slug} />
-          </div>
-          <MySignaturesPage organizationId={organization.id} />
-        </div>
+    <div className="space-y-2">
+      <div className={STICKY_TOOLBAR_CLASS}>
+        <OrgTabNav orgSlug={organization.slug} />
       </div>
-    </DashboardProvider>
+      <MySignaturesPage organizationId={organization.id} />
+    </div>
   );
 }
