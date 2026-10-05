@@ -112,7 +112,7 @@ export function EditOfficeDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-h-[90vh] max-w-[480px] overflow-y-auto p-6 sm:p-7">
+      <AlertDialogContent className="max-h-[90vh] max-w-[640px] overflow-y-auto p-6 sm:p-7">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Edit aria-hidden className="size-5 text-brand-800" />
