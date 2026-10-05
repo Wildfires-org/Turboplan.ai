@@ -179,6 +179,117 @@ main[class*="overflow-auto"] {
   }
 }
 
+/* Range input on glass: pressed-in track with a brand-gradient fill up to
+   `--range-fill` (set by the component, 0%-100%) and a white glass thumb. */
+@layer utilities {
+  .glass-range {
+    --range-fill: 50%;
+    appearance: none;
+    height: 20px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .glass-range:focus-visible {
+    outline: none;
+  }
+
+  .glass-range::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 9999px;
+    background:
+      linear-gradient(90deg, #1d8a60, #156647) 0 0 / var(--range-fill) 100%
+        no-repeat,
+      var(--glass-inset-bg);
+    box-shadow: var(--glass-inset-shadow);
+  }
+
+  .glass-range::-moz-range-track {
+    height: 8px;
+    border-radius: 9999px;
+    background: var(--glass-inset-bg);
+    box-shadow: var(--glass-inset-shadow);
+  }
+
+  .glass-range::-moz-range-progress {
+    height: 8px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #1d8a60, #156647);
+  }
+
+  .glass-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    margin-top: -6px;
+    border: 1.5px solid #fff;
+    border-radius: 9999px;
+    background: linear-gradient(180deg, #fff, #f1f7f4);
+    box-shadow:
+      0 0 0 1px rgba(21, 102, 71, 0.18),
+      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+    transition:
+      scale 160ms var(--ease-press),
+      box-shadow 200ms ease;
+  }
+
+  .glass-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid #fff;
+    border-radius: 9999px;
+    background: linear-gradient(180deg, #fff, #f1f7f4);
+    box-shadow:
+      0 0 0 1px rgba(21, 102, 71, 0.18),
+      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+    transition:
+      scale 160ms var(--ease-press),
+      box-shadow 200ms ease;
+  }
+
+  .glass-range:active::-webkit-slider-thumb {
+    scale: 0.94;
+  }
+
+  .glass-range:active::-moz-range-thumb {
+    scale: 0.94;
+  }
+
+  .glass-range:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 1px rgba(21, 102, 71, 0.18),
+      0 0 0 4px rgba(32, 158, 110, 0.35),
+      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+  }
+
+  .glass-range:focus-visible::-moz-range-thumb {
+    box-shadow:
+      0 0 0 1px rgba(21, 102, 71, 0.18),
+      0 0 0 4px rgba(32, 158, 110, 0.35),
+      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+  }
+}
+
+@media (hover: hover) {
+  .glass-range:hover::-webkit-slider-thumb {
+    scale: 1.08;
+  }
+
+  .glass-range:hover::-moz-range-thumb {
+    scale: 1.08;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-range::-webkit-slider-thumb {
+    scale: none !important;
+  }
+
+  .glass-range::-moz-range-thumb {
+    scale: none !important;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

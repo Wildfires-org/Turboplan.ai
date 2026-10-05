@@ -19,6 +19,8 @@ export const UiScaleSection = () => {
   const { scale, setScale, resetScale } = useUiScale();
 
   const isDefault = scale === DEFAULT_UI_SCALE;
+  const fillPercent =
+    ((scale - MIN_UI_SCALE) / (MAX_UI_SCALE - MIN_UI_SCALE)) * 100;
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setScale(Number(event.target.value));
@@ -55,7 +57,7 @@ export const UiScaleSection = () => {
           Saved on this device only.
         </p>
 
-        <div className="glass-inset rounded-xl px-4 py-3">
+        <div>
           <input
             id={UI_SCALE_INPUT_ID}
             type="range"
@@ -65,9 +67,10 @@ export const UiScaleSection = () => {
             value={scale}
             onChange={handleChange}
             aria-valuetext={formatScale(scale)}
-            className="h-2 w-full cursor-pointer rounded-full accent-brand-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-700"
+            className="glass-range block w-full"
+            style={{ "--range-fill": `${fillPercent}%` } as React.CSSProperties}
           />
-          <div className="mt-1.5 flex justify-between text-xs tabular-nums text-gray-550">
+          <div className="mt-2 flex justify-between text-xs tabular-nums text-gray-550">
             <span>{formatScale(MIN_UI_SCALE)}</span>
             <span>{formatScale(MAX_UI_SCALE)}</span>
           </div>
