@@ -104,7 +104,6 @@ export const TokenList = () => {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Actor</TableHead>
             <TableHead>Prefix</TableHead>
             <TableHead>Created</TableHead>
             <TableHead>Last Used</TableHead>
@@ -120,8 +119,14 @@ export const TokenList = () => {
 
             return (
               <TableRow key={token.id}>
-                <TableCell className="font-medium">{token.name}</TableCell>
-                <TableCell className="text-gray-550">{token.actor}</TableCell>
+                {/* Actor sits under the name so the table fits the panel
+                    without a horizontal scroll hiding the Actions column. */}
+                <TableCell>
+                  <span className="block font-medium">{token.name}</span>
+                  <span className="block text-xs text-gray-550">
+                    {token.actor}
+                  </span>
+                </TableCell>
                 <TableCell>
                   <code className="rounded-md bg-slate-900/[0.04] px-1.5 py-0.5 text-xs text-foreground ring-1 ring-inset ring-slate-900/[0.06]">
                     {token.tokenPrefix}...
@@ -147,46 +152,55 @@ export const TokenList = () => {
                   </span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={isInactive || isRevoking}
-                        className={cn(
-                          "rounded-lg text-error-700 hover:bg-error-50 hover:text-error-800",
-                          isRevoking && "pointer-events-none",
-                        )}
-                      >
-                        {isRevoking ? (
-                          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                        ) : null}
-                        Revoke
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Revoke access token</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to revoke the token{" "}
-                          <span className="font-medium text-foreground">
-                            {token.name}
-                          </span>
-                          ? Any integrations using this token will immediately
-                          lose access.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter className="gap-2 sm:space-x-0">
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleRevoke(token.id)}
-                          className={DESTRUCTIVE_BUTTON_CLASS}
+                  {isInactive ? (
+                    <span className="pr-3 text-gray-550">
+                      <span aria-hidden>—</span>
+                      <span className="sr-only">No actions</span>
+                    </span>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={isRevoking}
+                          className={cn(
+                            "rounded-lg text-error-700 hover:bg-error-50 hover:text-error-800",
+                            isRevoking && "pointer-events-none",
+                          )}
                         >
+                          {isRevoking ? (
+                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                          ) : null}
                           Revoke
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Revoke access token
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to revoke the token{" "}
+                            <span className="font-medium text-foreground">
+                              {token.name}
+                            </span>
+                            ? Any integrations using this token will immediately
+                            lose access.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="gap-2 sm:space-x-0">
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleRevoke(token.id)}
+                            className={DESTRUCTIVE_BUTTON_CLASS}
+                          >
+                            Revoke
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </TableCell>
               </TableRow>
             );
