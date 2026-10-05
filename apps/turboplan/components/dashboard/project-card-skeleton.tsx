@@ -56,6 +56,11 @@ export function ProjectCardSkeleton({
               <div className="flex h-[22px] items-center">
                 <div className={cn(SKELETON_BAR_CLASS, "h-3.5 w-3/4")} />
               </div>
+              {/* Two-line description, as EntityCard always reserves. */}
+              <div className="flex h-9 flex-col justify-center gap-2">
+                <div className={cn(SKELETON_BAR_CLASS, "h-2.5 w-full")} />
+                <div className={cn(SKELETON_BAR_CLASS, "h-2.5 w-2/3")} />
+              </div>
             </div>
             <div className="flex h-4 items-center gap-2">
               <div
