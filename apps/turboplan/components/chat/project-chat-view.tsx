@@ -180,8 +180,13 @@ const ProjectChatViewInner = ({
   }, [dbMessages]);
 
   // Subscribe to the chats SWR cache so the header title updates
-  // after the AI-generated title is fetched
-  const { data: cachedChats } = useSWR<Array<Chat>>(sidebarChatsKey, null, {
+  // after the AI-generated title is fetched. It needs the real fetcher even
+  // though it never fetches on mount: after a full page load this view mounts
+  // before the sidebar chat list, so a bare `mutate(sidebarChatsKey)` runs
+  // this hook's revalidation. Without a fetcher that fetched nothing, and it
+  // still discarded the sidebar's in-flight request, which left the sidebar
+  // list on "Loading..." for good.
+  const { data: cachedChats } = useSWR<Array<Chat>>(sidebarChatsKey, fetcher, {
     revalidateOnFocus: false,
     revalidateOnMount: false,
   });

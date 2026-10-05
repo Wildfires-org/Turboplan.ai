@@ -76,6 +76,11 @@ export class TurboplanProjectChatPage {
     await this.page.waitForURL(/\/members$/, { timeout: 15000 });
   }
 
+  /** A chat's link in the project sidebar chat list */
+  getSidebarChatLink(chatTitle: string): Locator {
+    return this.page.getByRole("link", { name: chatTitle, exact: true });
+  }
+
   /** Re-open a chat from the project sidebar chat list, expanding it if collapsed */
   async openChatViaSidebar(chatTitle: string): Promise<void> {
     const chatToggle = this.page.getByRole("button", {
@@ -86,10 +91,7 @@ export class TurboplanProjectChatPage {
       await chatToggle.click();
     }
 
-    const chatLink = this.page.getByRole("link", {
-      name: chatTitle,
-      exact: true,
-    });
+    const chatLink = this.getSidebarChatLink(chatTitle);
     // The sidebar chat list loads via SWR; wait out its "Loading..." row.
     await expect(chatLink).toBeVisible({ timeout: 15000 });
     await chatLink.click();

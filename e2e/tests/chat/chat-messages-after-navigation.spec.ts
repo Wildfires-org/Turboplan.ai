@@ -160,4 +160,58 @@ test.describe("Project chat - messages after navigating away", () => {
     await chatPage.expectExchange(USER_MESSAGE, ASSISTANT_REPLY);
     await expectSameDocument(page);
   });
+
+  /**
+   * Regression: a finished reply refreshes the sidebar chat list. When that
+   * refresh lands while the list's first request is still in flight (a fast
+   * reply right after a full page load), the list must still load instead of
+   * staying on "Loading...".
+   */
+  test("loads the sidebar chat list when the reply finishes before it", async ({
+    page,
+  }) => {
+    const chat = await createTestProjectChat({
+      userId: workspace.userId,
+      projectId: project.id,
+      title: `Sidebar ${shortId()}`,
+    });
+    await mockProjectChatApi(page, {
+      chatId: chat.id,
+      replyText: ASSISTANT_REPLY,
+    });
+
+    // Hold the sidebar's first chat-list request until the reply is done.
+    const chatListUrl = `**/api/projects/${project.id}/chats`;
+    let releaseFirstChatList = () => {};
+    const firstChatListReleased = new Promise<void>((resolve) => {
+      releaseFirstChatList = resolve;
+    });
+    let isFirstChatListRequest = true;
+    await page.route(chatListUrl, async (route) => {
+      if (isFirstChatListRequest) {
+        isFirstChatListRequest = false;
+        await firstChatListReleased;
+      }
+      await route.fallback();
+    });
+    const firstChatListRequest = page.waitForRequest(chatListUrl);
+
+    const chatPage = new TurboplanProjectChatPage(page);
+    await chatPage.goto({
+      orgSlug: workspace.orgSlug,
+      officeSlug: workspace.officeSlug,
+      projectSlug: project.slug,
+      chatId: chat.id,
+    });
+    await firstChatListRequest;
+
+    await chatPage.sendMessage(USER_MESSAGE);
+    await chatPage.expectExchange(USER_MESSAGE, ASSISTANT_REPLY);
+    await chatPage.expectComposerReady();
+    releaseFirstChatList();
+
+    await expect(chatPage.getSidebarChatLink(chat.title)).toBeVisible({
+      timeout: 15000,
+    });
+  });
 });

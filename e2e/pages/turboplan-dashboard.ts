@@ -58,6 +58,16 @@ export class TurboplanDashboardPage {
     return this.page.getByRole("main");
   }
 
+  /**
+   * The action buttons in the full entity banner. StickyEntityBanner renders
+   * the same actions again in its compact scroll header, which is inert while
+   * hidden, but Playwright's role engine ignores inert, so role locators over
+   * all of <main> match both copies.
+   */
+  getBannerActions() {
+    return this.page.getByTestId("entity-banner-actions");
+  }
+
   /** Assert a project link is visible in the main content area */
   async expectProjectVisible(projectName: string): Promise<void> {
     await expect(

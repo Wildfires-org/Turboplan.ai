@@ -102,6 +102,8 @@ test.describe("Access Isolation", () => {
     await citizenDashboard.gotoOffice(govOrgSlug, govOfficeSlug);
     await citizenDashboard.expectOfficeHeading(GOV_WORKSPACE.OFFICE_NAME);
 
+    // Counted over all of <main>, so neither the banner nor the copy in the
+    // compact scroll header may render them.
     const citizenMain = citizenDashboard.getMain();
     await expect(
       citizenMain.getByRole("button", { name: "Manage Office" }),
@@ -118,12 +120,14 @@ test.describe("Access Isolation", () => {
     await govDashboard.gotoOffice(govOrgSlug, govOfficeSlug);
     await govDashboard.expectOfficeHeading(GOV_WORKSPACE.OFFICE_NAME);
 
-    const govMain = govDashboard.getMain();
+    // Scoped to the full banner: a member also gets a second, hidden copy of
+    // these buttons in the compact scroll header.
+    const govBannerActions = govDashboard.getBannerActions();
     await expect(
-      govMain.getByRole("button", { name: "Manage Office" }),
+      govBannerActions.getByRole("button", { name: "Manage Office" }),
     ).toBeVisible();
     await expect(
-      govMain.getByRole("button", { name: /^New Project$/ }),
+      govBannerActions.getByRole("button", { name: /^New Project$/ }),
     ).toBeVisible();
 
     await govContext.close();

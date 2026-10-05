@@ -135,11 +135,17 @@ export function BaseLayout({
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
+            {/*
+             * The alt is the only place the product name appears verbatim:
+             * the visible text runs through preventAutoLink, which puts
+             * zero-width characters around the dot. Keep it, so blocked
+             * images still show the brand and filters can read it.
+             */}
             <Img
               src={getLogoUrl()}
               width="28"
               height="28"
-              alt=""
+              alt={appName}
               style={logoImage}
             />
             <span style={appNameText}>{preventAutoLink(appName)}</span>
