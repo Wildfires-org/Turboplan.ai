@@ -12,9 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
-import useSWRMutation from "swr/mutation";
 
-import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import {
   MAX_LANDING_UPLOADS,
   PROJECT_DOCUMENT_ACCEPT,
@@ -35,11 +33,8 @@ import {
   type PromptAttachment,
   usePromptAttachments,
 } from "@/hooks/use-prompt-attachments";
+import { useProposedTitles } from "@/hooks/use-proposed-titles";
 import { useAnalytics } from "@/hooks/useAnalytics";
-import {
-  type GenerateTitlesResponse,
-  generateTitles,
-} from "@/lib/generate-titles";
 import { cn } from "@/lib/utils";
 import { events } from "@/types/analytics";
 
@@ -75,14 +70,10 @@ export function SearchInput({
   value,
   onValueChange,
 }: SearchInputProps) {
-  const ENV = getLandingPageEnv();
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [isFocused, setIsFocused] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [proposedProjectTitle, setProposedProjectTitle] = useState("");
-  const [proposedOrganizationName, setProposedOrganizationName] = useState("");
-  const [proposedOfficeName, setProposedOfficeName] = useState("");
   const [pendingSend, setPendingSend] = useState(false);
   // Failed uploads already on screen when a send was deferred: the user sent
   // knowing those files are left behind. Any other failure while waiting
@@ -92,6 +83,8 @@ export function SearchInput({
 
   const { requiresUpgrade, isLoading: isBillingLoading } = useBillingAccess();
   const { captureEvent } = useAnalytics();
+  const { proposedTitles, isProposingTitles, proposeTitles } =
+    useProposedTitles(fallbackOfficeName);
   const {
     attachments,
     attachedDocuments,
@@ -127,34 +120,14 @@ export function SearchInput({
     }
   }, [inputValue]);
 
-  // useSWRMutation for POST request
-  const { trigger, isMutating } = useSWRMutation(
-    `${ENV.SERVER_URL}/generate-titles`,
-    generateTitles,
-  );
-
-  const openTryItModal = async () => {
+  // The modal opens at once. Title generation takes 4-7 s, so it runs in the
+  // background and the generated names replace the prompt-based fallback
+  // when they arrive (see useProposedTitles and SignupModal).
+  const openTryItModal = () => {
     if (!inputValue.trim()) {
       return;
     }
-
-    // Title generation is best-effort: the modal must open no matter what
-    // comes back. officeTitle / organizationName are legitimately empty when
-    // the server finds no matching government office, so only projectTitle
-    // decides whether we use the generated titles or the raw input.
-    let titles: GenerateTitlesResponse | undefined;
-    try {
-      titles = await trigger({ description: inputValue });
-    } catch (err) {
-      console.error("Error generating titles:", err);
-    }
-    if (titles?.error) {
-      console.error("Title generation error:", titles.error);
-    }
-
-    setProposedProjectTitle(titles?.projectTitle || inputValue.slice(0, 50));
-    setProposedOrganizationName(titles?.organizationName || "");
-    setProposedOfficeName(titles?.officeTitle || fallbackOfficeName || "");
+    proposeTitles(inputValue);
     setModalOpen(true);
   };
 
@@ -238,8 +211,6 @@ export function SearchInput({
     const newValue = e.target.value.replace(/\n/g, " ");
     setInputValue(newValue);
   };
-
-  const isSending = isMutating || pendingSend;
 
   return (
     <div
@@ -334,12 +305,12 @@ export function SearchInput({
                 type="submit"
                 className="btn-primary press flex size-10 items-center justify-center rounded-xl"
                 aria-label={
-                  isSending && isUploading
+                  pendingSend && isUploading
                     ? "Submit once documents finish uploading"
                     : "Submit"
                 }
               >
-                {isSending ? (
+                {pendingSend ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <Send className="size-4" />
@@ -374,9 +345,10 @@ export function SearchInput({
       <SignupModal
         isOpen={modalOpen}
         onOpenChange={setModalOpen}
-        initialProjectTitle={proposedProjectTitle}
-        initialOrganizationName={proposedOrganizationName}
-        initialOfficeName={proposedOfficeName}
+        initialProjectTitle={proposedTitles.projectTitle}
+        initialOrganizationName={proposedTitles.organizationName}
+        initialOfficeName={proposedTitles.officeName}
+        isProjectTitlePending={isProposingTitles}
         projectDescription={inputValue}
         attachedDocuments={attachedDocuments}
       />

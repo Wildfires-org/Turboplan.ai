@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Loader2, MessageSquareTextIcon } from "lucide-react";
-import useSWRMutation from "swr/mutation";
 
-import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import { cn } from "@wildfires-org/turboplan-utils";
 
 import { CheckoutModal } from "@/components/checkout/checkout-modal";
@@ -14,7 +12,7 @@ import Arrow from "@/components/icons/arrow";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useBillingAccess } from "@/hooks/use-billing-access";
-import { generateTitles } from "@/lib/generate-titles";
+import { useProposedTitles } from "@/hooks/use-proposed-titles";
 
 interface ProjectPromptInputProps {
   // Input variant (default: "textarea")
@@ -29,7 +27,7 @@ interface ProjectPromptInputProps {
   label?: string;
   quickStart?: Record<string, string>;
 
-  // Fallback value for office name on API error
+  // Office name used when title generation returns none (or fails)
   fallbackOfficeName?: string;
 
   // Controlled mode (optional)
@@ -50,17 +48,15 @@ export function ProjectPromptInput({
   value,
   onValueChange,
 }: ProjectPromptInputProps) {
-  const ENV = getLandingPageEnv();
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [modalOpen, setModalOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [proposedProjectTitle, setProposedProjectTitle] = useState("");
-  const [proposedOrganizationName, setProposedOrganizationName] = useState("");
-  const [proposedOfficeName, setProposedOfficeName] = useState("");
   const [pendingSend, setPendingSend] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { requiresUpgrade, isLoading: isBillingLoading } = useBillingAccess();
+  const { proposedTitles, isProposingTitles, proposeTitles } =
+    useProposedTitles(fallbackOfficeName);
 
   // Support controlled and uncontrolled modes
   const inputValue = value !== undefined ? value : internalValue;
@@ -81,39 +77,14 @@ export function ProjectPromptInput({
     }
   }, [inputValue, variant]);
 
-  // useSWRMutation for POST request
-  const { trigger, isMutating } = useSWRMutation(
-    `${ENV.SERVER_URL}/generate-titles`,
-    generateTitles,
-  );
-
-  const openTryItModal = async () => {
+  // The modal opens at once; generated names replace the prompt-based
+  // fallback when they arrive (see useProposedTitles).
+  const openTryItModal = () => {
     if (!inputValue.trim()) {
       return;
     }
-
-    try {
-      const result = await trigger({ description: inputValue });
-
-      if (result?.projectTitle && result?.officeTitle) {
-        setProposedProjectTitle(result.projectTitle);
-        setProposedOrganizationName(result.organizationName || "");
-        setProposedOfficeName(result.officeTitle);
-        setModalOpen(true);
-      } else if (result?.error) {
-        console.error("Title generation error:", result.error);
-        setProposedProjectTitle(inputValue.slice(0, 50));
-        setProposedOrganizationName("");
-        setProposedOfficeName(fallbackOfficeName || inputValue.slice(0, 50));
-        setModalOpen(true);
-      }
-    } catch (err) {
-      console.error("Error generating titles:", err);
-      setProposedProjectTitle(inputValue.slice(0, 50));
-      setProposedOrganizationName("");
-      setProposedOfficeName(fallbackOfficeName || inputValue.slice(0, 50));
-      setModalOpen(true);
-    }
+    proposeTitles(inputValue);
+    setModalOpen(true);
   };
 
   // Route a send to the right flow under the usage-quota model. Anonymous and
@@ -227,7 +198,7 @@ export function ProjectPromptInput({
           type="submit"
           aria-label="Create project"
         >
-          {isMutating || pendingSend ? (
+          {pendingSend ? (
             <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" />
           ) : (
             <Arrow
@@ -261,9 +232,10 @@ export function ProjectPromptInput({
       <SignupModal
         isOpen={modalOpen}
         onOpenChange={setModalOpen}
-        initialProjectTitle={proposedProjectTitle}
-        initialOrganizationName={proposedOrganizationName}
-        initialOfficeName={proposedOfficeName}
+        initialProjectTitle={proposedTitles.projectTitle}
+        initialOrganizationName={proposedTitles.organizationName}
+        initialOfficeName={proposedTitles.officeName}
+        isProjectTitlePending={isProposingTitles}
         projectDescription={inputValue}
       />
 

@@ -34,6 +34,7 @@ const LabeledInput = React.forwardRef<
         placeholder={placeholder}
       />
       <label
+        htmlFor={props.id}
         className={`absolute left-3 top-2 label ${isDark ? darkFormLabelStyles : "text-neutral-black"}`}
       >
         {label}{" "}
