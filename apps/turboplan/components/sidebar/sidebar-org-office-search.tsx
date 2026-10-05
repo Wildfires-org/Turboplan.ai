@@ -11,10 +11,9 @@ import {
 
 import {
   ArrowLeftRight,
+  ArrowRight,
   Check,
-  CheckCheck,
   ChevronDown,
-  ChevronUp,
   Search,
 } from "lucide-react";
 import { useLocalStorage } from "usehooks-ts";
@@ -23,6 +22,11 @@ import { cn, Switch } from "@wildfires-org/turboplan-utils";
 import type { OrganizationWithOffices } from "@wildfires-org/turboplan-workspace/types";
 
 import { OrgAvatar } from "../org-avatar";
+
+const SEPARATOR_CLASS = "h-px shrink-0 bg-slate-900/[0.06] dark:bg-white/10";
+
+const ICON_BUTTON_CLASS =
+  "press flex size-7 items-center justify-center rounded-lg text-gray-550 hover:bg-brandAlt-100 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700";
 
 export const ORG_MEMBERSHIP_FILTER_STORAGE_KEY =
   "turboplan-org-switcher-members-only";
@@ -192,38 +196,35 @@ export function SidebarOrgOfficeSearch({
 
   return (
     <div className="flex flex-col">
-      {/* Search input — h-[34px] per Figma */}
-      <div className="flex h-[34px] items-center gap-3 px-3 pr-4">
-        <Search className="size-[19px] shrink-0 text-neutral-400" />
+      <label className="glass-inset flex h-9 items-center gap-2 rounded-xl px-3 focus-within:outline focus-within:outline-2 focus-within:outline-brand-700/40">
+        <Search aria-hidden className="size-4 shrink-0 text-gray-550" />
         <input
           ref={inputRef}
           type="text"
+          aria-label="Search organizations and offices"
           placeholder="Search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full bg-transparent text-xs leading-4 tracking-[0.12px] text-gray-900 placeholder:text-gray-600 outline-none"
+          className="w-full bg-transparent text-[13px] text-foreground placeholder:text-gray-550 focus:outline-none"
         />
-      </div>
+      </label>
 
-      {/* Separator — py-[6px] per Figma */}
-      <div className="py-1.5 pr-2">
-        <div className="h-px bg-gray-200" />
-      </div>
+      <div className={cn(SEPARATOR_CLASS, "my-1.5")} />
 
       {/* Org & office list */}
       <div
         className={cn(
-          "flex flex-col gap-2 max-h-[60vh] overflow-y-auto",
+          "flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto",
           listClassName,
         )}
       >
         {filtered.length === 0 && (
-          <div className="px-3 pr-4 py-4 text-center">
-            <p className="text-sm text-gray-500">
+          <div className="px-3 py-4 text-center">
+            <p className="text-[13px] text-gray-550">
               No organizations or offices found
             </p>
             {catalogOnlyMatches > 0 && (
-              <p className="mt-1 text-xs leading-4 text-neutral-400">
+              <p className="mt-1 text-xs leading-4 text-gray-550">
                 {catalogOnlyMatches === 1
                   ? "1 match is outside your organizations"
                   : `${catalogOnlyMatches} matches are outside your organizations`}{" "}
@@ -243,41 +244,43 @@ export function SidebarOrgOfficeSearch({
           const isOfficeless = requireOffice && !hasOffices;
 
           return (
-            <div key={org.id} className="flex flex-col">
-              {/* Org header — px-3 py-1.5 per Figma */}
-              <div className="group/org flex h-[38px] w-full items-center gap-2 rounded-md px-3 pr-4">
+            <div key={org.id} className="flex flex-col gap-0.5">
+              {index > 0 && <div className={cn(SEPARATOR_CLASS, "my-1")} />}
+
+              <div className="group/org flex h-11 w-full items-center gap-2 rounded-xl px-2 transition-colors hover:bg-brandAlt-100/60">
                 <button
                   type="button"
                   onClick={() => hasOffices && toggleOrg(org.id)}
                   disabled={isOfficeless}
+                  aria-expanded={hasOffices ? isExpanded : undefined}
                   className={cn(
-                    "flex flex-1 items-center gap-2 min-w-0 transition-colors",
+                    "flex min-w-0 flex-1 items-center gap-2.5 text-left",
                     hasOffices ? "cursor-pointer" : "cursor-default",
-                    isOfficeless && "opacity-50 cursor-not-allowed",
+                    isOfficeless && "cursor-not-allowed opacity-50",
                   )}
                 >
                   <OrgAvatar
                     name={org.name}
                     logoUrl={org.logoUrl}
                     className={cn(
-                      "size-[35px] shrink-0 rounded border",
-                      isCurrentOrg ? "border-[#1b845c]" : "border-gray-100",
+                      "size-8 shrink-0 rounded-lg border border-white shadow-sm",
+                      isCurrentOrg && "ring-2 ring-brand-800/25",
                     )}
                   />
                   <span
-                    className="text-sm text-gray-900 truncate"
+                    className="truncate text-[13px] font-medium text-foreground"
                     title={org.name}
                   >
                     {org.name}
                   </span>
                 </button>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex shrink-0 items-center gap-1">
                   {isOfficeless ? (
-                    <span className="text-xs font-medium leading-4 tracking-[0.24px] text-neutral-400">
+                    <span className="text-xs text-gray-550">
                       No offices available
                     </span>
                   ) : isCurrentOrg ? (
-                    <span className="text-xs font-medium leading-4 tracking-[0.24px] text-[#1b845c]">
+                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium leading-4 text-brand-800 ring-1 ring-inset ring-brand-800/15">
                       Active
                     </span>
                   ) : (
@@ -287,36 +290,41 @@ export function SidebarOrgOfficeSearch({
                         e.stopPropagation();
                         onOrgSelect(org.slug);
                       }}
-                      className="rounded p-0.5 opacity-0 group-hover/org:opacity-100 transition-opacity hover:bg-gray-100"
+                      className={cn(
+                        ICON_BUTTON_CLASS,
+                        "opacity-0 transition-opacity focus-visible:opacity-100 group-hover/org:opacity-100",
+                      )}
+                      aria-label={`Switch to ${org.name}`}
                       title={`Switch to ${org.name}`}
                     >
-                      <ArrowLeftRight className="size-[16px] text-neutral-400" />
+                      <ArrowLeftRight aria-hidden className="size-4" />
                     </button>
                   )}
-                  {hasOffices &&
-                    (isExpanded ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleOrg(org.id)}
-                        className="rounded p-0.5 hover:bg-gray-100 transition-colors"
-                      >
-                        <ChevronUp className="size-[19px] shrink-0 text-neutral-400" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => toggleOrg(org.id)}
-                        className="rounded p-0.5 hover:bg-gray-100 transition-colors"
-                      >
-                        <ChevronDown className="size-[19px] shrink-0 text-neutral-400" />
-                      </button>
-                    ))}
+                  {hasOffices && (
+                    <button
+                      type="button"
+                      onClick={() => toggleOrg(org.id)}
+                      aria-label={
+                        isExpanded
+                          ? `Collapse ${org.name}`
+                          : `Expand ${org.name}`
+                      }
+                      className={ICON_BUTTON_CLASS}
+                    >
+                      <ChevronDown
+                        aria-hidden
+                        className={cn(
+                          "size-4 transition-transform duration-200 ease-out motion-reduce:transition-none",
+                          isExpanded && "rotate-180",
+                        )}
+                      />
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Office list */}
               {isExpanded && hasOffices && (
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-0.5">
                   {org.offices.map((office) => {
                     const isCurrent =
                       isCurrentOrg && office.slug === currentOfficeSlug;
@@ -330,43 +338,44 @@ export function SidebarOrgOfficeSearch({
                             onOfficeSelect(org.slug, office.slug);
                           }
                         }}
+                        aria-current={isCurrent ? "page" : undefined}
                         className={cn(
-                          "group/office flex w-full items-center gap-2 rounded-md px-3 pr-4 py-2.5 text-left transition-colors",
-                          isCurrent ? "bg-gray-100" : "hover:bg-gray-50",
+                          "group/office flex h-9 w-full items-center gap-2.5 rounded-xl px-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700",
+                          isCurrent
+                            ? "bg-brandAlt-100 text-brand-900"
+                            : "text-foreground hover:bg-brandAlt-100/60",
                         )}
                       >
-                        {/* Left gutter aligns office name with org name; green ✓✓ marks the active office */}
-                        <span className="flex size-[35px] shrink-0 items-center justify-center">
+                        {/* Gutter the width of the org avatar, so office names
+                            line up with org names; holds the active tick. */}
+                        <span className="flex size-8 shrink-0 items-center justify-center">
                           {isCurrent && (
-                            <CheckCheck className="size-[19px] text-[#1b845c]" />
+                            <Check
+                              aria-hidden
+                              className="size-4 text-brand-800"
+                            />
                           )}
                         </span>
 
                         <span
-                          className="flex-1 text-sm text-gray-900 truncate"
+                          className={cn(
+                            "flex-1 truncate text-[13px]",
+                            isCurrent && "font-medium",
+                          )}
                           title={office.name}
                         >
                           {office.name}
                         </span>
 
                         {!isCurrent && (
-                          <span className="flex items-center gap-[5px] opacity-0 group-hover/office:opacity-100 transition-opacity">
-                            <Check className="size-[19px] text-[#1489FF]" />
-                            <span className="text-xs font-medium leading-4 tracking-[0.24px] text-[#1489FF]">
-                              Switch
-                            </span>
+                          <span className="flex items-center gap-1 text-xs font-medium text-brand-800 opacity-0 transition-opacity group-hover/office:opacity-100 group-focus-visible/office:opacity-100">
+                            Switch
+                            <ArrowRight aria-hidden className="size-3.5" />
                           </span>
                         )}
                       </button>
                     );
                   })}
-                </div>
-              )}
-
-              {/* Separator after expanded org or between collapsed orgs */}
-              {index < filtered.length - 1 && (
-                <div className="py-3 pr-2">
-                  <div className="h-px bg-gray-200" />
                 </div>
               )}
             </div>
@@ -378,19 +387,17 @@ export function SidebarOrgOfficeSearch({
           so it stays visible while the org list scrolls. */}
       {showMembershipFilter && (
         <>
-          <div className="py-1.5 pr-2">
-            <div className="h-px bg-gray-200" />
-          </div>
-          <div className="flex items-center gap-2 px-3 pr-4 py-1">
+          <div className={cn(SEPARATOR_CLASS, "my-1.5")} />
+          <div className="flex items-center gap-2 px-2 py-1">
             {/* `htmlFor` on a <button> is valid — buttons are labelable — and
                 avoids nesting a button inside a clickable wrapper. */}
             <label
               htmlFor={membershipFilterId}
-              className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-xs font-medium leading-4 tracking-[0.24px] text-gray-900"
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-xs font-medium text-foreground"
             >
               Only my organizations
               {isMembershipFilterActive && hiddenCount > 0 && (
-                <span className="shrink-0 text-neutral-400">
+                <span className="shrink-0 rounded-full bg-slate-900/[0.04] px-2 py-0.5 text-[11px] font-medium tabular-nums text-gray-550 ring-1 ring-inset ring-slate-900/[0.06]">
                   {hiddenCount} hidden
                 </span>
               )}
@@ -400,11 +407,9 @@ export function SidebarOrgOfficeSearch({
               checked={onlyMyOrgs}
               onCheckedChange={setOnlyMyOrgs}
               aria-label="Only my organizations"
-              // The shared Switch defaults to `bg-primary`, which is near-black
-              // in this app and reads as the heaviest element in a popover
-              // whose whole accent language is green. Match the "Active" label
-              // and the checked-office ticks instead.
-              className={cn(onlyMyOrgs && "bg-[#1b845c]")}
+              // The shared Switch defaults to `bg-primary` (near-black here);
+              // match the popover's green accent instead.
+              className="data-[state=checked]:bg-brand-800"
             />
           </div>
         </>

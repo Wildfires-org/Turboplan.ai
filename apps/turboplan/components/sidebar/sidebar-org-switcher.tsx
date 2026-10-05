@@ -106,7 +106,7 @@ export function SidebarOrgSwitcher() {
         side="bottom"
         align="start"
         sideOffset={4}
-        className="w-[276px] py-2 pl-2 pr-0"
+        className="w-[284px] p-1.5"
       >
         <SidebarOrgOfficeSearch
           organizations={dropdownOrgs}
