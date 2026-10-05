@@ -31,12 +31,14 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  GLASS_CARD_CLASS,
   Skeleton,
   toast,
 } from "@wildfires-org/turboplan-utils";
 
 import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
+import { cn } from "@/lib/utils";
 import { CreditUsageCard } from "./credit-usage-card";
 import { daysUntil } from "./format";
 import { ManageSubscriptionCard } from "./manage-subscription-card";
@@ -205,7 +207,7 @@ export function BillingView({
       {checkoutSucceeded && <CheckoutSuccessBanner />}
 
       {isPaymentFailed && (
-        <div className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-start">
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-start">
           <AlertTriangle className="size-5 shrink-0 text-amber-600" />
           <div className="flex-1 space-y-1">
             <p className="font-semibold text-amber-900">Payment failed</p>
@@ -270,7 +272,7 @@ export function BillingView({
 // ============================================================================
 
 const CheckoutSuccessBanner = () => (
-  <div className="mb-6 flex items-center gap-2 rounded-md border border-brand-200 bg-brand-50 px-4 py-3 text-sm">
+  <div className="mb-6 flex items-center gap-2 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm">
     <CheckCircle2 className="size-5 shrink-0 text-brand-800" />
     <span>Your subscription is now active. Thank you!</span>
   </div>
@@ -317,7 +319,7 @@ const NoPlanCard = ({
   };
 
   return (
-    <Card>
+    <Card className={GLASS_CARD_CLASS}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="size-5 text-brand-800" />
@@ -332,13 +334,15 @@ const NoPlanCard = ({
       <CardContent className="flex flex-wrap items-center gap-3">
         <Button
           onClick={onChoosePlan}
-          className="bg-brand-800 text-white hover:bg-brand-900"
+          size="sm"
+          variant="brand"
+          className={HEADER_ACTION_BUTTON_CLASS}
         >
           Choose a plan
           <ArrowRight className="size-4" />
         </Button>
         <Button
-          variant="outline"
+          variant="glass"
           onClick={handleStartFree}
           disabled={isActivating}
         >
@@ -364,11 +368,11 @@ const StarterPlanCard = ({ onUpgrade }: StarterPlanCardProps) => {
     "active_projects" in starter.limits ? starter.limits.active_projects : null;
 
   return (
-    <Card>
+    <Card className={GLASS_CARD_CLASS}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base">Free Starter plan</CardTitle>
-          <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
+          <span className="inline-flex items-center rounded-full bg-brandAlt-100 px-2.5 py-0.5 text-xs font-medium text-foreground">
             {starter.name}
           </span>
         </div>
@@ -420,9 +424,9 @@ const StarterPlanCard = ({ onUpgrade }: StarterPlanCardProps) => {
 const BillingSkeleton = () => (
   <div className="space-y-6 py-6">
     <div className="grid gap-6 lg:grid-cols-2">
-      <Skeleton className="h-48 w-full" />
-      <Skeleton className="h-48 w-full" />
+      <Skeleton className={cn(GLASS_CARD_CLASS, "h-48 w-full")} />
+      <Skeleton className={cn(GLASS_CARD_CLASS, "h-48 w-full")} />
     </div>
-    <Skeleton className="h-40 w-full" />
+    <Skeleton className={cn(GLASS_CARD_CLASS, "h-40 w-full")} />
   </div>
 );

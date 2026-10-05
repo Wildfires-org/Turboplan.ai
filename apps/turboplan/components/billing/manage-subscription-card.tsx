@@ -28,9 +28,11 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  GLASS_CARD_CLASS,
   toast,
 } from "@wildfires-org/turboplan-utils";
 
+import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
 import { formatDate } from "./format";
 import type { CancelResponse, Subscription } from "./types";
 import { useBillingPortal } from "./use-billing-portal";
@@ -134,7 +136,7 @@ export function ManageSubscriptionCard({
 
   return (
     <>
-      <Card>
+      <Card className={GLASS_CARD_CLASS}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <CreditCard className="size-5 text-brand-800" />
@@ -149,14 +151,16 @@ export function ManageSubscriptionCard({
             <Button
               onClick={openBillingPortal}
               disabled={isOpeningPortal}
-              className="bg-brand-800 text-white hover:bg-brand-900"
+              size="sm"
+              variant="brand"
+              className={HEADER_ACTION_BUTTON_CLASS}
             >
               {isOpeningPortal ? "Opening…" : "Go to Stripe"}
               {!isOpeningPortal && <ArrowRight className="size-4" />}
             </Button>
             {canSwitchPlan && switchTarget && (
               <Button
-                variant="outline"
+                variant="glass"
                 onClick={() => setPendingPlanChange(switchTarget)}
                 disabled={isChangingPlan}
               >

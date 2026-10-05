@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  GLASS_CARD_CLASS,
   toast,
 } from "@wildfires-org/turboplan-utils";
 
@@ -86,7 +87,7 @@ export function PlanStatusCard({
     : monthlyTotal.toFixed(2);
 
   return (
-    <Card>
+    <Card className={GLASS_CARD_CLASS}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base">
@@ -119,7 +120,7 @@ export function PlanStatusCard({
         ) : (
           <>
             {isTrialing && (
-              <div className="flex items-baseline gap-2 rounded-md bg-brand-50 px-3 py-2">
+              <div className="flex items-baseline gap-2 rounded-xl bg-brand-50 px-3 py-2">
                 <span className="text-2xl font-semibold text-brand-800">
                   {trialDaysLeft}
                 </span>
@@ -172,7 +173,7 @@ export function PlanStatusCard({
             </dl>
 
             {discountPercentOff ? (
-              <p className="rounded-md bg-brand-50 px-3 py-2 text-xs text-brand-800">
+              <p className="rounded-xl bg-brand-50 px-3 py-2 text-xs text-brand-800">
                 {discountPercentOff}% discount applied to the base price
                 {subscription.discountEndsAt
                   ? ` until ${formatDate(subscription.discountEndsAt)}`
@@ -182,7 +183,7 @@ export function PlanStatusCard({
             ) : null}
 
             {subscription.cancelAtPeriodEnd && (
-              <div className="space-y-2 rounded-md bg-amber-50 px-3 py-2">
+              <div className="space-y-2 rounded-xl bg-amber-50 px-3 py-2">
                 <p className="text-xs text-amber-700">
                   Your plan is set to cancel on{" "}
                   {formatDate(subscription.currentPeriodEnd)}. You keep full
@@ -191,7 +192,7 @@ export function PlanStatusCard({
                   but Starter limits apply to new projects and invites.
                 </p>
                 <Button
-                  variant="outline"
+                  variant="glass"
                   size="sm"
                   onClick={handleResumePlan}
                   disabled={isResuming}

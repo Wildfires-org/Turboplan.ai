@@ -27,6 +27,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  GLASS_CARD_CLASS,
   Skeleton,
   toast,
 } from "@wildfires-org/turboplan-utils";
@@ -128,7 +129,7 @@ export function PaidUsersCard({
 
   return (
     <>
-      <Card>
+      <Card className={GLASS_CARD_CLASS}>
         <CardHeader>
           <CardTitle className="text-base">Paid users</CardTitle>
           <CardDescription>
@@ -165,7 +166,7 @@ export function PaidUsersCard({
               <Skeleton className="h-9 w-full" />
             </div>
           ) : seatsData && seatsData.members.length > 0 ? (
-            <ul className="divide-y rounded-md border">
+            <ul className="divide-y divide-slate-200/70 overflow-hidden rounded-xl border border-white/90 bg-white/60">
               {seatsData.members.map((member) => (
                 <li
                   key={member.userId}
