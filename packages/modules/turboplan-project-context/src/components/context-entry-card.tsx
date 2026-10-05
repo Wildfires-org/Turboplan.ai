@@ -87,14 +87,15 @@ export function ContextEntryCard({
       {/* Row 1: Circle + meta info */}
       <div className="flex items-center gap-4">
         <div className="size-6 shrink-0 rounded-full border-[5px] border-white bg-brand-800 shadow-[0_2px_6px_-2px_rgba(15,23,42,0.3)]" />
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Same meta row as timeline entries: no dot separator, so nothing
+            dangles when a narrow card wraps the author to a new line. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-xs leading-4 text-gray-600">
             {formattedDate}
           </span>
 
           {creatorName && (
             <>
-              <span className="size-0.5 rounded-full bg-gray-500" />
               <div className="flex items-center gap-2">
                 <div className="flex items-center py-0.5">
                   {entry.creatorAvatarUrl ? (

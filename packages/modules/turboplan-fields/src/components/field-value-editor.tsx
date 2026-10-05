@@ -50,6 +50,8 @@ function ValueInput({
       onChange={(e) => setLocalValue(e.target.value)}
       onBlur={handleBlur}
       placeholder="Enter value..."
+      // Long values end in an ellipsis; the full text is on hover.
+      title={localValue || undefined}
       className={className}
       disabled={disabled || isSaving}
     />
@@ -107,7 +109,7 @@ export function FieldValueEditor({
 
   /** Ghost input: plain text until hover/focus reveals the editable affordance. */
   const inputClassName =
-    "h-8 w-full rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 shadow-none transition-[background-color,box-shadow] placeholder:text-gray-500 hover:bg-white/80 focus:bg-white focus:shadow-[inset_0_2px_6px_rgba(15,23,42,0.10),inset_0_1px_2px_rgba(15,23,42,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-brand-700/40 dark:text-gray-100";
+    "h-8 w-full text-ellipsis rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 shadow-none transition-[background-color,box-shadow] placeholder:text-gray-500 hover:bg-white/80 focus:bg-white focus:shadow-[inset_0_2px_6px_rgba(15,23,42,0.10),inset_0_1px_2px_rgba(15,23,42,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-brand-700/40 dark:text-gray-100";
 
   // Text field - always show input
   if (field.type === "text") {

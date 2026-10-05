@@ -78,11 +78,12 @@ export function TimelineEntry({
       {/* Row 1: Circle + meta info */}
       <div className="flex items-center gap-4">
         <div className="size-6 shrink-0 rounded-full border-[5px] border-white bg-brand-800 shadow-[0_2px_6px_-2px_rgba(15,23,42,0.3)]" />
-        <div className="flex flex-wrap items-center gap-3">
+        {/* No dot separator: the author avatar already separates the two,
+            and a dot would dangle at the line end when narrow cards wrap. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-xs leading-4 text-gray-550">
             {entry.dateRange}
           </span>
-          <span aria-hidden className="size-0.5 rounded-full bg-gray-550" />
           <div className="flex items-center gap-2">
             <div className="flex items-center py-0.5">
               {entry.authorAvatarUrl ? (

@@ -28,7 +28,9 @@ import { FieldValueEditor } from "./field-value-editor";
 import { FieldValuesDisplay } from "./field-values-display";
 import { FieldsFieldItem } from "./fields-list-layout";
 
-const fieldLabelColumnClassName = "w-36 shrink-0 sm:w-44";
+// Label takes up to 40% of the row (max 176px) so values keep room in the
+// narrow two-column layout on the project overview.
+const fieldLabelColumnClassName = "w-2/5 max-w-44 shrink-0";
 
 interface FieldRowProps {
   field: ProjectField;
