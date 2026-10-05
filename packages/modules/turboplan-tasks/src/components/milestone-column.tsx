@@ -26,11 +26,11 @@ export const MilestoneColumn: React.FC<MilestoneColumnProps> = ({
   return (
     <div className="w-80 flex-shrink-0 rounded-2xl bg-brandAlt-100/80 p-4 ring-1 ring-inset ring-brandAlt-200/70 dark:bg-gray-900 dark:ring-white/10">
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2 flex items-start justify-between gap-3">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
             {milestone.title}
           </h3>
-          <div className="flex items-center text-xs tabular-nums text-gray-600 dark:text-gray-400">
+          <div className="flex h-5 shrink-0 items-center whitespace-nowrap text-xs tabular-nums text-gray-600 dark:text-gray-400">
             {completedTasks > 0 ? (
               <CheckCircle2 className="h-4 w-4 mr-1" />
             ) : (
