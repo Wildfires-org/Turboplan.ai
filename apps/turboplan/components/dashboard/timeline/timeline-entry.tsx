@@ -30,6 +30,7 @@ import {
 } from "@wildfires-org/turboplan-utils";
 
 import { toast } from "@/components/toast";
+import { cn } from "@/lib/utils";
 
 interface TimelineEntryProps {
   entry: TimelineDisplayEntry;
@@ -67,6 +68,10 @@ export function TimelineEntry({
       setIsDeleting(false);
     }
   };
+
+  // A title-only card centers it against the action buttons instead of
+  // leaving it pinned to the top edge.
+  const isTitleOnly = !entry.description && entry.documents.length === 0;
 
   return (
     <div className="flex flex-col gap-1">
@@ -115,7 +120,12 @@ export function TimelineEntry({
             data-testid="timeline-entry"
             className="rounded-2xl border border-white/90 bg-white/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-slate-900/60"
           >
-            <div className="flex items-start gap-4">
+            <div
+              className={cn(
+                "flex gap-4",
+                isTitleOnly ? "items-center" : "items-start",
+              )}
+            >
               {/* Content */}
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex flex-col gap-1">
