@@ -52,6 +52,7 @@ export function ContextSection({
           projectId={projectId}
           canEdit={!readOnly}
           appearance="glass"
+          iconOnly
         />
       }
       onToggleVisibility={onToggleVisibility}
