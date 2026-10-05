@@ -1,3 +1,4 @@
+import { FileText } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -7,9 +8,33 @@ import {
   getCachedSession,
   getValidatedOfficeBySlug,
 } from "@/lib/cache/dashboard";
+import {
+  EMPTY_STATE_TEXT_CLASS,
+  EMPTY_STATE_TITLE_CLASS,
+  PAGE_CONTAINER_CLASS,
+  PAGE_LEAD_CLASS,
+  PAGE_TITLE_CLASS,
+  PANEL_CLASS,
+  PANEL_TITLE_CLASS,
+} from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
 import type { AuthSession } from "@/lib/types/auth";
+import { cn } from "@/lib/utils";
 import type { OfficePageProps } from "@/types/dashboard";
+
+const TEMPLATE_TYPES = [
+  "Project reports",
+  "Meeting minutes",
+  "Proposal templates",
+  "Contract templates",
+];
+
+const TEMPLATE_FEATURES = [
+  "Rich text editing",
+  "Variable placeholders",
+  "Version control",
+  "Collaboration tools",
+];
 
 export async function generateMetadata({
   params,
@@ -104,100 +129,72 @@ export default async function DocumentTemplatesPage({
   ];
 
   return (
-    <div className="flex flex-col shrink-0 min-h-screen">
+    <div className="flex min-h-screen shrink-0 flex-col">
       <DashboardHeader breadcrumbs={breadcrumbs} userId={session.user.id} />
-      <div className="flex-1 container mx-auto p-6">
-        <div className="space-y-6">
-          {/* Page Header */}
-          <div className="border-b pb-6">
-            <h1 className="text-3xl font-bold">Document Templates</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage reusable document templates for {office.name}
+      <div className={cn(PAGE_CONTAINER_CLASS, "flex-1 pb-12 pt-8")}>
+        <div className="mb-6">
+          <h1 className={PAGE_TITLE_CLASS}>Document Templates</h1>
+          <p className={cn(PAGE_LEAD_CLASS, "mt-1.5")}>
+            Manage reusable document templates for {office.name}
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <section
+            className={cn(
+              PANEL_CLASS,
+              "flex flex-col items-center px-6 py-12 text-center sm:px-6 sm:py-12",
+            )}
+          >
+            <span className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-brandAlt-100 text-brand-800">
+              <FileText aria-hidden className="size-6" />
+            </span>
+            <h2 className={EMPTY_STATE_TITLE_CLASS}>
+              Document Templates Coming Soon
+            </h2>
+            <p className={cn(EMPTY_STATE_TEXT_CLASS, "mt-1.5 max-w-md")}>
+              This feature will allow you to create and manage reusable document
+              templates for your projects. Stay tuned for updates!
             </p>
-          </div>
+          </section>
 
-          {/* Templates Content */}
-          <div className="bg-card rounded-lg border p-8">
-            <div className="text-center py-12">
-              <div className="size-16 mx-auto mb-4 bg-secondary rounded-lg flex items-center justify-center">
-                <svg
-                  className="size-8 text-muted-foreground"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium mb-2">
-                Document Templates Coming Soon
-              </h3>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                This feature will allow you to create and manage reusable
-                document templates for your projects. Stay tuned for updates!
-              </p>
-            </div>
-          </div>
-
-          {/* Placeholder Content */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="bg-card rounded-lg border p-6">
-              <h3 className="font-semibold mb-2">Template Types</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Future document template categories will include:
-              </p>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <div className="size-1.5 bg-blue-500 rounded-full" />
-                  Project reports
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="size-1.5 bg-green-500 rounded-full" />
-                  Meeting minutes
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="size-1.5 bg-purple-500 rounded-full" />
-                  Proposal templates
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="size-1.5 bg-orange-500 rounded-full" />
-                  Contract templates
-                </li>
-              </ul>
-            </div>
-
-            <div className="bg-card rounded-lg border p-6">
-              <h3 className="font-semibold mb-2">Features</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Upcoming document template features:
-              </p>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <div className="size-1.5 bg-blue-500 rounded-full" />
-                  Rich text editing
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="size-1.5 bg-green-500 rounded-full" />
-                  Variable placeholders
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="size-1.5 bg-purple-500 rounded-full" />
-                  Version control
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="size-1.5 bg-orange-500 rounded-full" />
-                  Collaboration tools
-                </li>
-              </ul>
-            </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <ComingSoonList
+              title="Template Types"
+              lead="Future document template categories will include:"
+              items={TEMPLATE_TYPES}
+            />
+            <ComingSoonList
+              title="Features"
+              lead="Upcoming document template features:"
+              items={TEMPLATE_FEATURES}
+            />
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+const ComingSoonList = ({
+  title,
+  lead,
+  items,
+}: {
+  title: string;
+  lead: string;
+  items: string[];
+}) => (
+  <section className={PANEL_CLASS}>
+    <h2 className={PANEL_TITLE_CLASS}>{title}</h2>
+    <p className={cn(EMPTY_STATE_TEXT_CLASS, "mb-3 mt-1")}>{lead}</p>
+    <ul className="space-y-2 text-[13px] leading-5 text-foreground">
+      {items.map((item) => (
+        <li key={item} className="flex items-center gap-2.5">
+          <span aria-hidden className="size-1.5 rounded-full bg-brand-800" />
+          {item}
+        </li>
+      ))}
+    </ul>
+  </section>
+);
