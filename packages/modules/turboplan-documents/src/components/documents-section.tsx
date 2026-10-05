@@ -590,9 +590,6 @@ export function DocumentsSectionUI({
               isDragActive
                 ? "border-brand-700 bg-brand-50"
                 : "hover:border-brand-800/45 hover:bg-white/40",
-              {
-                "flex-1": variant === "page",
-              },
               isUploading && "pointer-events-none opacity-60",
             )}
           >

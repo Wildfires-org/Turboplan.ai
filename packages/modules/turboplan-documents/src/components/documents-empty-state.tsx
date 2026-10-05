@@ -60,7 +60,7 @@ export function DocumentsUploadEmptyState({
       </h3>
       <p className="max-w-md text-sm text-muted-foreground">
         {canUpload
-          ? "Drag and drop a file here, or click browse below"
+          ? "Uploaded files will appear here."
           : "No documents have been uploaded to this project yet."}
       </p>
     </div>

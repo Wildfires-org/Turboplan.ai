@@ -62,7 +62,7 @@ export function ProjectDocumentsPageSection({
   };
 
   return (
-    <div className={cn(PANEL_CLASS, "flex h-full flex-col")}>
+    <div className={cn(PANEL_CLASS, "flex flex-col")}>
       <div className="flex min-h-9 items-center justify-between gap-4 pb-4">
         <p className="text-[13px] leading-5 text-gray-550">
           Uploaded plans, permits and reports for this project.
@@ -108,7 +108,7 @@ export function ProjectDocumentsPageSection({
         onFileUpload={uploadDocument}
         isUploading={isUploading}
         uploadProgress={uploadProgress}
-        className="pb-0 flex-1"
+        className="pb-0"
         variant="page"
       />
     </div>
