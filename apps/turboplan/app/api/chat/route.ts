@@ -51,6 +51,11 @@ import {
 } from "@/lib/ai/attachment-notes";
 import { buildSystemPromptArgs } from "@/lib/ai/build-system-prompt-args";
 import { generateTitleFromUserMessage } from "@/lib/ai/generate-title";
+import {
+  type ChatMessageWithAttachments,
+  type LegacyAttachment,
+  withoutExternalFiles,
+} from "@/lib/ai/storage-files";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { generateQuickResponses } from "@/lib/ai/tools/generate-quick-responses";
 import { getContents } from "@/lib/ai/tools/get-contents";
@@ -70,18 +75,6 @@ import { generateUUID, getMostRecentUserMessage } from "@/lib/utils";
 // https://vercel.com/docs/functions/configuring-functions/duration
 // this sets max duration for the chat route in seconds, it only works for Vercel PRO - see the link for more details
 export const maxDuration = 300;
-
-// v4-era attachments arrive on the legacy `experimental_attachments` field,
-// which is not part of the v6 UIMessage type.
-type LegacyAttachment = {
-  url: string;
-  name?: string;
-  contentType?: string;
-};
-
-type MessageWithAttachments = UIMessage & {
-  experimental_attachments?: LegacyAttachment[];
-};
 
 const GENERIC_STREAM_ERROR_MESSAGE = "Oops, an error occurred!";
 
@@ -259,13 +252,19 @@ export async function POST(request: Request) {
   try {
     const {
       id,
-      messages,
+      messages: requestMessages,
       projectId,
     }: {
       id: string;
       messages: Array<UIMessage>;
       projectId?: string;
     } = await request.json();
+
+    // The client sends the whole history, so any message can carry a file
+    // URL. Only files in our own storage are kept: an external URL would be
+    // saved, shown in the chat and handed to the model (which may download it
+    // from this server).
+    const messages = requestMessages.map(withoutExternalFiles);
 
     const session = await auth();
 
@@ -428,8 +427,8 @@ export async function POST(request: Request) {
           role: "user",
           parts: userMessage.parts,
           attachments:
-            (userMessage as MessageWithAttachments).experimental_attachments ??
-            [],
+            (userMessage as ChatMessageWithAttachments)
+              .experimental_attachments ?? [],
           createdAt: new Date(),
         },
       ],
@@ -503,7 +502,7 @@ export async function POST(request: Request) {
 
     const aiSupportedMessages = messages.map((message) => {
       const messageAttachments: LegacyAttachment[] =
-        (message as MessageWithAttachments).experimental_attachments ?? [];
+        (message as ChatMessageWithAttachments).experimental_attachments ?? [];
 
       const supportedAttachments = messageAttachments.filter((att) =>
         isModelReadableType(att.contentType),
