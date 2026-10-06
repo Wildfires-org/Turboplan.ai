@@ -4,17 +4,14 @@ import { ArrowRight, BookOpen, X } from "lucide-react";
 import Link from "next/link";
 
 import {
-  DocumentsSectionUI,
-  useProjectDocuments,
-} from "@wildfires-org/turboplan-documents/client";
-import {
   isDocumentsPackageEnabled,
   isMapPackageEnabled,
   isProjectContextPackageEnabled,
 } from "@wildfires-org/turboplan-feature-flags";
+import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
+import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 import { Button } from "@wildfires-org/turboplan-utils";
 
-import { OrganizationContextPanel } from "@/components/organization-context/organization-context-panel";
 import { useOptionalDashboard } from "@/components/providers/dashboard-provider";
 import { useUser } from "@/components/providers/user-provider";
 import {
@@ -25,20 +22,25 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useOrganizationContextPermissions } from "@/hooks/use-organization-context-permissions";
-import {
-  GLASS_ICON_BUTTON_CLASS,
-  PANEL_CLASS,
-  PANEL_TITLE_CLASS,
-} from "@/lib/glass";
+import { useContextTabs } from "@/hooks/use-context-tabs";
+import { GLASS_ICON_BUTTON_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
 import { cn } from "@/lib/utils";
-import { ContextUploadArea } from "./context-upload-area";
+import { ContextTabList, ContextTabPanels } from "./context-tabs";
+import { ProjectContextDropzone } from "./project-context-dropzone";
+import { ProjectDocumentsSection } from "./project-documents-section";
+import { ProjectNotesSection } from "./project-notes-section";
 
-interface ProjectContextSheetBodyProps {
+interface ProjectContextSheetContentProps {
   projectId: string;
   userId: string;
   organization: { id: string; name: string; slug: string };
+  contextPageHref: string;
+}
+
+interface ProjectTabProps {
+  projectId: string;
+  userId: string;
 }
 
 /** Same light green-tinted blur as the shared Dialog overlay. */
@@ -58,10 +60,10 @@ const SURFACE_CLASS = cn(
 const DIVIDER_CLASS = "border-slate-900/[0.06] dark:border-white/10";
 
 /**
- * "Context" in the project chat header: opens a side sheet with what the
- * assistant knows about the project and its organization, so files can be
- * added (to the project or the organization) and notes or documents removed
- * without leaving the chat. The full Context page is one link away.
+ * "Context" in the project chat header: opens a side sheet with the
+ * project's Context in two tabs, Project and Organization, so files, notes,
+ * the organization prompt and memory can be managed without leaving the
+ * chat. The full Context page is one link away.
  */
 export const ProjectContextSheet = () => {
   const dashboard = useOptionalDashboard();
@@ -98,19 +100,48 @@ export const ProjectContextSheet = () => {
         overlayClassName={OVERLAY_CLASS}
         className={SURFACE_CLASS}
       >
-        <div
-          className={cn(
-            "flex items-start gap-3 border-b px-4 pb-4 pt-5 sm:px-5",
-            DIVIDER_CLASS,
+        <ProjectContextSheetContent
+          projectId={project.id}
+          userId={user.id}
+          organization={organization}
+          contextPageHref={AppUrls.projectContext(
+            organization.slug,
+            office.slug,
+            project.slug,
           )}
-        >
+        />
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+// Mounted only while the sheet is open, so its requests wait for a click.
+const ProjectContextSheetContent = ({
+  projectId,
+  userId,
+  organization,
+  contextPageHref,
+}: ProjectContextSheetContentProps) => {
+  const tabsState = useContextTabs({
+    userId,
+    organizationId: organization.id,
+    isOrganizationContextEnabled: true,
+  });
+  const description =
+    tabsState.activeTab === "organization"
+      ? `What the assistant knows about ${organization.name}.`
+      : "What the assistant knows about this project.";
+
+  return (
+    <>
+      <div className={cn("border-b px-4 pb-4 pt-5 sm:px-5", DIVIDER_CLASS)}>
+        <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1 space-y-1">
             <SheetTitle className="text-[20px] font-medium leading-7 tracking-[-0.02em] text-foreground">
               Context
             </SheetTitle>
             <SheetDescription className="text-[13px] leading-5 text-gray-550 [overflow-wrap:anywhere]">
-              What the assistant knows about this project and{" "}
-              {organization.name}.
+              {description}
             </SheetDescription>
           </div>
           <SheetClose className={cn(GLASS_ICON_BUTTON_CLASS, "size-9")}>
@@ -118,95 +149,63 @@ export const ProjectContextSheet = () => {
             <span className="sr-only">Close</span>
           </SheetClose>
         </div>
+        <ContextTabList state={tabsState} isNarrow className="mt-4" />
+      </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
-          <ProjectContextSheetBody
-            projectId={project.id}
-            userId={user.id}
-            organization={organization}
-          />
-        </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+        <ContextTabPanels
+          state={tabsState}
+          userId={userId}
+          organization={organization}
+          projectContent={<ProjectTab projectId={projectId} userId={userId} />}
+          isNarrow
+          className="space-y-4"
+        />
+      </div>
 
-        <div className={cn("border-t px-4 py-3 sm:px-5", DIVIDER_CLASS)}>
-          <SheetClose asChild>
-            <Button asChild variant="glass" className="h-10 w-full">
-              <Link
-                href={AppUrls.projectContext(
-                  organization.slug,
-                  office.slug,
-                  project.slug,
-                )}
-              >
-                Open full Context page
-                <ArrowRight aria-hidden />
-              </Link>
-            </Button>
-          </SheetClose>
-        </div>
-      </SheetContent>
-    </Sheet>
+      <div className={cn("border-t px-4 py-3 sm:px-5", DIVIDER_CLASS)}>
+        <SheetClose asChild>
+          <Button asChild variant="glass" className="h-10 w-full">
+            <Link href={contextPageHref}>
+              Open full Context page
+              <ArrowRight aria-hidden />
+            </Link>
+          </Button>
+        </SheetClose>
+      </div>
+    </>
   );
 };
 
-// Mounted only while the sheet is open, so its requests wait for a click.
-const ProjectContextSheetBody = ({
-  projectId,
-  userId,
-  organization,
-}: ProjectContextSheetBodyProps) => {
+/** The panel's Project tab: files for the AI, uploaded documents, notes. */
+const ProjectTab = ({ projectId, userId }: ProjectTabProps) => {
   const isDocumentsEnabled = isDocumentsPackageEnabled();
-  const { canEditOrganization, canReadOrganization } =
-    useOrganizationContextPermissions({
-      userId,
-      organizationId: organization.id,
-    });
-  const { documents: uploadedDocuments } = useProjectDocuments({
-    projectId,
-    source: "upload",
+  const isMapEnabled = isMapPackageEnabled();
+  const { hasPermission: canEdit } = useEntityPermission({
+    userId,
+    entityType: EntityType.PROJECT,
+    entityId: projectId,
+    action: Action.UPDATE,
   });
 
   return (
     <>
-      <ContextUploadArea
-        projectId={projectId}
-        userId={userId}
-        organization={organization}
-        isDocumentsEnabled={isDocumentsEnabled}
-        isMapEnabled={isMapPackageEnabled()}
-        isOrganizationContextEnabled
-        isNarrow
-      />
-
-      {canReadOrganization && (
-        <OrganizationContextPanel
-          organizationId={organization.id}
-          organizationName={organization.name}
-          orgSlug={organization.slug}
-          canEdit={canEditOrganization}
+      {canEdit && (isDocumentsEnabled || isMapEnabled) && (
+        <ProjectContextDropzone
+          projectId={projectId}
+          acceptsDocuments={isDocumentsEnabled}
+          acceptsGisLayers={isMapEnabled}
           isNarrow
         />
       )}
-
-      {isDocumentsEnabled && uploadedDocuments.length > 0 && (
-        <section className={cn(PANEL_CLASS, "space-y-4")}>
-          <div>
-            <h3 className={PANEL_TITLE_CLASS}>Project documents</h3>
-            <p className="text-[13px] leading-5 text-gray-550">
-              Files added to this project. The assistant reads their text once
-              extracted.
-            </p>
-          </div>
-          {/* The only poller of this list in the sheet; the dropzone rows
-              above read the same SWR cache. */}
-          <DocumentsSectionUI
-            projectId={projectId}
-            userId={userId}
-            source="upload"
-            showExtractionStatus
-            singleColumn
-          />
-        </section>
+      {isDocumentsEnabled && (
+        <ProjectDocumentsSection
+          projectId={projectId}
+          userId={userId}
+          isNarrow
+        />
       )}
+      <ProjectNotesSection projectId={projectId} canEdit={canEdit} isNarrow />
     </>
   );
 };

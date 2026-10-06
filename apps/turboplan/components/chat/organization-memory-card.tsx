@@ -43,8 +43,8 @@ const ACTION_BUTTON_CLASS =
 /**
  * The `saveOrganizationMemory` tool in the chat: a muted "Saving..." row while
  * it runs, then a card with the saved note, a one-click Delete and a link to
- * the project's Context page (where every note is listed). Rendered from the
- * persisted output, so it reads the same when the chat is reloaded.
+ * the organization's Context page (where every note is listed). Rendered from
+ * the persisted output, so it reads the same when the chat is reloaded.
  */
 export const OrganizationMemoryCard = ({
   result,
@@ -84,8 +84,6 @@ const SavedMemoryCard = ({ saved, isReadonly }: SavedMemoryCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const organization = dashboard?.organization ?? null;
-  const office = dashboard?.office ?? null;
-  const project = dashboard?.project ?? null;
   const organizationId = isReadonly ? null : (organization?.id ?? null);
 
   const { hasPermission: canEditOrganization } = useEntityPermission({
@@ -109,8 +107,8 @@ const SavedMemoryCard = ({ saved, isReadonly }: SavedMemoryCardProps) => {
   const canDelete = canEditOrganization && isListed && !isDeleting;
 
   const manageHref =
-    !isReadonly && organization && office && project
-      ? AppUrls.projectContext(organization.slug, office.slug, project.slug)
+    !isReadonly && organization
+      ? AppUrls.organizationContext(organization.slug)
       : null;
 
   const handleDelete = async () => {

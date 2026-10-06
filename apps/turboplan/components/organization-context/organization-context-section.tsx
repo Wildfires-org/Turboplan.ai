@@ -2,10 +2,12 @@
 
 import { useId } from "react";
 
-import { Info } from "lucide-react";
+import { ArrowRight, Info } from "lucide-react";
+import Link from "next/link";
 
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
+import { Button } from "@wildfires-org/turboplan-utils";
 
 import { OrgTabNav } from "@/components/dashboard/org-tab-nav";
 import {
@@ -13,6 +15,7 @@ import {
   PANEL_TITLE_CLASS,
   STICKY_TOOLBAR_CLASS,
 } from "@/lib/glass";
+import { AppUrls } from "@/lib/nav/urls";
 import { cn } from "@/lib/utils";
 import { OrganizationDocumentList } from "./organization-document-list";
 import { OrganizationDocumentsDropzone } from "./organization-documents-dropzone";
@@ -24,13 +27,21 @@ interface OrganizationContextSectionProps {
   organizationId: string;
   organizationName: string;
   orgSlug: string;
+  /**
+   * "page": the Organization Context page (organization tabs on top).
+   * "embedded": the Organization tab of a project's Context (page or chat
+   * panel), headed by the organization's name and a link to its page.
+   */
+  variant?: "page" | "embedded";
+  /** In a narrow container (the chat Context panel): stack rows */
+  isNarrow?: boolean;
 }
 
 const PANEL_LEAD_CLASS = "text-[13px] leading-5 text-gray-550";
 
 /**
- * The Organization Context page body: the standing AI prompt, the notes the
- * assistant saved from chats and the reference documents. Owners and editors
+ * The organization's context: the standing AI prompt, the notes the assistant
+ * saved from chats and the reference documents. Owners and editors
  * (organization UPDATE) edit them; everyone else with access reads them.
  */
 export const OrganizationContextSection = ({
@@ -38,10 +49,15 @@ export const OrganizationContextSection = ({
   organizationId,
   organizationName,
   orgSlug,
+  variant = "page",
+  isNarrow = false,
 }: OrganizationContextSectionProps) => {
   const promptHeadingId = useId();
   const memoryHeadingId = useId();
   const documentsHeadingId = useId();
+  const isEmbedded = variant === "embedded";
+  // Embedded, the sections sit under the organization's name (an h3).
+  const SectionHeading = isEmbedded ? "h4" : "h2";
 
   const { hasPermission: canEdit, isChecking } = useEntityPermission({
     userId,
@@ -51,12 +67,43 @@ export const OrganizationContextSection = ({
   });
 
   return (
-    <div className="space-y-2">
-      <div className={STICKY_TOOLBAR_CLASS}>
-        <OrgTabNav orgSlug={orgSlug} />
-      </div>
+    <div className={cn(!isEmbedded && "space-y-2")}>
+      {isEmbedded ? null : (
+        <div className={STICKY_TOOLBAR_CLASS}>
+          <OrgTabNav orgSlug={orgSlug} />
+        </div>
+      )}
 
-      <div className="space-y-4 pb-8">
+      <div className={cn("space-y-4", !isEmbedded && "pb-8")}>
+        {isEmbedded && (
+          <div
+            className={cn(
+              "flex flex-col gap-3",
+              !isNarrow && "sm:flex-row sm:items-center sm:justify-between",
+            )}
+          >
+            <h3
+              className={cn(
+                PANEL_TITLE_CLASS,
+                "min-w-0 text-[18px] leading-7 [overflow-wrap:anywhere]",
+              )}
+            >
+              {organizationName}
+            </h3>
+            <Button
+              asChild
+              variant="glass"
+              size="sm"
+              className={cn("shrink-0 self-start", !isNarrow && "sm:self-auto")}
+            >
+              <Link href={AppUrls.organizationContext(orgSlug)}>
+                Open organization context
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          </div>
+        )}
+
         <p
           role="note"
           className="flex items-start gap-2.5 rounded-2xl border border-blue-700/10 bg-blue-50/70 px-4 py-3 text-[13px] leading-5 text-blue-900 dark:border-blue-300/15 dark:bg-blue-950/30 dark:text-blue-100"
@@ -65,8 +112,9 @@ export const OrganizationContextSection = ({
             aria-hidden
             className="mt-0.5 size-4 shrink-0 text-blue-700 dark:text-blue-300"
           />
-          Shared with the AI in chats and research for everyone with access to
-          this organization&apos;s projects.
+          {isEmbedded
+            ? `Shared with the AI in every project in ${organizationName}, not only this one.`
+            : "Shared with the AI in chats and research for everyone with access to this organization's projects."}
         </p>
 
         <section
@@ -74,9 +122,9 @@ export const OrganizationContextSection = ({
           className={cn(PANEL_CLASS, "space-y-4")}
         >
           <div>
-            <h2 id={promptHeadingId} className={PANEL_TITLE_CLASS}>
+            <SectionHeading id={promptHeadingId} className={PANEL_TITLE_CLASS}>
               Organization prompt
-            </h2>
+            </SectionHeading>
             <p className={PANEL_LEAD_CLASS}>
               Standing instructions for the AI: who you are, the standards you
               follow, and how you like work written.
@@ -94,9 +142,9 @@ export const OrganizationContextSection = ({
           className={cn(PANEL_CLASS, "space-y-4")}
         >
           <div>
-            <h2 id={memoryHeadingId} className={PANEL_TITLE_CLASS}>
+            <SectionHeading id={memoryHeadingId} className={PANEL_TITLE_CLASS}>
               Memory
-            </h2>
+            </SectionHeading>
             <p className={PANEL_LEAD_CLASS}>
               Notes the assistant saved from chats. Shared with the AI in every
               project chat and research run in this organization.
@@ -114,16 +162,22 @@ export const OrganizationContextSection = ({
           className={cn(PANEL_CLASS, "space-y-4")}
         >
           <div>
-            <h2 id={documentsHeadingId} className={PANEL_TITLE_CLASS}>
+            <SectionHeading
+              id={documentsHeadingId}
+              className={PANEL_TITLE_CLASS}
+            >
               Reference documents
-            </h2>
+            </SectionHeading>
             <p className={PANEL_LEAD_CLASS}>
               Policies, standards, templates and past work. The AI gets a short
               summary of each and can open the full text when it needs it.
             </p>
           </div>
           {canEdit && (
-            <OrganizationDocumentsDropzone organizationId={organizationId} />
+            <OrganizationDocumentsDropzone
+              organizationId={organizationId}
+              isNarrow={isNarrow}
+            />
           )}
           <OrganizationDocumentList
             organizationId={organizationId}

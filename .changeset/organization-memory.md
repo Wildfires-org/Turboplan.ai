@@ -17,12 +17,10 @@ context, and files can go to the organization from a project's Context page.
 - **Notes reach the AI:** every project chat and research run in the
   organization sees the newest notes in the organization context, capped at
   2,500 characters in chat and 800 in research so document facts keep room.
-- **Easy to delete:** the organization Context page has a Memory section, and
-  a project's Context page has an "{organization} context" panel listing notes
-  and organization files. Each note deletes in one click. In chat, a "Saved to
-  {organization} context" card shows the note with Delete and Manage.
-- **Upload target:** a project's Context page lets editors choose
-  "Add files to: Project / {organization}".
+- **Easy to delete:** the organization Context page has a Memory section, also
+  shown in the Organization tab of a project's Context (page and chat panel).
+  Each note deletes in one click. In chat, a "Saved to {organization} context"
+  card shows the note with Delete and Manage.
 - **API:** `GET /api/organizations/:id/memories` and
   `DELETE /api/organization-memories/:id`, behind the project-context flag.
 

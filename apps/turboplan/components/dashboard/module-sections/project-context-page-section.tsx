@@ -1,28 +1,22 @@
 "use client";
 
-import { useState } from "react";
-
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
-
 import {
   DocumentsSectionUI,
   useProjectDocuments,
 } from "@wildfires-org/turboplan-documents/client";
-import {
-  ContextFormDialog,
-  ProjectContextList,
-  useProjectContext,
-} from "@wildfires-org/turboplan-project-context/client";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 import { StartResearchButton } from "@wildfires-org/turboplan-research-agent-integration/client";
-import { Button } from "@wildfires-org/turboplan-utils";
 
-import { OrganizationContextPanel } from "@/components/organization-context/organization-context-panel";
-import { ContextUploadArea } from "@/components/project-context/context-upload-area";
+import {
+  ContextTabList,
+  ContextTabPanels,
+} from "@/components/project-context/context-tabs";
+import { ProjectContextDropzone } from "@/components/project-context/project-context-dropzone";
+import { ProjectDocumentsSection } from "@/components/project-context/project-documents-section";
 import { ProjectGisLayersPanel } from "@/components/project-context/project-gis-layers-panel";
-import { useOrganizationContextPermissions } from "@/hooks/use-organization-context-permissions";
+import { ProjectNotesSection } from "@/components/project-context/project-notes-section";
+import { useContextTabs } from "@/hooks/use-context-tabs";
 import { PANEL_CLASS, PANEL_TITLE_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
@@ -47,19 +41,17 @@ export function ProjectContextPageSection({
   isMapEnabled,
   isOrganizationContextEnabled,
 }: ProjectContextPageSectionProps) {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const { addEntry, isMutating } = useProjectContext({ projectId });
+  const tabsState = useContextTabs({
+    userId,
+    organizationId: organization.id,
+    isOrganizationContextEnabled,
+  });
   const { hasPermission: canEdit } = useEntityPermission({
     userId,
     entityType: EntityType.PROJECT,
     entityId: projectId,
     action: Action.UPDATE,
   });
-  const { canEditOrganization, canReadOrganization } =
-    useOrganizationContextPermissions({
-      userId: isOrganizationContextEnabled ? userId : undefined,
-      organizationId: organization.id,
-    });
   const { hasPermission: canDelete } = useEntityPermission({
     userId,
     entityType: EntityType.PROJECT,
@@ -70,26 +62,9 @@ export function ProjectContextPageSection({
     projectId,
     source: "research",
   });
-  const { documents: uploadedDocuments } = useProjectDocuments({
-    projectId,
-    source: "upload",
-  });
+  const canDropFiles = canEdit && (isDocumentsEnabled || isMapEnabled);
 
-  const handleAddContext = async (data: {
-    label: string;
-    content: string;
-    url?: string;
-  }) => {
-    try {
-      await addEntry(data);
-      toast.success("Context entry added successfully");
-      setIsAddDialogOpen(false);
-    } catch {
-      toast.error("Failed to add context entry");
-    }
-  };
-
-  return (
+  const projectContent = (
     <>
       <section className={cn(PANEL_CLASS, "space-y-4")}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -106,63 +81,24 @@ export function ProjectContextPageSection({
           />
         </div>
 
-        <ContextUploadArea
-          projectId={projectId}
-          userId={userId}
-          organization={organization}
-          isDocumentsEnabled={isDocumentsEnabled}
-          isMapEnabled={isMapEnabled}
-          isOrganizationContextEnabled={isOrganizationContextEnabled}
-        />
+        {canDropFiles && (
+          <ProjectContextDropzone
+            projectId={projectId}
+            acceptsDocuments={isDocumentsEnabled}
+            acceptsGisLayers={isMapEnabled}
+          />
+        )}
       </section>
 
-      {isDocumentsEnabled && uploadedDocuments.length > 0 && (
-        <section className={cn(PANEL_CLASS, "space-y-4")}>
-          <div>
-            <h3 className={PANEL_TITLE_CLASS}>Documents</h3>
-            <p className="text-[13px] leading-5 text-gray-550">
-              Uploaded plans, permits and reports. Their text is read by the
-              assistant once extracted.
-            </p>
-          </div>
-          {/* The only poller of this list on the page (showExtractionStatus
-              polls while text is pending); the dropzone rows above read the
-              same SWR cache and update with it. */}
-          <DocumentsSectionUI
-            projectId={projectId}
-            userId={userId}
-            source="upload"
-            showExtractionStatus
-          />
-        </section>
+      {isDocumentsEnabled && (
+        <ProjectDocumentsSection projectId={projectId} userId={userId} />
       )}
 
       {isMapEnabled && (
         <ProjectGisLayersPanel projectId={projectId} canDelete={canDelete} />
       )}
 
-      <section className={cn(PANEL_CLASS, "space-y-4")}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className={PANEL_TITLE_CLASS}>Notes and references</h3>
-            <p className="text-[13px] leading-5 text-gray-550">
-              Key information and references for this project.
-            </p>
-          </div>
-          {canEdit && (
-            <Button
-              variant="brand"
-              size="sm"
-              onClick={() => setIsAddDialogOpen(true)}
-            >
-              <Plus aria-hidden />
-              Add context
-            </Button>
-          )}
-        </div>
-
-        <ProjectContextList projectId={projectId} readOnly={!canEdit} />
-      </section>
+      <ProjectNotesSection projectId={projectId} canEdit={canEdit} />
 
       {researchedDocuments.length > 0 && (
         <section className={cn(PANEL_CLASS, "space-y-4")}>
@@ -180,25 +116,18 @@ export function ProjectContextPageSection({
           />
         </section>
       )}
+    </>
+  );
 
-      {isOrganizationContextEnabled && canReadOrganization && (
-        <OrganizationContextPanel
-          organizationId={organization.id}
-          organizationName={organization.name}
-          orgSlug={organization.slug}
-          canEdit={canEditOrganization}
-        />
-      )}
-
-      <ContextFormDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        onSubmit={handleAddContext}
-        isSubmitting={isMutating}
-        title="Add Context"
-        description="Add a context entry to capture project information."
-        submitLabel="Add Context"
-        submittingLabel="Adding..."
+  return (
+    <>
+      <ContextTabList state={tabsState} />
+      <ContextTabPanels
+        state={tabsState}
+        userId={userId}
+        organization={organization}
+        projectContent={projectContent}
+        className="space-y-6"
       />
     </>
   );
