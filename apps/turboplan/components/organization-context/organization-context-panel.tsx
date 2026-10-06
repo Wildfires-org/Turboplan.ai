@@ -19,6 +19,8 @@ interface OrganizationContextPanelProps {
   orgSlug: string;
   /** Owner or editor of the organization: delete notes, manage documents */
   canEdit: boolean;
+  /** In a narrow container (the chat Context panel): stack the header */
+  isNarrow?: boolean;
 }
 
 const SUBHEADING_CLASS = "text-[13px] font-medium leading-5 text-foreground";
@@ -33,6 +35,7 @@ export const OrganizationContextPanel = ({
   organizationName,
   orgSlug,
   canEdit,
+  isNarrow = false,
 }: OrganizationContextPanelProps) => {
   const headingId = useId();
 
@@ -41,7 +44,12 @@ export const OrganizationContextPanel = ({
       aria-labelledby={headingId}
       className={cn(PANEL_CLASS, "space-y-4")}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div
+        className={cn(
+          "flex flex-col gap-3",
+          !isNarrow && "sm:flex-row sm:items-start sm:justify-between",
+        )}
+      >
         <div className="min-w-0">
           <h3
             id={headingId}

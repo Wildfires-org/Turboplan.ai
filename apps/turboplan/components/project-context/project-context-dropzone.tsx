@@ -43,6 +43,8 @@ interface ProjectContextDropzoneProps {
   acceptsDocuments: boolean;
   /** Map module enabled: accept zipped GIS layers */
   acceptsGisLayers: boolean;
+  /** In a narrow container (the chat Context panel): never lay out as a row */
+  isNarrow?: boolean;
   className?: string;
 }
 
@@ -90,6 +92,7 @@ export function ProjectContextDropzone({
   projectId,
   acceptsDocuments,
   acceptsGisLayers,
+  isNarrow = false,
   className,
 }: ProjectContextDropzoneProps) {
   const { rows, documents, handleDrop, removeRows } = useProjectContextDrop({
@@ -141,7 +144,8 @@ export function ProjectContextDropzone({
       <div
         {...getRootProps()}
         className={cn(
-          "flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors duration-150 sm:flex-row sm:text-left",
+          "flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed text-center transition-colors duration-150",
+          isNarrow ? "px-4 py-6" : "px-6 py-8 sm:flex-row sm:text-left",
           isDragActive
             ? "border-brand-700 bg-brand-50/80"
             : "border-brand-800/25 bg-white/40 hover:border-brand-800/40 dark:bg-slate-900/30",

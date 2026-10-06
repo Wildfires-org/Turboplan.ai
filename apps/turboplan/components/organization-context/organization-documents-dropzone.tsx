@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils";
 
 interface OrganizationDocumentsDropzoneProps {
   organizationId: string;
+  /** In a narrow container (the chat Context panel): never lay out as a row */
+  isNarrow?: boolean;
   className?: string;
 }
 
@@ -59,6 +61,7 @@ const EASE_OUT = [0.23, 1, 0.32, 1] as const;
  */
 export const OrganizationDocumentsDropzone = ({
   organizationId,
+  isNarrow = false,
   className,
 }: OrganizationDocumentsDropzoneProps) => {
   const { rows, documentCount, handleDrop, removeRows } =
@@ -98,7 +101,8 @@ export const OrganizationDocumentsDropzone = ({
       <div
         {...getRootProps()}
         className={cn(
-          "flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-5 py-6 text-center transition-colors duration-150 sm:flex-row sm:px-6 sm:text-left",
+          "flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed text-center transition-colors duration-150",
+          isNarrow ? "px-4 py-6" : "px-5 py-6 sm:flex-row sm:px-6 sm:text-left",
           isFull
             ? "border-slate-900/10 bg-white/30 dark:border-white/10 dark:bg-slate-900/20"
             : isDragActive

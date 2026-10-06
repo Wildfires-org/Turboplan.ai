@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Copy, Terminal } from "lucide-react";
 import { toast } from "sonner";
 
-import { getAppEnv } from "@wildfires-org/turboplan-env";
+import { isLocalDevelopment } from "@wildfires-org/turboplan-env";
 import {
   Button,
   Dialog,
@@ -155,7 +155,9 @@ export const DocumentPromptDebug = ({
   const [runtimeContext, setRuntimeContext] = useState<RuntimeContext>({});
   const [loading, setLoading] = useState(false);
 
-  if (getAppEnv() === "production") {
+  // Same gate as /api/debug/document-prompt, which only answers in local
+  // development: anywhere else the button could only show an error.
+  if (!isLocalDevelopment()) {
     return null;
   }
 

@@ -180,6 +180,8 @@ type DocumentCardsGridProps = {
   onPreview: (doc: ProjectDocument) => void;
   onDelete: (id: string) => void;
   onRename: (doc: ProjectDocument) => void;
+  /** Classes for each card grid (e.g. one column in a narrow panel) */
+  listClassName?: string;
 };
 
 const DocumentCardsGrid = ({
@@ -192,6 +194,7 @@ const DocumentCardsGrid = ({
   onPreview,
   onDelete,
   onRename,
+  listClassName,
 }: DocumentCardsGridProps) => {
   const { folders, ungrouped } = useMemo(
     () => groupDocumentsByFolder(documents),
@@ -201,7 +204,7 @@ const DocumentCardsGrid = ({
 
   if (!hasFolders) {
     return (
-      <DocumentsList variant="section">
+      <DocumentsList variant="section" className={listClassName}>
         {documents.map((document) => (
           <DocumentCardWithActions
             key={document.id}
@@ -238,7 +241,7 @@ const DocumentCardsGrid = ({
               ({folder.docs.length})
             </span>
           </div>
-          <DocumentsList variant="section">
+          <DocumentsList variant="section" className={listClassName}>
             {folder.docs.map((document) => (
               <DocumentCardWithActions
                 key={document.id}
@@ -268,7 +271,7 @@ const DocumentCardsGrid = ({
               </span>
             </div>
           )}
-          <DocumentsList variant="section">
+          <DocumentsList variant="section" className={listClassName}>
             {ungrouped.map((document) => (
               <DocumentCardWithActions
                 key={document.id}
@@ -312,6 +315,8 @@ export interface DocumentsSectionUIProps {
   onSuggestionClick?: (content: string) => void;
   /** Show each document's text extraction status */
   showExtractionStatus?: boolean;
+  /** One card per row at every width (narrow containers such as side panels) */
+  singleColumn?: boolean;
 }
 
 /**
@@ -332,6 +337,7 @@ export function DocumentsSectionUI({
   isResearchPhaseCompleted,
   onSuggestionClick,
   showExtractionStatus = false,
+  singleColumn = false,
 }: DocumentsSectionUIProps) {
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [renameDoc, setRenameDoc] = useState<ProjectDocument | null>(null);
@@ -490,7 +496,10 @@ export function DocumentsSectionUI({
             <div
               role="status"
               aria-label="Loading documents"
-              className="grid grid-cols-1 gap-4 md:grid-cols-2"
+              className={cn(
+                "grid grid-cols-1 gap-4",
+                !singleColumn && "md:grid-cols-2",
+              )}
             >
               {[0, 1].map((index) => (
                 <div
@@ -556,6 +565,7 @@ export function DocumentsSectionUI({
               onPreview={setPreviewDoc}
               onDelete={setDeleteFileId}
               onRename={setRenameDoc}
+              listClassName={singleColumn ? "md:grid-cols-1" : undefined}
             />
           )}
 
