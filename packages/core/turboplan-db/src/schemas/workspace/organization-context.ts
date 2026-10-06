@@ -109,6 +109,29 @@ export const organizationDocument = pgTable(
   ],
 );
 
+/**
+ * Short notes ("memories") the chat assistant saved to an organization at a
+ * user's request — preferences and facts to remember across chats. Created
+ * only server-side by the chat tool; users can list and delete them.
+ */
+export const organizationMemory = pgTable(
+  "organization_memory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    createdBy: uuid("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("organization_memory_organization_id_idx").on(table.organizationId),
+  ],
+);
+
 // Types
 export type OrganizationContext = InferSelectModel<typeof organizationContext>;
 export type NewOrganizationContext = typeof organizationContext.$inferInsert;
@@ -116,3 +139,5 @@ export type OrganizationDocument = InferSelectModel<
   typeof organizationDocument
 >;
 export type NewOrganizationDocument = typeof organizationDocument.$inferInsert;
+export type OrganizationMemory = InferSelectModel<typeof organizationMemory>;
+export type NewOrganizationMemory = typeof organizationMemory.$inferInsert;

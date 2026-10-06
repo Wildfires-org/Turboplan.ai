@@ -3,6 +3,7 @@ import type { QuickResponse } from "@/lib/ai/tools/generate-quick-responses";
 import { ToolInvocationState } from "@/types/ToolInvocationState";
 import { Tools } from "@/types/Tools";
 import type { ArtifactKind } from "./artifact";
+import { OrganizationMemoryCard } from "./chat/organization-memory-card";
 import {
   DocumentArgsType,
   DocumentResultType,
@@ -105,6 +106,10 @@ export const Tool = ({
     }
     // Loading state is handled by useStreamingDots in message.tsx
     return null;
+  }
+
+  if (toolName === Tools.saveOrganizationMemory) {
+    return <OrganizationMemoryCard result={result} isReadonly={isReadonly} />;
   }
 
   // Research tools are rendered by ResearchStep in message.tsx

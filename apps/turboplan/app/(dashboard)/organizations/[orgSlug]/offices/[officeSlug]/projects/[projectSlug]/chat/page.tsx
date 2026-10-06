@@ -8,6 +8,7 @@ import {
   getCachedSession,
   getValidatedProjectBySlug,
 } from "@/lib/cache/dashboard";
+import { INITIAL_ATTACHMENTS_PARAM } from "@/lib/initial-attachments";
 import { AppUrls } from "@/lib/nav/urls";
 import type { ProjectParams } from "@/types/dashboard";
 
@@ -16,6 +17,7 @@ interface ProjectChatPageProps {
   searchParams: Promise<{
     chatId?: string;
     initialMessageContent?: string;
+    [INITIAL_ATTACHMENTS_PARAM]?: string;
     prefillContent?: string;
   }>;
 }
@@ -95,6 +97,12 @@ export default async function ProjectChatPage({
       params.set(
         "initialMessageContent",
         resolvedSearchParams.initialMessageContent,
+      );
+    }
+    if (resolvedSearchParams[INITIAL_ATTACHMENTS_PARAM]) {
+      params.set(
+        INITIAL_ATTACHMENTS_PARAM,
+        resolvedSearchParams[INITIAL_ATTACHMENTS_PARAM],
       );
     }
     if (resolvedSearchParams.prefillContent) {

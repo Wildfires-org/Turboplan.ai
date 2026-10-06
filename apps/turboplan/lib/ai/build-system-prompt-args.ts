@@ -40,13 +40,14 @@ const canUserUpdateProject = async (
 };
 
 /**
- * Whether the user may READ the organization (includes READ inherited upward
- * from project membership). Fails closed: any error means no organization
- * context is shared.
+ * Whether the user has `action` on the organization (READ includes READ
+ * inherited upward from project membership). Fails closed: any error means no
+ * organization context is shared and no organization write tool is offered.
  */
-const canUserReadOrganization = async (
+const canUserAccessOrganization = async (
   userId: string,
   organizationId: string,
+  action: typeof Action.READ | typeof Action.UPDATE,
 ): Promise<boolean> => {
   try {
     const rbac = getRBACService();
@@ -54,12 +55,12 @@ const canUserReadOrganization = async (
       userId,
       organizationId,
       EntityType.ORGANIZATION,
-      Action.READ,
+      action,
     );
     return result.allowed;
   } catch (error) {
     console.error(
-      "[SystemPromptContext] Failed to check organization READ permission:",
+      `[SystemPromptContext] Failed to check organization ${action} permission:`,
       error,
     );
     return false;
@@ -82,6 +83,11 @@ type SystemPromptContext = {
   organizationId?: string;
   /** Organization documents whose full text readOrganizationDocuments can return */
   readableOrganizationDocumentIds?: string[];
+  /**
+   * The project's organization when the user may UPDATE it, set whether or not
+   * its context block is empty; binds saveOrganizationMemory
+   */
+  memoryOrganization?: { id: string; name: string };
   researchAgentStatus?: string;
   projectTasksContext?: string;
   savedResearchContext?: string;
@@ -138,6 +144,11 @@ export const buildSystemPromptArgs = async ({
   const hasUpdateProjectFieldsTool =
     hasProjectUpdateAccess && isFieldsPackageEnabled();
 
+  // Saving organization memories needs organization UPDATE, checked (behind
+  // the project-context flag) while the context was fetched. Like
+  // updateProjectContext it works in both research and full mode.
+  const hasSaveOrganizationMemoryTool = !!context.memoryOrganization;
+
   return {
     ...context,
     activeTools: [
@@ -150,6 +161,7 @@ export const buildSystemPromptArgs = async ({
         : []),
       ...(hasUpdateProjectContextTool ? ["updateProjectContext"] : []),
       ...(hasUpdateProjectFieldsTool ? ["updateProjectFields"] : []),
+      ...(hasSaveOrganizationMemoryTool ? ["saveOrganizationMemory"] : []),
       "generateQuickResponses",
       "webSearch",
       "getContents",
@@ -349,6 +361,7 @@ const fetchSystemPromptContext = async ({
           const {
             getOrganizationContextForProject,
             ORG_CONTEXT_CHAT_BUDGET,
+            ORG_CONTEXT_CHAT_MEMORIES_MAX_CHARS,
             ORGANIZATION_PROMPT_MAX_CHARS,
           } = await import("@wildfires-org/turboplan-workspace/server");
           const organizationContext = await getOrganizationContextForProject(
@@ -356,15 +369,17 @@ const fetchSystemPromptContext = async ({
             {
               budgetChars: ORG_CONTEXT_CHAT_BUDGET,
               promptMaxChars: ORGANIZATION_PROMPT_MAX_CHARS,
+              memoriesMaxChars: ORG_CONTEXT_CHAT_MEMORIES_MAX_CHARS,
               readToolName: "readOrganizationDocuments",
             },
           );
           if (!organizationContext) {
             return;
           }
-          const canRead = await canUserReadOrganization(
+          const canRead = await canUserAccessOrganization(
             userId,
             organizationContext.organizationId,
+            Action.READ,
           );
           if (!canRead) {
             return;
@@ -376,6 +391,43 @@ const fetchSystemPromptContext = async ({
         } catch (error) {
           console.error(
             "[SystemPromptContext] Failed to fetch organization context:",
+            error,
+          );
+        }
+      })(),
+    );
+
+    // The organization saveOrganizationMemory writes to. Resolved on its own
+    // (the block above is null when the organization has nothing to share
+    // yet, which is exactly when a first note gets saved) and in parallel
+    // with it, so it adds no latency.
+    fetchers.push(
+      (async () => {
+        try {
+          const { getOrganizationIdForProject } = await import(
+            "@wildfires-org/turboplan-db/queries"
+          );
+          const { getOrganizationById } = await import(
+            "@wildfires-org/turboplan-workspace/server"
+          );
+          const organizationId = await getOrganizationIdForProject(projectId);
+          if (!organizationId) {
+            return;
+          }
+          const [organization, canUpdate] = await Promise.all([
+            getOrganizationById(organizationId),
+            canUserAccessOrganization(userId, organizationId, Action.UPDATE),
+          ]);
+          if (!organization || !canUpdate) {
+            return;
+          }
+          context.memoryOrganization = {
+            id: organization.id,
+            name: organization.name,
+          };
+        } catch (error) {
+          console.error(
+            "[SystemPromptContext] Failed to resolve the organization for memories:",
             error,
           );
         }

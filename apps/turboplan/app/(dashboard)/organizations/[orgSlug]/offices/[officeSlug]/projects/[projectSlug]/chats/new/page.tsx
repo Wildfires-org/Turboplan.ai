@@ -23,6 +23,7 @@ import {
   getCachedSession,
   getValidatedProjectBySlug,
 } from "@/lib/cache/dashboard";
+import { INITIAL_ATTACHMENTS_PARAM } from "@/lib/initial-attachments";
 import { AppUrls } from "@/lib/nav/urls";
 import type { ProjectParams } from "@/types/dashboard";
 
@@ -30,6 +31,7 @@ interface NewChatPageProps {
   params: Promise<ProjectParams>;
   searchParams: Promise<{
     initialMessageContent?: string;
+    [INITIAL_ATTACHMENTS_PARAM]?: string;
     prefillContent?: string;
   }>;
 }
@@ -181,6 +183,7 @@ async function NewChatPageContent({
   projectSlug: string;
   searchParams: {
     initialMessageContent?: string;
+    [INITIAL_ATTACHMENTS_PARAM]?: string;
     prefillContent?: string;
   };
 }) {
@@ -198,6 +201,12 @@ async function NewChatPageContent({
     queryString.set(
       "initialMessageContent",
       searchParams.initialMessageContent,
+    );
+  }
+  if (searchParams[INITIAL_ATTACHMENTS_PARAM]) {
+    queryString.set(
+      INITIAL_ATTACHMENTS_PARAM,
+      searchParams[INITIAL_ATTACHMENTS_PARAM],
     );
   }
   if (searchParams.prefillContent) {

@@ -10,7 +10,7 @@ import { MemberRole } from "@wildfires-org/turboplan-workspace/types";
 import { auth } from "../(auth)/auth";
 import {
   attachLandingUploads,
-  withAttachedDocumentsNote,
+  buildInitialMessageContent,
 } from "./attach-landing-uploads";
 import {
   autoGenerateProjectImage,
@@ -126,8 +126,8 @@ export async function createProjectForAuthenticatedUser(
     });
 
     // Documents attached on the landing page move into the user's uploads and
-    // onto the project now, so the first chat turn can read them.
-    const attachedDocumentNames = await attachLandingUploads({
+    // onto the project now, and ride the first chat message as attachments.
+    const attachedDocuments = await attachLandingUploads({
       keys: landingUploadKeys,
       projectId: newProject.id,
       userId,
@@ -158,10 +158,11 @@ export async function createProjectForAuthenticatedUser(
         personalOffice.slug,
         newProject.slug,
         {
-          initialMessageContent: withAttachedDocumentsNote(
+          initialMessageContent: buildInitialMessageContent(
             projectDescription,
-            attachedDocumentNames,
+            attachedDocuments,
           ),
+          initialAttachments: attachedDocuments,
         },
       ),
     };

@@ -43,6 +43,13 @@
       "when": 1791206885575,
       "tag": "0005_serious_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791283515262,
+      "tag": "0006_organization_memory",
+      "breakpoints": true
     }
   ]
 }

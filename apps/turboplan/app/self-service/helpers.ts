@@ -6,6 +6,11 @@ import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getWebEnv } from "@wildfires-org/turboplan-env";
 import { isResearchAgentPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 
+import {
+  INITIAL_ATTACHMENTS_PARAM,
+  type InitialAttachment,
+  serializeInitialAttachments,
+} from "@/lib/initial-attachments";
 import { AppUrls } from "@/lib/nav/urls";
 
 /**
@@ -30,7 +35,9 @@ export function sanitizeName(name: string, maxLength: number = 100): string {
 }
 
 /**
- * Helper function to build redirect URL for project chat (slug-based)
+ * Helper function to build redirect URL for project chat (slug-based).
+ * `initialAttachments` ride along only with `initialMessageContent`: they are
+ * sent with that auto-sent first message.
  */
 export function buildProjectChatUrl(
   orgSlug: string,
@@ -39,6 +46,7 @@ export function buildProjectChatUrl(
   options?: {
     chatId?: string;
     initialMessageContent?: string;
+    initialAttachments?: InitialAttachment[];
   },
 ): string {
   let url = options?.chatId
@@ -49,6 +57,12 @@ export function buildProjectChatUrl(
     const params = new URLSearchParams({
       initialMessageContent: options.initialMessageContent,
     });
+    if (options.initialAttachments?.length) {
+      params.set(
+        INITIAL_ATTACHMENTS_PARAM,
+        serializeInitialAttachments(options.initialAttachments),
+      );
+    }
     url += `?${params.toString()}`;
   }
 

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import {
   isDocumentsPackageEnabled,
   isMapPackageEnabled,
+  isProjectContextPackageEnabled,
 } from "@wildfires-org/turboplan-feature-flags";
 
 import { AccessError } from "@/components/access-error";
@@ -90,8 +91,14 @@ export default async function ProjectContextPage({ params }: ProjectPageProps) {
       <ProjectContextPageSection
         projectId={project.id}
         userId={session.user.id}
+        organization={{
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+        }}
         isDocumentsEnabled={isDocumentsPackageEnabled()}
         isMapEnabled={isMapPackageEnabled()}
+        isOrganizationContextEnabled={isProjectContextPackageEnabled()}
       />
     </ProjectPageFrame>
   );

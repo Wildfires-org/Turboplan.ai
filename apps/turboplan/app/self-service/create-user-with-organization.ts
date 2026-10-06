@@ -31,8 +31,8 @@ import { buildAttributionEventProperties } from "@/lib/signup-attribution";
 import { buildMagicLinkUrl } from "../(auth)/actions";
 import {
   attachLandingUploads,
+  buildInitialMessageContent,
   findAttachableLandingUploads,
-  withAttachedDocumentsNote,
 } from "./attach-landing-uploads";
 import {
   buildFallbackProjectDescription,
@@ -268,12 +268,17 @@ export async function createUserWithOrganization(
     };
 
     // Landing-page documents are only claimed once the verification email is
-    // out (see below), so the first chat message names the ones storage holds
-    // now and the claim will accept — checked without consuming them.
+    // out (see below), so the first chat message carries the ones storage
+    // holds now and the claim will accept — checked without consuming them,
+    // at the URLs the claim for this user will move them to.
     const attachableUploads = await findAttachableLandingUploads({
       keys: validated.landingUploadKeys,
+      userId: newUser.id,
       logPrefix: "[Self-Service]",
     });
+    const initialAttachments = attachableUploads.map(
+      (upload) => upload.attachment,
+    );
 
     // Build redirect URL to the new project chat
     const redirectTo = buildProjectChatUrl(
@@ -282,10 +287,11 @@ export async function createUserWithOrganization(
       redirectLocation.projectSlug,
       {
         chatId: initialChatId,
-        initialMessageContent: withAttachedDocumentsNote(
+        initialMessageContent: buildInitialMessageContent(
           validated.projectDescription,
-          attachableUploads.map((upload) => upload.name),
+          initialAttachments,
         ),
+        initialAttachments,
       },
     );
 
@@ -324,8 +330,9 @@ export async function createUserWithOrganization(
     // onto the project only after the email went out: a claim consumes the
     // staging keys, so claiming before a failed email would leave the retry
     // (login -> createProjectForAuthenticatedUser) with nothing to attach.
-    // Best-effort and never throws. A document still missing when the first
-    // chat turn runs is tolerated there like any pending or absent document.
+    // Best-effort and never throws. The first chat message already points at
+    // the claimed URLs, so a claim that fails here leaves that attachment
+    // with no file behind it.
     await attachLandingUploads({
       keys: attachableUploads.map((upload) => upload.key),
       projectId: newProject.id,

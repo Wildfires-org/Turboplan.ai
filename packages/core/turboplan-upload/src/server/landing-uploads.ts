@@ -91,34 +91,24 @@ export const inspectLandingUpload = async (
   };
 };
 
-export type ClaimedLandingUpload = {
-  /** Public URL of the object at its new key */
-  url: string;
-  /** New key, under `uploads/{userId}/` */
+export type LandingUploadDestination = {
+  /** Key under `uploads/{userId}/` the claim copies the object to */
   key: string;
-  /** Size reported by storage */
-  size: number;
-  /** Content type reported by storage */
-  contentType: ProjectDocumentMimeType;
-  originalFilename: string;
+  /** Public URL of the object at that key */
+  url: string;
 };
 
 /**
- * Move a landing-page staging upload into `userId`'s own upload prefix, so it
- * can be registered as a project document like any upload of theirs.
+ * Where `claimLandingUpload(key, userId)` puts a staging upload. Deterministic
+ * and storage-free, so the URL can be handed out before the claim runs.
  *
- * Type and size come from storage (`inspectLandingUpload`), never from the
- * client. The copy is pinned to the inspected ETag and stored with the
- * validated type. The staging object is then deleted best-effort.
- *
- * Returns null when no object exists at `key` (expired, already claimed).
- * Throws an `UploadError` for a malformed key or a disallowed object, and
- * passes storage errors through.
+ * Throws an `UploadError` for a malformed key, an owner id that could widen
+ * the prefix, or a key whose URL would not resolve back to it.
  */
-export const claimLandingUpload = async (
+export const getLandingUploadDestination = (
   key: string,
   userId: string,
-): Promise<ClaimedLandingUpload | null> => {
+): LandingUploadDestination => {
   const { segment } = requireLandingUploadKey(key);
 
   if (!isSafeKeySegment(userId)) {
@@ -140,6 +130,40 @@ export const claimLandingUpload = async (
       { key },
     );
   }
+
+  return { key: destinationKey, url };
+};
+
+export type ClaimedLandingUpload = {
+  /** Public URL of the object at its new key */
+  url: string;
+  /** New key, under `uploads/{userId}/` */
+  key: string;
+  /** Size reported by storage */
+  size: number;
+  /** Content type reported by storage */
+  contentType: ProjectDocumentMimeType;
+  originalFilename: string;
+};
+
+/**
+ * Move a landing-page staging upload into `userId`'s own upload prefix
+ * (`getLandingUploadDestination`), so it can be registered as a project
+ * document like any upload of theirs.
+ *
+ * Type and size come from storage (`inspectLandingUpload`), never from the
+ * client. The copy is pinned to the inspected ETag and stored with the
+ * validated type. The staging object is then deleted best-effort.
+ *
+ * Returns null when no object exists at `key` (expired, already claimed).
+ * Throws an `UploadError` for a malformed key or a disallowed object, and
+ * passes storage errors through.
+ */
+export const claimLandingUpload = async (
+  key: string,
+  userId: string,
+): Promise<ClaimedLandingUpload | null> => {
+  const { key: destinationKey, url } = getLandingUploadDestination(key, userId);
 
   const upload = await inspectLandingUpload(key);
   if (!upload) {

@@ -18,9 +18,11 @@ export {
 export type {
   NewOrganizationContext,
   NewOrganizationDocument,
+  NewOrganizationMemory,
   OrganizationContext,
   OrganizationDocument,
   OrganizationDocumentExtractionStatus,
+  OrganizationMemory,
 } from "../schemas/workspace/organization-context";
 export type {
   NewOrganizationSigningConfig,

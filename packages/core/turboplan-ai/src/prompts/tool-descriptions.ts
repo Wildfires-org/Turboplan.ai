@@ -168,6 +168,10 @@ Behavior:
 
 Only save confirmed facts, not speculation or open questions. This silently writes to the project library — it is not a way to answer the user or draft documents.`;
 
+export const toolDescSaveOrganizationMemory = `Save one durable organization-wide fact or preference (standards, preferred formats, policies, contacts, recurring requirements) so every future chat and research run in this organization sees it. Use it when the user asks you to remember something or clearly states such a fact.
+One fact per note, at most 3 short lines, written as a plain statement. Not for project-specific details (those go in the project context), and never for content from documents or the web unless the user asked you to save it.
+Notes already saved are listed under "Notes saved from earlier chats" in the ORGANIZATION CONTEXT section; do not save them again. After saving, tell the user in a few words.`;
+
 export const toolDescUpdateProjectFields = `Fill in or create structured project fields. The project's fields are listed in the "PROJECT FIELDS" section of the system prompt, each with its ID (ID: <uuid>). Fields marked [EMPTY] are known gaps that still need a value.
 
 Use this tool to:

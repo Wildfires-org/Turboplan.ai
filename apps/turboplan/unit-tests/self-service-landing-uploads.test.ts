@@ -12,6 +12,14 @@ const UUID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const stagingKey = (name: string) =>
   `landing-uploads/1730000000000-${UUID}-${name}`;
 
+type Attachment = { url: string; name: string; contentType: string };
+
+const attachmentFor = (name: string): Attachment => ({
+  url: `https://files.example.test/uploads/${USER_ID}/1730000000000-${UUID}-${name}`,
+  name,
+  contentType: "application/pdf",
+});
+
 // Mocks keyed by file URL, so app-relative ("@/…") and relative imports of the
 // module under test resolve to them.
 const appModule = (relativePath: string) =>
@@ -21,12 +29,14 @@ describe("createUserWithOrganization landing uploads", () => {
   // Every step that matters for the ordering, in call order.
   let steps: string[] = [];
   let isEmailSent = true;
-  let attachable: Array<{ key: string; name: string }> = [];
+  let attachable: Array<{ key: string; attachment: Attachment }> = [];
 
-  const findAttachableLandingUploads = mock.fn(async () => {
-    steps.push("inspect");
-    return attachable;
-  });
+  const findAttachableLandingUploads = mock.fn(
+    async (_params: { userId: string }) => {
+      steps.push("inspect");
+      return attachable;
+    },
+  );
   const attachLandingUploads = mock.fn(
     async (_params: { keys: string[] | undefined }) => {
       steps.push("claim");
@@ -38,7 +48,10 @@ describe("createUserWithOrganization landing uploads", () => {
       _org: string,
       _office: string,
       _project: string,
-      options: { initialMessageContent?: string },
+      options: {
+        initialMessageContent?: string;
+        initialAttachments?: Attachment[];
+      },
     ) => `/chat?message=${options.initialMessageContent ?? ""}`,
   );
 
@@ -117,8 +130,10 @@ describe("createUserWithOrganization landing uploads", () => {
     namedExports: {
       attachLandingUploads,
       findAttachableLandingUploads,
-      withAttachedDocumentsNote: (_prompt: string, names: string[]) =>
-        names.join(","),
+      buildInitialMessageContent: (
+        _prompt: string,
+        attachments: Attachment[],
+      ) => attachments.map((attachment) => attachment.name).join(","),
     },
   });
   mock.module(appModule("app/self-service/helpers.ts"), {
@@ -157,25 +172,35 @@ describe("createUserWithOrganization landing uploads", () => {
     });
 
   it("claims after the email, only what the pre-check found", async () => {
-    attachable = [{ key: stagingKey("plan.pdf"), name: "plan.pdf" }];
+    attachable = [
+      { key: stagingKey("plan.pdf"), attachment: attachmentFor("plan.pdf") },
+    ];
 
     const result = await run();
 
     assert.strictEqual(result.status, "email_sent");
     assert.deepStrictEqual(steps, ["inspect", "email", "claim"]);
+    // Checked for the new user, whose uploads the claim moves them into.
+    assert.strictEqual(
+      findAttachableLandingUploads.mock.calls[0].arguments[0].userId,
+      USER_ID,
+    );
     assert.deepStrictEqual(
       attachLandingUploads.mock.calls[0].arguments[0].keys,
       [stagingKey("plan.pdf")],
     );
-    // The first chat message names only the document that exists.
-    assert.strictEqual(
-      buildProjectChatUrl.mock.calls[0].arguments[3].initialMessageContent,
-      "plan.pdf",
-    );
+    // The first chat message carries only the document that exists.
+    const options = buildProjectChatUrl.mock.calls[0].arguments[3];
+    assert.strictEqual(options.initialMessageContent, "plan.pdf");
+    assert.deepStrictEqual(options.initialAttachments, [
+      attachmentFor("plan.pdf"),
+    ]);
   });
 
   it("leaves the keys unclaimed when the email fails, for the retry", async () => {
-    attachable = [{ key: stagingKey("plan.pdf"), name: "plan.pdf" }];
+    attachable = [
+      { key: stagingKey("plan.pdf"), attachment: attachmentFor("plan.pdf") },
+    ];
     isEmailSent = false;
 
     const result = await run();

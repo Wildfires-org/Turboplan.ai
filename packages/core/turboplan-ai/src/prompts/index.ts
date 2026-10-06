@@ -65,6 +65,7 @@ export {
   toolDescReadProjectDocuments,
   toolDescRequestSuggestions,
   toolDescResearchNotes,
+  toolDescSaveOrganizationMemory,
   toolDescUpdateDocument,
   toolDescUpdateProjectContext,
   toolDescUpdateProjectFields,

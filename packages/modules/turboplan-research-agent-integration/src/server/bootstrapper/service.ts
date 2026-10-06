@@ -26,6 +26,7 @@ import {
   getOrganizationContextForProject,
   getProjectById,
   ORG_CONTEXT_RESEARCH_BUDGET,
+  ORG_CONTEXT_RESEARCH_MEMORIES_MAX_CHARS,
   ORG_CONTEXT_RESEARCH_PROMPT_MAX_CHARS,
 } from "@wildfires-org/turboplan-workspace/server";
 
@@ -312,8 +313,8 @@ async function gatherProjectDocumentsForResearchAgent(
 }
 
 /**
- * The owning organization's budgeted context block (guidance + document key
- * facts), at most {@link ORG_CONTEXT_RESEARCH_BUDGET} chars. No read-tool hint:
+ * The owning organization's budgeted context block (guidance, saved notes and
+ * document key facts), at most {@link ORG_CONTEXT_RESEARCH_BUDGET} chars. No read-tool hint:
  * the research agent cannot open organization documents. No separate READ
  * check: starting a run needs project UPDATE, which implies organization READ.
  * Never throws — any failure degrades to "N/A" so it can't fail or delay the
@@ -331,6 +332,7 @@ async function gatherOrganizationContextForResearchAgent(
       {
         budgetChars: ORG_CONTEXT_RESEARCH_BUDGET,
         promptMaxChars: ORG_CONTEXT_RESEARCH_PROMPT_MAX_CHARS,
+        memoriesMaxChars: ORG_CONTEXT_RESEARCH_MEMORIES_MAX_CHARS,
       },
     );
     return organizationContext?.block ?? "N/A";

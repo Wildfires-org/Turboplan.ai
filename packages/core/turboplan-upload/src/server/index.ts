@@ -8,8 +8,10 @@ export { LANDING_UPLOAD_PREFIX } from "../types";
 export {
   type ClaimedLandingUpload,
   claimLandingUpload,
+  getLandingUploadDestination,
   type InspectedLandingUpload,
   inspectLandingUpload,
+  type LandingUploadDestination,
 } from "./landing-uploads";
 export { publicUploadRouter } from "./public-router";
 export {

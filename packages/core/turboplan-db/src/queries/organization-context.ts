@@ -1,18 +1,26 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { db } from "../db-client";
+import { type DbInstance, db } from "../db-client";
 import {
   type NewOrganizationDocument,
   type Organization,
   type OrganizationContext,
   type OrganizationDocument,
   type OrganizationDocumentExtractionStatus,
+  type OrganizationMemory,
   office,
   organization,
   organizationContext,
   organizationDocument,
+  organizationMemory,
   project,
 } from "../schemas";
+
+/**
+ * The shared client or an open transaction (the `db.transaction` callback
+ * argument), for queries a caller runs under its own lock.
+ */
+type QueryExecutor = Pick<DbInstance, "select" | "insert">;
 
 /** Characters of extracted text used as a fallback when a doc has no summary. */
 export const ORGANIZATION_DOCUMENT_EXCERPT_CHARS = 400;
@@ -76,11 +84,24 @@ export type OrganizationContextSourceDocument = Pick<
   excerpt: string | null;
 };
 
+/** An organization memory as listed to users (no organization id). */
+export type OrganizationMemoryListItem = Pick<
+  OrganizationMemory,
+  "id" | "content" | "createdBy" | "createdAt"
+>;
+
+export type OrganizationContextSourceMemory = Pick<
+  OrganizationMemory,
+  "id" | "content"
+>;
+
 /** Everything the organization context block is built from. */
 export type OrganizationContextSources = {
   organization: Pick<Organization, "id" | "name" | "type">;
   prompt: string;
   documents: OrganizationContextSourceDocument[];
+  /** Newest first */
+  memories: OrganizationContextSourceMemory[];
 };
 
 /** The organization's standing prompt, or null when none was ever saved. */
@@ -307,16 +328,119 @@ export const getOrganizationDocumentTextsByIds = async (
     );
 };
 
+/** Newest first; the id breaks ties so the order is stable for prompt caching. */
+const organizationMemoryOrder = [
+  desc(organizationMemory.createdAt),
+  desc(organizationMemory.id),
+] as const;
+
+/** An organization's memories, newest first. */
+export const listOrganizationMemories = async (
+  organizationId: string,
+): Promise<OrganizationMemoryListItem[]> => {
+  return db
+    .select({
+      id: organizationMemory.id,
+      content: organizationMemory.content,
+      createdBy: organizationMemory.createdBy,
+      createdAt: organizationMemory.createdAt,
+    })
+    .from(organizationMemory)
+    .where(eq(organizationMemory.organizationId, organizationId))
+    .orderBy(...organizationMemoryOrder);
+};
+
+export const getOrganizationMemoryById = async (
+  id: string,
+): Promise<OrganizationMemory | null> => {
+  const [result] = await db
+    .select()
+    .from(organizationMemory)
+    .where(eq(organizationMemory.id, id))
+    .limit(1);
+
+  return result ?? null;
+};
+
 /**
- * Organization identity, standing prompt and every document (pinned first,
- * then newest) with its summary and a short text excerpt — the inputs of the
- * budgeted organization context block. Null when the organization does not
- * exist.
+ * Insert a memory as given. Normalising the content, deduplicating and the
+ * per-organization cap are the caller's job (`saveOrganizationMemory` in
+ * turboplan-workspace).
+ */
+export const createOrganizationMemory = async (
+  {
+    organizationId,
+    content,
+    createdBy,
+  }: { organizationId: string; content: string; createdBy: string | null },
+  executor: QueryExecutor = db,
+): Promise<OrganizationMemory> => {
+  const [result] = await executor
+    .insert(organizationMemory)
+    .values({ organizationId, content, createdBy })
+    .returning();
+
+  return result;
+};
+
+/** Delete a memory and return the removed row, or null when none matched. */
+export const deleteOrganizationMemory = async (
+  id: string,
+): Promise<OrganizationMemory | null> => {
+  const [result] = await db
+    .delete(organizationMemory)
+    .where(eq(organizationMemory.id, id))
+    .returning();
+
+  return result ?? null;
+};
+
+export const countOrganizationMemories = async (
+  organizationId: string,
+  executor: QueryExecutor = db,
+): Promise<number> => {
+  const [result] = await executor
+    .select({ value: count() })
+    .from(organizationMemory)
+    .where(eq(organizationMemory.organizationId, organizationId));
+
+  return result?.value ?? 0;
+};
+
+/**
+ * The organization's memory whose content equals `content`, ignoring case and
+ * surrounding whitespace, or null. Used to skip saving the same note twice.
+ */
+export const findOrganizationMemoryByContent = async (
+  organizationId: string,
+  content: string,
+  executor: QueryExecutor = db,
+): Promise<OrganizationMemory | null> => {
+  const [result] = await executor
+    .select()
+    .from(organizationMemory)
+    .where(
+      and(
+        eq(organizationMemory.organizationId, organizationId),
+        sql`lower(btrim(${organizationMemory.content}, E' \\t\\r\\n')) = lower(${content.trim()})`,
+      ),
+    )
+    .orderBy(...organizationMemoryOrder)
+    .limit(1);
+
+  return result ?? null;
+};
+
+/**
+ * Organization identity, standing prompt, every document (pinned first, then
+ * newest) with its summary and a short text excerpt, and every memory (newest
+ * first) — the inputs of the budgeted organization context block. Null when
+ * the organization does not exist.
  */
 export const getOrganizationContextSources = async (
   organizationId: string,
 ): Promise<OrganizationContextSources | null> => {
-  const [[orgRow], documents] = await Promise.all([
+  const [[orgRow], documents, memories] = await Promise.all([
     db
       .select({
         id: organization.id,
@@ -349,6 +473,14 @@ export const getOrganizationContextSources = async (
         desc(organizationDocument.isPinned),
         desc(organizationDocument.createdAt),
       ),
+    db
+      .select({
+        id: organizationMemory.id,
+        content: organizationMemory.content,
+      })
+      .from(organizationMemory)
+      .where(eq(organizationMemory.organizationId, organizationId))
+      .orderBy(...organizationMemoryOrder),
   ]);
 
   if (!orgRow) {
@@ -360,6 +492,7 @@ export const getOrganizationContextSources = async (
     organization: organizationFields,
     prompt: prompt ?? "",
     documents,
+    memories,
   };
 };
 

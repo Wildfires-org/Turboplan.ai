@@ -26,6 +26,7 @@ const TOOL_ERROR_LABELS: Record<string, string> = {
   readOrganizationDocuments: "reading the organization documents",
   updateProjectContext: "updating the project context",
   updateProjectFields: "updating the project fields",
+  saveOrganizationMemory: "saving to the organization context",
 };
 
 export const getToolErrorMessage = (toolName: string): string =>

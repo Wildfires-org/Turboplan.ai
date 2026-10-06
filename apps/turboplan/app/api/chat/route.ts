@@ -58,6 +58,7 @@ import { readOrganizationDocuments } from "@/lib/ai/tools/read-organization-docu
 import { readProjectDocuments } from "@/lib/ai/tools/read-project-documents";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { researchNotes } from "@/lib/ai/tools/research-notes";
+import { saveOrganizationMemory } from "@/lib/ai/tools/save-organization-memory";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { updateProjectContext } from "@/lib/ai/tools/update-project-context";
 import { updateProjectFields } from "@/lib/ai/tools/update-project-fields";
@@ -130,6 +131,7 @@ const createTools = async ({
   writer,
   projectId,
   organizationId,
+  memoryOrganization,
   chatId,
   userMessage,
   activeTools,
@@ -143,6 +145,8 @@ const createTools = async ({
   projectId?: string;
   /** Organization whose context block was injected (binds its reader tool) */
   organizationId?: string;
+  /** Organization the user may UPDATE (binds saveOrganizationMemory) */
+  memoryOrganization?: { id: string; name: string };
   chatId?: string;
   userMessage?: UIMessage;
   activeTools: string[];
@@ -213,6 +217,21 @@ const createTools = async ({
   ) {
     tools.readOrganizationDocuments = await readOrganizationDocuments({
       organizationId,
+      userId,
+    });
+  }
+
+  // Conditional organization-memory writer — only when the user may UPDATE
+  // the project's organization (activeTools reflects that). Bound to the
+  // organization resolved server-side; the tool re-checks UPDATE at execution.
+  if (
+    activeTools.includes("saveOrganizationMemory") &&
+    memoryOrganization &&
+    userId
+  ) {
+    tools.saveOrganizationMemory = await saveOrganizationMemory({
+      organizationId: memoryOrganization.id,
+      organizationName: memoryOrganization.name,
       userId,
     });
   }
@@ -603,6 +622,7 @@ export async function POST(request: Request) {
             writer,
             projectId: chatProjectId,
             organizationId: promptArgs.organizationId,
+            memoryOrganization: promptArgs.memoryOrganization,
             chatId: id,
             userMessage,
             activeTools: promptArgs.activeTools,

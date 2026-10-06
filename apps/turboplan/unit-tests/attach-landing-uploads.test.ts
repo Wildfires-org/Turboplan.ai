@@ -30,12 +30,22 @@ const claimedFor = (name: string): Claimed => {
   };
 };
 
+// The chat attachment a claimed (or claimable) file becomes.
+const attachmentFor = (name: string, contentType = PDF) => ({
+  url: claimedFor(name).url,
+  name,
+  contentType,
+});
+
 // Per-key behaviour of the mocked claim: a result, null (missing) or a throw.
 let claimOutcomes: Record<string, Claimed | null | Error> = {};
 let failRegistrationFor = new Set<string>();
 let failTimelineFor = new Set<string>();
 // Per-key behaviour of the mocked inspection: a result, null (missing) or a throw.
-let inspectOutcomes: Record<string, { originalFilename: string } | Error> = {};
+let inspectOutcomes: Record<
+  string,
+  { originalFilename: string; contentType: string } | Error
+> = {};
 
 const claimLandingUpload = mock.fn(async (key: string, _userId: string) => {
   const outcome = claimOutcomes[key];
@@ -43,6 +53,18 @@ const claimLandingUpload = mock.fn(async (key: string, _userId: string) => {
     throw outcome;
   }
   return outcome ?? null;
+});
+// Mirrors the real helper: the claimed key and URL, or a throw for a key the
+// claim would refuse.
+const getLandingUploadDestination = mock.fn((key: string, userId: string) => {
+  if (!key.startsWith("landing-uploads/")) {
+    throw new Error("Invalid landing upload key");
+  }
+  const destinationKey = `uploads/${userId}/${key.slice("landing-uploads/".length)}`;
+  return {
+    key: destinationKey,
+    url: `https://files.example.test/${destinationKey}`,
+  };
 });
 const inspectLandingUpload = mock.fn(async (key: string) => {
   const outcome = inspectOutcomes[key];
@@ -73,6 +95,7 @@ mock.module("@wildfires-org/turboplan-upload/server", {
   namedExports: {
     claimLandingUpload,
     deleteOwnedStorageFile,
+    getLandingUploadDestination,
     inspectLandingUpload,
   },
 });
@@ -96,6 +119,7 @@ beforeEach(() => {
   inspectOutcomes = {};
   for (const fn of [
     claimLandingUpload,
+    getLandingUploadDestination,
     inspectLandingUpload,
     deleteOwnedStorageFile,
     createProjectDocument,
@@ -136,7 +160,9 @@ describe("attachLandingUploads", () => {
   it("registers each claimed file like POST /api/project-documents", async () => {
     claimOutcomes[stagingKey("plan.pdf")] = claimedFor("plan.pdf");
 
-    assert.deepStrictEqual(await run([stagingKey("plan.pdf")]), ["plan.pdf"]);
+    assert.deepStrictEqual(await run([stagingKey("plan.pdf")]), [
+      attachmentFor("plan.pdf"),
+    ]);
 
     assert.deepStrictEqual(claimLandingUpload.mock.calls[0].arguments, [
       stagingKey("plan.pdf"),
@@ -172,14 +198,14 @@ describe("attachLandingUploads", () => {
     };
     failRegistrationFor.add("db.pdf");
 
-    const names = await run([
+    const attachments = await run([
       stagingKey("bad-key.pdf"),
       stagingKey("ok.pdf"),
       stagingKey("gone.pdf"),
       stagingKey("db.pdf"),
     ]);
 
-    assert.deepStrictEqual(names, ["ok.pdf"]);
+    assert.deepStrictEqual(attachments, [attachmentFor("ok.pdf")]);
     assert.strictEqual(createTimelineRecord.mock.callCount(), 1);
     // The copy that never got a row is removed, scoped to its owner.
     assert.deepStrictEqual(deleteOwnedStorageFile.mock.calls[0].arguments, [
@@ -192,7 +218,9 @@ describe("attachLandingUploads", () => {
     claimOutcomes[stagingKey("plan.pdf")] = claimedFor("plan.pdf");
     failTimelineFor.add("plan.pdf");
 
-    assert.deepStrictEqual(await run([stagingKey("plan.pdf")]), ["plan.pdf"]);
+    assert.deepStrictEqual(await run([stagingKey("plan.pdf")]), [
+      attachmentFor("plan.pdf"),
+    ]);
 
     assert.strictEqual(createProjectDocument.mock.callCount(), 1);
     assert.strictEqual(createTimelineRecord.mock.callCount(), 1);
@@ -205,23 +233,33 @@ describe("attachLandingUploads", () => {
 
     assert.deepStrictEqual(
       await run([stagingKey("a.pdf"), stagingKey("a.pdf")]),
-      ["a.pdf"],
+      [attachmentFor("a.pdf")],
     );
     assert.strictEqual(claimLandingUpload.mock.callCount(), 1);
   });
 });
 
 describe("findAttachableLandingUploads", () => {
+  const DOCX =
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
   const find = (keys: unknown) =>
     attach.findAttachableLandingUploads({
       keys: keys as string[] | undefined,
+      userId: USER_ID,
       logPrefix: "[test]",
     });
 
-  it("names only uploads storage holds and the claim would accept", async () => {
+  it("returns only uploads storage holds and the claim would accept, at their claimed URLs", async () => {
     inspectOutcomes = {
-      [stagingKey("plan.pdf")]: { originalFilename: "plan.pdf" },
-      [stagingKey("brief.docx")]: { originalFilename: "brief.docx" },
+      [stagingKey("plan.pdf")]: {
+        originalFilename: "plan.pdf",
+        contentType: PDF,
+      },
+      [stagingKey("brief.docx")]: {
+        originalFilename: "brief.docx",
+        contentType: DOCX,
+      },
       [stagingKey("page.html")]: new Error("Unsupported file type"),
     };
 
@@ -235,9 +273,17 @@ describe("findAttachableLandingUploads", () => {
         stagingKey("brief.docx"),
       ]),
       [
-        { key: stagingKey("plan.pdf"), name: "plan.pdf" },
-        { key: stagingKey("brief.docx"), name: "brief.docx" },
+        { key: stagingKey("plan.pdf"), attachment: attachmentFor("plan.pdf") },
+        {
+          key: stagingKey("brief.docx"),
+          attachment: attachmentFor("brief.docx", DOCX),
+        },
       ],
+    );
+    // The URL is the one the claim for this user will move the file to.
+    assert.deepStrictEqual(
+      getLandingUploadDestination.mock.calls[0].arguments,
+      [stagingKey("plan.pdf"), USER_ID],
     );
     // Inspecting never claims.
     assert.strictEqual(inspectLandingUpload.mock.callCount(), 4);
@@ -252,35 +298,42 @@ describe("findAttachableLandingUploads", () => {
     );
     assert.strictEqual(inspectLandingUpload.mock.callCount(), 0);
   });
+
+  it("leaves out a key with no claim destination, without inspecting it", async () => {
+    assert.deepStrictEqual(await find(["uploads/someone-else/x.pdf"]), []);
+    assert.strictEqual(inspectLandingUpload.mock.callCount(), 0);
+  });
 });
 
-describe("withAttachedDocumentsNote", () => {
-  it("leaves the prompt alone when nothing was attached", () => {
+describe("buildInitialMessageContent", () => {
+  it("sends the prompt unchanged", () => {
     assert.strictEqual(
-      attach.withAttachedDocumentsNote("Build a trail", []),
+      attach.buildInitialMessageContent("Build a trail", []),
       "Build a trail",
     );
     assert.strictEqual(
-      attach.withAttachedDocumentsNote(undefined, []),
+      attach.buildInitialMessageContent("Build a trail", [
+        attachmentFor("plan.pdf"),
+      ]),
+      "Build a trail",
+    );
+    assert.strictEqual(
+      attach.buildInitialMessageContent(undefined, []),
       undefined,
     );
   });
 
-  it("follows the prompt with a request to read the documents", () => {
+  it("asks for the documents to be read when there is no prompt", () => {
     assert.strictEqual(
-      attach.withAttachedDocumentsNote("Build a trail", ["plan.pdf"]),
-      'Build a trail\n\nI\'ve attached "plan.pdf" to the project documents — please read it and use what you learn as context for the project.',
+      attach.buildInitialMessageContent(undefined, [attachmentFor("plan.pdf")]),
+      "Please read the attached document and use it as context for the project.",
     );
     assert.strictEqual(
-      attach.withAttachedDocumentsNote(undefined, ["a.pdf", "b.docx"]),
-      'I\'ve attached "a.pdf", "b.docx" to the project documents — please read them and use what you learn as context for the project.',
-    );
-  });
-
-  it("JSON-quotes names so one cannot close its quotes", () => {
-    assert.strictEqual(
-      attach.withAttachedDocumentsNote(undefined, ['a".pdf']),
-      'I\'ve attached "a\\".pdf" to the project documents — please read it and use what you learn as context for the project.',
+      attach.buildInitialMessageContent("  ", [
+        attachmentFor("a.pdf"),
+        attachmentFor("b.pdf"),
+      ]),
+      "Please read the attached documents and use them as context for the project.",
     );
   });
 });

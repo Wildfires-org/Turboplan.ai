@@ -28,6 +28,10 @@ import {
 import { useChatCompat } from "@/hooks/use-chat-compat";
 import { getSidebarChatsKey } from "@/hooks/use-sidebar-chats";
 import { getChatHistoryPaginationKey } from "@/lib/chat-history";
+import {
+  INITIAL_ATTACHMENTS_PARAM,
+  parseInitialAttachments,
+} from "@/lib/initial-attachments";
 import { AppUrls } from "@/lib/nav/urls";
 import { generateUUID } from "@/lib/utils";
 import { Artifact, type ArtifactKind, artifactDefinitions } from "../artifact";
@@ -353,7 +357,8 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       }
     }, [status, notifyFirstMessageSubmitted]);
 
-    // Auto-send initial message from URL parameter
+    // Auto-send initial message from URL parameter, with any attachments that
+    // ride along with it (e.g. documents uploaded on the landing page)
     // Empty deps array is intentional - this should only run on mount when URL param is present
     // Ref guard prevents React StrictMode double-mount from calling append() twice
     const hasAutoSent = useRef(false);
@@ -365,12 +370,15 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       const initialMessageContent = searchParams.get("initialMessageContent");
       const prefillContent = searchParams.get("prefillContent");
 
-      if (!initialMessageContent && !prefillContent) return;
+      if (!initialMessageContent && !prefillContent) {
+        return;
+      }
 
       // Use replaceState instead of router.replace to avoid Next.js navigation
       // that would conflict with the URL swap when streaming starts
       const currentParams = new URLSearchParams(searchParams.toString());
       currentParams.delete("initialMessageContent");
+      currentParams.delete(INITIAL_ATTACHMENTS_PARAM);
       currentParams.delete("prefillContent");
       const cleanUrl = currentParams.toString()
         ? `${pathname}?${currentParams.toString()}`
@@ -379,10 +387,18 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
 
       if (initialMessageContent && initialMessages.length === 0) {
         hasAutoSent.current = true;
-        append({
-          role: "user",
-          content: initialMessageContent,
-        });
+        const attachments = parseInitialAttachments(
+          searchParams.get(INITIAL_ATTACHMENTS_PARAM),
+        );
+        append(
+          {
+            role: "user",
+            content: initialMessageContent,
+          },
+          attachments.length > 0
+            ? { experimental_attachments: attachments }
+            : undefined,
+        );
       } else if (prefillContent) {
         setInput(prefillContent);
       }

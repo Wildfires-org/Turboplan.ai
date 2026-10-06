@@ -16,27 +16,31 @@ import {
 import { cn } from "@/lib/utils";
 import { OrganizationDocumentList } from "./organization-document-list";
 import { OrganizationDocumentsDropzone } from "./organization-documents-dropzone";
+import { OrganizationMemoryList } from "./organization-memory-list";
 import { OrganizationPromptForm } from "./organization-prompt-form";
 
 interface OrganizationContextSectionProps {
   userId: string;
   organizationId: string;
+  organizationName: string;
   orgSlug: string;
 }
 
 const PANEL_LEAD_CLASS = "text-[13px] leading-5 text-gray-550";
 
 /**
- * The Organization Context page body: the standing AI prompt and the
- * reference documents. Owners and editors (organization UPDATE) edit both;
- * everyone else with access reads them.
+ * The Organization Context page body: the standing AI prompt, the notes the
+ * assistant saved from chats and the reference documents. Owners and editors
+ * (organization UPDATE) edit them; everyone else with access reads them.
  */
 export const OrganizationContextSection = ({
   userId,
   organizationId,
+  organizationName,
   orgSlug,
 }: OrganizationContextSectionProps) => {
   const promptHeadingId = useId();
+  const memoryHeadingId = useId();
   const documentsHeadingId = useId();
 
   const { hasPermission: canEdit, isChecking } = useEntityPermission({
@@ -82,6 +86,26 @@ export const OrganizationContextSection = ({
             organizationId={organizationId}
             canEdit={canEdit}
             isCheckingPermission={isChecking}
+          />
+        </section>
+
+        <section
+          aria-labelledby={memoryHeadingId}
+          className={cn(PANEL_CLASS, "space-y-4")}
+        >
+          <div>
+            <h2 id={memoryHeadingId} className={PANEL_TITLE_CLASS}>
+              Memory
+            </h2>
+            <p className={PANEL_LEAD_CLASS}>
+              Notes the assistant saved from chats. Shared with the AI in every
+              project chat and research run in this organization.
+            </p>
+          </div>
+          <OrganizationMemoryList
+            organizationId={organizationId}
+            organizationName={organizationName}
+            canEdit={canEdit}
           />
         </section>
 

@@ -40,6 +40,7 @@ import {
   toolDescReadProjectDocuments,
   toolDescRequestSuggestions,
   toolDescResearchNotes,
+  toolDescSaveOrganizationMemory,
   toolDescUpdateDocument,
   toolDescUpdateProjectContext,
   toolDescUpdateProjectFields,
@@ -83,6 +84,7 @@ const HARDCODED_PROMPTS = {
   "tool-desc-update-project-fields": toolDescUpdateProjectFields,
   "tool-desc-update-project-fields-proactive":
     toolDescUpdateProjectFieldsProactive,
+  "tool-desc-save-organization-memory": toolDescSaveOrganizationMemory,
   "tool-desc-research-notes": toolDescResearchNotes,
   // Artifact creation prompts
   code: codePrompt,

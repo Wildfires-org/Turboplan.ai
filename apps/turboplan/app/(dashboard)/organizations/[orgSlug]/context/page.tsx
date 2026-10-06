@@ -113,6 +113,7 @@ export default async function OrganizationContextPage({
           <OrganizationContextSection
             userId={session.user.id}
             organizationId={organization.id}
+            organizationName={organization.name}
             orgSlug={organization.slug}
           />
         </div>

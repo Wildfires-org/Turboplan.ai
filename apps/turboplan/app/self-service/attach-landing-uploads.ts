@@ -6,9 +6,11 @@ import {
   type ClaimedLandingUpload,
   claimLandingUpload,
   deleteOwnedStorageFile,
+  getLandingUploadDestination,
   inspectLandingUpload,
 } from "@wildfires-org/turboplan-upload/server";
 
+import type { InitialAttachment } from "@/lib/initial-attachments";
 import { landingUploadKeysSchema } from "./types";
 
 type AttachLandingUploadsParams = {
@@ -29,12 +31,13 @@ type AttachLandingUploadsParams = {
  * The timeline record is best-effort: once the row exists the document is
  * attached, so a failed timeline insert is only logged.
  *
- * Never throws. Returns the document's display name, or null when skipped.
+ * Never throws. Returns the document as a chat attachment, or null when
+ * skipped.
  */
 const attachLandingUpload = async (
   key: string,
   { projectId, userId, logPrefix }: Omit<AttachLandingUploadsParams, "keys">,
-): Promise<string | null> => {
+): Promise<InitialAttachment | null> => {
   let claimed: ClaimedLandingUpload | null;
   try {
     claimed = await claimLandingUpload(key, userId);
@@ -96,7 +99,11 @@ const attachLandingUpload = async (
     );
   }
 
-  return document.originalFilename;
+  return {
+    url: document.url,
+    name: document.originalFilename,
+    contentType: document.mimeType,
+  };
 };
 
 // The client-supplied keys, deduped, or none when the payload is malformed.
@@ -123,44 +130,49 @@ const parseLandingUploadKeys = (
  * missing object or a failed insert is logged and skipped, never failing the
  * signup or project creation.
  *
- * Returns the display names of the documents that were attached.
+ * Returns the attached documents as attachments for the first chat message.
  */
 export const attachLandingUploads = async ({
   keys,
   ...context
-}: AttachLandingUploadsParams): Promise<string[]> => {
-  const names = await Promise.all(
+}: AttachLandingUploadsParams): Promise<InitialAttachment[]> => {
+  const attachments = await Promise.all(
     parseLandingUploadKeys(keys, context.logPrefix).map((key) =>
       attachLandingUpload(key, context),
     ),
   );
 
-  return names.filter((name): name is string => name !== null);
+  return attachments.filter(
+    (attachment): attachment is InitialAttachment => attachment !== null,
+  );
 };
 
 export type AttachableLandingUpload = {
   key: string;
-  /** Display name, as `attachLandingUploads` would return it */
-  name: string;
+  /** As `attachLandingUploads` will return it once `userId` claims the key */
+  attachment: InitialAttachment;
 };
 
 /**
  * The landing uploads a claim would accept right now: each key is checked in
  * storage (`inspectLandingUpload`, nothing consumed) against the claim's own
- * type and size rules. For when the first chat message has to name the
- * documents before they are claimed. Never throws; a missing, disallowed or
+ * type and size rules. For when the first chat message has to carry the
+ * documents before they are claimed: the URL is the one the claim for
+ * `userId` will move each upload to. Never throws; a missing, disallowed or
  * unreadable upload is logged and left out.
  */
 export const findAttachableLandingUploads = async ({
   keys,
+  userId,
   logPrefix,
-}: Pick<AttachLandingUploadsParams, "keys" | "logPrefix">): Promise<
+}: Pick<AttachLandingUploadsParams, "keys" | "userId" | "logPrefix">): Promise<
   AttachableLandingUpload[]
 > => {
   const uploads = await Promise.all(
     parseLandingUploadKeys(keys, logPrefix).map(
       async (key): Promise<AttachableLandingUpload | null> => {
         try {
+          const { url } = getLandingUploadDestination(key, userId);
           const upload = await inspectLandingUpload(key);
           if (!upload) {
             console.warn(
@@ -168,7 +180,14 @@ export const findAttachableLandingUploads = async ({
             );
             return null;
           }
-          return { key, name: upload.originalFilename };
+          return {
+            key,
+            attachment: {
+              url,
+              name: upload.originalFilename,
+              contentType: upload.contentType,
+            },
+          };
         } catch (error) {
           console.error(`${logPrefix} Skipping landing upload ${key}:`, error);
           return null;
@@ -183,22 +202,21 @@ export const findAttachableLandingUploads = async ({
 };
 
 /**
- * The first chat message: the visitor's prompt, plus a line asking the AI to
- * read the documents attached with it. Unchanged when nothing was attached.
+ * Text of the first chat message: the visitor's prompt, unchanged — the
+ * documents ride that message as attachments, so the text need not name
+ * them. Only without a prompt does it ask for them to be read, since a
+ * message with attachments must still have text (an empty text part is
+ * rejected by the model).
  */
-export const withAttachedDocumentsNote = (
+export const buildInitialMessageContent = (
   prompt: string | undefined,
-  documentNames: string[],
+  attachments: InitialAttachment[],
 ): string | undefined => {
-  if (documentNames.length === 0) {
+  if (prompt?.trim() || attachments.length === 0) {
     return prompt;
   }
 
-  // JSON-quoted: the names are user-controlled text inside a prompt, so
-  // quotes and escapes keep each one a single quoted string.
-  const names = documentNames.map((name) => JSON.stringify(name)).join(", ");
-  const pronoun = documentNames.length === 1 ? "it" : "them";
-  const note = `I've attached ${names} to the project documents — please read ${pronoun} and use what you learn as context for the project.`;
-
-  return prompt ? `${prompt}\n\n${note}` : note;
+  return attachments.length === 1
+    ? "Please read the attached document and use it as context for the project."
+    : "Please read the attached documents and use them as context for the project.";
 };

@@ -1,5 +1,6 @@
 import type {
   OrganizationContextSourceDocument,
+  OrganizationContextSourceMemory,
   OrganizationContextSources,
 } from "@wildfires-org/turboplan-db/queries";
 import { OrganizationType } from "@wildfires-org/turboplan-db/types";
@@ -16,6 +17,15 @@ export const ORG_CONTEXT_RESEARCH_BUDGET = 3_000;
  */
 export const ORG_CONTEXT_RESEARCH_PROMPT_MAX_CHARS = 1_500;
 
+/**
+ * Cap on the chat block's memories section, so document key facts keep room
+ * next to a full prompt (50 notes of 300 chars would fill the whole budget).
+ */
+export const ORG_CONTEXT_CHAT_MEMORIES_MAX_CHARS = 2_500;
+
+/** Cap on the research block's memories section. */
+export const ORG_CONTEXT_RESEARCH_MEMORIES_MAX_CHARS = 800;
+
 /** Cap on the one-line list of documents that did not fit as key facts. */
 export const ORG_CONTEXT_TITLES_MAX_CHARS = 1_000;
 
@@ -25,6 +35,11 @@ export type OrganizationContextBlockOptions = {
   /** The organization prompt is cut to this length (then marked truncated) */
   promptMaxChars: number;
   /**
+   * Cap on the memories section, heading included; older notes that do not
+   * fit are counted as not shown
+   */
+  memoriesMaxChars: number;
+  /**
    * Tool that reads a document's full text by id, or lists every document
    * when called without ids; mentioned when set
    */
@@ -33,6 +48,9 @@ export type OrganizationContextBlockOptions = {
 
 const SECTION_SEPARATOR = "\n\n";
 const TRUNCATED_MARKER = "[truncated]";
+const MEMORIES_HEADING = "## Notes saved from earlier chats";
+const MEMORIES_INTRO =
+  "Preferences and facts this organization's users asked you to remember, newest first. Take them into account; the current request, and newer notes, win when they conflict.";
 const KEY_FACTS_HEADING = "## Key facts from organization documents";
 const OTHER_DOCUMENTS_HEADING = "## Other organization documents";
 
@@ -66,6 +84,63 @@ const toSingleLine = (value: string): string =>
  */
 const toSummaryText = (value: string): string =>
   escapeClosingTags(value.trim().replace(/^[ \t]*#+[ \t]*/gm, ""));
+
+/**
+ * One memory as a bullet: escaped, its own line breaks kept with continuation
+ * lines indented under the bullet, and heading markers stripped so a note
+ * cannot open a section of its own.
+ */
+const formatMemoryEntry = (memory: OrganizationContextSourceMemory): string =>
+  escapeClosingTags(memory.content.trim())
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[ \t]*#+[ \t]+/, "").trimEnd())
+    .map((line, index) => {
+      if (index === 0) {
+        return `- ${line}`;
+      }
+      return line ? `  ${line}` : "";
+    })
+    .join("\n");
+
+const formatOlderNotesLine = (count: number): string =>
+  `(+${count} older ${count === 1 ? "note" : "notes"} not shown)`;
+
+/**
+ * The memories section with as many notes (newest first) as fit in
+ * `maxChars`, ending with a count of the older notes left out. Undefined when
+ * there are no memories or not even the newest one fits.
+ */
+const formatMemoriesSection = (
+  memories: OrganizationContextSourceMemory[],
+  maxChars: number,
+): string | undefined => {
+  const lines = [MEMORIES_HEADING, MEMORIES_INTRO];
+  let length = lines.join("\n").length;
+  let shownCount = 0;
+
+  for (const memory of memories) {
+    const entry = formatMemoryEntry(memory);
+    const olderCount = memories.length - shownCount - 1;
+    const olderLineLength =
+      olderCount > 0
+        ? "\n".length + formatOlderNotesLine(olderCount).length
+        : 0;
+    if (length + "\n".length + entry.length + olderLineLength > maxChars) {
+      break;
+    }
+    lines.push(entry);
+    length += "\n".length + entry.length;
+    shownCount += 1;
+  }
+
+  if (shownCount === 0) {
+    return undefined;
+  }
+  if (shownCount < memories.length) {
+    lines.push(formatOlderNotesLine(memories.length - shownCount));
+  }
+  return lines.join("\n");
+};
 
 const formatDocumentReference = (
   document: OrganizationContextSourceDocument,
@@ -189,25 +264,29 @@ export const getReadableOrganizationDocumentIds = (
     .map((document) => document.id);
 
 /**
- * Budgeted markdown block with an organization's standing prompt and what its
- * reference documents say, for chat system prompts and research-agent runs.
+ * Budgeted markdown block with an organization's standing prompt, its saved
+ * memories and what its reference documents say, for chat system prompts and
+ * research-agent runs.
  *
  * Layout: header (organization name and type) → organization guidance (the
- * prompt, capped) → key facts per processed document (summary, else a text
- * excerpt; pinned first, then newest) while the budget lasts → the remaining
- * documents as one capped title list → a count of documents still processing.
- * Failed and unsupported documents are left out.
+ * prompt, capped) → notes saved from earlier chats (memories, newest first)
+ * while their cap and the budget last, then a count of the older ones → key facts per
+ * processed document (summary, else a text excerpt; pinned first, then newest)
+ * while the budget lasts → the remaining documents as one capped title list →
+ * a count of documents still processing. Failed and unsupported documents are
+ * left out.
  *
  * The output is deterministic for the same sources (no timestamps, stable
  * order) because the chat block sits in the prompt-cached prefix, and it never
- * exceeds `budgetChars`. Returns undefined when there is neither a prompt nor
- * a processed document.
+ * exceeds `budgetChars`. Returns undefined when there is no prompt, no memory
+ * and no processed document.
  */
 export const buildOrganizationContextBlock = (
   sources: OrganizationContextSources,
   {
     budgetChars,
     promptMaxChars,
+    memoriesMaxChars,
     readToolName,
   }: OrganizationContextBlockOptions,
 ): string | undefined => {
@@ -219,7 +298,7 @@ export const buildOrganizationContextBlock = (
     (document) => document.extractionStatus === "pending",
   ).length;
 
-  if (!prompt && doneDocuments.length === 0) {
+  if (!prompt && sources.memories.length === 0 && doneDocuments.length === 0) {
     return undefined;
   }
 
@@ -247,9 +326,35 @@ export const buildOrganizationContextBlock = (
     pendingCount > 0
       ? `${pendingCount} organization ${pendingCount === 1 ? "document is" : "documents are"} still processing.`
       : undefined;
+  const pendingLength = pendingLine
+    ? SECTION_SEPARATOR.length + pendingLine.length
+    : 0;
+  const titlesPrefixLength =
+    SECTION_SEPARATOR.length + OTHER_DOCUMENTS_HEADING.length + "\n".length;
+  // The smallest form of the documents part: a title list holding only
+  // "(+N more)", so the block always says that documents exist.
+  const titlesReserve =
+    doneDocuments.length > 0
+      ? titlesPrefixLength +
+        formatMoreSuffix(doneDocuments.length, false).length
+      : 0;
+
+  // Memories come before document key facts in the budget, up to their cap.
+  const memoriesSection = formatMemoriesSection(
+    sources.memories,
+    Math.min(
+      memoriesMaxChars,
+      budgetChars -
+        head.length -
+        pendingLength -
+        titlesReserve -
+        SECTION_SEPARATOR.length,
+    ),
+  );
   const fixedLength =
     head.length +
-    (pendingLine ? SECTION_SEPARATOR.length + pendingLine.length : 0);
+    pendingLength +
+    (memoriesSection ? SECTION_SEPARATOR.length + memoriesSection.length : 0);
 
   const candidates: KeyFactsCandidate[] = doneDocuments.map((document) => {
     const body = getDocumentBody(document);
@@ -263,11 +368,7 @@ export const buildOrganizationContextBlock = (
   // with room reserved for the title list heading and a "(+N more)" tail, so
   // the block always says that more documents exist.
   let placement = placeKeyFacts(candidates, budgetChars - fixedLength);
-  const titlesPrefixLength =
-    SECTION_SEPARATOR.length + OTHER_DOCUMENTS_HEADING.length + "\n".length;
   if (placement.titleDocuments.length > 0) {
-    const titlesReserve =
-      titlesPrefixLength + formatMoreSuffix(doneDocuments.length, false).length;
     placement = placeKeyFacts(
       candidates,
       budgetChars - fixedLength - titlesReserve,
@@ -275,6 +376,9 @@ export const buildOrganizationContextBlock = (
   }
 
   const sections = [head];
+  if (memoriesSection) {
+    sections.push(memoriesSection);
+  }
   if (placement.entries.length > 0) {
     sections.push(
       [KEY_FACTS_HEADING, ...placement.entries].join(SECTION_SEPARATOR),

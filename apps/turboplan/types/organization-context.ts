@@ -33,3 +33,29 @@ export type OrganizationDocument = {
 export type OrganizationDocumentsResponse = {
   documents: OrganizationDocument[];
 };
+
+/** One note of `GET /api/organizations/:id/memories` (newest first). */
+export type OrganizationMemory = {
+  id: string;
+  content: string;
+  /** ISO string */
+  createdAt: string;
+  /** Null once the user who asked for the note is deleted */
+  createdBy: string | null;
+};
+
+export type OrganizationMemoriesResponse = {
+  memories: OrganizationMemory[];
+};
+
+/**
+ * Output of the `saveOrganizationMemory` chat tool, rendered as the
+ * "Saved to <organization> context" card in the chat.
+ */
+export type SaveOrganizationMemoryToolOutput =
+  | {
+      status: "saved" | "already_saved";
+      memory: { id: string; content: string };
+      organizationName: string;
+    }
+  | { error: string };

@@ -151,3 +151,22 @@ export const ORGANIZATION_PROMPT_MAX_CHARS = 4_000;
 
 /** Maximum number of reference documents an organization can hold. */
 export const ORGANIZATION_DOCUMENTS_MAX = 100;
+
+/** Maximum length of one organization memory (after normalising). */
+export const ORGANIZATION_MEMORY_MAX_CHARS = 300;
+
+/** Maximum number of memories an organization can hold. */
+export const ORGANIZATION_MEMORIES_MAX = 50;
+
+/**
+ * A short note the chat assistant saved to the organization at a user's
+ * request. One item of `GET /api/organizations/:id/memories` (`createdAt` is
+ * an ISO string over JSON).
+ */
+export type OrganizationMemory = {
+  id: string;
+  content: string;
+  createdAt: string | Date;
+  /** Null once the user who asked for the note is deleted */
+  createdBy: string | null;
+};

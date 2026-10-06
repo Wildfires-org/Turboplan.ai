@@ -11,6 +11,7 @@ import { resetEnvCache } from "@wildfires-org/turboplan-env";
 
 import {
   claimLandingUpload,
+  getLandingUploadDestination,
   inspectLandingUpload,
 } from "../src/server/landing-uploads";
 import { publicUploadRouter } from "../src/server/public-router";
@@ -184,6 +185,35 @@ describe("inspectLandingUpload", () => {
   });
 });
 
+describe("getLandingUploadDestination", () => {
+  it("names the owner's key and URL without touching storage", () => {
+    const { send } = mockStorage();
+
+    const destinationKey = `uploads/${USER_ID}/${SEGMENT}`;
+    assert.deepStrictEqual(getLandingUploadDestination(KEY, USER_ID), {
+      key: destinationKey,
+      url: `${PUBLIC_URL}/${destinationKey}`,
+    });
+    assert.strictEqual(send.mock.callCount(), 0);
+  });
+
+  it("refuses a malformed key or an owner id that could widen the prefix", () => {
+    for (const [key, userId] of [
+      ["landing-uploads/report.pdf", USER_ID],
+      [`uploads/${USER_ID}/${SEGMENT}`, USER_ID],
+      [KEY, ""],
+      [KEY, ".."],
+      [KEY, "a/b"],
+    ]) {
+      assert.throws(
+        () => getLandingUploadDestination(key, userId),
+        isValidationError,
+        `${key} / ${userId}`,
+      );
+    }
+  });
+});
+
 describe("claimLandingUpload", () => {
   it("refuses a malformed key before touching storage", async () => {
     const { send } = mockStorage();
@@ -246,6 +276,11 @@ describe("claimLandingUpload", () => {
       originalFilename: "site plan.pdf",
     });
     assert.ok(claimed && isOwnedUploadUrl(claimed.url, USER_ID));
+    // The URL handed out before the claim is the one it lands at.
+    assert.strictEqual(
+      getLandingUploadDestination(KEY, USER_ID).url,
+      claimed?.url,
+    );
 
     const copy = sent.find((command) => command instanceof CopyObjectCommand);
     assert.deepStrictEqual(copy?.input, {

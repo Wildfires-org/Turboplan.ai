@@ -3,6 +3,7 @@ export { invitationsRouter, publicInvitationsRouter } from "./invitations";
 export { officesRouter } from "./offices";
 export { organizationContextRouter } from "./organization-context";
 export { organizationDocumentsRouter } from "./organization-documents";
+export { organizationMemoriesRouter } from "./organization-memories";
 export { organizationSigningConfigRouter } from "./organization-signing-config";
 export { organizationsRouter } from "./organizations";
 export { projectDocumentsRouter } from "./project-documents";

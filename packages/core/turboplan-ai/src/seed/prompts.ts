@@ -55,6 +55,7 @@ const {
   toolDescReadOrganizationDocuments,
   toolDescReadProjectDocuments,
   toolDescRequestSuggestions,
+  toolDescSaveOrganizationMemory,
   toolDescUpdateDocument,
   toolDescUpdateProjectContext,
   toolDescUpdateProjectFields,
@@ -206,6 +207,13 @@ const PROMPT_SEEDS: PromptSeed[] = [
     description:
       "Proactive field-creation addendum for updateProjectFields (brought-in projects)",
     content: toolDescUpdateProjectFieldsProactive,
+    category: C.Tools,
+  },
+  {
+    name: "tool-desc-save-organization-memory",
+    title: "Tool Description: Save Organization Memory",
+    description: "Description for saveOrganizationMemory tool",
+    content: toolDescSaveOrganizationMemory,
     category: C.Tools,
   },
   {

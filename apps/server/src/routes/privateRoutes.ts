@@ -25,6 +25,7 @@ import {
   officesRouter,
   organizationContextRouter,
   organizationDocumentsRouter,
+  organizationMemoriesRouter,
   organizationSigningConfigRouter,
   organizationsRouter,
   projectDocumentsRouter,
@@ -165,10 +166,11 @@ export async function registerPrivateRoutes(router: Hono) {
 
   // Conditionally add project context router if feature is enabled
   if (isProjectContextPackageEnabled()) {
-    // Organization context: standing AI prompt + reference documents (from
-    // workspace package, no dynamic import needed)
+    // Organization context: standing AI prompt, memories + reference
+    // documents (from workspace package, no dynamic import needed)
     router.route("/api/organizations", organizationContextRouter);
     router.route("/api/organization-documents", organizationDocumentsRouter);
+    router.route("/api/organization-memories", organizationMemoriesRouter);
 
     try {
       const { contextRouter } = await import(
