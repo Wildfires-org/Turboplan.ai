@@ -67,6 +67,7 @@ publicProjectsRouter.get("/", async (c) => {
         id: p.organizationId,
         name: p.organizationName,
         slug: p.organizationSlug,
+        logoUrl: p.organizationLogoUrl,
       },
     }));
 

@@ -173,7 +173,7 @@ export function ProjectPromptInput({
   return (
     <div id="project-prompt-input" className={className}>
       {label && (
-        <p className="mb-3 font-inter text-[13px] leading-[18px] text-egray-700 md:text-[14px]">
+        <p className="mb-3 text-center font-inter text-[13px] leading-[18px] text-egray-700 md:text-[14px]">
           <MessageSquareTextIcon className="mr-1.5 hidden size-4 align-[-3px] text-brand-800 md:inline" />
           <span className="font-medium text-brand-800">{label}</span> or{" "}
           <button

@@ -76,6 +76,7 @@ function queryPublicEntries(
       organizationId: organization.id,
       organizationName: organization.name,
       organizationSlug: organization.slug,
+      organizationLogoUrl: organization.logoUrl,
     })
     .from(project)
     .innerJoin(office, eq(project.officeId, office.id))
