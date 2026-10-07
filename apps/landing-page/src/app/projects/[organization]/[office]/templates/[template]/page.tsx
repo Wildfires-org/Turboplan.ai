@@ -258,7 +258,10 @@ export default async function PublicTemplatePage({
                 isHidden: isTasksHidden,
                 render: () => (
                   <PublicModuleSection title="Tasks" icon={<ListChecks />}>
-                    <PublicTasksSection milestones={taskMilestones} />
+                    <PublicTasksSection
+                      milestones={taskMilestones}
+                      entity="template"
+                    />
                   </PublicModuleSection>
                 ),
               },

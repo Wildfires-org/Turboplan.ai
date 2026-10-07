@@ -49,7 +49,7 @@ export default function SearchBar({
               input sits transparent on top of the results panel. */}
           <OmniSearch.Input
             placeholder={placeholder}
-            className="rounded-2xl border-0 font-inter text-[15px] text-egray-900 placeholder:text-egray-600 focus-visible:ring-0 focus-visible:ring-offset-0 aria-[expanded=false]:glass-inset aria-[expanded=false]:focus-visible:outline-solid aria-[expanded=false]:focus-visible:outline-2 aria-[expanded=false]:focus-visible:outline-brand-700/40"
+            className="rounded-2xl border-0 font-inter text-[15px] text-egray-900 text-ellipsis placeholder:text-egray-600 focus-visible:ring-0 focus-visible:ring-offset-0 aria-[expanded=false]:glass-inset aria-[expanded=false]:focus-visible:outline-solid aria-[expanded=false]:focus-visible:outline-2 aria-[expanded=false]:focus-visible:outline-brand-700/40"
           />
           <OmniSearch.Overlay />
           <OmniSearch.Content />
@@ -58,7 +58,7 @@ export default function SearchBar({
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 z-10 size-5 -translate-y-1/2 text-muted-foreground" />
           <div className="glass-inset flex h-12 w-full items-center rounded-2xl px-12 font-inter text-[15px] text-egray-600">
-            {placeholder}
+            <span className="truncate">{placeholder}</span>
           </div>
         </div>
       )}

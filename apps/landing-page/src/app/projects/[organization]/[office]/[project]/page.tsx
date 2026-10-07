@@ -333,7 +333,10 @@ export default async function PublicProjectPage({ params }: ProjectPageProps) {
                 isHidden: isTasksHidden,
                 render: () => (
                   <PublicModuleSection title="Tasks" icon={<ListChecks />}>
-                    <PublicTasksSection milestones={taskMilestones} />
+                    <PublicTasksSection
+                      milestones={taskMilestones}
+                      entity="project"
+                    />
                   </PublicModuleSection>
                 ),
               },
