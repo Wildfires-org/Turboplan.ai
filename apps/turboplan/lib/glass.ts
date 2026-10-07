@@ -22,9 +22,10 @@ export const PAGE_LEAD_CLASS = "text-[14px] leading-[21px] text-gray-550";
 
 /** Sticky tabs/search/filter band under the entity header. Same ground as the
  * page, lightly translucent so cards scrolling under it soften instead of
- * cutting off hard. */
+ * cutting off hard. Sticky from sm up only: on phones tabs, search and filters
+ * would cover a third of the screen under the header and compact banner. */
 export const STICKY_TOOLBAR_CLASS = cn(
-  "sticky top-[120px] z-20 -mx-6 bg-[#F4F9F7]/90 px-6 pb-2 pt-4 backdrop-blur-md",
+  "relative z-20 -mx-6 bg-[#F4F9F7]/90 px-6 pb-2 pt-4 backdrop-blur-md sm:sticky sm:top-[120px]",
   "dark:bg-slate-950/80",
 );
 

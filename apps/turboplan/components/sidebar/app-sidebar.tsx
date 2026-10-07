@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useIsClient } from "usehooks-ts";
@@ -19,6 +19,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsCitizen } from "@/hooks/use-citizen-mode";
 import { useSidebarBehavior } from "@/hooks/use-sidebar-behavior";
@@ -52,6 +53,7 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
     handleTogglePin,
   } = useSidebarBehavior({ defaultPinned });
 
+  const { isMobile, setOpenMobile } = useSidebar();
   const isCitizen = useIsCitizen();
   const isClient = useIsClient();
   const appName = brand.name;
@@ -84,7 +86,19 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
           </span>
         </div>
         <div className="ml-auto shrink-0 pr-1 group-data-[collapsible=icon]:hidden">
-          <SidebarPinButton isPinned={isPinned} onToggle={handleTogglePin} />
+          {/* Phones show the sidebar as a sheet, where pinning means nothing. */}
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={() => setOpenMobile(false)}
+              aria-label="Close navigation"
+              className="flex size-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-900/5 hover:text-foreground"
+            >
+              <X className="size-5" />
+            </button>
+          ) : (
+            <SidebarPinButton isPinned={isPinned} onToggle={handleTogglePin} />
+          )}
         </div>
       </SidebarHeader>
 

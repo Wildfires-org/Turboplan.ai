@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { MobileSidebarTrigger } from "@/components/sidebar/mobile-sidebar-trigger";
 import { SKELETON_BAR_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 import {
@@ -29,6 +30,7 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   return (
     <header className={DASHBOARD_HEADER_CLASS}>
+      <MobileSidebarTrigger />
       {/* Breadcrumbs */}
       <nav
         aria-label="Breadcrumb"
@@ -82,6 +84,7 @@ export function DashboardHeader({
 export function DashboardHeaderSkeleton({ crumbs = 2 }: { crumbs?: number }) {
   return (
     <header className={DASHBOARD_HEADER_CLASS}>
+      <MobileSidebarTrigger />
       <div aria-hidden className="flex h-5 items-center gap-3">
         {Array.from({ length: crumbs }, (_, index) => (
           <div key={index} className="flex items-center gap-3">

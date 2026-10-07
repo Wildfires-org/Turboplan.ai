@@ -5,6 +5,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeft } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import {
   Button,
@@ -194,6 +195,13 @@ const Sidebar = React.forwardRef<
     ref,
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+    const pathname = usePathname();
+
+    // The mobile sheet covers the page, so close it once a link inside
+    // navigates somewhere else.
+    React.useEffect(() => {
+      setOpenMobile(false);
+    }, [pathname, setOpenMobile]);
 
     if (collapsible === "none") {
       return (
@@ -211,64 +219,28 @@ const Sidebar = React.forwardRef<
     }
 
     if (isMobile) {
+      // Phones get no rail: the full sidebar opens as a sheet from the
+      // header's menu button (see MobileSidebarTrigger).
       return (
-        <>
-          {/* Collapsed icon rail — always visible on mobile */}
-          <div
-            className="group peer text-sidebar-foreground md:hidden"
-            data-state="collapsed"
-            data-collapsible={collapsible}
-            data-variant={variant}
-            data-side={side}
+        <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+          <SheetContent
+            data-sidebar="sidebar"
+            data-mobile="true"
+            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            style={
+              {
+                "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+              } as React.CSSProperties
+            }
+            side={side}
           >
-            {/* Gap spacer */}
-            <div
-              className="relative bg-transparent"
-              style={{ width: SIDEBAR_WIDTH_ICON }}
-            />
-            {/* Fixed rail */}
-            <div
-              className={cn(
-                "fixed inset-y-0 z-30 flex h-svh flex-col",
-                side === "left" ? "left-0 border-r" : "right-0 border-l",
-                className,
-              )}
-              style={{ width: SIDEBAR_WIDTH_ICON }}
-              onClick={() => setOpenMobile(true)}
-              {...props}
-            >
-              <div
-                data-sidebar="sidebar"
-                className="flex h-full w-full flex-col bg-sidebar"
-              >
-                {children}
-              </div>
-            </div>
-          </div>
-
-          {/* Sheet overlay for expanded view on mobile */}
-          <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-            <SheetContent
-              data-sidebar="sidebar"
-              data-mobile="true"
-              className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-              style={
-                {
-                  "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-                } as React.CSSProperties
-              }
-              side={side}
-            >
-              <SheetHeader className="sr-only">
-                <SheetTitle>Sidebar</SheetTitle>
-                <SheetDescription>
-                  Displays the mobile sidebar.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="flex h-full w-full flex-col">{children}</div>
-            </SheetContent>
-          </Sheet>
-        </>
+            <SheetHeader className="sr-only">
+              <SheetTitle>Sidebar</SheetTitle>
+              <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            </SheetHeader>
+            <div className="flex h-full w-full flex-col">{children}</div>
+          </SheetContent>
+        </Sheet>
       );
     }
 
