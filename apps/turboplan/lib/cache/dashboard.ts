@@ -43,6 +43,7 @@ export { getOfficeAllowedActions, getValidatedOfficeBySlug } from "./offices";
 // Organizations
 export {
   canReadOrganizationAsMember,
+  getOrganizationAllowedActions,
   getValidatedOrganizationBySlug,
   type SlugValidationResult,
 } from "./organizations";

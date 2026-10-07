@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import type { User } from "next-auth";
 
-import { EntityType } from "@wildfires-org/turboplan-rbac";
+import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
   Button,
   DropdownMenu,
@@ -38,6 +38,7 @@ import { MetadataChip } from "@/components/dashboard/metadata-chip";
 import { OfficeSkeleton } from "@/components/dashboard/office-skeleton";
 import { OrgTabNav } from "@/components/dashboard/org-tab-nav";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { useOptionalDashboard } from "@/components/providers/dashboard-provider";
 import { toast } from "@/components/toast";
 import { useFilteredPaginatedList } from "@/hooks/use-filtered-paginated-list";
 import { useOfficeStatus } from "@/hooks/use-office-status";
@@ -116,6 +117,11 @@ export function OfficesSection({
   organizationName,
   isMember = true,
 }: OfficesSectionProps) {
+  // Read access (any user on a government org, or a role on one of its
+  // offices or projects) isn't enough to edit or create offices.
+  const organizationActions = useOptionalDashboard()?.organizationActions ?? [];
+  const canManageOffices = organizationActions.includes(Action.UPDATE);
+  const canCreateOffice = organizationActions.includes(Action.CREATE);
   // Dialog state
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [editingOffice, setEditingOffice] =
@@ -263,7 +269,7 @@ export function OfficesSection({
               />
 
               {/* Dropdown overlay */}
-              {isMember && (
+              {canManageOffices && (
                 <div className="absolute right-3 top-3 z-10">
                   <DropdownMenu
                     modal={true}
@@ -368,7 +374,7 @@ export function OfficesSection({
           entityLabel="offices"
           hasSearchTerm={!!debouncedSearchTerm}
           createAction={
-            isMember ? (
+            canCreateOffice ? (
               <CreateOfficeButton
                 organizationId={organizationId}
                 organizationSlug={organizationSlug}

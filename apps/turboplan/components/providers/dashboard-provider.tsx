@@ -28,6 +28,9 @@ interface DashboardContext {
   /** RBAC actions the user has on the office (set by the office layout);
    * empty elsewhere, so office management actions stay hidden by default. */
   officeActions: ActionType[];
+  /** RBAC actions the user has on the organization (set by the org layout);
+   * empty elsewhere, so org management actions stay hidden by default. */
+  organizationActions: ActionType[];
 }
 
 const NO_ACTIONS: ActionType[] = [];
@@ -50,6 +53,7 @@ interface DashboardProviderProps {
   projectCoverImageUrl?: string | null;
   isOrgMember?: boolean;
   officeActions?: ActionType[];
+  organizationActions?: ActionType[];
 }
 
 export function DashboardProvider({
@@ -60,6 +64,7 @@ export function DashboardProvider({
   projectCoverImageUrl = null,
   isOrgMember = true,
   officeActions = NO_ACTIONS,
+  organizationActions = NO_ACTIONS,
 }: DashboardProviderProps) {
   useEffect(() => {
     // Group analytics: scope subsequent events to the active workspace
@@ -102,6 +107,7 @@ export function DashboardProvider({
     projectCoverImageUrl,
     isOrgMember,
     officeActions,
+    organizationActions,
   };
 
   return (

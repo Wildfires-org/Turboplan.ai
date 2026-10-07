@@ -133,6 +133,43 @@ test.describe("Access Isolation", () => {
     await govContext.close();
   });
 
+  test("only organization managers get organization management actions", async ({
+    page,
+    browser,
+  }) => {
+    // Read access to a government organization (any signed-in user, or a
+    // role on one of its offices or projects) must not surface the actions
+    // that need UPDATE / CREATE on the organization itself.
+    const citizenDashboard = new TurboplanDashboardPage(page);
+    await citizenDashboard.gotoOrganization(govOrgSlug);
+    const citizenMain = citizenDashboard.getMain();
+    await expect(
+      citizenMain.getByRole("heading", { level: 1 }).first(),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      citizenMain.getByRole("button", { name: "Manage Organization" }),
+    ).toHaveCount(0);
+    await expect(
+      citizenMain.getByRole("button", { name: /^New Office$/ }),
+    ).toHaveCount(0);
+
+    const govContext = await browser.newContext({
+      storageState: "./storage/auth/gov.json",
+    });
+    const govPage = await govContext.newPage();
+    const govDashboard = new TurboplanDashboardPage(govPage);
+    await govDashboard.gotoOrganization(govOrgSlug);
+    const govMain = govDashboard.getMain();
+    await expect(
+      govMain.getByRole("button", { name: "Manage Organization" }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      govMain.getByRole("button", { name: /^New Office$/ }),
+    ).toBeVisible();
+
+    await govContext.close();
+  });
+
   test("citizen draft project is not returned in the public projects API", async ({
     request,
   }) => {

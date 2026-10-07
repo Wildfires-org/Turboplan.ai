@@ -10,7 +10,11 @@ import {
   OrganizationType,
   PUBLICLY_LISTED_ORG_TYPES,
 } from "@wildfires-org/turboplan-db/types";
-import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
+import {
+  Action,
+  type ActionType,
+  EntityType,
+} from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { getOrganizationBySlug } from "@wildfires-org/turboplan-workspace/server";
 
@@ -109,5 +113,21 @@ export const canReadOrganizationAsMember = cache(
     );
 
     return accessResult.allowed;
+  },
+);
+
+/**
+ * Actions the user may take on the organization. Read access alone (also
+ * granted "upward" by a role on a child office or project) is not enough for
+ * the banner's management actions; they need the action the API checks.
+ */
+export const getOrganizationAllowedActions = cache(
+  async (userId: string, organizationId: string): Promise<ActionType[]> => {
+    const { actions } = await getRBACService().getAllowedActions(
+      userId,
+      organizationId,
+      EntityType.ORGANIZATION,
+    );
+    return actions;
   },
 );

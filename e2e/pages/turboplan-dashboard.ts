@@ -24,6 +24,13 @@ export class TurboplanDashboardPage {
     });
   }
 
+  /** Navigate directly to an organization's offices page */
+  async gotoOrganization(orgSlug: string): Promise<void> {
+    await this.page.goto(`/organizations/${orgSlug}`, {
+      waitUntil: "domcontentloaded",
+    });
+  }
+
   /** Click an office name on the homepage to navigate to it */
   async navigateToOffice(officeName: string): Promise<void> {
     await expect(this.page.getByText(officeName)).toBeVisible({

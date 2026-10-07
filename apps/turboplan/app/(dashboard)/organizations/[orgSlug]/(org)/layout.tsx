@@ -10,6 +10,7 @@ import { SidebarOrgRegistrar } from "@/components/sidebar/sidebar-org-registrar"
 import {
   canReadOrganizationAsMember,
   getCachedSession,
+  getOrganizationAllowedActions,
   getValidatedOrganizationBySlug,
 } from "@/lib/cache/dashboard";
 import { AppUrls } from "@/lib/nav/urls";
@@ -58,13 +59,17 @@ export default async function OrganizationTabsLayout({
 
   // Government orgs are readable by any authenticated user. Member-only tabs
   // and banner actions are hidden for non-members; their pages gate access.
-  const isMember = await canReadOrganizationAsMember(
-    session.user.id,
-    organization.id,
-  );
+  const [isMember, organizationActions] = await Promise.all([
+    canReadOrganizationAsMember(session.user.id, organization.id),
+    getOrganizationAllowedActions(session.user.id, organization.id),
+  ]);
 
   return (
-    <DashboardProvider organization={organization} isOrgMember={isMember}>
+    <DashboardProvider
+      organization={organization}
+      isOrgMember={isMember}
+      organizationActions={organizationActions}
+    >
       <InviteMembersProvider>
         <SidebarOrgRegistrar />
         <div className="flex flex-col shrink-0 min-h-screen">
@@ -76,7 +81,7 @@ export default async function OrganizationTabsLayout({
             actions={
               <OrgBannerActions
                 organization={organization}
-                isMember={isMember}
+                actions={organizationActions}
               />
             }
           />
