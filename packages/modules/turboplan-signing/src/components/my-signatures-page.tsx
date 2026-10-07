@@ -4,7 +4,13 @@ import { useState } from "react";
 
 import { FileSignature, FileText } from "lucide-react";
 
-import { Badge, Button, Skeleton } from "@wildfires-org/turboplan-utils";
+import {
+  Badge,
+  Button,
+  cn,
+  GLASS_CARD_CLASS,
+  Skeleton,
+} from "@wildfires-org/turboplan-utils";
 
 import {
   type SigningRequestWithProject,
@@ -46,7 +52,7 @@ export const MySignaturesPage = ({ organizationId }: MySignaturesPageProps) => {
       {isLoading ? (
         <div className="flex flex-col gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-lg border p-4">
+            <div key={i} className={cn(GLASS_CARD_CLASS, "p-4")}>
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-5 w-48" />
                 <Skeleton className="h-4 w-32" />
@@ -56,11 +62,16 @@ export const MySignaturesPage = ({ organizationId }: MySignaturesPageProps) => {
           ))}
         </div>
       ) : signingRequests.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border py-16">
-          <FileText className="size-10 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">
-            No pending signatures
-          </p>
+        <div
+          className={cn(
+            GLASS_CARD_CLASS,
+            "flex flex-col items-center justify-center px-6 py-14 text-center",
+          )}
+        >
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-brandAlt-100 text-brand-800">
+            <FileText aria-hidden className="size-5" />
+          </span>
+          <p className="mt-3 text-sm text-gray-550">No pending signatures</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
@@ -70,7 +81,10 @@ export const MySignaturesPage = ({ organizationId }: MySignaturesPageProps) => {
             return (
               <div
                 key={request.id}
-                className="flex items-center justify-between rounded-lg border p-4"
+                className={cn(
+                  GLASS_CARD_CLASS,
+                  "flex flex-wrap items-center justify-between gap-3 p-4",
+                )}
               >
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">

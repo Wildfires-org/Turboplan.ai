@@ -227,19 +227,23 @@ const DocumentCardsGrid = ({
     <div className="flex flex-col gap-4">
       {folders.map((folder) => (
         <div key={folder.name}>
-          <div className="flex items-center gap-2 mb-2">
-            <FolderOpen className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">
-              {folder.name}
-            </span>
-            {folder.description && (
-              <span className="text-xs text-muted-foreground">
-                · {folder.description}
-              </span>
-            )}
-            <span className="text-xs text-muted-foreground">
-              ({folder.docs.length})
-            </span>
+          {/* Name + count on one line, description below it: three inline
+              spans squeezed into separate columns on phones. */}
+          <div className="mb-2 flex items-start gap-2">
+            <FolderOpen className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {folder.name}{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({folder.docs.length})
+                </span>
+              </p>
+              {folder.description && (
+                <p className="text-xs text-muted-foreground">
+                  {folder.description}
+                </p>
+              )}
+            </div>
           </div>
           <DocumentsList variant="section" className={listClassName}>
             {folder.docs.map((document) => (
