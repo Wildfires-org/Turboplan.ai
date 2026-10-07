@@ -25,7 +25,7 @@ Project context:
 Project documents on file:
 {{projectDocuments}}
 
-Milestones and tasks (status in brackets):
+Milestones and tasks in schedule order (status in brackets; open items also show the due date and task notes):
 {{projectMilestones}}
 
 Already drafted or requested in chat:
@@ -38,8 +38,11 @@ Infer it from the fields (e.g. "Framework", "Lead Agency", "Review Type", "Progr
 ## 2. Work out the current stage
 Compare what is already done (completed tasks, documents on file, documents already drafted or requested) with what is still ahead (open milestones and tasks). Suggest only work that is still ahead.
 
-## 3. Pick the next deliverables for that framework
-Typical deliverables, roughly in the order they are needed:
+## 3. Turn the earliest open tasks into documents
+When there are open (not completed) tasks, or open milestones without tasks, the FIRST chips (up to 4, earliest due first) must each be a document the assistant can write right now to move one of them forward: an email, letter, memo, outline, agenda, checklist, presentation outline, response or schedule. For example: confirming a submission status with an agency → an email to that agency; preparing for an interview → an interview presentation outline; executing a contract → a contract and insurance checklist or a subconsultant agreement scope. Skip tasks with nothing to write.
+
+## 4. Fill the remaining chips with framework deliverables
+Skip any deliverable a step 3 chip already covers. Typical deliverables, roughly in the order they are needed:
 - NEPA (US federal): scoping letter or public notice, purpose and need statement, proposed action description, then the decision document for the review level (categorical exclusion decision memo, EA with FONSI, or EIS with ROD).
 - CEQA (California, standalone review): Initial Study, AB 52 tribal consultation letters, Notice of Preparation (NOP) or Notice of Intent to adopt a Negative Declaration / MND, the MND or EIR sections, mitigation monitoring and reporting program (MMRP), Notice of Determination (NOD).
 - CalVTP (California Vegetation Treatment Program — a CEQA project tiering from the 2019 CalVTP Program EIR through a Project-Specific Analysis, PSA): project registration / notification to the Board of Forestry, AB 52 tribal consultation initiation letter, CNDDB and special-status species scoping memo, PSA outline and Standard Project Requirements (SPR) checklist, landowner outreach letter, MMRP, CEQA findings, Notice of Determination (NOD). Do NOT suggest a NEPA scoping letter, purpose and need statement or decision memo for a CalVTP project unless the data shows a federal nexus.
@@ -47,9 +50,9 @@ Typical deliverables, roughly in the order they are needed:
 - Framework unknown: neutral planning deliverables — project summary, stakeholder outreach letter, project schedule, permit and approvals checklist, framework determination memo.
 
 ## Output
-Return between 5 and 8 chips, ordered by what should be done NEXT (the most urgent unblocked deliverable first).
+Return between 5 and 8 chips: the step 3 task chips first, then the framework deliverables ordered by what should be done NEXT (the most urgent unblocked deliverable first).
 - label: at most 4 words, imperative, specific (e.g. "Draft AB 52 Letter", "Outline PSA", "Build Permit Checklist").
-- content: one or two sentences — a complete instruction to the assistant that names the project "{{projectName}}" and the exact deliverable, including the key framework detail (e.g. which program EIR it tiers from, which agency it goes to).
+- content: one or two sentences — a complete instruction to the assistant that names the project "{{projectName}}" and the exact deliverable. A task chip also names the task or milestone it advances and uses the facts from its notes and due date; a framework chip includes the key framework detail (e.g. which program EIR it tiers from, which agency it goes to).
 - emoji: a single emoji that fits the action; every chip must use a different emoji.
 - One distinct deliverable per chip. No questions, no explanations.
 - Skip anything already completed, already on file, or already drafted or requested.

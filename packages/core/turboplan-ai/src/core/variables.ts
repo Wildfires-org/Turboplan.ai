@@ -115,7 +115,7 @@ export const PROMPT_VARIABLES: PromptVariable[] = [
   {
     name: "projectMilestones",
     description:
-      "Saved project milestones and tasks with status, for next-step suggestions",
+      "Saved project milestones and tasks with status, due dates and open-task descriptions, for next-step suggestions",
     isProtected: true,
     applicablePrompts: ["project-next-step-suggestions"],
   },

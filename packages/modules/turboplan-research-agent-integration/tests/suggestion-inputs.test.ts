@@ -6,6 +6,7 @@ import {
   extractMessageText,
   joinLinesWithinBudget,
   type ProjectSuggestionInputs,
+  SUGGESTION_INPUT_LIMITS,
   truncateText,
 } from "../src/server/bootstrapper/suggestion-inputs";
 
@@ -80,11 +81,19 @@ describe("buildProjectSuggestionPromptVariables", () => {
           {
             title: "Registration",
             status: "completed",
-            tasks: [{ title: "Notify Board", status: "completed" }],
+            dueDate: "2026-08-01",
+            tasks: [
+              {
+                title: "Notify Board",
+                status: "completed",
+                dueDate: "2026-07-20",
+              },
+            ],
           },
           {
             title: "PSA",
             status: "not_started",
+            dueDate: "2026-12-15",
             tasks: [{ title: "SPR checklist", status: "draft" }],
           },
         ],
@@ -92,7 +101,61 @@ describe("buildProjectSuggestionPromptVariables", () => {
     );
     assert.equal(
       variables.projectMilestones,
-      "- Registration [completed]\n  - Notify Board [completed]\n- PSA [not_started]\n  - SPR checklist [draft]",
+      "- Registration [completed]\n  - Notify Board [completed]\n- PSA [not_started] (due 2026-12-15)\n  - SPR checklist [draft]",
+    );
+  });
+
+  it("adds due dates and descriptions only to open tasks", () => {
+    const variables = buildProjectSuggestionPromptVariables(
+      baseInputs({
+        milestones: [
+          {
+            title: "Proposal and Award",
+            status: "in_progress",
+            dueDate: "2026-10-27",
+            tasks: [
+              {
+                title: "Submit proposal",
+                status: "completed",
+                description: "Upload the proposal to the county portal.",
+                dueDate: "2026-09-18",
+              },
+              {
+                title: "Prepare for interview",
+                status: "not_started",
+                description: "  Interviews are   tentatively 10/6.  ",
+                dueDate: "2026-10-06",
+              },
+              {
+                title: "Execute contract",
+                status: "draft",
+                description: "   ",
+                dueDate: "2026-10-27",
+              },
+              {
+                title: "Brief subconsultants",
+                status: "draft",
+                description: "x".repeat(500),
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const lines = variables.projectMilestones.split("\n");
+    assert.deepEqual(lines.slice(0, 4), [
+      "- Proposal and Award [in_progress] (due 2026-10-27)",
+      "  - Submit proposal [completed]",
+      "  - Prepare for interview [not_started] (due 2026-10-06): Interviews are tentatively 10/6.",
+      "  - Execute contract [draft] (due 2026-10-27)",
+    ]);
+    const truncated = lines[4] ?? "";
+    assert.ok(truncated.startsWith("  - Brief subconsultants [draft]: x"));
+    assert.ok(truncated.endsWith("…"));
+    assert.equal(
+      truncated.length,
+      "  - Brief subconsultants [draft]: ".length +
+        SUGGESTION_INPUT_LIMITS.taskDescription,
     );
   });
 
@@ -152,11 +215,14 @@ describe("buildProjectSuggestionPromptVariables", () => {
         })),
         documentTitles: Array.from({ length: 200 }, (_, i) => `Doc ${i}`),
         milestones: Array.from({ length: 50 }, (_, i) => ({
-          title: `Milestone ${i}`,
+          title: `Milestone ${i} ${longText}`,
           status: "not_started",
+          dueDate: "2026-10-27",
           tasks: Array.from({ length: 20 }, (_, j) => ({
-            title: `Task ${j}`,
+            title: `Task ${j} ${longText}`,
             status: "draft",
+            description: longText,
+            dueDate: "2026-10-06",
           })),
         })),
         recentUserRequests: Array.from({ length: 50 }, () => longText),

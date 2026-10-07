@@ -17,11 +17,16 @@ export type SuggestionContextInput = {
 export type SuggestionTaskInput = {
   title: string;
   status: string;
+  description?: string | null;
+  /** `YYYY-MM-DD` */
+  dueDate?: string;
 };
 
 export type SuggestionMilestoneInput = {
   title: string;
   status: string;
+  /** `YYYY-MM-DD` */
+  dueDate?: string;
   tasks: SuggestionTaskInput[];
 };
 
@@ -49,6 +54,7 @@ export type ProjectSuggestionPromptVariables = {
 };
 
 const NONE = "None";
+const COMPLETED_STATUS = "completed";
 
 // Per-section budgets keep the whole prompt small enough for the lite model.
 export const SUGGESTION_INPUT_LIMITS = {
@@ -62,8 +68,9 @@ export const SUGGESTION_INPUT_LIMITS = {
   documentTitle: 120,
   documents: 1200,
   milestoneTitle: 120,
+  taskDescription: 160,
   tasksPerMilestone: 6,
-  milestones: 2200,
+  milestones: 3500,
   activityEntry: 150,
   activity: 1200,
 } as const;
@@ -164,17 +171,31 @@ const formatContext = (context: SuggestionContextInput[]): string =>
     SUGGESTION_INPUT_LIMITS.context,
   );
 
+// Done items show only title and status; open ones also carry the due date
+// (and, for tasks, the description) so the model can draft from them.
+const formatScheduleItem = (
+  item: SuggestionTaskInput,
+  indent: string,
+): string => {
+  const line = `${indent}- ${truncateText(item.title, SUGGESTION_INPUT_LIMITS.milestoneTitle)} [${item.status}]`;
+  if (item.status === COMPLETED_STATUS) {
+    return line;
+  }
+  const due = item.dueDate ? ` (due ${item.dueDate})` : "";
+  const details = item.description?.trim()
+    ? `: ${truncateText(item.description, SUGGESTION_INPUT_LIMITS.taskDescription)}`
+    : "";
+  return `${line}${due}${details}`;
+};
+
 const formatMilestones = (milestones: SuggestionMilestoneInput[]): string => {
   const blocks = milestones.map((milestone) => {
-    const header = `- ${truncateText(milestone.title, SUGGESTION_INPUT_LIMITS.milestoneTitle)} [${milestone.status}]`;
+    const header = formatScheduleItem(milestone, "");
     const shownTasks = milestone.tasks.slice(
       0,
       SUGGESTION_INPUT_LIMITS.tasksPerMilestone,
     );
-    const taskLines = shownTasks.map(
-      (task) =>
-        `  - ${truncateText(task.title, SUGGESTION_INPUT_LIMITS.milestoneTitle)} [${task.status}]`,
-    );
+    const taskLines = shownTasks.map((task) => formatScheduleItem(task, "  "));
     const hiddenTasks = milestone.tasks.length - shownTasks.length;
     if (hiddenTasks > 0) {
       taskLines.push(`  - (+${hiddenTasks} more tasks)`);

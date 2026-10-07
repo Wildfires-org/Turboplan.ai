@@ -38,6 +38,10 @@ import {
   type ResearchAgentMessageTypeValue,
   TERMINAL_RESEARCH_AGENT_CHAT_STATUSES,
 } from "../types";
+import type {
+  SuggestionMilestoneInput,
+  SuggestionTaskInput,
+} from "./bootstrapper/suggestion-inputs";
 
 async function withRepoError<T>(
   label: string,
@@ -914,22 +918,20 @@ export async function getExistingTaskIds(
 const MAX_SUGGESTION_DRAFTED_DOCUMENTS = 15;
 const MAX_SUGGESTION_USER_MESSAGES = 12;
 
+/** `YYYY-MM-DD` of a stored timestamp, as shown to the suggestions model. */
+const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
+
 /** Saved project milestones with their tasks, in schedule order. */
 export const getProjectMilestonesWithTasks = (
   projectId: string,
-): Promise<
-  {
-    title: string;
-    status: string;
-    tasks: { title: string; status: string }[];
-  }[]
-> => {
+): Promise<SuggestionMilestoneInput[]> => {
   return withRepoError("getProjectMilestonesWithTasks", async () => {
     const milestoneRows = await db
       .select({
         id: milestonesTable.id,
         title: milestonesTable.title,
         status: milestonesTable.status,
+        dueDate: milestonesTable.dueDate,
       })
       .from(milestonesTable)
       .where(eq(milestonesTable.projectId, projectId))
@@ -941,7 +943,9 @@ export const getProjectMilestonesWithTasks = (
     const taskRows = await db
       .select({
         title: tasksTable.title,
+        description: tasksTable.description,
         status: tasksTable.status,
+        dueDate: tasksTable.dueDate,
         milestoneId: tasksTable.milestoneId,
       })
       .from(tasksTable)
@@ -953,19 +957,22 @@ export const getProjectMilestonesWithTasks = (
       )
       .orderBy(asc(tasksTable.startDate), asc(tasksTable.order));
 
-    const tasksByMilestone = new Map<
-      string,
-      { title: string; status: string }[]
-    >();
+    const tasksByMilestone = new Map<string, SuggestionTaskInput[]>();
     for (const task of taskRows) {
       const list = tasksByMilestone.get(task.milestoneId) ?? [];
-      list.push({ title: task.title, status: task.status });
+      list.push({
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        dueDate: toIsoDate(task.dueDate),
+      });
       tasksByMilestone.set(task.milestoneId, list);
     }
 
     return milestoneRows.map((row) => ({
       title: row.title,
       status: row.status,
+      dueDate: toIsoDate(row.dueDate),
       tasks: tasksByMilestone.get(row.id) ?? [],
     }));
   });

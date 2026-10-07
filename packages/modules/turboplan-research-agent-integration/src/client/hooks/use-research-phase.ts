@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback } from "react";
+
 import useSWR, { mutate } from "swr";
 import useSWRMutation from "swr/mutation";
 
@@ -31,30 +33,49 @@ const completeResearchFetcher = async (
 const getSuggestionsGeneratingKey = (projectId: string) =>
   `research-phase/${projectId}/generating-suggestions`;
 
+// Projects with a suggestions run in flight, and those asked to run again
+// meanwhile. A request during a run is coalesced into one more run, so items
+// saved mid-run still reach the chips without stacking regenerate calls.
+const runningSuggestionProjects = new Set<string>();
+const queuedSuggestionProjects = new Set<string>();
+
 /**
  * Build the next-step chips from the project's saved data, then refresh the
- * research messages that carry them. The flag is set before the project
- * revalidates, so the chat never flashes the fallback chips in between.
- * Failures are logged; the fallback chips then remain.
+ * research messages that carry them. On research completion the flag is set
+ * before the project revalidates, so the chat never flashes the fallback chips
+ * in between. Failures are logged; the current chips then remain.
  */
-const generateSuggestionsAfterResearch = async (
+const generateSuggestions = async (
   projectId: string,
-  revalidateProject: () => Promise<unknown>,
+  revalidateProject?: () => Promise<unknown>,
 ) => {
+  if (runningSuggestionProjects.has(projectId)) {
+    queuedSuggestionProjects.add(projectId);
+    return;
+  }
+  runningSuggestionProjects.add(projectId);
+
   const generatingKey = getSuggestionsGeneratingKey(projectId);
   await mutate(generatingKey, true, { revalidate: false });
   try {
-    const request = apiClient.post(
-      `/api/ai/research-agent/bootstrapper/project/${projectId}/suggestions/regenerate`,
-      {},
-    );
-    await revalidateProject();
-    const { error } = await request;
-    if (error) {
-      console.error("[research-phase] Failed to generate suggestions:", error);
-    }
-    await mutate(getResearchAgentMessagesKey(projectId));
+    do {
+      queuedSuggestionProjects.delete(projectId);
+      const request = apiClient.post(
+        `/api/ai/research-agent/bootstrapper/project/${projectId}/suggestions/regenerate`,
+        {},
+      );
+      await revalidateProject?.();
+      const { error } = await request;
+      if (error) {
+        console.error(
+          "[research-phase] Failed to generate suggestions:",
+          error,
+        );
+      }
+      await mutate(getResearchAgentMessagesKey(projectId));
+    } while (queuedSuggestionProjects.has(projectId));
   } finally {
+    runningSuggestionProjects.delete(projectId);
     await mutate(generatingKey, false, { revalidate: false });
   }
 };
@@ -86,16 +107,25 @@ export const useResearchPhase = (projectId: string | null) => {
         // The trigger only exists with a projectId. Chips become visible now,
         // so build them from what the user saved.
         if (projectId) {
-          void generateSuggestionsAfterResearch(projectId, mutateProject);
+          void generateSuggestions(projectId, mutateProject);
         }
       },
     },
   );
+
+  // Rebuilds the chips after the user saves more items post-completion.
+  const regenerateSuggestions = useCallback(async () => {
+    if (!projectId) {
+      return;
+    }
+    await generateSuggestions(projectId);
+  }, [projectId]);
 
   return {
     isResearchPhaseCompleted: data?.project?.isResearchPhaseCompleted ?? false,
     completeResearchPhase: trigger,
     isCompleting: isMutating,
     isGeneratingSuggestions,
+    regenerateSuggestions,
   };
 };

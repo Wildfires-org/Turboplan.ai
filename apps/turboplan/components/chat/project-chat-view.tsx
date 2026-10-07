@@ -238,6 +238,7 @@ const ProjectChatViewInner = ({
     completeResearchPhase,
     isCompleting: isCompletingResearch,
     isGeneratingSuggestions,
+    regenerateSuggestions,
   } = useResearchPhase(
     researchEnabled && effectiveIsInitialChat ? project.id : null,
   );
@@ -318,6 +319,12 @@ const ProjectChatViewInner = ({
       } as UIMessage;
       chatRef.current?.injectMessage(syntheticMessage);
 
+      // The chips are first built when the research phase completes; items
+      // saved after that only show up as chips if they are rebuilt.
+      if (details.totalSaved > 0 && isResearchPhaseCompleted) {
+        void regenerateSuggestions();
+      }
+
       // Persist the card so it survives a page refresh. Only chats that already
       // exist in the DB can receive messages; the initial unsaved chat keeps the
       // injected-only behavior.
@@ -338,7 +345,7 @@ const ProjectChatViewInner = ({
         }
       });
     },
-    [chat?.id, mutateMessages],
+    [chat?.id, mutateMessages, isResearchPhaseCompleted, regenerateSuggestions],
   );
 
   useEffect(() => {
