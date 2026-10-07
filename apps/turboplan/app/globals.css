@@ -610,6 +610,16 @@ main[class*="overflow-auto"] {
   opacity: 1 !important;
 }
 
+/* Leaflet 1.9.4 blends tiles with `plus-lighter` to hide the hairline gaps
+   fractional zoom (zoomSnap 0.25) leaves between them, but where two tiles'
+   anti-aliased edges overlap the colours add up to a visible white grid line.
+   Draw tiles normally; the map container's background matches each basemap
+   (MAP_TYPES in turboplan-map), so any gap stays invisible. !important:
+   leaflet.css loads after this file. */
+.leaflet-container img.leaflet-tile {
+  mix-blend-mode: normal !important;
+}
+
 /* Fix Leaflet marker images */
 .leaflet-default-icon-path {
   display: none;

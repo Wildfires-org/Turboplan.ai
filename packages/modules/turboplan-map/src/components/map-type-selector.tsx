@@ -26,6 +26,7 @@ export const MAP_TYPES: MapType[] = [
     attribution:
       '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
+    background: "#f2efe9",
     icon: Globe,
   },
   {
@@ -35,6 +36,7 @@ export const MAP_TYPES: MapType[] = [
     attribution:
       '© <a href="https://www.esri.com/">Esri</a>, Maxar, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
     maxZoom: 17,
+    background: "#2b3326",
     icon: Satellite,
   },
   {
@@ -44,6 +46,7 @@ export const MAP_TYPES: MapType[] = [
     attribution:
       '© <a href="https://opentopomap.org/">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
     maxZoom: 17,
+    background: "#f1efe6",
     icon: Mountain,
   },
 ];
