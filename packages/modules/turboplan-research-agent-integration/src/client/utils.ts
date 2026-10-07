@@ -47,3 +47,27 @@ export const getActiveStep = (
 
   return status.currentStep;
 };
+
+type StatusRefreshOptions = {
+  awaitRunStart: boolean;
+  pollingInterval: number;
+};
+
+/**
+ * Poll interval for the run status (SWR `refreshInterval`). SWR only asks for
+ * it when it (re)starts the poll timer and after a poll it ran itself, so "no
+ * data yet" must keep polling: answering 0 on mount would stop the poll before
+ * the first response could report an active run.
+ */
+export const getStatusRefreshInterval = (
+  latestData: ResearchAgentStatus | undefined,
+  { awaitRunStart, pollingInterval }: StatusRefreshOptions,
+): number => {
+  if (!latestData || latestData.hasActiveRun) {
+    return pollingInterval;
+  }
+  if (awaitRunStart && !latestData.runId) {
+    return pollingInterval;
+  }
+  return 0;
+};

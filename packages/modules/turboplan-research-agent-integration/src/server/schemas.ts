@@ -5,6 +5,8 @@ import {
   isSafeHttpUrl,
 } from "@wildfires-org/turboplan-utils/server";
 
+import { RESEARCH_AGENT_RUN_OUTCOMES } from "./bootstrapper/progress-status";
+
 // Base schemas (internal, used to compose exported schemas)
 
 // Stored URLs are later opened as links, so only http(s) is accepted.
@@ -148,6 +150,8 @@ export const bootstrapperProgressSchema = z.object({
   runId: z.string().min(1, "Run ID is required"),
   message: z.string().min(1, "Progress message is required"),
   step: z.string().optional(),
+  // Sent with the agent's final message only; see getProgressRunStatus.
+  status: z.enum(RESEARCH_AGENT_RUN_OUTCOMES).optional(),
 });
 
 // Save-to-project schemas

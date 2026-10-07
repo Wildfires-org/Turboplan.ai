@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import useSWR from "swr";
 
 import { fetcher } from "@wildfires-org/turboplan-api-client";
@@ -27,6 +29,16 @@ export function useResearchAgentMessages(
         : 0,
     },
   );
+
+  // Polling stops as soon as the status reports the run finished, which can be
+  // before this poll saw the last results, so fetch once more when it ends.
+  const wasActiveRef = useRef(isActive);
+  useEffect(() => {
+    if (wasActiveRef.current && !isActive) {
+      mutate();
+    }
+    wasActiveRef.current = isActive;
+  }, [isActive, mutate]);
 
   return {
     messages: data?.messages ?? [],

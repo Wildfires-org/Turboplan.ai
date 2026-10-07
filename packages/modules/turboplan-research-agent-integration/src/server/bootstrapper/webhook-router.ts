@@ -16,7 +16,7 @@ import type {
   ResearchAgentChat,
   ResearchAgentMessageTypeValue,
 } from "../../types";
-import { ResearchAgentChatStatus, ResearchAgentMessageType } from "../../types";
+import { ResearchAgentMessageType } from "../../types";
 import {
   annotateDocumentDownloadability,
   type DocumentProbeResult,
@@ -38,6 +38,7 @@ import {
 } from "../schemas";
 import { handleRouteError, runInBackground } from "../utils";
 import { webhookLoggerMiddleware } from "../webhook-logger-middleware";
+import { getProgressRunStatus } from "./progress-status";
 
 type WebhookContext = RBACContext & {
   Variables: RBACContext["Variables"] & {
@@ -133,16 +134,19 @@ bootstrapperWebhookRouter.post(
   zValidator("json", bootstrapperProgressSchema),
   async (c) => {
     try {
-      const { runId, message } = c.req.valid("json");
+      const { runId, message, status } = c.req.valid("json");
       const researchAgentRecord = c.get("researchAgentChat");
 
       if (researchAgentRecord.externalRunId !== runId) {
         return c.json({ error: "Forbidden - Run ID mismatch" }, 403);
       }
 
+      // The agent's final message carries the run outcome, so the run finishes
+      // now instead of when the status poll's reconcile catches it. A terminal
+      // status also revokes the webhook secret, which is fine: nothing follows.
       await updateResearchAgentChatByExternalId({
         externalRunId: runId,
-        status: ResearchAgentChatStatus.RUNNING,
+        status: getProgressRunStatus(status),
         currentStep: message,
       });
 
