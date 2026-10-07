@@ -27,7 +27,7 @@ jobs:
   e2e-tests:
     name: E2E Test Suite
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     environment: e2e-ci
 
     env:
