@@ -13,6 +13,7 @@ import { SidebarOrgRegistrar } from "@/components/sidebar/sidebar-org-registrar"
 import {
   canReadOrganizationAsMember,
   getCachedSession,
+  getOrganizationAllowedActions,
   getValidatedOrganizationBySlug,
 } from "@/lib/cache/dashboard";
 import { AppUrls } from "@/lib/nav/urls";
@@ -93,13 +94,21 @@ export default async function OrganizationContextPage({
     return <AccessError type="organization" />;
   }
 
+  const organizationActions = await getOrganizationAllowedActions(
+    session.user.id,
+    organization.id,
+  );
+
   const breadcrumbs = [
     { label: organization.name, href: AppUrls.organization(organization.slug) },
     { label: "Context", isActive: true },
   ];
 
   return (
-    <DashboardProvider organization={organization}>
+    <DashboardProvider
+      organization={organization}
+      organizationActions={organizationActions}
+    >
       <SidebarOrgRegistrar />
       <div className="flex flex-col shrink-0 min-h-screen">
         <DashboardHeader breadcrumbs={breadcrumbs} />
@@ -107,7 +116,12 @@ export default async function OrganizationContextPage({
           logoUrl={organization.logoUrl}
           title={organization.name}
           description={organization.description}
-          actions={<OrgBannerActions organization={organization} />}
+          actions={
+            <OrgBannerActions
+              organization={organization}
+              actions={organizationActions}
+            />
+          }
         />
         <div className="flex-1 container mx-auto px-6">
           <OrganizationContextSection
