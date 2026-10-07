@@ -125,9 +125,12 @@ export default function SetupPage() {
 
             <div className="flex justify-end items-center pt-8">
               <div className="flex items-center gap-4">
-                <div className="text-sm text-muted-foreground">Press Enter</div>
+                <div className="text-sm text-muted-foreground max-sm:hidden">
+                  Press Enter
+                </div>
                 <Button
                   type="submit"
+                  variant="brand"
                   disabled={isPending || !isValid}
                   className="px-8"
                 >

@@ -33,7 +33,8 @@ export function FormSubmitButton({
     <Button
       type="submit"
       disabled={isSubmitting || isCheckingEmail}
-      className="w-full bg-green-600 hover:bg-green-700 text-white mt-6"
+      variant="brand"
+      className="mt-6 w-full"
     >
       {getButtonText()}
     </Button>

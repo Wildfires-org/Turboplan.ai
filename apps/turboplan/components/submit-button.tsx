@@ -20,7 +20,8 @@ export const SubmitButton = ({
       type={pending ? "button" : "submit"}
       aria-disabled={pending || isSuccessful}
       disabled={pending || isSuccessful}
-      className="relative w-full bg-brandAlt-500 hover:bg-brandAlt-600 text-white rounded-lg h-10 text-[15px] font-medium"
+      variant="brand"
+      className="relative h-10 w-full text-[15px] font-medium"
     >
       {children}
 

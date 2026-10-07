@@ -23,9 +23,9 @@ export function EmailMismatchScreen({
   onLogout,
 }: EmailMismatchScreenProps) {
   return (
-    <div className="flex min-h-screen w-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen w-full items-center justify-center bg-brandAlt-100 px-4">
       <div className="w-full max-w-2xl">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg border border-gray-200 dark:border-zinc-800 p-8 md:p-12">
+        <div className="glass-card rounded-[24px] p-8 md:p-12">
           {/* Icon */}
           <div className="flex justify-center mb-6">
             <div className="size-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
@@ -88,7 +88,8 @@ export function EmailMismatchScreen({
               type="button"
               onClick={onContinueWithLoggedInEmail}
               disabled={isSubmitting}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-6 rounded-xl text-base font-medium transition-colors"
+              variant="brand"
+              className="w-full py-6 text-base font-medium"
             >
               {isSubmitting
                 ? "Creating project..."

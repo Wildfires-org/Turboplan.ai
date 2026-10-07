@@ -136,7 +136,7 @@ export function SelfServiceForm({
 
   // Main form
   return (
-    <div className="flex min-h-screen w-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen w-full items-center justify-center bg-brandAlt-100 px-4">
       <div className="w-full max-w-md">
         <FormHeader isAuthenticated={isAuthenticated} />
 

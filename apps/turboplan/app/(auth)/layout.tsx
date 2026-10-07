@@ -6,7 +6,7 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
   const appName = brand.name;
 
   return (
-    <div className="flex min-h-dvh w-screen bg-brandAlt-100">
+    <div className="flex min-h-dvh w-full bg-brandAlt-100">
       {/* Logo top-left */}
       <div className="absolute top-6 left-6 sm:top-[63px] sm:left-[116px] flex items-center gap-1.5">
         <Image
@@ -23,7 +23,7 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Centered card */}
       <div className="flex flex-1 items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] p-9 w-full max-w-[456px]">
+        <div className="glass-card relative w-full max-w-[456px] rounded-[24px] p-7 sm:p-9">
           {children}
         </div>
       </div>

@@ -258,7 +258,7 @@ export default function InvitePage() {
   // Loading state
   if (pageStatus === "loading") {
     return (
-      <div className="flex h-dvh w-screen items-center justify-center bg-background">
+      <div className="flex h-dvh w-full items-center justify-center bg-brandAlt-100">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="size-12 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Loading invitation...</p>
@@ -275,7 +275,7 @@ export default function InvitePage() {
     pageStatus === "revoked"
   ) {
     return (
-      <div className="flex h-dvh w-screen items-center justify-center bg-background">
+      <div className="flex h-dvh w-full items-center justify-center bg-brandAlt-100">
         <div className="w-full max-w-md p-8 flex flex-col items-center gap-6 text-center">
           <div className="flex items-center justify-center size-16 rounded-full bg-red-100 dark:bg-red-900/20">
             <XCircle className="size-8 text-red-600 dark:text-red-400" />
@@ -290,11 +290,11 @@ export default function InvitePage() {
             <p className="text-muted-foreground">{errorMessage}</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" asChild>
+            <Button variant="glass" asChild>
               <Link href="/">Go to Dashboard</Link>
             </Button>
             {(pageStatus === "expired" || pageStatus === "revoked") && (
-              <Button variant="outline" asChild>
+              <Button variant="glass" asChild>
                 <Link href="/login">Sign In</Link>
               </Button>
             )}
@@ -307,7 +307,7 @@ export default function InvitePage() {
   // Already accepted
   if (pageStatus === "accepted") {
     return (
-      <div className="flex h-dvh w-screen items-center justify-center bg-background">
+      <div className="flex h-dvh w-full items-center justify-center bg-brandAlt-100">
         <div className="w-full max-w-md p-8 flex flex-col items-center gap-6 text-center">
           <div className="flex items-center justify-center size-16 rounded-full bg-green-100 dark:bg-green-900/20">
             <CheckCircle className="size-8 text-green-600 dark:text-green-400" />
@@ -320,7 +320,7 @@ export default function InvitePage() {
               This invitation has already been accepted.
             </p>
           </div>
-          <Button asChild>
+          <Button asChild variant="brand">
             <Link href="/">Go to Dashboard</Link>
           </Button>
         </div>
@@ -330,7 +330,7 @@ export default function InvitePage() {
 
   // Valid invitation - show details and accept button
   return (
-    <div className="flex h-dvh w-screen items-center justify-center bg-background">
+    <div className="flex h-dvh w-full items-center justify-center bg-brandAlt-100">
       <div className="w-full max-w-md p-8 flex flex-col items-center gap-8">
         {/* Header */}
         <div className="text-center">
@@ -350,7 +350,7 @@ export default function InvitePage() {
         </div>
 
         {/* Invitation Details Card */}
-        <div className="w-full border rounded-lg p-6 space-y-4 bg-card">
+        <div className="glass-card w-full space-y-4 rounded-2xl p-6">
           {/* Entity Info */}
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center size-10 rounded-lg bg-muted">
@@ -408,7 +408,7 @@ export default function InvitePage() {
                 </span>
                 . Sign in with the invited account to accept it.
               </p>
-              <Button asChild className="w-full" size="lg">
+              <Button asChild variant="brand" className="w-full" size="lg">
                 {/* Plain anchor: a full navigation, never prefetched. */}
                 <a href={switchAccountHref}>Sign in as {invitation?.email}</a>
               </Button>
@@ -418,6 +418,7 @@ export default function InvitePage() {
               <Button
                 onClick={handleAuthenticatedAccept}
                 disabled={isAccepting}
+                variant="brand"
                 className="w-full"
                 size="lg"
               >
@@ -439,6 +440,7 @@ export default function InvitePage() {
               <Button
                 onClick={handleAutoSignupAccept}
                 disabled={isAccepting}
+                variant="brand"
                 className="w-full"
                 size="lg"
               >
