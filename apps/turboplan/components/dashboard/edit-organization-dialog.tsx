@@ -197,7 +197,7 @@ export function EditOrganizationDialog({
         {/* Left tab rail (collapses to a top row on small screens) */}
         <nav
           aria-label="Organization settings sections"
-          className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-muted/30 p-2 sm:w-56 sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-4"
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-muted/30 p-2 [scrollbar-width:none] max-sm:mr-11 sm:w-56 sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-4"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -210,11 +210,11 @@ export function EditOrganizationDialog({
                 className={cn(
                   "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    ? "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08)] dark:bg-white/10 dark:text-white"
+                    : "text-gray-550 hover:bg-white/60 hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className="size-4 shrink-0 max-sm:hidden" />
                 <span className="whitespace-nowrap">{tab.label}</span>
               </button>
             );
@@ -225,7 +225,7 @@ export function EditOrganizationDialog({
         <div className="flex min-w-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 py-4 pr-12 text-left">
             <DialogTitle className="flex items-center gap-2">
-              <Building2 className="size-5" />
+              <Building2 aria-hidden className="size-5 text-brand-800" />
               Manage Organization
             </DialogTitle>
             <DialogDescription>
@@ -434,7 +434,7 @@ export function EditOrganizationDialog({
             <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-4">
               <Button
                 type="button"
-                variant="outline"
+                variant="glass"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
               >
@@ -442,6 +442,7 @@ export function EditOrganizationDialog({
               </Button>
               <Button
                 type="submit"
+                variant="brand"
                 form="edit-organization-form"
                 disabled={isLoading}
               >

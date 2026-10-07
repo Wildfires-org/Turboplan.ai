@@ -163,12 +163,13 @@ export function AddOfficeDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-[620px] gap-6 sm:rounded-2xl">
-        <DialogHeader className="space-y-2">
-          <div className="flex items-center gap-4">
-            <DialogTitle className="text-xl font-semibold leading-8 tracking-normal">
+        <DialogHeader className="space-y-2 pr-8 text-left">
+          {/* Title stays on one line; a long organization name wraps below. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <DialogTitle className="whitespace-nowrap text-xl font-semibold leading-8 tracking-normal">
               Create New Office
             </DialogTitle>
-            <span className="rounded bg-neutral-200 px-2 py-1 text-xs leading-4 text-gray-950">
+            <span className="inline-flex min-h-6 max-w-full items-center truncate rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-900 ring-1 ring-inset ring-brand-800/15">
               {organizationName}
             </span>
           </div>
@@ -238,8 +239,7 @@ export function AddOfficeDialog({
           <DialogFooter className="gap-3 pt-4 sm:space-x-0">
             <Button
               type="button"
-              variant="ghost"
-              className="text-gray-950"
+              variant="glass"
               onClick={() => handleOpenChange(false)}
               disabled={form.formState.isSubmitting}
             >
@@ -247,8 +247,8 @@ export function AddOfficeDialog({
             </Button>
             <Button
               type="submit"
+              variant="brand"
               disabled={form.formState.isSubmitting}
-              className="bg-foreground text-background hover:bg-foreground/90"
             >
               {form.formState.isSubmitting ? (
                 <>
