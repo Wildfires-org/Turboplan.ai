@@ -12,6 +12,7 @@ import React, {
 import type { UIMessage } from "ai";
 import { formatDistance } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
+import { createPortal } from "react-dom";
 import useSWR, { useSWRConfig } from "swr";
 import { useDebounceCallback, useWindowSize } from "usehooks-ts";
 
@@ -295,8 +296,6 @@ export function ArtifactPanel({
       : true;
 
   const {
-    viewportWidth,
-    viewportHeight,
     isMobile,
     desktopSidebarOffset,
     desktopTopOffset,
@@ -330,26 +329,34 @@ export function ArtifactPanel({
     }
   }, [artifact.documentId, artifactDefinition, setMetadata]);
 
-  return (
+  const panel = (
     <AnimatePresence>
       {artifact.isVisible && (
         <motion.div
           data-testid="artifact"
-          className={`fixed z-[60] flex bg-transparent ${
-            isMobile ? "flex-col" : "flex-row"
-          }`}
-          style={{
-            top: desktopTopOffset,
-            left: desktopSidebarOffset,
-            height: isMobile ? "100dvh" : availableHeight,
-          }}
+          className={cn(
+            "fixed flex bg-transparent",
+            // Phones: fill the viewport with insets (pixel sizes from
+            // useWindowSize come out ~6% short under the body's UI zoom), and
+            // sit below z-50 so the panel's own menus and dialogs, portalled
+            // to <body> next to it, open on top of it.
+            isMobile ? "inset-0 z-40 flex-col" : "z-[60] flex-row",
+          )}
+          style={
+            isMobile
+              ? undefined
+              : {
+                  top: desktopTopOffset,
+                  left: desktopSidebarOffset,
+                  height: availableHeight,
+                }
+          }
           initial={{ opacity: 1 }}
-          animate={{
-            opacity: 1,
-            width: isMobile
-              ? "100dvw"
-              : availableWidth - artifactControlsOffset,
-          }}
+          animate={
+            isMobile
+              ? { opacity: 1 }
+              : { opacity: 1, width: availableWidth - artifactControlsOffset }
+          }
           transition={{
             width: {
               duration: 0.5,
@@ -470,7 +477,7 @@ export function ArtifactPanel({
 
           <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col">
             <motion.div
-              className="flex min-h-0 w-full flex-1 flex-col overflow-y-scroll dark:bg-muted bg-background md:border-l dark:border-zinc-700 border-zinc-200 pt-24"
+              className="flex min-h-0 w-full flex-1 flex-col overflow-y-scroll dark:bg-muted bg-background md:border-l dark:border-zinc-700 border-zinc-200 md:pt-24"
               initial={
                 isMobile
                   ? {
@@ -496,8 +503,8 @@ export function ArtifactPanel({
                       opacity: 1,
                       x: 0,
                       y: 0,
-                      height: viewportHeight,
-                      width: viewportWidth || "calc(100dvw)",
+                      height: "100%",
+                      width: "100%",
                       borderRadius: 0,
                       transition: {
                         delay: 0,
@@ -534,19 +541,19 @@ export function ArtifactPanel({
                 },
               }}
             >
-              <div className="relative z-20 bg-background pt-2 pl-4 pb-4 flex flex-row justify-between items-start pr-9 border-b">
-                <div className="flex flex-row gap-4 items-start">
+              <div className="relative z-20 flex flex-row items-start justify-between gap-2 border-b bg-background pb-4 pl-4 pr-3 pt-2 md:pr-9">
+                <div className="flex min-w-0 flex-1 flex-row items-start gap-3 md:gap-4">
                   <ArtifactCloseButton />
 
-                  <div className="flex flex-col">
-                    <div className="font-medium">{artifact.title}</div>
+                  <div className="flex min-w-0 flex-col">
+                    <div className="truncate font-medium">{artifact.title}</div>
 
                     {isContentDirty ? (
-                      <div className="text-sm text-muted-foreground">
+                      <div className="truncate text-sm text-muted-foreground">
                         Saving changes...
                       </div>
                     ) : document ? (
-                      <div className="text-sm text-muted-foreground">
+                      <div className="truncate text-sm text-muted-foreground">
                         {`Updated ${formatDistance(
                           new Date(document.createdAt),
                           new Date(),
@@ -561,11 +568,14 @@ export function ArtifactPanel({
                   </div>
                 </div>
 
-                <div className="flex flex-row gap-2 items-center">
-                  <DocumentPromptDebug
-                    kind={artifact.kind}
-                    documentId={artifact.documentId}
-                  />
+                <div className="flex shrink-0 flex-row items-center gap-2">
+                  {/* Dev-only prompt viewer; no room for it on phones. */}
+                  <div className="max-sm:hidden">
+                    <DocumentPromptDebug
+                      kind={artifact.kind}
+                      documentId={artifact.documentId}
+                    />
+                  </div>
                   <ArtifactActions
                     artifact={artifact}
                     currentVersionIndex={currentVersionIndex}
@@ -640,4 +650,11 @@ export function ArtifactPanel({
       )}
     </AnimatePresence>
   );
+
+  // Phones: render at body level. Inside the chat column the panel shares a
+  // stacking context with the page and chat headers, which then cover its
+  // close button, title and actions.
+  return isMobile && typeof window !== "undefined"
+    ? createPortal(panel, window.document.body)
+    : panel;
 }

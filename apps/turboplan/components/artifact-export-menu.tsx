@@ -174,8 +174,9 @@ export function ExportDocumentMenu({
           ) : (
             <DownloadIcon size={18} />
           )}
-          <span>Download</span>
-          <ChevronDown size={16} />
+          {/* Icon-only on phones, where the label squeezes the title. */}
+          <span className="max-sm:sr-only">Download</span>
+          <ChevronDown size={16} className="max-sm:hidden" />
         </Button>
       </DropdownMenuTrigger>
 
