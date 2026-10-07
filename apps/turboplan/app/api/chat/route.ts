@@ -50,6 +50,11 @@ import {
   isGisAttachment,
 } from "@/lib/ai/attachment-notes";
 import { buildSystemPromptArgs } from "@/lib/ai/build-system-prompt-args";
+import {
+  createChatTimer,
+  createStepTimer,
+  getErrorName,
+} from "@/lib/ai/chat-timing";
 import { generateTitleFromUserMessage } from "@/lib/ai/generate-title";
 import {
   type ChatMessageWithAttachments,
@@ -283,6 +288,10 @@ export async function POST(request: Request) {
     }
 
     const requestStartedAt = Date.now();
+    const logTiming = createChatTimer({
+      chatId: id,
+      startedAt: requestStartedAt,
+    });
 
     const chat = await getChatById({ id });
 
@@ -636,6 +645,15 @@ export async function POST(request: Request) {
           systemPrompt(promptArgs),
           convertToModelMessages(aiSupportedMessages),
         ]);
+        const modelId = typeof model === "string" ? model : model.modelId;
+
+        logTiming("context-ready", {
+          systemChars: system.length,
+          projectContextChars: projectContext?.length ?? 0,
+          messageCount: modelMessages.length,
+          model: modelId,
+          activeTools: promptArgs.activeTools.length,
+        });
 
         // Single multi-step stream (matches the v4 flow and upstream Vercel
         // chatbot): the model researches as needed, synthesizes a text answer,
@@ -648,6 +666,7 @@ export async function POST(request: Request) {
         // it survives a mid-run failure (completed steps stay accumulated).
         let accumulatedCostUsd = 0;
         let accumulatedTokens = 0;
+        let finishedSteps = 0;
         let meteredChatRun = false;
         const meterChatRun = async () => {
           if (meteredChatRun || !billingOrgId) {
@@ -665,11 +684,12 @@ export async function POST(request: Request) {
             source: "chat",
             usage: { totalTokens: accumulatedTokens },
             costUsd: accumulatedCostUsd > 0 ? accumulatedCostUsd : undefined,
-            model: typeof model === "string" ? model : model.modelId,
+            model: modelId,
             metadata: { chatId: id, projectId: chatProjectId ?? null },
           });
         };
 
+        const stepTimer = createStepTimer(logTiming);
         const result = streamText({
           model,
           system,
@@ -678,10 +698,13 @@ export async function POST(request: Request) {
           activeTools: promptArgs.activeTools as Array<keyof typeof tools>,
           stopWhen: stepCountIs(10),
           experimental_transform: smoothStream({ chunking: "word" }),
+          onChunk: stepTimer.onChunk,
           onStepFinish: (step) => {
             accumulatedCostUsd +=
               extractOpenRouterCost(step.providerMetadata) ?? 0;
             accumulatedTokens += step.usage?.totalTokens ?? 0;
+            finishedSteps += 1;
+            stepTimer.onStepFinish(step);
           },
         });
 
@@ -697,11 +720,16 @@ export async function POST(request: Request) {
         // Guarantee quick-response suggestions after every answer. The model
         // usually calls generateQuickResponses itself; this is a fallback for
         // when it doesn't, so the user always gets suggested replies.
+        // The run counts as finished once the model's text and steps resolve;
+        // a failed quick-response fallback after that does not turn it into
+        // an error.
+        let responseStatus: "success" | "error" = "error";
         try {
           const [finalText, steps] = await Promise.all([
             result.text,
             result.steps,
           ]);
+          responseStatus = "success";
 
           // Meter the accumulated run (awaited: cheap DB write; Vercel cannot
           // reap it before it lands).
@@ -762,6 +790,11 @@ export async function POST(request: Request) {
             total_tokens: accumulatedTokens,
           });
         }
+        logTiming("run-finished", {
+          status: responseStatus,
+          steps: finishedSteps,
+          totalTokens: accumulatedTokens,
+        });
 
         // We suppressed the stream's own finish chunk (sendFinish:false) so we
         // could append the quick responses above; emit it now so the client
@@ -800,6 +833,7 @@ export async function POST(request: Request) {
       },
       onError: (error) => {
         console.error("[Chat] Stream error:", error);
+        logTiming("stream-error", { errorName: getErrorName(error) });
         return mapStreamErrorToUserMessage(error);
       },
     });
@@ -812,7 +846,23 @@ export async function POST(request: Request) {
     return createUIMessageStreamResponse({
       stream,
       consumeSseStream: ({ stream: serverCopy }) => {
-        registerBackgroundTask(consumeStream({ stream: serverCopy }));
+        // consumeStream never rejects — read errors only reach onError — so
+        // record the failure and log one outcome once the drain settles.
+        let drainErrorName: string | undefined;
+        registerBackgroundTask(
+          consumeStream({
+            stream: serverCopy,
+            onError: (error) => {
+              drainErrorName = getErrorName(error);
+            },
+          }).then(() => {
+            if (drainErrorName) {
+              logTiming("server-drain-failed", { errorName: drainErrorName });
+              return;
+            }
+            logTiming("server-drain-finished");
+          }),
+        );
       },
     });
   } catch (error) {

@@ -1,4 +1,9 @@
-import { smoothStream, streamText } from "ai";
+import {
+  type LanguageModelUsage,
+  smoothStream,
+  streamText,
+  type UIMessageStreamWriter,
+} from "ai";
 import type { Session } from "next-auth";
 
 import { getModel } from "@wildfires-org/turboplan-ai/server";
@@ -10,6 +15,12 @@ import {
 } from "@wildfires-org/turboplan-billing/server";
 import { getChatById } from "@wildfires-org/turboplan-db/queries";
 
+import {
+  type ChatTimingLog,
+  createChatTimer,
+  getErrorName,
+  summarizeUsage,
+} from "@/lib/ai/chat-timing";
 import { createDocumentHandler } from "@/lib/artifacts/server";
 import { stripPlaceholderNotesInTableRows } from "@/lib/placeholders";
 import type { AuthUser } from "@/lib/types/auth";
@@ -84,6 +95,64 @@ const meterDocumentRun = async ({
   }
 };
 
+/**
+ * Streams the draft to the client as artifact deltas and returns the full
+ * text. Timing is document-local: elapsedMs counts from document start.
+ */
+const streamDraft = async ({
+  result,
+  writer,
+  logTiming,
+  startedAt,
+}: {
+  result: ReturnType<typeof streamText>;
+  writer: UIMessageStreamWriter;
+  logTiming: ChatTimingLog;
+  startedAt: number;
+}): Promise<string> => {
+  let draftContent = "";
+  let deltaCount = 0;
+  let totalUsage: LanguageModelUsage | undefined;
+  let finishReason: string | undefined;
+  let errorName: string | undefined;
+
+  for await (const delta of result.fullStream) {
+    if (delta.type === "finish") {
+      totalUsage = delta.totalUsage;
+      finishReason = delta.finishReason;
+    }
+
+    if (delta.type === "error") {
+      errorName = getErrorName(delta.error);
+    }
+
+    if (delta.type === "text-delta") {
+      if (deltaCount === 0) {
+        logTiming("document-first-token", { ttftMs: Date.now() - startedAt });
+      }
+      deltaCount += 1;
+      draftContent += delta.text;
+
+      writer.write({
+        type: "data-artifact",
+        transient: true,
+        data: { type: "text-delta", content: delta.text },
+      });
+    }
+  }
+
+  logTiming("document-finished", {
+    durationMs: Date.now() - startedAt,
+    outputChars: draftContent.length,
+    deltaCount,
+    finishReason,
+    errorName,
+    usage: summarizeUsage(totalUsage),
+  });
+
+  return draftContent;
+};
+
 export const textDocumentHandler = createDocumentHandler<"text">({
   kind: "text",
   onCreateDocument: async ({
@@ -93,8 +162,10 @@ export const textDocumentHandler = createDocumentHandler<"text">({
     projectContext,
     session,
     projectId,
+    chatId,
   }) => {
-    let draftContent = "";
+    const startedAt = Date.now();
+    const logTiming = createChatTimer({ chatId, startedAt });
 
     const systemPrompt = await getPrompt("text-document");
 
@@ -115,6 +186,13 @@ export const textDocumentHandler = createDocumentHandler<"text">({
 
     const userPrompt = promptParts.join("\n\n");
 
+    logTiming("document-start", {
+      userContextChars: userContext?.length ?? 0,
+      projectContextChars: projectContext?.length ?? 0,
+      promptChars: userPrompt.length,
+      systemChars: systemPrompt.length,
+    });
+
     const result = streamText({
       model: await getModel("primary"),
       system: systemPrompt,
@@ -122,31 +200,29 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       prompt: userPrompt,
     });
 
-    for await (const delta of result.fullStream) {
-      const { type } = delta;
-
-      if (type === "text-delta") {
-        const { text: textDelta } = delta;
-
-        draftContent += textDelta;
-
-        writer.write({
-          type: "data-artifact",
-          transient: true,
-          data: { type: "text-delta", content: textDelta },
-        });
-      }
-    }
+    const draftContent = await streamDraft({
+      result,
+      writer,
+      logTiming,
+      startedAt,
+    });
 
     await meterDocumentRun({ result, session, projectId });
 
     return stripPlaceholderNotesInTableRows(draftContent);
   },
   onUpdateDocument: async ({ document, description, writer, session }) => {
-    let draftContent = "";
+    const startedAt = Date.now();
+    const logTiming = createChatTimer({ chatId: document.chatId, startedAt });
 
     const systemPrompt = await getPrompt("update-document-text", {
       currentContent: document.content,
+    });
+
+    logTiming("document-start", {
+      currentContentChars: document.content?.length ?? 0,
+      promptChars: description.length,
+      systemChars: systemPrompt.length,
     });
 
     const result = streamText({
@@ -164,20 +240,12 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       },
     });
 
-    for await (const delta of result.fullStream) {
-      const { type } = delta;
-
-      if (type === "text-delta") {
-        const { text: textDelta } = delta;
-
-        draftContent += textDelta;
-        writer.write({
-          type: "data-artifact",
-          transient: true,
-          data: { type: "text-delta", content: textDelta },
-        });
-      }
-    }
+    const draftContent = await streamDraft({
+      result,
+      writer,
+      logTiming,
+      startedAt,
+    });
 
     // The document row has no project column — its chat does.
     const chat = document.chatId
