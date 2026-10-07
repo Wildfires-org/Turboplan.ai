@@ -162,3 +162,27 @@ function PureDocumentToolCall({
 }
 
 export const DocumentToolCall = memo(PureDocumentToolCall, () => true);
+
+interface DocumentPreparingProps {
+  /** Partial title from the streamed tool input, once it arrives. */
+  title?: string;
+}
+
+/** Status chip while the model is still writing createDocument's input. */
+export const DocumentPreparing = ({ title }: DocumentPreparingProps) => (
+  <div
+    data-testid="document-preparing"
+    role="status"
+    className="glass flex w-fit flex-row items-start gap-3 rounded-xl px-3 py-2 text-[14px] text-foreground"
+  >
+    <div className="mt-0.5 text-brand-800">
+      <FileIcon />
+    </div>
+    <div className="text-left">
+      {title ? `Preparing "${title}"...` : "Preparing the document..."}
+    </div>
+    <div className="mt-0.5 animate-spin text-brand-800">
+      <LoaderIcon />
+    </div>
+  </div>
+);

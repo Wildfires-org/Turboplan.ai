@@ -137,6 +137,11 @@ export function ArtifactPanel({
       ? `/api/document?id=${artifact.documentId}`
       : null,
     fetcher,
+    // A cut-off run may not have saved its first draft yet (the server keeps
+    // checkpointing for ~30s after a disconnect) or ever: retry with backoff
+    // for about a minute, then keep the streamed text instead of polling a
+    // 404 forever.
+    { errorRetryCount: 3 },
   );
 
   const [mode, setMode] = useState<"edit" | "diff">("edit");

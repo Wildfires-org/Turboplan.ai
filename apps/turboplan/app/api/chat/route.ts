@@ -3,6 +3,7 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  hasToolCall,
   smoothStream,
   stepCountIs,
   streamText,
@@ -56,6 +57,7 @@ import {
   getErrorName,
 } from "@/lib/ai/chat-timing";
 import { generateTitleFromUserMessage } from "@/lib/ai/generate-title";
+import { createReferenceCache } from "@/lib/ai/reference-documents";
 import {
   type ChatMessageWithAttachments,
   type LegacyAttachment,
@@ -153,6 +155,10 @@ const createTools = async ({
   projectContext?: string;
   proactiveFieldCreation?: boolean;
 }) => {
+  // getContents fills it; createDocument reads references from it by URL so
+  // the model never has to retype a reference document into its input.
+  const referenceCache = createReferenceCache();
+
   // Always-on tools
   const [
     quickResponsesTool,
@@ -162,7 +168,7 @@ const createTools = async ({
   ] = await Promise.all([
     generateQuickResponses({ mode, billing }),
     webSearch(),
-    getContents(),
+    getContents({ referenceCache }),
     researchNotes(),
   ]);
 
@@ -184,6 +190,7 @@ const createTools = async ({
           chatId,
           userMessage,
           projectContext,
+          referenceCache,
         }),
         updateDocument({ session, writer }),
         requestSuggestions({ session, writer, billing }),
@@ -696,7 +703,9 @@ export async function POST(request: Request) {
           messages: modelMessages,
           tools,
           activeTools: promptArgs.activeTools as Array<keyof typeof tools>,
-          stopWhen: stepCountIs(10),
+          // Quick responses end the answer; without the second condition the
+          // model gets one more (wasted) call after them.
+          stopWhen: [stepCountIs(10), hasToolCall("generateQuickResponses")],
           experimental_transform: smoothStream({ chunking: "word" }),
           onChunk: stepTimer.onChunk,
           onStepFinish: (step) => {

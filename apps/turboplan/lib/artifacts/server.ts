@@ -1,7 +1,10 @@
 import type { UIMessageStreamWriter } from "ai";
 import { Session } from "next-auth";
 
-import { saveDocument } from "@wildfires-org/turboplan-db/queries";
+import {
+  saveDocument,
+  updateDocumentVersionContent,
+} from "@wildfires-org/turboplan-db/queries";
 import type { Document } from "@wildfires-org/turboplan-db/types";
 import {
   isMapPackageEnabled,
@@ -12,6 +15,12 @@ import { taskDocumentHandler } from "@wildfires-org/turboplan-tasks/artifact/ser
 
 import { textDocumentHandler } from "@/artifacts/text/server";
 import { ArtifactKind } from "@/components/artifact";
+import { getErrorName } from "@/lib/ai/chat-timing";
+import type { ReferenceDocument } from "@/lib/ai/reference-documents";
+import { createDraftCheckpointer } from "@/lib/artifacts/draft-checkpoint";
+
+// How often a streaming draft is saved, bounding what a cut-off run loses.
+const DRAFT_CHECKPOINT_INTERVAL_MS = 5_000;
 
 export interface SaveDocumentProps {
   id: string;
@@ -32,6 +41,10 @@ export interface CreateDocumentCallbackProps {
   projectId?: string;
   chatId?: string;
   attachments?: Array<{ name?: string; contentType?: string; url: string }>;
+  /** Reference documents the chat model passed by URL (text kind only). */
+  loadReferenceDocuments?: () => Promise<ReferenceDocument[]>;
+  /** Called with the full draft so far on every streamed delta. */
+  onDraftProgress?: (content: string) => void;
 }
 
 export interface UpdateDocumentCallbackProps {
@@ -55,6 +68,47 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
   return {
     kind: config.kind,
     onCreateDocument: async (args: CreateDocumentCallbackProps) => {
+      const userId = args.session?.user?.id;
+
+      // A new document is one version row: the first save inserts it, later
+      // checkpoints and the final save overwrite that same row.
+      let versionCreatedAt: Date | undefined;
+      const saveDraft = async (content: string) => {
+        if (!userId) {
+          return;
+        }
+        if (versionCreatedAt) {
+          await updateDocumentVersionContent({
+            id: args.id,
+            createdAt: versionCreatedAt,
+            content,
+          });
+          return;
+        }
+        const createdAt = new Date();
+        await saveDocument({
+          id: args.id,
+          title: args.title,
+          content,
+          kind: config.kind,
+          userId,
+          chatId: args.chatId,
+          createdAt,
+        });
+        versionCreatedAt = createdAt;
+      };
+
+      const checkpointer = createDraftCheckpointer({
+        intervalMs: DRAFT_CHECKPOINT_INTERVAL_MS,
+        save: saveDraft,
+        onError: (error) => {
+          console.error(
+            "[Document] Draft checkpoint failed:",
+            getErrorName(error),
+          );
+        },
+      });
+
       const draftContent = await config.onCreateDocument({
         id: args.id,
         title: args.title,
@@ -65,18 +119,12 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
         projectId: args.projectId,
         chatId: args.chatId,
         attachments: args.attachments,
+        loadReferenceDocuments: args.loadReferenceDocuments,
+        onDraftProgress: userId ? checkpointer.offer : undefined,
       });
 
-      if (args.session?.user?.id) {
-        await saveDocument({
-          id: args.id,
-          title: args.title,
-          content: draftContent,
-          kind: config.kind,
-          userId: args.session.user.id,
-          chatId: args.chatId,
-        });
-      }
+      await checkpointer.settle();
+      await saveDraft(draftContent);
 
       return;
     },

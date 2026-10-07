@@ -4,8 +4,14 @@ import { z } from "zod";
 import { getPrompt } from "@wildfires-org/turboplan-ai";
 
 import { exaGetContents } from "@/lib/ai/exa-client";
+import type { ReferenceCache } from "@/lib/ai/reference-documents";
 
-export const getContents = async () => {
+export const getContents = async ({
+  referenceCache,
+}: {
+  /** Collects full-text reads so createDocument can pass them by URL. */
+  referenceCache: ReferenceCache;
+}) => {
   const description = await getPrompt("tool-desc-get-contents");
 
   return tool({
@@ -32,6 +38,8 @@ export const getContents = async () => {
       if (response.warning) {
         return { results: [], warning: response.warning };
       }
+
+      referenceCache.remember(response.results);
 
       const results = response.results.map((result) => ({
         url: result.url,

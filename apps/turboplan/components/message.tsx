@@ -29,6 +29,7 @@ import {
   USER_BUBBLE_SHELL_CLASS,
 } from "./chat/chat-classes";
 import { ThinkingDots } from "./chat/thinking-dots";
+import { DocumentPreparing } from "./document";
 import { PencilEditIcon, SparklesIcon } from "./icons";
 import { Markdown } from "./markdown";
 import { MessageEditor } from "./message-editor";
@@ -297,6 +298,24 @@ const PurePreviewMessage = ({
                     return null;
                   }
                   return <ToolErrorRow key={toolCallId} toolName={toolName} />;
+                }
+
+                // Writing createDocument's input can take a while before the
+                // document starts streaming; show that it is underway.
+                if (
+                  toolName === Tools.createDocument &&
+                  state === "input-streaming"
+                ) {
+                  return (
+                    <DocumentPreparing
+                      key={toolCallId}
+                      title={
+                        typeof toolInput?.title === "string"
+                          ? toolInput.title
+                          : undefined
+                      }
+                    />
+                  );
                 }
 
                 if (state === "input-available" && toolInput) {

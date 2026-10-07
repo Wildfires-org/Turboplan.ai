@@ -458,6 +458,7 @@ export async function saveDocument({
   content,
   userId,
   chatId,
+  createdAt = new Date(),
 }: {
   id: string;
   title: string;
@@ -465,6 +466,8 @@ export async function saveDocument({
   content: string;
   userId: string;
   chatId?: string;
+  /** Version timestamp; pass it to update this version later. */
+  createdAt?: Date;
 }) {
   try {
     return await db.insert(document).values({
@@ -474,13 +477,37 @@ export async function saveDocument({
       content,
       userId,
       chatId,
-      createdAt: new Date(),
+      createdAt,
     });
   } catch (error) {
     console.error("Failed to save document in database");
     throw error;
   }
 }
+
+/**
+ * Overwrites the content of one existing document version, identified by its
+ * (id, createdAt) primary key, without adding a new version row.
+ */
+export const updateDocumentVersionContent = async ({
+  id,
+  createdAt,
+  content,
+}: {
+  id: string;
+  createdAt: Date;
+  content: string;
+}) => {
+  try {
+    return await db
+      .update(document)
+      .set({ content })
+      .where(and(eq(document.id, id), eq(document.createdAt, createdAt)));
+  } catch (error) {
+    console.error("Failed to update document version in database");
+    throw error;
+  }
+};
 
 export async function getDocumentsById({ id }: { id: string }) {
   try {

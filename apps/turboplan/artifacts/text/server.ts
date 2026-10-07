@@ -21,6 +21,7 @@ import {
   getErrorName,
   summarizeUsage,
 } from "@/lib/ai/chat-timing";
+import { formatReferenceDocuments } from "@/lib/ai/reference-documents";
 import { createDocumentHandler } from "@/lib/artifacts/server";
 import { stripPlaceholderNotesInTableRows } from "@/lib/placeholders";
 import type { AuthUser } from "@/lib/types/auth";
@@ -104,11 +105,13 @@ const streamDraft = async ({
   writer,
   logTiming,
   startedAt,
+  onProgress,
 }: {
   result: ReturnType<typeof streamText>;
   writer: UIMessageStreamWriter;
   logTiming: ChatTimingLog;
   startedAt: number;
+  onProgress?: (content: string) => void;
 }): Promise<string> => {
   let draftContent = "";
   let deltaCount = 0;
@@ -138,6 +141,7 @@ const streamDraft = async ({
         transient: true,
         data: { type: "text-delta", content: delta.text },
       });
+      onProgress?.(draftContent);
     }
   }
 
@@ -163,11 +167,16 @@ export const textDocumentHandler = createDocumentHandler<"text">({
     session,
     projectId,
     chatId,
+    loadReferenceDocuments,
+    onDraftProgress,
   }) => {
     const startedAt = Date.now();
     const logTiming = createChatTimer({ chatId, startedAt });
 
-    const systemPrompt = await getPrompt("text-document");
+    const [systemPrompt, referenceDocuments] = await Promise.all([
+      getPrompt("text-document"),
+      loadReferenceDocuments?.() ?? [],
+    ]);
 
     const promptParts = [
       `## Known facts (authoritative — use these exact values; do NOT replace them with placeholders)\n${buildKnownFacts(session)}`,
@@ -180,6 +189,10 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       );
     }
 
+    if (referenceDocuments.length > 0) {
+      promptParts.push(formatReferenceDocuments(referenceDocuments));
+    }
+
     if (projectContext) {
       promptParts.push(`## Project Context\n${projectContext}`);
     }
@@ -188,6 +201,11 @@ export const textDocumentHandler = createDocumentHandler<"text">({
 
     logTiming("document-start", {
       userContextChars: userContext?.length ?? 0,
+      referenceCount: referenceDocuments.length,
+      referenceChars: referenceDocuments.reduce(
+        (total, { text }) => total + text.length,
+        0,
+      ),
       projectContextChars: projectContext?.length ?? 0,
       promptChars: userPrompt.length,
       systemChars: systemPrompt.length,
@@ -200,11 +218,13 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       prompt: userPrompt,
     });
 
+    // Checkpoints store the raw draft; only the final save is cleaned up.
     const draftContent = await streamDraft({
       result,
       writer,
       logTiming,
       startedAt,
+      onProgress: onDraftProgress,
     });
 
     await meterDocumentRun({ result, session, projectId });
