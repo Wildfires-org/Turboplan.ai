@@ -160,11 +160,13 @@ test.describe("Access Isolation", () => {
     const govDashboard = new TurboplanDashboardPage(govPage);
     await govDashboard.gotoOrganization(govOrgSlug);
     const govMain = govDashboard.getMain();
+    // The sticky compact banner repeats the actions; check the full banner.
+    const govBannerActions = govMain.getByTestId("entity-banner-actions");
     await expect(
-      govMain.getByRole("button", { name: "Manage Organization" }),
+      govBannerActions.getByRole("button", { name: "Manage Organization" }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      govMain.getByRole("button", { name: /^New Office$/ }),
+      govBannerActions.getByRole("button", { name: /^New Office$/ }),
     ).toBeVisible();
 
     await govContext.close();

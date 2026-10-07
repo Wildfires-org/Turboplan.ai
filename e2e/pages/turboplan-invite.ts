@@ -103,7 +103,7 @@ export class TurboplanInvitePage {
   async getEntityName(): Promise<string> {
     // The entity name is shown in the card
     const entityNameElement = this.page
-      .locator(".bg-card")
+      .getByTestId("invitation-details")
       .locator("p.font-medium")
       .first();
     return (await entityNameElement.textContent()) || "";
@@ -115,7 +115,7 @@ export class TurboplanInvitePage {
   async getInviterName(): Promise<string> {
     // The inviter name is shown in the card
     const inviterElement = this.page
-      .locator(".bg-card")
+      .getByTestId("invitation-details")
       .locator("p.font-medium")
       .nth(1);
     return (await inviterElement.textContent()) || "";
@@ -127,7 +127,7 @@ export class TurboplanInvitePage {
   async getRole(): Promise<string> {
     // The role is shown at the bottom of the card
     const roleElement = this.page
-      .locator(".bg-card")
+      .getByTestId("invitation-details")
       .locator("span.capitalize")
       .first();
     return (await roleElement.textContent()) || "";

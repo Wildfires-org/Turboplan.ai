@@ -350,7 +350,10 @@ export default function InvitePage() {
         </div>
 
         {/* Invitation Details Card */}
-        <div className="glass-card w-full space-y-4 rounded-2xl p-6">
+        <div
+          data-testid="invitation-details"
+          className="glass-card w-full space-y-4 rounded-2xl p-6"
+        >
           {/* Entity Info */}
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center size-10 rounded-lg bg-muted">
