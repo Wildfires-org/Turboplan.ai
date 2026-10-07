@@ -30,7 +30,9 @@ import { FieldsFieldItem } from "./fields-list-layout";
 
 // Label takes up to 40% of the row (max 176px) so values keep room in the
 // narrow two-column layout on the project overview.
-const fieldLabelColumnClassName = "w-2/5 max-w-44 shrink-0";
+// Phones stack the label above the value so values are not cut to a word.
+const fieldLabelColumnClassName =
+  "w-2/5 max-w-44 shrink-0 max-sm:w-full max-sm:max-w-none";
 
 interface FieldRowProps {
   field: ProjectField;
@@ -83,7 +85,7 @@ export function FieldRow({
         tooltipVariant="rich"
         className={cn(
           fieldLabelColumnClassName,
-          !readOnly && "h-8 items-center",
+          !readOnly && "h-8 items-center max-sm:h-auto",
         )}
       />
 
@@ -110,7 +112,7 @@ export function FieldRow({
               <Button
                 variant="ghost"
                 size="sm"
-                className="size-8 rounded-lg p-0 text-gray-600 opacity-0 transition-opacity hover:bg-white hover:text-gray-900 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:bg-white data-[state=open]:opacity-100"
+                className="size-8 rounded-lg p-0 text-gray-600 opacity-0 transition-opacity [@media(hover:none)]:opacity-100 hover:bg-white hover:text-gray-900 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:bg-white data-[state=open]:opacity-100"
               >
                 <MoreVertical className="size-4" />
                 <span className="sr-only">Open menu</span>

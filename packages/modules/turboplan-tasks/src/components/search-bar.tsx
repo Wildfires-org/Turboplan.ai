@@ -159,7 +159,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
   onViewModeChange,
 }) => {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto">
       {/* Proper ViewMode Dropdown with accessibility features */}
       {showViewModeSelector && onViewModeChange && (
         <ViewModeSelector
@@ -189,8 +189,8 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
         <FilterIcon className="h-4 w-4" />
       </button>
 
-      {/* Search Input */}
-      <div className="relative">
+      {/* Search Input — fills the row on phones */}
+      <div className="relative min-w-0 flex-1 sm:flex-none">
         <Search
           aria-hidden
           className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500"
@@ -203,7 +203,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
           onChange={(e) => onSearchChange(e.target.value)}
           className={cn(
             GLASS_INSET_CLASS,
-            "h-8 w-48 rounded-full pl-9 pr-3 text-[13px] text-foreground placeholder:text-gray-500 focus:outline focus:outline-2 focus:outline-brand-700/40",
+            "h-8 w-full rounded-full pl-9 pr-3 text-[13px] sm:w-48 text-foreground placeholder:text-gray-500 focus:outline focus:outline-2 focus:outline-brand-700/40",
           )}
         />
         {searchQuery && (

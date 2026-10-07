@@ -470,7 +470,7 @@ export function DocumentsSectionUI({
     <>
       <div
         className={cn(
-          "flex flex-col pb-1.5",
+          "flex flex-col",
           {
             "h-full": variant === "page",
           },
@@ -481,7 +481,7 @@ export function DocumentsSectionUI({
         <div
           {...(dropzoneEnabled && documents.length > 0 ? getRootProps() : {})}
           className={cn(
-            "group relative z-[2] mb-[-6px] overflow-hidden rounded-xl border border-white/90 bg-white/60 p-4 dark:border-white/10 dark:bg-slate-900/40",
+            "group relative z-[2] overflow-hidden rounded-xl border border-white/90 bg-white/60 p-4 dark:border-white/10 dark:bg-slate-900/40",
             isDragActive && "border-brand-700 bg-brand-50",
             isUploading && "pointer-events-none opacity-60",
           )}
@@ -591,12 +591,13 @@ export function DocumentsSectionUI({
           )}
         </div>
 
-        {/* Upload area at bottom with dashed border */}
+        {/* Upload strip below the list: its own dashed box, so on phones it
+            doesn't read as a frame broken off the content above. */}
         {dropzoneEnabled && (
           <div
             {...getRootProps()}
             className={cn(
-              "relative z-[1] flex items-center justify-center rounded-b-xl border border-t-0 border-dashed border-brand-800/25 pb-4 pt-4 transition-colors",
+              "relative z-[1] mt-2 flex items-center justify-center rounded-xl border border-dashed border-brand-800/25 py-4 transition-colors",
               isDragActive
                 ? "border-brand-700 bg-brand-50"
                 : "hover:border-brand-800/45 hover:bg-white/40",
@@ -625,9 +626,11 @@ export function DocumentsSectionUI({
                     }}
                     className="rounded px-0.5 font-medium text-brand-800 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
                   >
-                    browse
+                    <span className="sm:hidden">Browse files</span>
+                    <span className="max-sm:hidden">browse</span>
                   </button>
-                  <span className="text-muted-foreground">
+                  {/* Touch screens have nothing to drag files from. */}
+                  <span className="text-muted-foreground max-sm:hidden">
                     or drag your files here
                   </span>
                 </>

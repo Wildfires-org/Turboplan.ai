@@ -26,6 +26,9 @@ type EntityBannerShellProps = {
   coverOverlay?: ReactNode;
   /** Tile overlapping the bottom edge of the cover (logo / initials). */
   logo?: ReactNode;
+  /** Shorter cover on phones (project sub-views, where the content matters
+   * more than the header). */
+  compactCover?: boolean;
   children: ReactNode;
   className?: string;
 };
@@ -41,6 +44,7 @@ export function EntityBannerShell({
   coverImageUrl,
   coverOverlay,
   logo,
+  compactCover = false,
   children,
   className,
 }: EntityBannerShellProps) {
@@ -48,7 +52,12 @@ export function EntityBannerShell({
     <div className={cn(PAGE_CONTAINER_CLASS, "pt-5", className)}>
       <div className="glass-card overflow-hidden rounded-[24px]">
         <div className="p-2 pb-0">
-          <div className="relative h-[124px] overflow-hidden rounded-[18px] bg-brandAlt-200">
+          <div
+            className={cn(
+              "relative h-[124px] overflow-hidden rounded-[18px] bg-brandAlt-200",
+              compactCover && "max-sm:h-16",
+            )}
+          >
             <Image
               src={coverImageUrl}
               alt=""

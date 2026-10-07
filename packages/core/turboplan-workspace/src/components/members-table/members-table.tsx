@@ -150,12 +150,15 @@ export function MembersTable({
       />
 
       <div className={cn(GLASS_CARD_CLASS, "overflow-hidden")}>
-        <div className="flex items-center gap-4 border-b border-white/80 bg-white/40 px-6 py-3.5 dark:border-white/10 dark:bg-white/5">
+        <div className="flex items-center gap-3 border-b border-white/80 bg-white/40 px-4 py-3.5 sm:gap-4 sm:px-6 dark:border-white/10 dark:bg-white/5">
           <div className={cn(headerCellClass, "flex-1 min-w-0")}>User</div>
           {config.showSubEntityColumn && (
             <button
               type="button"
-              className={cn(headerCellClass, "w-[200px] cursor-pointer")}
+              className={cn(
+                headerCellClass,
+                "hidden w-[200px] cursor-pointer md:flex",
+              )}
               onClick={() => handleSort("subEntities")}
             >
               {config.subEntityLabel}
@@ -164,7 +167,10 @@ export function MembersTable({
           )}
           <button
             type="button"
-            className={cn(headerCellClass, "w-[120px] cursor-pointer")}
+            className={cn(
+              headerCellClass,
+              "w-[104px] cursor-pointer sm:w-[120px]",
+            )}
             onClick={() => handleSort("role")}
           >
             Role
@@ -172,7 +178,10 @@ export function MembersTable({
           </button>
           <button
             type="button"
-            className={cn(headerCellClass, "w-[100px] cursor-pointer")}
+            className={cn(
+              headerCellClass,
+              "hidden w-[100px] cursor-pointer sm:flex",
+            )}
             onClick={() => handleSort("status")}
           >
             Status
@@ -180,7 +189,7 @@ export function MembersTable({
           </button>
           {/* Always reserved: `canManageMembers` resolves after an async
               permission check, and a late column would shift every cell. */}
-          <div className="w-[60px]" />
+          <div className="w-7 sm:w-[60px]" />
         </div>
 
         {isLoading ? (

@@ -113,7 +113,14 @@ export const useTaskColumnWidth = ({
 
     // No additional padding needed since we already calculated it above
     const calculatedWidth = maxTextWidth;
-    const finalWidth = Math.min(Math.max(calculatedWidth, minWidth), maxWidth);
+    // On phones keep the column within ~60% of the screen so long titles
+    // truncate with an ellipsis instead of running under the card edge.
+    const viewportCap = Math.max(minWidth, Math.round(window.innerWidth * 0.6));
+    const finalWidth = Math.min(
+      Math.max(calculatedWidth, minWidth),
+      maxWidth,
+      viewportCap,
+    );
 
     setTaskColumnWidth(Math.ceil(finalWidth));
   }, [safeMilestones, minWidth, maxWidth, padding]);

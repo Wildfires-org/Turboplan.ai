@@ -124,11 +124,16 @@ export const ProjectSetupBanner = ({
             </span>
 
             {!isExpanded && (
-              <div className="flex items-center flex-1 min-w-0 justify-evenly">
+              <div className="flex items-center flex-1 min-w-0 justify-evenly max-sm:justify-start">
+                {/* Phones show only the active step; three labels would
+                    truncate to a few letters each. */}
                 {steps.map((step, index) => (
                   <div
                     key={step.label}
-                    className="flex items-center gap-1.5 min-w-0"
+                    className={cn(
+                      "flex items-center gap-1.5 min-w-0",
+                      step.status !== "active" && "max-sm:hidden",
+                    )}
                   >
                     <span className="w-3 shrink-0 text-xs font-medium tracking-wide text-gray-550">
                       {index + 1}.

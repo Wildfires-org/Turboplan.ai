@@ -131,12 +131,12 @@ export function ContextEntryCard({
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col pb-6 pt-2">
-          <div className="rounded-2xl border border-white/90 bg-white/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-slate-900/60">
+          <div className="relative rounded-2xl border border-white/90 bg-white/80 p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-slate-900/60">
             <div className="flex items-start gap-4">
               {/* Content */}
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium leading-5 text-gray-900">
+                  <p className="text-sm font-medium leading-5 text-gray-900 max-sm:pr-10">
                     {entry.label}
                   </p>
                   <p
@@ -177,9 +177,10 @@ export function ContextEntryCard({
                 )}
               </div>
 
-              {/* Actions */}
+              {/* Actions — pinned to the corner on phones so the content
+                  gets the card's full width. */}
               {!readOnly && (
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2 max-sm:absolute max-sm:right-3 max-sm:top-3">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button

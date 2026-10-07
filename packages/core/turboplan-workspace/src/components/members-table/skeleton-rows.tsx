@@ -18,7 +18,7 @@ export function SkeletonRows({ showSubEntityColumn }: SkeletonRowsProps) {
         <div
           key={i}
           aria-hidden
-          className="flex items-center gap-4 border-t border-slate-900/[0.06] px-6 py-3 first:border-t-0 dark:border-white/10"
+          className="flex items-center gap-3 border-t border-slate-900/[0.06] px-4 py-3 first:border-t-0 sm:gap-4 sm:px-6 dark:border-white/10"
         >
           <div className="flex-1 min-w-0 flex items-center gap-3">
             <div className={cn(BAR_CLASS, "size-8 rounded-lg")} />
@@ -32,18 +32,18 @@ export function SkeletonRows({ showSubEntityColumn }: SkeletonRowsProps) {
             </div>
           </div>
           {showSubEntityColumn && (
-            <div className="w-[200px] flex gap-1.5">
+            <div className="hidden w-[200px] gap-1.5 md:flex">
               <div className={cn(BAR_CLASS, "h-5 w-20 rounded")} />
               <div className={cn(BAR_CLASS, "h-5 w-16 rounded")} />
             </div>
           )}
-          <div className="w-[120px]">
+          <div className="w-[104px] sm:w-[120px]">
             <div className={cn(BAR_CLASS, "h-5 w-16")} />
           </div>
-          <div className="w-[100px]">
+          <div className="hidden w-[100px] sm:block">
             <div className={cn(BAR_CLASS, "size-4 rounded-full")} />
           </div>
-          <div className="w-[60px]" />
+          <div className="w-7 sm:w-[60px]" />
         </div>
       ))}
     </>
