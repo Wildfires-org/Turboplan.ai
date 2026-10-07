@@ -13,6 +13,7 @@ import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import useSWR, { useSWRConfig } from "swr";
 
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
@@ -51,6 +52,7 @@ import {
   ResearchPanelProvider,
   useResearchPanel,
 } from "@/contexts/research-panel-context";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getSidebarChatsKey } from "@/hooks/use-sidebar-chats";
 import { EMPTY_STATE_TEXT_CLASS, EMPTY_STATE_TITLE_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
@@ -201,6 +203,7 @@ const ProjectChatViewInner = ({
     setOpen: setResearchPanelOpen,
     handleResizeStart,
   } = useResearchPanel();
+  const isMobile = useIsMobile();
 
   const researchEnabled = isResearchAgentPackageEnabled();
   const { hasPermission: canEditResearch } = useEntityPermission({
@@ -362,8 +365,13 @@ const ProjectChatViewInner = ({
   }, [newChatKey, setResearchPanelOpen]);
 
   // Auto-open the research panel while the research phase is in progress
+  // Phones open it from the header avatar instead: there it covers the chat.
   useEffect(() => {
-    if (effectiveIsInitialChat && !project.isResearchPhaseCompleted) {
+    if (
+      effectiveIsInitialChat &&
+      !project.isResearchPhaseCompleted &&
+      !window.matchMedia("(max-width: 767px)").matches
+    ) {
       setResearchPanelOpen(true);
     }
   }, [
@@ -443,6 +451,35 @@ const ProjectChatViewInner = ({
       }
     );
   }, [chat, cachedChat, chatId, userId, project.id, effectiveIsInitialChat]);
+
+  const showResearchPane =
+    effectiveIsInitialChat && researchEnabled && isResearchPanelOpen;
+
+  const researchPaneBody = (
+    <>
+      <div className="absolute inset-x-0 top-0 z-10 min-h-[var(--header-min-height)] border-b border-slate-900/[0.06] bg-white/70 py-4 pl-3 pr-4 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
+        <ResearchPanelHeader
+          status={researchAgentStatus}
+          progressMessages={progressMessages}
+          onClose={() => setResearchPanelOpen(false)}
+          hideStatus
+        />
+      </div>
+
+      <div className="flex-1 min-h-0 pt-[var(--header-min-height)]">
+        <ResearchPanel
+          isOpen={isResearchPanelOpen}
+          projectId={project.id}
+          projectName={project.name}
+          isResearchCompleted={isResearchDataReady}
+          onComplete={() => setResearchPanelOpen(false)}
+          onItemsSaved={handleResearchItemsSaved}
+          canEdit={canEditResearch}
+          isStartPending={isResearchStartPending}
+        />
+      </div>
+    </>
+  );
 
   return (
     <div
@@ -574,7 +611,7 @@ const ProjectChatViewInner = ({
             </div>
           </div>
 
-          {effectiveIsInitialChat && researchEnabled && (
+          {!isMobile && effectiveIsInitialChat && researchEnabled && (
             // initial={false}: a pane that is open on first render (research
             // in progress) is already laid out by the loading state.
             <AnimatePresence initial={false}>
@@ -600,27 +637,7 @@ const ProjectChatViewInner = ({
                     className="relative flex flex-col flex-1 min-h-0"
                     style={{ width: researchPanelWidth }}
                   >
-                    <div className="absolute inset-x-0 top-0 z-10 min-h-[var(--header-min-height)] border-b border-slate-900/[0.06] bg-white/70 py-4 pl-3 pr-4 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
-                      <ResearchPanelHeader
-                        status={researchAgentStatus}
-                        progressMessages={progressMessages}
-                        onClose={() => setResearchPanelOpen(false)}
-                        hideStatus
-                      />
-                    </div>
-
-                    <div className="flex-1 min-h-0 pt-[var(--header-min-height)]">
-                      <ResearchPanel
-                        isOpen={isResearchPanelOpen}
-                        projectId={project.id}
-                        projectName={project.name}
-                        isResearchCompleted={isResearchDataReady}
-                        onComplete={() => setResearchPanelOpen(false)}
-                        onItemsSaved={handleResearchItemsSaved}
-                        canEdit={canEditResearch}
-                        isStartPending={isResearchStartPending}
-                      />
-                    </div>
+                    {researchPaneBody}
                   </div>
                 </motion.div>
               )}
@@ -628,6 +645,27 @@ const ProjectChatViewInner = ({
           )}
         </div>
       </div>
+      {/* Phones: full-screen sheet at body level (inside the chat column the
+          page and chat headers would cover its header). */}
+      {isMobile &&
+        createPortal(
+          <AnimatePresence>
+            {showResearchPane && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
+                className="fixed inset-0 z-40 flex flex-col bg-white/95 backdrop-blur-2xl [--header-min-height:72px] dark:bg-slate-950/95"
+              >
+                <div className="relative flex min-h-0 flex-1 flex-col">
+                  {researchPaneBody}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          window.document.body,
+        )}
     </div>
   );
 };
