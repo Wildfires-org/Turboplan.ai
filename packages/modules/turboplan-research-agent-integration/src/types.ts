@@ -192,6 +192,17 @@ export type SuggestionsMessageData = {
   suggestions: SuggestionItem[];
 };
 
+/**
+ * One line of the newline-delimited JSON stream returned by the suggestions
+ * regenerate endpoint. `chip` arrives once per accepted chip, in order;
+ * `done` follows only after the full set has been stored; `error` ends a
+ * failed run and leaves the stored set untouched.
+ */
+export type SuggestionStreamEvent =
+  | { type: "chip"; chip: SuggestionItem }
+  | { type: "done"; suggestions: SuggestionItem[] }
+  | { type: "error"; error: string };
+
 export type ResearchAgentMessageData =
   | ProgressMessageData
   | DocumentsMessageData

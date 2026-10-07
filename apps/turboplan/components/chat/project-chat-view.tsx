@@ -238,6 +238,7 @@ const ProjectChatViewInner = ({
     completeResearchPhase,
     isCompleting: isCompletingResearch,
     isGeneratingSuggestions,
+    streamingSuggestions,
     regenerateSuggestions,
   } = useResearchPhase(
     researchEnabled && effectiveIsInitialChat ? project.id : null,
@@ -299,6 +300,14 @@ const ProjectChatViewInner = ({
     const data = suggestionsMsg.data as SuggestionsMessageData;
     return data.suggestions;
   }, [researchAgentAllMessages]);
+
+  // Streamed chips replace the stored set once the first one arrives, so a
+  // regenerate keeps the old chips on screen until there is something new.
+  // The full loading row is only for a first build with nothing to show yet.
+  const shownSuggestions = streamingSuggestions?.length
+    ? streamingSuggestions
+    : researchSuggestions;
+  const hasShownSuggestions = (shownSuggestions?.length ?? 0) > 0;
 
   const handleResearchItemsSaved = useCallback(
     (details: SaveDetails) => {
@@ -547,10 +556,17 @@ const ProjectChatViewInner = ({
                     }
                     projectName={project.name}
                     researchSuggestions={
-                      effectiveIsInitialChat ? researchSuggestions : undefined
+                      effectiveIsInitialChat ? shownSuggestions : undefined
                     }
                     isSuggestionsLoading={
-                      effectiveIsInitialChat && isGeneratingSuggestions
+                      effectiveIsInitialChat &&
+                      isGeneratingSuggestions &&
+                      !hasShownSuggestions
+                    }
+                    isSuggestionsStreaming={
+                      effectiveIsInitialChat &&
+                      isGeneratingSuggestions &&
+                      hasShownSuggestions
                     }
                   />
                 </Fragment>

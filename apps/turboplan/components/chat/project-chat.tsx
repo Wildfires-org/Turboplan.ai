@@ -58,6 +58,8 @@ type ProjectChatProps = {
   researchSuggestions?: Array<{ label: string; content: string }>;
   /** Next-step suggestions are being generated: show a loading row, not the fallback chips. */
   isSuggestionsLoading?: boolean;
+  /** More suggestions are on their way: the chips row shows a trailing placeholder. */
+  isSuggestionsStreaming?: boolean;
 };
 
 export type ProjectChatRef = {
@@ -80,6 +82,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       projectName,
       researchSuggestions,
       isSuggestionsLoading = false,
+      isSuggestionsStreaming = false,
     },
     ref,
   ) {
@@ -451,6 +454,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
                 <SuggestionPills
                   suggestions={suggestions}
                   isLoading={isSuggestionsLoading}
+                  isStreaming={isSuggestionsStreaming}
                   onSuggestionClick={handleSuggestionClick}
                 />
               )}

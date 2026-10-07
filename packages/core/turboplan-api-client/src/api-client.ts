@@ -206,6 +206,31 @@ export class ApiClient {
     }
   }
 
+  /**
+   * Authenticated fetch that returns the raw `Response`, for bodies
+   * {@link request} cannot parse (e.g. a stream). Applies the base URL and the
+   * bearer token and, like `request()`, refreshes the token and retries once on
+   * a 401. Throws without a token or on a network error; check `response.ok`.
+   */
+  async fetchRaw(endpoint: string, init: RequestInit = {}): Promise<Response> {
+    const send = async () => {
+      const token = await this.getToken();
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+      const headers = new Headers(init.headers);
+      headers.set("Authorization", `Bearer ${token}`);
+      return fetch(`${this.getBaseUrl()}${endpoint}`, { ...init, headers });
+    };
+
+    const response = await send();
+    if (response.status !== 401) {
+      return response;
+    }
+    this.token = null;
+    return send();
+  }
+
   async get<T = unknown>(endpoint: string): Promise<ApiClientResult<T>> {
     return this.request<T>(endpoint, { method: "GET" });
   }

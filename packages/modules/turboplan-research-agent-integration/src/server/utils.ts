@@ -11,22 +11,33 @@ export const handleRouteError = (c: Context, label: string, error: unknown) => {
 };
 
 /**
- * Run `task` after the response is sent. On Workers, waitUntil keeps the
- * isolate (and the task's own DB connection) alive until it settles; a bare
- * fire-and-forget would be reaped after the response. Other runtimes (Bun)
- * have no executionCtx, and the promise simply survives on its own.
+ * Run `task` on its own DB connection, detached from the request's lifetime.
+ * On Workers, waitUntil keeps the isolate (and that connection) alive until it
+ * settles, even after the response ends or the client disconnects; a bare
+ * promise would be reaped with the request. Other runtimes (Bun) have no
+ * executionCtx, and the promise simply survives on its own. Returns the task's
+ * promise, so the caller may still await its result.
  */
+export const runDetached = <T>(
+  c: Context,
+  task: () => Promise<T>,
+): Promise<T> => {
+  const promise = runWithWorkerConnection(task);
+  try {
+    c.executionCtx.waitUntil(promise.catch(() => undefined));
+  } catch {
+    // No executionCtx outside Workers — the promise is already running.
+  }
+  return promise;
+};
+
+/** Fire-and-forget {@link runDetached}: failures are logged, never surfaced. */
 export const runInBackground = (
   c: Context,
   label: string,
   task: () => Promise<unknown>,
 ): void => {
-  const promise = runWithWorkerConnection(task).catch((error: unknown) => {
+  runDetached(c, task).catch((error: unknown) => {
     console.error(`[${label}] Background task failed:`, error);
   });
-  try {
-    c.executionCtx.waitUntil(promise);
-  } catch {
-    // No executionCtx outside Workers — the promise is already running.
-  }
 };

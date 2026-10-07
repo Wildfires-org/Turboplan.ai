@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { stream } from "hono/streaming";
 import { z } from "zod";
 
 import {
@@ -28,6 +29,7 @@ import { getProjectById } from "@wildfires-org/turboplan-workspace/server";
 import type {
   DocumentsMessageData,
   ResearchAgentMessageTypeValue,
+  SuggestionStreamEvent,
 } from "../../types";
 import { ResearchAgentChatStatus, ResearchAgentMessageType } from "../../types";
 import {
@@ -42,11 +44,11 @@ import {
   updateResearchAgentChatStatus,
 } from "../repository";
 import { saveMilestonesToProjectSchema, saveToProjectSchema } from "../schemas";
-import { handleRouteError, runInBackground } from "../utils";
+import { handleRouteError, runDetached, runInBackground } from "../utils";
 import { isExternalReconcileDue } from "./reconcile-throttle";
 import {
   forwardNewMessagesToResearchAgent,
-  generateProjectSuggestions,
+  NoUsableSuggestionsError,
   reconcileExternalStatus,
   reconcileSavedMilestonesInMessages,
   resolveDocumentPreviewUrl,
@@ -57,6 +59,7 @@ import {
   saveMilestonesToProject,
   saveTimelineToProject,
   startResearchAgent,
+  streamProjectSuggestions,
 } from "./service";
 
 const isMessageTypeEnabled = (type: ResearchAgentMessageTypeValue): boolean => {
@@ -372,7 +375,9 @@ bootstrapperRouter.get(
 
 // POST /project/:projectId/suggestions/regenerate - Build the next-step chips
 // from the project's saved data. Called when the user completes the research
-// phase, which is when the chips first become visible.
+// phase, which is when the chips first become visible. Pre-checks fail as JSON
+// errors; past them the response is NDJSON, one `SuggestionStreamEvent` per
+// line, so each chip renders as soon as the model completes it.
 bootstrapperRouter.post(
   "/project/:projectId/suggestions/regenerate",
   zValidator("param", projectParams),
@@ -404,12 +409,47 @@ bootstrapperRouter.post(
         return blocked;
       }
 
-      const suggestions = await generateProjectSuggestions({
-        projectId,
-        chatId: chatRecord.id,
-        researchAgentChatId: researchAgentRecord.id,
+      c.header("Content-Type", "application/x-ndjson; charset=utf-8");
+      c.header("Cache-Control", "no-cache");
+      return stream(c, async (out) => {
+        // Writes are chained to keep event order, and never awaited by the
+        // generation: a slow or departed client must not hold it up.
+        let writes = Promise.resolve();
+        const send = (event: SuggestionStreamEvent) => {
+          writes = writes.then(async () => {
+            if (out.aborted) {
+              return;
+            }
+            await out.write(`${JSON.stringify(event)}\n`);
+          });
+        };
+
+        // Detached so the chips are still metered and stored when the client
+        // disconnects mid-stream.
+        const generation = runDetached(c, () =>
+          streamProjectSuggestions({
+            projectId,
+            chatId: chatRecord.id,
+            researchAgentChatId: researchAgentRecord.id,
+            billingOrgId,
+            onChip: (chip) => send({ type: "chip", chip }),
+          }),
+        );
+
+        try {
+          send({ type: "done", suggestions: await generation });
+        } catch (error) {
+          console.error("[bootstrapper-regenerate-suggestions] Error:", error);
+          send({
+            type: "error",
+            error:
+              error instanceof NoUsableSuggestionsError
+                ? error.message
+                : "Failed to generate suggestions",
+          });
+        }
+        await writes;
       });
-      return c.json({ suggestions });
     } catch (error) {
       return handleRouteError(c, "bootstrapper-regenerate-suggestions", error);
     }

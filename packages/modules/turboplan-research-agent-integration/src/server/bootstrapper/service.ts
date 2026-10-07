@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-import { generateObject, getModel } from "@wildfires-org/turboplan-ai/server";
-import { getPrompt } from "@wildfires-org/turboplan-ai/services";
 import {
-  meterAiCall,
-  resolveBillingOrgForProject,
-} from "@wildfires-org/turboplan-billing/server";
+  getModel,
+  Output,
+  streamText,
+} from "@wildfires-org/turboplan-ai/server";
+import { getPrompt } from "@wildfires-org/turboplan-ai/services";
+import { meterAiCall } from "@wildfires-org/turboplan-billing/server";
 import type { DBMessage } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import {
@@ -74,6 +75,7 @@ import {
   extractMessageText,
   type ProjectSuggestionInputs,
 } from "./suggestion-inputs";
+import { acceptSuggestion } from "./suggestion-items";
 
 // ---------------------------------------------------------------------------
 // Format chat messages for research agent context
@@ -1430,8 +1432,6 @@ export async function saveTimelineToProject(
 // Generate project next-step suggestions (chips under the chat input)
 // ---------------------------------------------------------------------------
 
-const MAX_SUGGESTIONS = 8;
-
 const suggestionItemSchema = z.object({
   label: z
     .string()
@@ -1516,18 +1516,36 @@ const gatherProjectSuggestionInputs = async (
 };
 
 /**
- * Generate the project's next-step chips from its framework, data and progress,
- * and store them as the chat's `suggestions` research-agent message (replacing
- * any previous set). Throws on failure and leaves the stored set untouched.
+ * Thrown when the model finished but none of its chips was accepted. The
+ * message is safe to show the user.
  */
-export const generateProjectSuggestions = async ({
+export class NoUsableSuggestionsError extends Error {
+  constructor() {
+    super("Model returned no usable suggestions");
+  }
+}
+
+/**
+ * Generate the project's next-step chips from its framework, data and progress,
+ * handing each accepted chip to `onChip` as soon as the model completes it,
+ * then store the full set as the chat's `suggestions` research-agent message
+ * (replacing any previous set). Throws on failure and leaves the stored set
+ * untouched; chips already handed to `onChip` are then void.
+ *
+ * `billingOrgId` is the org the caller already resolved for its credit gate.
+ */
+export const streamProjectSuggestions = async ({
   projectId,
   chatId,
   researchAgentChatId,
+  billingOrgId,
+  onChip,
 }: {
   projectId: string;
   chatId: string;
   researchAgentChatId: string;
+  billingOrgId: string | null;
+  onChip: (chip: SuggestionItem) => void;
 }): Promise<SuggestionItem[]> => {
   const inputs = await gatherProjectSuggestionInputs(projectId, chatId);
   const system = await getPrompt(
@@ -1535,49 +1553,63 @@ export const generateProjectSuggestions = async ({
     buildProjectSuggestionPromptVariables(inputs),
   );
 
-  const result = await generateObject({
+  // streamText reports failures through onError instead of throwing.
+  let streamError: unknown;
+  const result = streamText({
     model: await getModel("lite"),
     system,
     prompt: "Generate the next-step chips for this project, most urgent first.",
-    output: "array",
-    schema: suggestionItemSchema,
+    output: Output.array({ element: suggestionItemSchema }),
+    onError: ({ error }) => {
+      streamError ??= error;
+    },
   });
 
-  const billingOrgId = await resolveBillingOrgForProject(projectId);
-  await meterAiCall({
+  // Each element is a complete, schema-valid chip, emitted once the model has
+  // moved past it (the last one when the array closes).
+  const suggestions: SuggestionItem[] = [];
+  for await (const item of result.elementStream) {
+    const chip = acceptSuggestion(item, suggestions);
+    if (chip) {
+      suggestions.push(chip);
+      onChip(chip);
+    }
+  }
+  if (streamError !== undefined) {
+    throw streamError;
+  }
+
+  const [usage, providerMetadata] = await Promise.all([
+    result.totalUsage,
+    result.providerMetadata,
+  ]);
+  // Never throws.
+  const metering = meterAiCall({
     billing: billingOrgId ? { organizationId: billingOrgId } : null,
     source: "research_agent",
-    usage: result.usage,
-    providerMetadata: result.providerMetadata,
+    usage,
+    providerMetadata,
     metadata: { tool: "suggestionChips", researchAgentChatId },
   });
 
-  const seenLabels = new Set<string>();
-  const suggestions = (result.object as z.infer<typeof suggestionItemSchema>[])
-    .map((item) => ({
-      label: item.label.trim(),
-      content: item.content.trim(),
-      emoji: item.emoji.trim(),
-    }))
-    .filter((item) => {
-      const key = item.label.toLowerCase();
-      if (!item.label || !item.content || seenLabels.has(key)) {
-        return false;
-      }
-      seenLabels.add(key);
-      return true;
-    })
-    .slice(0, MAX_SUGGESTIONS);
-
   if (suggestions.length === 0) {
-    throw new Error("Model returned no usable suggestions");
+    await metering;
+    throw new NoUsableSuggestionsError();
   }
 
-  await upsertSuggestionsMessage({
-    chatId,
-    researchAgentChatId,
-    data: { suggestions },
-  });
+  // Independent writes, run together. Both settle before a failed store is
+  // surfaced, since the caller's DB connection closes once this returns.
+  const [, stored] = await Promise.allSettled([
+    metering,
+    upsertSuggestionsMessage({
+      chatId,
+      researchAgentChatId,
+      data: { suggestions },
+    }),
+  ]);
+  if (stored.status === "rejected") {
+    throw stored.reason;
+  }
 
   return suggestions;
 };

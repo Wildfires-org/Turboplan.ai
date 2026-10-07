@@ -3,7 +3,7 @@
  * Export Hono routers for use in Next.js API routes
  */
 
-export { generateObject, generateText } from "ai";
+export { generateObject, generateText, Output, streamText } from "ai";
 
 export type { ResolvedModelConfig } from "./server/models";
 // Export model resolution functions
