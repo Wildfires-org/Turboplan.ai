@@ -38,7 +38,11 @@ import {
 } from "../schemas";
 import { handleRouteError, runInBackground } from "../utils";
 import { webhookLoggerMiddleware } from "../webhook-logger-middleware";
-import { getProgressRunStatus } from "./progress-status";
+import {
+  getProgressRunStatus,
+  shouldReconcileOnProgress,
+} from "./progress-status";
+import { reconcileExternalStatus } from "./service";
 
 type WebhookContext = RBACContext & {
   Variables: RBACContext["Variables"] & {
@@ -149,6 +153,16 @@ bootstrapperWebhookRouter.post(
         status: getProgressRunStatus(status),
         currentStep: message,
       });
+
+      // Agents that predate the `status` field send their final message without
+      // one. They persist the run as finished before sending it, so asking them
+      // now finishes the run here too, instead of after the status poll's 60s
+      // quiet period. Mid-run the agent reports running and this is a no-op.
+      if (shouldReconcileOnProgress(status)) {
+        runInBackground(c, "bootstrapper-webhook-progress-reconcile", () =>
+          reconcileExternalStatus(researchAgentRecord.chatId, runId),
+        );
+      }
 
       await createResearchAgentMessage({
         chatId: researchAgentRecord.chatId,

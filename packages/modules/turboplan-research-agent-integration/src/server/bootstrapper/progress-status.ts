@@ -30,3 +30,17 @@ export const getProgressRunStatus = (
   }
   return ResearchAgentChatStatus.RUNNING;
 };
+
+/**
+ * Whether a progress webhook should ask the agent how the run stands. Without
+ * an outcome the message is either mid-run progress or the final message of an
+ * agent that predates the field. The agent persists its run status before it
+ * sends that final message, so asking then finishes the run at once; mid-run
+ * the agent still reports running and nothing changes. With an outcome the
+ * webhook already knows the answer.
+ */
+export const shouldReconcileOnProgress = (
+  outcome: ResearchAgentRunOutcome | undefined,
+): boolean => {
+  return outcome === undefined;
+};

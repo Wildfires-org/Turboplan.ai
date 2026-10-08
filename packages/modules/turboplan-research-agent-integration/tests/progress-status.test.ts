@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { getProgressRunStatus } from "../src/server/bootstrapper/progress-status";
+import {
+  getProgressRunStatus,
+  shouldReconcileOnProgress,
+} from "../src/server/bootstrapper/progress-status";
 import { bootstrapperProgressSchema } from "../src/server/schemas";
 import { ResearchAgentChatStatus } from "../src/types";
 
@@ -31,6 +34,18 @@ describe("getProgressRunStatus", () => {
       getProgressRunStatus("cancelled"),
       ResearchAgentChatStatus.FAILED,
     );
+  });
+});
+
+describe("shouldReconcileOnProgress", () => {
+  it("asks the agent when the message carries no outcome", () => {
+    assert.equal(shouldReconcileOnProgress(undefined), true);
+  });
+
+  it("skips the check when the message carries the outcome", () => {
+    for (const status of ["completed", "failed", "cancelled"] as const) {
+      assert.equal(shouldReconcileOnProgress(status), false);
+    }
   });
 });
 
