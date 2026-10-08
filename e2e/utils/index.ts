@@ -15,6 +15,16 @@ export {
 } from "./billing-helpers";
 export { clearDatabase, isDbClearEnabled } from "./clear-database";
 export {
+  type ApiTestUser,
+  addOrganizationViewer,
+  authHeaders,
+  createApiTestUser,
+  createOwnedWorkspace,
+  deleteLibraryLetterheadsByPrefix,
+  type OwnedWorkspace,
+  seedChatDocument,
+} from "./document-helpers";
+export {
   type EtherealCredentials,
   fetchEtherealEmails,
   getEtherealCredentials,

@@ -37,6 +37,7 @@ export const LetterheadBand = ({
 
   return (
     <div
+      data-testid="letterhead-band"
       className={cn(
         "not-prose relative mb-6 border-b border-foreground/60 pb-3 text-[13px] leading-snug text-foreground",
         className,

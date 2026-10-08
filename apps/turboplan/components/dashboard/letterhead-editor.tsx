@@ -290,6 +290,7 @@ export function LetterheadEditor({
         {/* A sheet of paper; the agency layout hangs its logo in the extra
             left padding (the page margin). */}
         <div
+          data-testid="letterhead-preview"
           className={cn(
             "overflow-hidden rounded-xl bg-white p-4 text-zinc-900 shadow-sm ring-1 ring-black/5 dark:bg-zinc-900 dark:text-zinc-100",
             hasMarginLogo && "md:pl-16",

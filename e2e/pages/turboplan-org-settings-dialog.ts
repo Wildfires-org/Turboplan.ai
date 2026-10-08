@@ -1,11 +1,13 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { ORG_URL_PATTERN } from "../config/patterns";
+import { LetterheadEditorSection } from "./turboplan-letterhead-editor";
 
 /** Tab labels rendered in the Manage Organization dialog's left rail. */
 export type OrgSettingsTabLabel =
   | "General"
   | "Branding"
+  | "Letterheads"
   | "Email Domains"
   | "Document Signing";
 
@@ -81,6 +83,56 @@ export class TurboplanOrgSettingsDialog {
   /** Document Signing tab: pane wrapper (present only when the flag is on). */
   get signingPane(): Locator {
     return this.dialog.getByTestId("org-signing-pane");
+  }
+
+  // ── Letterheads tab (organization letterhead library) ─────────────
+
+  /** Letterheads tab: opens the nested "Add letterhead" dialog. */
+  get addLetterheadButton(): Locator {
+    return this.dialog.getByRole("button", { name: "Add letterhead" });
+  }
+
+  /** Letterheads tab: a library letterhead's row, by its exact name. */
+  letterheadRow(name: string): Locator {
+    return this.dialog
+      .getByRole("listitem")
+      .filter({ has: this.page.getByText(name, { exact: true }) });
+  }
+
+  editLetterheadButton(name: string): Locator {
+    return this.dialog.getByRole("button", {
+      name: `Edit ${name}`,
+      exact: true,
+    });
+  }
+
+  deleteLetterheadButton(name: string): Locator {
+    return this.dialog.getByRole("button", {
+      name: `Delete ${name}`,
+      exact: true,
+    });
+  }
+
+  /**
+   * The nested add/edit letterhead dialog. Located from the page, not from
+   * `dialog`, because it renders in its own portal on top of this one.
+   */
+  libraryLetterheadDialog(title: "Add letterhead" | "Edit letterhead"): {
+    dialog: Locator;
+    nameInput: Locator;
+    editor: LetterheadEditorSection;
+  } {
+    const dialog = this.page.getByRole("dialog", { name: title });
+    return {
+      dialog,
+      nameInput: dialog.getByLabel(/^Name/),
+      editor: new LetterheadEditorSection(dialog),
+    };
+  }
+
+  /** Confirmation shown by a row's Delete button. */
+  get deleteLetterheadConfirm(): Locator {
+    return this.page.getByRole("alertdialog", { name: "Delete letterhead?" });
   }
 
   // ── Shared footer (General + Branding only) ───────────────────────
