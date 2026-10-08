@@ -61,8 +61,8 @@ describe("editor markdown serializer", () => {
     const markdown = serialize(letterhead(["left", "right"]));
     const firstRow = markdown.split("\n")[0];
     assert.ok(
-      firstRow.includes("**\\[INSERT: firm name\\]**"),
-      `bold markers were escaped: ${firstRow}`,
+      firstRow.includes("**[INSERT: firm name]**"),
+      `bold markers or placeholder brackets were escaped: ${firstRow}`,
     );
   });
 

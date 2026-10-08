@@ -18,6 +18,7 @@ export const systemPrompt = async ({
   enabledFeatures,
   projectName,
   organizationContextData,
+  officeDocumentContext,
   researchAgentStatus,
   projectContextData,
   projectFieldsContext,
@@ -47,6 +48,7 @@ export const systemPrompt = async ({
   // is the most stable section, so it extends the prompt-cached prefix.
   const contextSections = [
     organizationContextData,
+    officeDocumentContext,
     researchAgentStatus,
     projectContextData,
     projectFieldsContext,

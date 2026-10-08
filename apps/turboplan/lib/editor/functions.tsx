@@ -1,25 +1,8 @@
 "use client";
 
-import { DOMParser } from "prosemirror-model";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
-import { renderToString } from "react-dom/server";
 
-import { Markdown } from "@/components/markdown";
-import { documentSchema } from "./config";
 import { createSuggestionWidget, type UISuggestion } from "./suggestions";
-
-export const buildDocumentFromContent = (content: string) => {
-  const parser = DOMParser.fromSchema(documentSchema);
-  // Keep reviewer-guidance notes ("|| ...") in the document so editor edits
-  // round-trip them back to storage and the docx export can still turn them
-  // into comments. They are hidden on screen by placeholderHighlightPlugin.
-  const stringFromMarkdown = renderToString(
-    <Markdown stripNotes={false}>{content}</Markdown>,
-  );
-  const tempContainer = document.createElement("div");
-  tempContainer.innerHTML = stringFromMarkdown;
-  return parser.parse(tempContainer);
-};
 
 export const createDecorations = (
   suggestions: Array<UISuggestion>,

@@ -1,7 +1,7 @@
 import type { MutableRefObject } from "react";
 
 import { textblockTypeInputRule } from "prosemirror-inputrules";
-import { Schema } from "prosemirror-model";
+import { type NodeSpec, Schema } from "prosemirror-model";
 import { schema } from "prosemirror-schema-basic";
 import { addListNodes } from "prosemirror-schema-list";
 import type { Transaction } from "prosemirror-state";
@@ -9,7 +9,55 @@ import type { EditorView } from "prosemirror-view";
 
 import { buildContentFromDocument } from "./markdown-serializer";
 
-const baseNodes = addListNodes(schema.spec.nodes, "paragraph block*", "block");
+// Extends a node spec with attrs read off its DOM element at parse time.
+const withParsedAttrs = (
+  spec: NodeSpec,
+  attrs: NodeSpec["attrs"],
+  read: (dom: HTMLElement) => Record<string, unknown>,
+): NodeSpec => ({
+  ...spec,
+  attrs: { ...spec.attrs, ...attrs },
+  parseDOM: spec.parseDOM?.map((rule) => ({
+    ...rule,
+    getAttrs: (dom: HTMLElement) => {
+      const base = rule.getAttrs ? rule.getAttrs(dom) : rule.attrs;
+      if (base === false) {
+        return false;
+      }
+      return { ...base, ...read(dom) };
+    },
+  })),
+});
+
+// `tightBefore`: the block started on the line right after the previous one
+// in the source markdown, not after a blank line (see rehypeTightBlocks). The
+// serializer writes it back the same way.
+const withTightBefore = (spec: NodeSpec | undefined) =>
+  withParsedAttrs(spec ?? {}, { tightBefore: { default: false } }, (dom) => ({
+    tightBefore: dom.hasAttribute("data-tight-before"),
+  }));
+
+// A list is tight (no blank line between items) unless its items are wrapped
+// in paragraphs, which is how the markdown HTML marks a loose list.
+const isTightList = (dom: HTMLElement) =>
+  !Array.from(dom.children).some(
+    (item) => item.firstElementChild?.tagName === "P",
+  );
+
+const withListAttrs = (spec: NodeSpec | undefined) =>
+  withParsedAttrs(
+    withTightBefore(spec),
+    { tight: { default: true } },
+    (dom) => ({ tight: isTightList(dom) }),
+  );
+
+const listNodes = addListNodes(schema.spec.nodes, "paragraph block*", "block");
+
+const baseNodes = listNodes
+  .update("paragraph", withTightBefore(listNodes.get("paragraph")))
+  .update("heading", withTightBefore(listNodes.get("heading")))
+  .update("bullet_list", withListAttrs(listNodes.get("bullet_list")))
+  .update("ordered_list", withListAttrs(listNodes.get("ordered_list")));
 
 // The document HTML comes from components/markdown.tsx, which renders **bold**
 // as `span.font-semibold` rather than <strong>. Parse that back to the strong
@@ -20,6 +68,15 @@ const baseMarks = schema.spec.marks.update("strong", {
   ...baseStrong,
   parseDOM: [...(baseStrong?.parseDOM ?? []), { tag: "span.font-semibold" }],
 });
+
+// A `{right}` / `{center}` line.
+const alignedLineSpec = (className: string): NodeSpec =>
+  withTightBefore({
+    content: "inline*",
+    group: "block",
+    parseDOM: [{ tag: `p.${className}`, priority: 60 }],
+    toDOM: () => ["p", { class: className }, 0],
+  });
 
 export const documentSchema = new Schema({
   nodes: baseNodes
@@ -68,28 +125,8 @@ export const documentSchema = new Schema({
         return ["td", attrs, 0] as const;
       },
     })
-    .addToEnd("right_aligned", {
-      content: "inline*",
-      group: "block",
-      parseDOM: [
-        {
-          tag: "p.text-right",
-          priority: 60,
-        },
-      ],
-      toDOM: () => ["p", { class: "text-right" }, 0],
-    })
-    .addToEnd("center_aligned", {
-      content: "inline*",
-      group: "block",
-      parseDOM: [
-        {
-          tag: "p.text-center",
-          priority: 60,
-        },
-      ],
-      toDOM: () => ["p", { class: "text-center" }, 0],
-    }),
+    .addToEnd("right_aligned", alignedLineSpec("text-right"))
+    .addToEnd("center_aligned", alignedLineSpec("text-center")),
   marks: baseMarks,
 });
 

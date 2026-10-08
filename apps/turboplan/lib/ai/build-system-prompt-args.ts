@@ -9,6 +9,11 @@ import {
 } from "@wildfires-org/turboplan-feature-flags";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
+import {
+  getProjectDocumentProfile,
+  getProjectLetterhead,
+} from "@wildfires-org/turboplan-workspace/server";
+import { documentProfileToFacts } from "@wildfires-org/turboplan-workspace/types";
 
 /**
  * Whether the user may write to the project (UPDATE permission). Fails closed:
@@ -95,6 +100,7 @@ type SystemPromptContext = {
   projectDocumentsContext?: string;
   projectContextData?: string;
   projectFieldsContext?: string;
+  officeDocumentContext?: string;
 };
 
 /**
@@ -333,6 +339,22 @@ const fetchSystemPromptContext = async ({
     );
   }
 
+  // The office's document details and letterhead: the document generator fills
+  // them in itself, so the chat must not list them as missing placeholders.
+  fetchers.push(
+    (async () => {
+      try {
+        context.officeDocumentContext =
+          await buildOfficeDocumentContext(projectId);
+      } catch (error) {
+        console.error(
+          "[SystemPromptContext] Failed to fetch office document details:",
+          error,
+        );
+      }
+    })(),
+  );
+
   if (isProjectContextPackageEnabled()) {
     fetchers.push(
       (async () => {
@@ -456,4 +478,30 @@ const fetchSystemPromptContext = async ({
 
   await Promise.all(fetchers);
   return context;
+};
+
+const buildOfficeDocumentContext = async (
+  projectId: string,
+): Promise<string | undefined> => {
+  const [profile, letterhead] = await Promise.all([
+    getProjectDocumentProfile(projectId),
+    getProjectLetterhead(projectId),
+  ]);
+  const facts = documentProfileToFacts(profile);
+  if (letterhead && letterhead.nameLines.length > 0) {
+    facts.unshift(`Letterhead: ${letterhead.nameLines.join(" / ")}`);
+  }
+  if (letterhead && letterhead.contactLines.length > 0) {
+    facts.push(
+      `Office address and contact: ${letterhead.contactLines.join(", ")}`,
+    );
+  }
+  if (facts.length === 0) {
+    return undefined;
+  }
+  return [
+    "# OFFICE DOCUMENT DETAILS",
+    "Confirmed by the office. The document generator receives these and fills them into every document automatically (the letterhead is added by the app). Never list them as missing placeholders or ask the user for them.",
+    ...facts.map((fact) => `- ${fact}`),
+  ].join("\n");
 };

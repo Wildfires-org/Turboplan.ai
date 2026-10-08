@@ -28,7 +28,19 @@ const BODY_FONT_SIZE = 11;
 // The letterhead/header table renders ~1.5pt smaller than the body, matching the
 // reference agency letterhead.
 const HEADER_FONT_SIZE = 9.5;
+// Gap below tables, lists and the letterhead rule.
 const PARAGRAPH_GAP = 6;
+// Body paragraph layout, shared with the DOCX export and the editor preview:
+// 1.15 line spacing (a multiple of the font's single line height), 8pt after.
+const BODY_LINE_SPACING = 1.15;
+const PARAGRAPH_SPACING_AFTER = 8;
+// Section headings (markdown headings and bold-only paragraphs).
+const HEADING_SPACING_BEFORE = 12;
+const HEADING_SPACING_AFTER = 4;
+// A heading moves to the next page unless this many body lines fit below it.
+const HEADING_KEEP_WITH_NEXT_LINES = 2;
+// Signature space below a complimentary close ("Sincerely,").
+const CLOSING_SPACING_AFTER = 36;
 const CELL_PADDING = 2;
 // Body table cells sit inside a visible grid, so their text gets more room
 // from the lines than the invisible letterhead's.
@@ -104,6 +116,8 @@ const TABLE_ROW_REGEX = /^\|(.+)\|$/;
 const TABLE_SEPARATOR_REGEX = /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|$/;
 const ALIGNED_LINE_REGEX = /^\{(right|center)\}/;
 const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
+const THEMATIC_BREAK_REGEX = /^\s*([-*_])\1{2,}\s*$/;
+const CLOSING_LINE_REGEX = /^(sincerely|sincerely yours|respectfully),?$/i;
 
 // Heading font sizes by markdown level (1-6).
 const HEADING_SIZES = [20, 15, 13, 12, 11, 11];
@@ -152,9 +166,8 @@ const stripPlaceholderNotes = (text: string): string =>
 
 // Splits a line into runs carrying bold/italic state. Mirrors the inline regex
 // used by the DOCX generator. `suppressBold` strips bold emphasis (keeping
-// italic) — body text in these official letters carries no bold (only the
-// letterhead and the File Code/Date labels do).
-const parseRuns = (text: string, suppressBold = false): Run[] => {
+// italic) — list items still render without bold.
+export const parseRuns = (text: string, suppressBold = false): Run[] => {
   const runs: Run[] = [];
   const inlineRegex = /(\*\*\*|___)(.+?)\1|(\*\*|__)(.+?)\3|(\*|_)(.+?)\5/g;
   let lastIdx = 0;
@@ -193,6 +206,74 @@ const parseTableRow = (line: string): string[] =>
     .slice(1, -1)
     .split("|")
     .map((cell) => cell.trim());
+
+const isAlignedLine = (line: string): boolean => ALIGNED_LINE_REGEX.test(line);
+
+// Lines that start their own block (table, rule, aligned line, heading, list
+// item) and therefore end a running body paragraph.
+const isBlockStart = (line: string): boolean =>
+  THEMATIC_BREAK_REGEX.test(line) ||
+  TABLE_ROW_REGEX.test(line) ||
+  isAlignedLine(line) ||
+  HEADING_REGEX.test(line) ||
+  BULLET_REGEX.test(line) ||
+  NUMBERED_REGEX.test(line);
+
+// A body paragraph: consecutive non-blank lines from `start` up to the next
+// blank line or block start. Its single newlines are line breaks, not
+// paragraph breaks — an address or signature block stays one tight paragraph.
+export const collectParagraph = (
+  lines: string[],
+  start: number,
+): { lines: string[]; next: number } => {
+  const collected = [lines[start]];
+  let next = start + 1;
+  while (
+    next < lines.length &&
+    lines[next].trim() !== "" &&
+    !isBlockStart(lines[next])
+  ) {
+    collected.push(lines[next]);
+    next++;
+  }
+  return { lines: collected, next };
+};
+
+// A paragraph that is a single bold span (`**Purpose and Need**`) is a
+// section heading.
+export const isBoldOnlyText = (text: string): boolean => {
+  const runs = parseRuns(text.trim()).filter((run) => run.text.trim() !== "");
+  return runs.length === 1 && runs[0].bold;
+};
+
+export type ParagraphKind = "body" | "section-heading" | "closing";
+
+export const classifyParagraph = (paragraphLines: string[]): ParagraphKind => {
+  if (paragraphLines.length !== 1) {
+    return "body";
+  }
+  const text = paragraphLines[0].trim();
+  if (isBoldOnlyText(text)) {
+    return "section-heading";
+  }
+  if (CLOSING_LINE_REGEX.test(text)) {
+    return "closing";
+  }
+  return "body";
+};
+
+// Consecutive `{right}`/`{center}` lines (blank lines between them don't
+// break the run) sit tight; only the last one of a run gets paragraph spacing.
+export const isFollowedByAlignedLine = (
+  lines: string[],
+  index: number,
+): boolean => {
+  let next = index + 1;
+  while (next < lines.length && lines[next].trim() === "") {
+    next++;
+  }
+  return next < lines.length && isAlignedLine(lines[next]);
+};
 
 // Decodes the handful of HTML entities the editor can emit so they never render
 // literally (e.g. `&nbsp;` spacer lines in the signature block). `&nbsp;` →
@@ -335,42 +416,91 @@ export const generatePdfFromMarkdown = async (
     doc.fillColor(DEFAULT_INK);
   };
 
-  const writeRuns = (
-    runs: Run[],
-    options: { size: number; align?: TextAlign; gap: number },
-  ) => {
+  // List items: PDFKit flows the `continued` runs itself.
+  const writeRuns = (runs: Run[], options: { size: number; gap: number }) => {
     doc.fontSize(options.size);
-
-    if (options.align === "right" || options.align === "center") {
-      const lineHeight = doc.currentLineHeight(true);
-      for (const line of layoutRuns(runs, usableWidth)) {
-        if (doc.y + lineHeight > doc.page.height - doc.page.margins.bottom) {
-          doc.addPage();
-        }
-        drawLine(
-          line,
-          doc.page.margins.left,
-          doc.y,
-          usableWidth,
-          options.align,
-        );
-        doc.y += lineHeight;
-      }
-    } else {
-      runs.forEach((run, index) => {
-        doc.font(fontFor(run.bold, run.italic));
-        doc.text(run.text, {
-          continued: index < runs.length - 1,
-          align: options.align,
-        });
-      });
-    }
-
+    runs.forEach((run, index) => {
+      doc.font(fontFor(run.bold, run.italic));
+      doc.text(run.text, { continued: index < runs.length - 1 });
+    });
     // Restore the left margin — a manually positioned fragment (or any stray
     // x) would otherwise narrow the wrap width of every following line.
     doc.x = doc.page.margins.left;
     doc.moveDown(options.gap / options.size);
   };
+
+  const bodyLineHeight = () =>
+    doc.font("Times-Roman").fontSize(BODY_FONT_SIZE).currentLineHeight(true) *
+    BODY_LINE_SPACING;
+
+  const pageBottom = () => doc.page.height - doc.page.margins.bottom;
+  const isAtPageTop = () => doc.y <= doc.page.margins.top + WRAP_TOLERANCE;
+
+  // A paragraph whose source lines are line breaks (no paragraph gap between
+  // them), each word-wrapped to the content width and laid out manually so
+  // inline bold/italic runs stay flush. `spaceBefore` is dropped at the top of
+  // a page; `keepWithNext` body lines must fit below the paragraph or it moves
+  // to the next page (headings never sit alone at the bottom).
+  const writeParagraph = (
+    sourceLines: Run[][],
+    options: {
+      size: number;
+      align?: TextAlign;
+      spaceBefore?: number;
+      spaceAfter: number;
+      keepWithNext?: number;
+    },
+  ) => {
+    const nextLinesHeight = (options.keepWithNext ?? 0) * bodyLineHeight();
+    doc.font("Times-Roman").fontSize(options.size);
+    const lineHeight = doc.currentLineHeight(true) * BODY_LINE_SPACING;
+    const laidOut = sourceLines.flatMap((runs) =>
+      layoutRuns(runs, usableWidth),
+    );
+
+    if (options.keepWithNext && !isAtPageTop()) {
+      const needed =
+        (options.spaceBefore ?? 0) +
+        laidOut.length * lineHeight +
+        options.spaceAfter +
+        nextLinesHeight;
+      if (doc.y + needed > pageBottom()) {
+        doc.addPage();
+      }
+    }
+    if (options.spaceBefore && !isAtPageTop()) {
+      doc.y += options.spaceBefore;
+    }
+
+    for (const line of laidOut) {
+      if (doc.y + lineHeight > pageBottom()) {
+        doc.addPage();
+      }
+      const y = doc.y;
+      drawLine(
+        line,
+        doc.page.margins.left,
+        y,
+        usableWidth,
+        options.align ?? "left",
+      );
+      doc.y = y + lineHeight;
+    }
+
+    doc.x = doc.page.margins.left;
+    doc.y += options.spaceAfter;
+  };
+
+  const toBold = (runs: Run[]): Run[] =>
+    runs.map((run) => ({ ...run, bold: true }));
+
+  const writeSectionHeading = (runs: Run[], size: number) =>
+    writeParagraph([toBold(runs)], {
+      size,
+      spaceBefore: HEADING_SPACING_BEFORE,
+      spaceAfter: HEADING_SPACING_AFTER,
+      keepWithNext: HEADING_KEEP_WITH_NEXT_LINES,
+    });
 
   // Table text measured with the real font metrics, in bold — the widest face
   // a table uses — so a column is never narrower than its text. Leaves the
@@ -582,7 +712,7 @@ export const generatePdfFromMarkdown = async (
     // Thematic break (`---`, `***`, `___`): a markdown horizontal rule. The
     // letterhead already draws its own separator, so drop these — they should
     // never render as literal "---" text in the body.
-    if (/^\s*([-*_])\1{2,}\s*$/.test(line)) {
+    if (THEMATIC_BREAK_REGEX.test(line)) {
       i++;
       continue;
     }
@@ -686,10 +816,12 @@ export const generatePdfFromMarkdown = async (
     // Right-aligned or centered paragraph: {right}text / {center}text
     const alignedMatch = line.match(ALIGNED_LINE_REGEX);
     if (alignedMatch) {
-      writeRuns(parseRuns(line.slice(alignedMatch[0].length)), {
+      writeParagraph([parseRuns(line.slice(alignedMatch[0].length))], {
         size: BODY_FONT_SIZE,
         align: alignedMatch[1] === "center" ? "center" : "right",
-        gap: PARAGRAPH_GAP,
+        spaceAfter: isFollowedByAlignedLine(lines, i)
+          ? 0
+          : PARAGRAPH_SPACING_AFTER,
       });
       i++;
       continue;
@@ -698,12 +830,10 @@ export const generatePdfFromMarkdown = async (
     const headingMatch = line.match(HEADING_REGEX);
     if (headingMatch) {
       const level = headingMatch[1].length;
-      // Headings are sized but NOT bold — official letters carry no bold body.
-      const runs = parseRuns(headingMatch[2].trim(), true);
-      writeRuns(runs, {
-        size: HEADING_SIZES[level - 1],
-        gap: PARAGRAPH_GAP * 1.5,
-      });
+      writeSectionHeading(
+        parseRuns(headingMatch[2].trim()),
+        HEADING_SIZES[level - 1],
+      );
       i++;
       continue;
     }
@@ -730,12 +860,25 @@ export const generatePdfFromMarkdown = async (
       continue;
     }
 
-    // Regular body paragraph — no bold.
-    writeRuns(parseRuns(line, true), {
-      size: BODY_FONT_SIZE,
-      gap: PARAGRAPH_GAP,
-    });
-    i++;
+    // Body paragraph (single newlines inside it are line breaks), a bold-only
+    // section heading, or a complimentary close followed by signature space.
+    const paragraph = collectParagraph(lines, i);
+    const kind = classifyParagraph(paragraph.lines);
+    if (kind === "section-heading") {
+      writeSectionHeading(parseRuns(paragraph.lines[0].trim()), BODY_FONT_SIZE);
+    } else {
+      writeParagraph(
+        paragraph.lines.map((text) => parseRuns(text)),
+        {
+          size: BODY_FONT_SIZE,
+          spaceAfter:
+            kind === "closing"
+              ? CLOSING_SPACING_AFTER
+              : PARAGRAPH_SPACING_AFTER,
+        },
+      );
+    }
+    i = paragraph.next;
   }
 
   // Stamp the footer (and page numbers) onto every buffered page, drawn into the

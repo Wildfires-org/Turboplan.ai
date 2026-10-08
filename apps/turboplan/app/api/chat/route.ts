@@ -468,6 +468,7 @@ export async function POST(request: Request) {
     // Strip tasks context when user lacks project access
     if (!hasProjectAccess) {
       promptArgs.projectTasksContext = undefined;
+      promptArgs.officeDocumentContext = undefined;
     }
 
     const projectContext =

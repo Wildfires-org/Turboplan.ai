@@ -42,6 +42,12 @@ export type DocxDocumentFooter = {
   logo?: DocxLetterheadLogo | null;
 };
 
+// Portability: the export must render the same in Word, Pages, Google Docs and
+// LibreOffice, so it only uses widely supported OOXML — inline images (never
+// floating/anchored ones), table borders for rules, explicit paragraph
+// spacing, and a styles.xml with a DEFAULT paragraph style (see
+// DEFAULT_STYLES_XML; without one Pages drops all direct paragraph formatting).
+
 // Footer run size (half-points) and footer-logo display height (px).
 const FOOTER_FONT_HALFPT = 17;
 const FOOTER_LOGO_HEIGHT = 20;
@@ -50,36 +56,48 @@ const FOOTER_LOGO_HEIGHT = 20;
 // center/right tab stops sit on it.
 const CONTENT_WIDTH_TWIPS = 9026;
 
+// Body text (shared with the PDF export and the editor preview): 11pt, 1.15
+// line spacing, 8pt after, no indents.
+const BODY_FONT_HALFPT = 22;
+const BODY_LINE_TWIPS = 276; // 240 = single, "auto" rule
+const PARAGRAPH_AFTER_TWIPS = 160;
+// Section headings: 12pt before, 4pt after, kept with the next paragraph.
+const HEADING_BEFORE_TWIPS = 240;
+const HEADING_AFTER_TWIPS = 80;
+// Markdown heading sizes (half-points) by level 1-6.
+const HEADING_SIZES_HALFPT = [40, 30, 26, 24, 22, 22];
+// Signature space below a complimentary close ("Sincerely,").
+const CLOSING_AFTER_TWIPS = 720;
+// Space after each list item.
+const LIST_ITEM_AFTER_TWIPS = 60;
+// Gap below a body table (an empty spacer paragraph).
+const TABLE_GAP_TWIPS = 120;
+// Gap between the letterhead rule and the body.
+const LETTERHEAD_GAP_TWIPS = 200;
+// The rule under the letterhead: a 0.75pt (eighths of a point) table border.
+const RULE_SIZE = 6;
+
 type LogoBox = { width: number; height: number };
 
 // Letterhead logos are scaled to fit a box (px, the unit docx ImageRun
-// expects). The margin logo is kept small enough to sit within the page's left
-// margin (~1 inch = 96px) so the letterhead text keeps the full content width;
-// inline and centered logos are ~0.75in tall.
-// Placements (see LETTERHEAD_LOGO_PLACEMENT): "margin" floats the logo in the
-// left page margin beside a full-width letterhead (AI-written letterheads and
-// "columns"); "inline" floats it at the content's left edge with the table
-// indented past it ("split"); "above" centers it above the table ("centered").
+// expects). Placements (see LETTERHEAD_LOGO_PLACEMENT): "margin" (agency
+// columns and AI-written letterheads) puts a narrow ~0.6in logo in its own
+// first letterhead column; "inline" ("split") puts a larger ~0.9in logo there;
+// "above" centers it above the table ("centered").
 const LOGO_BOXES: Record<
   Exclude<LetterheadLogoPlacement, "banner">,
   LogoBox
 > = {
   margin: { width: 58, height: 72 },
-  inline: { width: 144, height: 72 },
+  inline: { width: 144, height: 86 },
   above: { width: 192, height: 72 },
 };
 
 // Twips per pixel at 96 dpi (1in = 1440 twips = 96px).
 const TWIPS_PER_PX = 15;
 
-// EMU per pixel at 96 dpi (1px = 1/96in, 1in = 914400 EMU). docx floating
-// offsets are in EMU.
-const EMU_PER_PX = 9525;
-
-// Horizontal gap (px) between the margin logo and the content edge.
-const LOGO_GAP_PX = 6;
-// Gap (px) between an inline logo and the indented letterhead text.
-const INLINE_LOGO_GAP_PX = 12;
+// Gap (twips) between the logo column and the letterhead text.
+const LOGO_COLUMN_GAP_TWIPS = 180;
 
 // Scales the logo's intrinsic dimensions down to fit its placement's box while
 // preserving aspect ratio. Never upscales beyond the intrinsic size.
@@ -98,53 +116,25 @@ const computeLogoDisplaySize = (
   };
 };
 
-// The letterhead logo is a FLOATING image pushed into the LEFT PAGE MARGIN (via
-// a negative horizontal offset from the margin), so it sits left of the
-// letterhead text without consuming content width — the table stays full-width.
-// It is anchored inside the first letterhead cell's paragraph (not its own
-// paragraph) so it adds no stray empty line and stays tied to real content.
-//
-// The "inline" placement floats a larger logo at the content's left edge
-// instead (offset 0 from the page margin, not the cell); the letterhead table
-// is indented past it (see inlineLogoIndentTwips).
-const buildLetterheadLogoImage = (
+// Width (twips) of the letterhead's logo column: the logo plus a gutter.
+const logoColumnTwips = (
+  logo: DocxLetterheadLogo,
+  placement: "margin" | "inline",
+): number =>
+  computeLogoDisplaySize(logo, placement).width * TWIPS_PER_PX +
+  LOGO_COLUMN_GAP_TWIPS;
+
+// A plain inline image of the logo scaled to its placement's box.
+const buildLogoImage = (
   logo: DocxLetterheadLogo,
   docxModule: typeof import("docx"),
-  placement: "margin" | "inline" = "margin",
-): InstanceType<typeof import("docx").ImageRun> => {
-  const {
-    ImageRun,
-    HorizontalPositionRelativeFrom,
-    VerticalPositionRelativeFrom,
-    TextWrappingType,
-  } = docxModule;
-  const { width, height } = computeLogoDisplaySize(logo, placement);
-  const isInline = placement === "inline";
-  // Negative offset pushes the image left of the content margin into the margin
-  // whitespace; its right edge ends LOGO_GAP_PX before the text.
-  const offset = isInline ? 0 : -((width + LOGO_GAP_PX) * EMU_PER_PX);
-  return new ImageRun({
+  placement: keyof typeof LOGO_BOXES,
+): InstanceType<typeof import("docx").ImageRun> =>
+  new docxModule.ImageRun({
     data: logo.data,
     type: logo.type,
-    transformation: { width, height },
-    floating: {
-      // Position the inline logo from the page margin even though it's
-      // anchored inside the (indented) table's first cell.
-      layoutInCell: !isInline,
-      horizontalPosition: {
-        relative: HorizontalPositionRelativeFrom.MARGIN,
-        offset,
-      },
-      verticalPosition: {
-        relative: VerticalPositionRelativeFrom.PARAGRAPH,
-        offset: 0,
-      },
-      allowOverlap: true,
-      // No text wrapping — the logo lives in the margin, clear of the table.
-      wrap: { type: TextWrappingType.NONE },
-    },
+    transformation: computeLogoDisplaySize(logo, placement),
   });
-};
 
 // A "banner" letterhead is the organization's own letterhead graphic: scaled
 // (up or down) to the full content width, keeping its aspect ratio, but never
@@ -166,19 +156,70 @@ const computeBannerDisplaySize = (logo: DocxLetterheadLogo): LogoBox => {
   };
 };
 
-const buildBannerParagraph = (
+// Table borders that draw only the rule under the letterhead.
+const letterheadTableBorders = (
+  docxModule: typeof import("docx"),
+  ruleColor = "000000",
+) => {
+  const { BorderStyle } = docxModule;
+  const none = {
+    style: BorderStyle.NONE,
+    size: 0,
+    color: "FFFFFF",
+  };
+  return {
+    top: none,
+    left: none,
+    right: none,
+    insideHorizontal: none,
+    insideVertical: none,
+    bottom: { style: BorderStyle.SINGLE, size: RULE_SIZE, color: ruleColor },
+  };
+};
+
+// The banner graphic in a 1×1 borderless table whose bottom border is the
+// rule under the letterhead (a paragraph border isn't drawn by Pages).
+const buildBannerTable = (
   logo: DocxLetterheadLogo,
   docxModule: typeof import("docx"),
-): InstanceType<typeof import("docx").Paragraph> => {
-  const { Paragraph, ImageRun, AlignmentType } = docxModule;
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 0 },
-    children: [
-      new ImageRun({
-        data: logo.data,
-        type: logo.type,
-        transformation: computeBannerDisplaySize(logo),
+  ruleColor?: string,
+): InstanceType<typeof import("docx").Table> => {
+  const {
+    Table,
+    TableRow,
+    TableCell,
+    Paragraph,
+    ImageRun,
+    AlignmentType,
+    WidthType,
+    TableLayoutType,
+  } = docxModule;
+  return new Table({
+    width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
+    columnWidths: [CONTENT_WIDTH_TWIPS],
+    layout: TableLayoutType.FIXED,
+    borders: letterheadTableBorders(docxModule, ruleColor),
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
+            margins: { top: 0, bottom: 100, left: 0, right: 0 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 0, after: 0, line: 240 },
+                children: [
+                  new ImageRun({
+                    data: logo.data,
+                    type: logo.type,
+                    transformation: computeBannerDisplaySize(logo),
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
       }),
     ],
   });
@@ -190,47 +231,53 @@ const toDocxColor = (color?: string | null): string | undefined =>
     ? color.slice(1).toUpperCase()
     : undefined;
 
-// Indent (twips) of a letterhead table that sits beside an inline logo.
-const inlineLogoIndentTwips = (logo: DocxLetterheadLogo): number =>
-  (computeLogoDisplaySize(logo, "inline").width + INLINE_LOGO_GAP_PX) *
-  TWIPS_PER_PX;
-
 // A centered paragraph holding the logo above a "centered" letterhead.
 const buildCenteredLogoParagraph = (
   logo: DocxLetterheadLogo,
   docxModule: typeof import("docx"),
 ): InstanceType<typeof import("docx").Paragraph> => {
-  const { Paragraph, ImageRun, AlignmentType } = docxModule;
-  const { width, height } = computeLogoDisplaySize(logo, "above");
+  const { Paragraph, AlignmentType } = docxModule;
   return new Paragraph({
     alignment: AlignmentType.CENTER,
-    spacing: { after: 80 },
-    children: [
-      new ImageRun({
-        data: logo.data,
-        type: logo.type,
-        transformation: { width, height },
-      }),
-    ],
+    spacing: { before: 0, after: 80, line: 240 },
+    children: [buildLogoImage(logo, docxModule, "above")],
   });
 };
 
-// The default body run size (half-points) from the document styles. The
-// letterhead renders ~1.5pt smaller, matching the reference agency letterhead.
-const HEADER_FONT_HALFPT = 21;
+// An empty paragraph exactly `height` twips tall: the gap below a table (Word
+// and Pages put the next paragraph flush against a table).
+const buildSpacer = (
+  docxModule: typeof import("docx"),
+  height: number,
+): InstanceType<typeof import("docx").Paragraph> => {
+  const { Paragraph, LineRuleType } = docxModule;
+  return new Paragraph({
+    spacing: {
+      before: 0,
+      after: 0,
+      line: height,
+      lineRule: LineRuleType.EXACT,
+    },
+  });
+};
+
+// The letterhead renders smaller than the 11pt body (9.5pt, matching the PDF).
+const HEADER_FONT_HALFPT = 19;
 
 // Letterhead cell padding (twips): no left inset and an 8pt gutter before the
 // next column; the last column has no right inset, so a right-aligned address
-// sits flush with the right margin like the `{right}` lines below it.
-const HEADER_CELL_MARGINS = { top: 20, bottom: 20, left: 0, right: 160 };
+// sits flush with the right margin like the `{right}` lines below it. The
+// bottom inset keeps the text clear of the rule below the letterhead.
+const HEADER_CELL_MARGINS = { top: 20, bottom: 100, left: 0, right: 160 };
 const LAST_HEADER_CELL_MARGINS = { ...HEADER_CELL_MARGINS, right: 0 };
+// Gap (twips) between stacked letterhead lines in one column.
+const HEADER_LINE_GAP_TWIPS = 40;
 // Width (twips) of a table column that has no content at all.
 const EMPTY_COLUMN_TWIPS = 360;
 
-// Body tables use the document default run size (`size: 24` in the styles of
-// generateDocxFromMarkdown) and Word's default cell margins (108 twips on the
-// left and on the right), since their cells set no margins of their own.
-const BODY_FONT_HALFPT = 24;
+// Body tables use the body run size and Word's default cell margins (108
+// twips on the left and on the right), since their cells set none of their
+// own.
 const BODY_CELL_PADDING_TWIPS = 108 * 2;
 
 type TableSizing = {
@@ -246,9 +293,8 @@ type TableSizing = {
 
 // Sizes table columns to their content (see computeColumnWidths), estimating
 // text width at the table's font size (1pt = 20 twips, so one em is
-// fontHalfPt × 10 twips). Tables always span the full content width — the
-// letterhead logo sits in the page margin (see buildLetterheadLogoImage). An
-// explicit grid matters for body tables too: without one docx writes 100-twip
+// fontHalfPt × 10 twips). A letterhead's text columns share whatever its logo
+// column leaves of the content width. An explicit grid matters for body tables too: without one docx writes 100-twip
 // columns that renderers other than Word (Pages, Google Docs) honor.
 const computeTableColumnWidths = (
   rows: string[][],
@@ -475,6 +521,13 @@ const NUMBERED_REGEX = /^[\s]*\d+\.\s+(.+)$/;
 const TABLE_ROW_REGEX = /^\|(.+)\|$/;
 const TABLE_SEPARATOR_REGEX = /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|$/;
 const ALIGNED_LINE_REGEX = /^\{(right|center)\}/;
+// A markdown thematic break (`---`, `***`, `___`) — dropped, never rendered as
+// literal text (the letterhead draws its own separator).
+const THEMATIC_BREAK_REGEX = /^\s*([-*_])\1{2,}\s*$/;
+// A complimentary close alone in its paragraph, followed by signature space.
+const CLOSING_LINE_REGEX = /^(sincerely|sincerely yours|respectfully),?$/i;
+const INLINE_EMPHASIS_REGEX =
+  /(\*\*\*|___)(.+?)\1|(\*\*|__)(.+?)\3|(\*|_)(.+?)\5/g;
 
 const HEADING_LEVELS = [
   "HEADING_1",
@@ -492,17 +545,112 @@ const parseTableRow = (line: string): string[] => {
     .map((cell) => cell.trim());
 };
 
+const isAlignedLine = (line: string): boolean => ALIGNED_LINE_REGEX.test(line);
+
+// Lines that start their own block (table, rule, aligned line, heading, list
+// item) and therefore end a running body paragraph.
+const isBlockStart = (line: string): boolean =>
+  THEMATIC_BREAK_REGEX.test(line) ||
+  TABLE_ROW_REGEX.test(line) ||
+  isAlignedLine(line) ||
+  HEADING_REGEX.test(line) ||
+  BULLET_REGEX.test(line) ||
+  NUMBERED_REGEX.test(line);
+
+// A body paragraph: consecutive non-blank lines from `start` up to the next
+// blank line or block start. Its single newlines are line breaks, not
+// paragraph breaks — an address or signature block stays one tight paragraph.
+const collectParagraph = (
+  lines: string[],
+  start: number,
+): { lines: string[]; next: number } => {
+  const collected = [lines[start]];
+  let next = start + 1;
+  while (
+    next < lines.length &&
+    lines[next].trim() !== "" &&
+    !isBlockStart(lines[next])
+  ) {
+    collected.push(lines[next]);
+    next++;
+  }
+  return { lines: collected, next };
+};
+
+// Text that is a single bold span (`**Purpose and Need**`), ignoring
+// whitespace around it.
+const isBoldOnlyText = (text: string): boolean => {
+  const spans: boolean[] = [];
+  let lastIndex = 0;
+  for (const match of text.matchAll(INLINE_EMPHASIS_REGEX)) {
+    if (text.slice(lastIndex, match.index).trim() !== "") {
+      spans.push(false);
+    }
+    spans.push(!!(match[1] || match[3]));
+    lastIndex = match.index + match[0].length;
+  }
+  if (text.slice(lastIndex).trim() !== "") {
+    spans.push(false);
+  }
+  return spans.length === 1 && spans[0];
+};
+
+type ParagraphKind = "body" | "section-heading" | "closing";
+
+// A one-line paragraph that is entirely bold is a section heading; a lone
+// "Sincerely," is a complimentary close.
+const classifyParagraph = (paragraphLines: string[]): ParagraphKind => {
+  if (paragraphLines.length !== 1) {
+    return "body";
+  }
+  const text = paragraphLines[0].trim();
+  if (isBoldOnlyText(text)) {
+    return "section-heading";
+  }
+  if (CLOSING_LINE_REGEX.test(text)) {
+    return "closing";
+  }
+  return "body";
+};
+
+// Consecutive `{right}`/`{center}` lines (blank lines between them don't
+// break the run) sit tight; only the last one of a run gets paragraph spacing.
+const isFollowedByAlignedLine = (lines: string[], index: number): boolean => {
+  let next = index + 1;
+  while (next < lines.length && lines[next].trim() === "") {
+    next++;
+  }
+  return next < lines.length && isAlignedLine(lines[next]);
+};
+
+// Spacing of a body-text paragraph with the given space after (twips). Set on
+// every paragraph, not only in the styles, so apps that ignore styles agree.
+const bodySpacing = (after: number) => ({
+  before: 0,
+  after,
+  line: BODY_LINE_TWIPS,
+});
+
+// Explicitly zero indents: a paragraph never inherits a list's hanging indent.
+const NO_INDENT = { left: 0, right: 0, firstLine: 0 };
+
+type LetterheadOptions = {
+  // Logo drawn in the letterhead's own first column ("margin"/"inline").
+  logo?: DocxLetterheadLogo;
+  logoPlacement: "margin" | "inline";
+  // Brand color (bare hex) of the bold runs and the rule under the letterhead.
+  accentColor?: string;
+};
+
+// Builds a body table, or — given `letterhead` — the borderless letterhead
+// table whose bottom border is the rule separating it from the body.
 const buildTable = (
   rows: string[][],
   alignments: ColumnAlignment[],
   commentCounter: { value: number },
   comments: CommentEntry[],
   docxModule: typeof import("docx"),
-  isHeader = false,
-  logo?: DocxLetterheadLogo,
-  logoPlacement: "margin" | "inline" = "margin",
-  // Brand color (bare hex) of the letterhead's bold runs.
-  accentColor?: string,
+  letterhead?: LetterheadOptions,
 ): InstanceType<typeof import("docx").Table> => {
   const {
     Table,
@@ -514,50 +662,35 @@ const buildTable = (
     TableLayoutType,
     AlignmentType,
     VerticalAlign,
-    HeightRule,
   } = docxModule;
+  const isHeader = !!letterhead;
+  const logo = letterhead?.logo;
 
-  const noBorder = {
-    style: BorderStyle.NONE,
-    size: 0,
-    color: "FFFFFF",
-  };
+  // Body tables get a visible 0.5pt grid (size is in eighths of a point).
+  // Cell-level borders would override table-level ones, so no cell sets any.
+  const bodyBorder = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
+  const borders = letterhead
+    ? letterheadTableBorders(docxModule, letterhead.accentColor)
+    : {
+        top: bodyBorder,
+        bottom: bodyBorder,
+        left: bodyBorder,
+        right: bodyBorder,
+        insideHorizontal: bodyBorder,
+        insideVertical: bodyBorder,
+      };
 
-  const allBordersNone = {
-    top: noBorder,
-    bottom: noBorder,
-    left: noBorder,
-    right: noBorder,
-  };
-
-  // Body tables get a visible 0.5pt grid (size is in eighths of a point); the
-  // letterhead stays invisible. Cell-level borders override table-level ones,
-  // so body cells set none and inherit this grid.
-  const tableBorder = isHeader
-    ? noBorder
-    : { style: BorderStyle.SINGLE, size: 4, color: "000000" };
-
-  // An inline logo floats at the content's left edge; the table starts past it.
-  const indent =
-    isHeader && logo && logoPlacement === "inline"
-      ? inlineLogoIndentTwips(logo)
-      : 0;
-  const tableWidth = CONTENT_WIDTH_TWIPS - indent;
-  // Rows share the inline logo's height so the table is at least as tall.
-  const inlineRowHeight =
-    indent > 0 && logo && rows.length > 0
-      ? Math.ceil(
-          (computeLogoDisplaySize(logo, "inline").height * TWIPS_PER_PX) /
-            rows.length,
-        )
-      : 0;
+  // The letterhead logo sits inline in an extra first column spanning every
+  // row; the text columns share the rest of the content width.
+  const logoColumn =
+    letterhead && logo ? logoColumnTwips(logo, letterhead.logoPlacement) : 0;
 
   const colCount = rows[0]?.length ?? 0;
   const colWidths = computeTableColumnWidths(
     rows,
     isHeader
       ? {
-          totalWidth: tableWidth,
+          totalWidth: CONTENT_WIDTH_TWIPS - logoColumn,
           fontHalfPt: HEADER_FONT_HALFPT,
           padding: HEADER_CELL_MARGINS.left + HEADER_CELL_MARGINS.right,
           emptyWidth: EMPTY_COLUMN_TWIPS,
@@ -593,108 +726,123 @@ const buildTable = (
     return colIndex === colCount - 1 ? AlignmentType.RIGHT : undefined;
   };
 
-  const tableRows = rows.map((cells, rowIndex) => {
-    const dataCells = cells.map((cellText, colIndex) => {
-      const isLastColumn = colIndex === colCount - 1;
-      // Undefined for surplus cells of a row longer than the first: they have
-      // no grid column, and docx throws on a width without a size.
-      const colWidth = colWidths[colIndex];
-      const formatted = parseInlineFormatting(
-        cellText,
-        commentCounter,
-        comments,
-        docxModule,
-        {
-          // Legacy letterheads bold every agency identity column; the
-          // address/contact column (last) stays regular weight. Explicit
-          // layouts take bold from the markdown only. Body tables bold their
-          // header row.
-          forceBold: isHeader
-            ? !isExplicitLayout && !isLastColumn
-            : rowIndex === 0,
-          // The letterhead renders slightly smaller than the body.
-          size: isHeader ? HEADER_FONT_HALFPT : undefined,
-          boldColor: isHeader ? accentColor : undefined,
-        },
-      );
-      // Anchor the floating margin logo to the first letterhead cell's paragraph
-      // (the floating image doesn't disturb the inline text). This avoids a
-      // stray empty anchor paragraph above the table.
-      const cellChildren =
-        isHeader && logo && rowIndex === 0 && colIndex === 0
-          ? [
-              buildLetterheadLogoImage(logo, docxModule, logoPlacement),
-              ...formatted,
-            ]
-          : formatted;
-      const headerMargins = isLastColumn
-        ? LAST_HEADER_CELL_MARGINS
-        : HEADER_CELL_MARGINS;
-      return new TableCell({
-        children: [
-          new Paragraph({
-            children: cellChildren,
-            alignment: columnAlignment(colIndex),
-            // Single-spaced with no trailing gap keeps letterhead rows tight
-            // instead of inheriting the body paragraph's after-spacing.
-            spacing: isHeader ? { after: 0, line: 240 } : undefined,
-          }),
-        ],
-        borders: isHeader ? allBordersNone : undefined,
-        verticalAlign: isHeader ? VerticalAlign.CENTER : undefined,
-        margins: isHeader ? headerMargins : undefined,
-        width:
-          colWidth === undefined
-            ? undefined
-            : { size: colWidth, type: WidthType.DXA },
-      });
+  // Letterhead rows are single-spaced with no trailing gap; body table cells
+  // get a little air inside the grid.
+  const cellSpacing = isHeader
+    ? { before: 0, after: 0, line: 240 }
+    : { before: 40, after: 40, line: 240 };
+
+  const cellRuns = (text: string, colIndex: number, rowIndex: number) =>
+    parseInlineFormatting(text, commentCounter, comments, docxModule, {
+      // Legacy letterheads bold every agency identity column; the
+      // address/contact column (last) stays regular weight. Explicit layouts
+      // take bold from the markdown only. Body tables bold their header row.
+      forceBold: isHeader
+        ? !isExplicitLayout && colIndex !== colCount - 1
+        : rowIndex === 0,
+      // The letterhead renders slightly smaller than the body.
+      size: isHeader ? HEADER_FONT_HALFPT : undefined,
+      boldColor: letterhead?.accentColor,
     });
 
-    return new TableRow({
-      children: dataCells,
-      // A floating logo doesn't grow the table, so a short letterhead beside
-      // the taller inline logo would let the rule below run through it.
-      height: inlineRowHeight
-        ? { value: inlineRowHeight, rule: HeightRule.ATLEAST }
-        : undefined,
+  // Undefined for surplus cells of a row longer than the first: they have no
+  // grid column, and docx throws on a width without a size.
+  const cellWidth = (colIndex: number) =>
+    colWidths[colIndex] === undefined
+      ? undefined
+      : { size: colWidths[colIndex], type: WidthType.DXA };
+
+  if (letterhead) {
+    // The letterhead is ONE row: each column's non-empty lines stack in a
+    // single cell. With a row per line, a wrapped name or a tall logo stretches
+    // a row and pulls the contact lines apart (Pages spreads extra height over
+    // every row of a merged cell). Surplus cells join the last column.
+    const columns = Array.from({ length: colCount }, (_, colIndex) =>
+      rows
+        .flatMap((cells) =>
+          colIndex === colCount - 1
+            ? cells.slice(colIndex)
+            : [cells[colIndex] ?? ""],
+        )
+        .filter((text) => text.trim() !== ""),
+    );
+    const textCells = columns.map(
+      (columnLines, colIndex) =>
+        new TableCell({
+          verticalAlign: VerticalAlign.TOP,
+          width: cellWidth(colIndex),
+          margins:
+            colIndex === colCount - 1
+              ? LAST_HEADER_CELL_MARGINS
+              : HEADER_CELL_MARGINS,
+          children: (columnLines.length > 0 ? columnLines : [""]).map(
+            (text, lineIndex) =>
+              new Paragraph({
+                children: cellRuns(text, colIndex, lineIndex),
+                alignment: columnAlignment(colIndex),
+                spacing: {
+                  ...cellSpacing,
+                  after:
+                    lineIndex < columnLines.length - 1
+                      ? HEADER_LINE_GAP_TWIPS
+                      : 0,
+                },
+              }),
+          ),
+        }),
+    );
+    // The logo sits inline in its own first column.
+    const logoCells = logo
+      ? [
+          new TableCell({
+            verticalAlign: VerticalAlign.TOP,
+            width: { size: logoColumn, type: WidthType.DXA },
+            margins: { ...HEADER_CELL_MARGINS, right: LOGO_COLUMN_GAP_TWIPS },
+            children: [
+              new Paragraph({
+                spacing: cellSpacing,
+                children: [
+                  buildLogoImage(logo, docxModule, letterhead.logoPlacement),
+                ],
+              }),
+            ],
+          }),
+        ]
+      : [];
+    return new Table({
+      rows: [new TableRow({ children: [...logoCells, ...textCells] })],
+      width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
+      borders,
+      columnWidths: logo ? [logoColumn, ...colWidths] : colWidths,
+      layout: TableLayoutType.FIXED,
     });
-  });
+  }
+
+  const tableRows = rows.map(
+    (cells, rowIndex) =>
+      new TableRow({
+        children: cells.map(
+          (cellText, colIndex) =>
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: cellRuns(cellText, colIndex, rowIndex),
+                  alignment: columnAlignment(colIndex),
+                  spacing: cellSpacing,
+                }),
+              ],
+              width: cellWidth(colIndex),
+            }),
+        ),
+      }),
+  );
 
   return new Table({
     rows: tableRows,
-    width: { size: tableWidth, type: WidthType.DXA },
-    indent: indent > 0 ? { size: indent, type: WidthType.DXA } : undefined,
-    borders: {
-      top: tableBorder,
-      bottom: tableBorder,
-      left: tableBorder,
-      right: tableBorder,
-      insideHorizontal: tableBorder,
-      insideVertical: tableBorder,
-    },
+    width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
+    borders,
     columnWidths: colWidths,
     layout: TableLayoutType.FIXED,
-  });
-};
-
-// A standard full-width horizontal rule (an empty paragraph with a bottom
-// border — the same construct Word produces from a "---" line), used to
-// separate the letterhead from the document body.
-const buildHorizontalRule = (
-  docxModule: typeof import("docx"),
-  color = "000000",
-): InstanceType<typeof import("docx").Paragraph> => {
-  const { Paragraph, BorderStyle } = docxModule;
-  return new Paragraph({
-    spacing: { before: 40, after: 160 },
-    border: {
-      bottom: {
-        style: BorderStyle.SINGLE,
-        size: 6,
-        color,
-        space: 1,
-      },
-    },
   });
 };
 
@@ -709,10 +857,6 @@ const decodeHtmlEntities = (text: string): string =>
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'");
-
-// A markdown thematic break (`---`, `***`, `___`) — dropped, never rendered as
-// literal text (the letterhead draws its own separator).
-const THEMATIC_BREAK_REGEX = /^\s*([-*_])\1{2,}\s*$/;
 
 // Footer logo: inline image scaled to FOOTER_LOGO_HEIGHT, preserving aspect.
 const buildFooterLogoImage = (
@@ -755,6 +899,7 @@ const buildDocumentFooter = (
   return new Footer({
     children: [
       new Paragraph({
+        spacing: { before: 0, after: 0, line: 240 },
         tabStops: [
           {
             type: TabStopType.CENTER,
@@ -778,6 +923,7 @@ const buildPageNumberHeader = (
     children: [
       new Paragraph({
         alignment: AlignmentType.RIGHT,
+        spacing: { before: 0, after: 0, line: 240 },
         children: [new TextRun({ children: [PageNumber.CURRENT] })],
       }),
     ],
@@ -791,6 +937,45 @@ const buildEmptyHeader = (
   return new Header({ children: [new Paragraph({})] });
 };
 
+const FONT = "Times New Roman";
+
+// The default paragraph, character, table and numbering styles, marked
+// w:default="1". docx never writes default styles, and without a default
+// paragraph style Apple Pages ignores every paragraph's direct formatting
+// (alignment, spacing) and carries the previous paragraph's style over to the
+// next — the cause of the missing paragraph gaps, the left-aligned `{right}`
+// lines and the list hanging indent leaking into body text. docx merges these
+// with its own (non-default) styles and the docDefaults below.
+const DEFAULT_STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="0" w:after="${PARAGRAPH_AFTER_TWIPS}" w:line="${BODY_LINE_TWIPS}" w:lineRule="auto"/><w:ind w:left="0" w:right="0" w:firstLine="0"/></w:pPr><w:rPr><w:rFonts w:ascii="${FONT}" w:hAnsi="${FONT}" w:eastAsia="${FONT}" w:cs="${FONT}"/><w:sz w:val="${BODY_FONT_HALFPT}"/><w:szCs w:val="${BODY_FONT_HALFPT}"/></w:rPr></w:style>
+<w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/><w:unhideWhenUsed/></w:style>
+<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>
+<w:style w:type="numbering" w:default="1" w:styleId="NoList"><w:name w:val="No List"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/></w:style>
+</w:styles>`;
+
+// Heading style N: bold black body font at the level's size, with section
+// heading spacing (the Word defaults are blue and unbolded).
+const headingStyle = (level: number) => ({
+  basedOn: "Normal",
+  next: "Normal",
+  quickFormat: true,
+  run: {
+    font: FONT,
+    bold: true,
+    color: "000000",
+    size: HEADING_SIZES_HALFPT[level - 1],
+  },
+  paragraph: {
+    keepNext: true,
+    spacing: {
+      before: HEADING_BEFORE_TWIPS,
+      after: HEADING_AFTER_TWIPS,
+      line: BODY_LINE_TWIPS,
+    },
+  },
+});
+
 export const generateDocxFromMarkdown = async (
   content: string,
   title: string,
@@ -802,7 +987,8 @@ export const generateDocxFromMarkdown = async (
   letterheadColor?: string | null,
 ): Promise<Blob> => {
   const docx = await import("docx");
-  const { Document, Paragraph, Packer, HeadingLevel, AlignmentType } = docx;
+  const { Document, Paragraph, TextRun, Packer, HeadingLevel, AlignmentType } =
+    docx;
 
   const hasFooter = !!(footer && (footer.text || footer.note || footer.logo));
   // A document is "branded" when it carries a letterhead logo or footer. Only
@@ -822,13 +1008,53 @@ export const generateDocxFromMarkdown = async (
   const commentCounter = { value: 0 };
   const paragraphs: FileChild[] = [];
   const accentColor = toDocxColor(letterheadColor);
+
+  const inline = (text: string, opts?: RunOptions) =>
+    parseInlineFormatting(text, commentCounter, comments, docx, opts);
+
+  // A body paragraph whose lines are joined by line breaks (w:br).
+  const buildBodyParagraph = (
+    paragraphLines: string[],
+    spacingAfter: number,
+    alignment?: (typeof AlignmentType)[keyof typeof AlignmentType],
+  ) =>
+    new Paragraph({
+      alignment: alignment ?? AlignmentType.LEFT,
+      spacing: bodySpacing(spacingAfter),
+      indent: NO_INDENT,
+      children: paragraphLines.flatMap((text, index) => [
+        ...(index > 0 ? [new TextRun({ break: 1 })] : []),
+        ...inline(text.trimEnd()),
+      ]),
+    });
+
+  // A section heading: a markdown heading (its level's size and Word heading
+  // style) or a bold-only paragraph (body size).
+  const buildSectionHeading = (text: string, level?: number) =>
+    new Paragraph({
+      heading: level
+        ? HeadingLevel[HEADING_LEVELS[level - 1] as keyof typeof HeadingLevel]
+        : undefined,
+      keepNext: true,
+      spacing: {
+        before: HEADING_BEFORE_TWIPS,
+        after: HEADING_AFTER_TWIPS,
+        line: BODY_LINE_TWIPS,
+      },
+      indent: NO_INDENT,
+      children: inline(text, {
+        forceBold: true,
+        size: level ? HEADING_SIZES_HALFPT[level - 1] : undefined,
+      }),
+    });
+
   // A banner letterhead is the image itself, drawn above the content; the
   // document's first table is then ordinary body content.
   const isBanner = logoPlacement === "banner";
   if (isBanner && logo) {
     paragraphs.push(
-      buildBannerParagraph(logo, docx),
-      buildHorizontalRule(docx, accentColor),
+      buildBannerTable(logo, docx, accentColor),
+      buildSpacer(docx, LETTERHEAD_GAP_TWIPS),
     );
   }
   let isFirstTable = !isBanner;
@@ -865,14 +1091,13 @@ export const generateDocxFromMarkdown = async (
         i++;
       }
       if (tableRows.length > 0) {
-        const wasHeaderTable = isFirstTable;
-        const letterheadLogo = isFirstTable ? logo : undefined;
-        if (letterheadLogo && logoPlacement === "above") {
-          paragraphs.push(buildCenteredLogoParagraph(letterheadLogo, docx));
+        // The first table is the letterhead: its logo goes centered above it
+        // ("above") or in its own first column ("margin"/"inline"), and its
+        // bottom border is the rule separating it from the body.
+        const isLetterhead = isFirstTable;
+        if (isLetterhead && logo && logoPlacement === "above") {
+          paragraphs.push(buildCenteredLogoParagraph(logo, docx));
         }
-        // The logo only decorates the first table (the letterhead). It floats in
-        // the left margin, anchored inside the table's first cell (no extra
-        // paragraph), so it adds no blank line above the letterhead.
         paragraphs.push(
           buildTable(
             tableRows,
@@ -880,37 +1105,36 @@ export const generateDocxFromMarkdown = async (
             commentCounter,
             comments,
             docx,
-            isFirstTable,
-            logoPlacement === "above" ? undefined : letterheadLogo,
-            logoPlacement === "inline" ? "inline" : "margin",
-            wasHeaderTable ? accentColor : undefined,
+            isLetterhead
+              ? {
+                  logo: logoPlacement === "above" ? undefined : logo,
+                  logoPlacement:
+                    logoPlacement === "inline" ? "inline" : "margin",
+                  accentColor,
+                }
+              : undefined,
+          ),
+          buildSpacer(
+            docx,
+            isLetterhead ? LETTERHEAD_GAP_TWIPS : TABLE_GAP_TWIPS,
           ),
         );
         isFirstTable = false;
-        if (wasHeaderTable) {
-          paragraphs.push(buildHorizontalRule(docx, accentColor));
-        }
       }
       continue;
     }
 
-    // Right-aligned or centered paragraph: {right}text / {center}text
+    // Right-aligned or centered line: {right}text / {center}text
     const alignedMatch = line.match(ALIGNED_LINE_REGEX);
     if (alignedMatch) {
-      const children = parseInlineFormatting(
-        line.slice(alignedMatch[0].length),
-        commentCounter,
-        comments,
-        docx,
-      );
       paragraphs.push(
-        new Paragraph({
-          alignment:
-            alignedMatch[1] === "center"
-              ? AlignmentType.CENTER
-              : AlignmentType.RIGHT,
-          children,
-        }),
+        buildBodyParagraph(
+          [line.slice(alignedMatch[0].length)],
+          isFollowedByAlignedLine(lines, i) ? 0 : PARAGRAPH_AFTER_TWIPS,
+          alignedMatch[1] === "center"
+            ? AlignmentType.CENTER
+            : AlignmentType.RIGHT,
+        ),
       );
       i++;
       continue;
@@ -918,23 +1142,8 @@ export const generateDocxFromMarkdown = async (
 
     const headingMatch = line.match(HEADING_REGEX);
     if (headingMatch) {
-      const level = headingMatch[1].length - 1;
-      const headingText = headingMatch[2].trim();
-      // Headings carry no bold (official letters); explicit non-bold runs
-      // override the Word heading style's default bold.
-      const children = parseInlineFormatting(
-        headingText,
-        commentCounter,
-        comments,
-        docx,
-        { suppressBold: true },
-      );
       paragraphs.push(
-        new Paragraph({
-          heading:
-            HeadingLevel[HEADING_LEVELS[level] as keyof typeof HeadingLevel],
-          children,
-        }),
+        buildSectionHeading(headingMatch[2].trim(), headingMatch[1].length),
       );
       i++;
       continue;
@@ -942,17 +1151,11 @@ export const generateDocxFromMarkdown = async (
 
     const bulletMatch = line.match(BULLET_REGEX);
     if (bulletMatch) {
-      const children = parseInlineFormatting(
-        bulletMatch[1],
-        commentCounter,
-        comments,
-        docx,
-        { suppressBold: true },
-      );
       paragraphs.push(
         new Paragraph({
           bullet: { level: 0 },
-          children,
+          spacing: bodySpacing(LIST_ITEM_AFTER_TWIPS),
+          children: inline(bulletMatch[1], { suppressBold: true }),
         }),
       );
       i++;
@@ -961,35 +1164,30 @@ export const generateDocxFromMarkdown = async (
 
     const numberedMatch = line.match(NUMBERED_REGEX);
     if (numberedMatch) {
-      const children = parseInlineFormatting(
-        numberedMatch[1],
-        commentCounter,
-        comments,
-        docx,
-        { suppressBold: true },
-      );
       paragraphs.push(
         new Paragraph({
           numbering: { reference: "default-numbering", level: 0 },
-          children,
+          spacing: bodySpacing(LIST_ITEM_AFTER_TWIPS),
+          children: inline(numberedMatch[1], { suppressBold: true }),
         }),
       );
       i++;
       continue;
     }
 
-    // Regular body paragraph — no bold.
-    const children = parseInlineFormatting(
-      line,
-      commentCounter,
-      comments,
-      docx,
-      {
-        suppressBold: true,
-      },
+    // Body paragraph (single newlines inside it are line breaks), a bold-only
+    // section heading, or a complimentary close followed by signature space.
+    const paragraph = collectParagraph(lines, i);
+    const kind = classifyParagraph(paragraph.lines);
+    paragraphs.push(
+      kind === "section-heading"
+        ? buildSectionHeading(paragraph.lines[0].trim())
+        : buildBodyParagraph(
+            paragraph.lines,
+            kind === "closing" ? CLOSING_AFTER_TWIPS : PARAGRAPH_AFTER_TWIPS,
+          ),
     );
-    paragraphs.push(new Paragraph({ children, spacing: { after: 200 } }));
-    i++;
+    i = paragraph.next;
   }
 
   const commentDefinitions: ICommentOptions[] = comments.map((c) => ({
@@ -1003,12 +1201,24 @@ export const generateDocxFromMarkdown = async (
   const fileOptions: IPropertiesOptions = {
     title,
     creator: "TurboPlan",
-    // Serif body font to match standard agency letterhead documents.
+    externalStyles: DEFAULT_STYLES_XML,
+    // Serif body font to match standard agency letterhead documents. The
+    // document defaults repeat the Normal style for apps that ignore styles.
     styles: {
       default: {
         document: {
-          run: { font: "Times New Roman", size: 24 },
+          run: { font: FONT, size: BODY_FONT_HALFPT },
+          paragraph: {
+            spacing: bodySpacing(PARAGRAPH_AFTER_TWIPS),
+            indent: NO_INDENT,
+          },
         },
+        heading1: headingStyle(1),
+        heading2: headingStyle(2),
+        heading3: headingStyle(3),
+        heading4: headingStyle(4),
+        heading5: headingStyle(5),
+        heading6: headingStyle(6),
       },
     },
     comments: { children: commentDefinitions },
@@ -1022,6 +1232,7 @@ export const generateDocxFromMarkdown = async (
               format: docx.LevelFormat.DECIMAL,
               text: "%1.",
               alignment: AlignmentType.START,
+              style: { paragraph: { indent: { left: 720, hanging: 360 } } },
             },
           ],
         },

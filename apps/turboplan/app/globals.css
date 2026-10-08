@@ -571,6 +571,38 @@ main[class*="overflow-auto"] {
   @apply pb-3;
 }
 
+/* Letter layout in the document editor, matching the PDF/DOCX export: even
+   paragraph spacing without indents; `{right}` / `{center}` lines set tight
+   against each other; section headings (markdown headings and bold-only
+   paragraphs, see lib/editor/block-styles.ts) with room above and little
+   below; room to sign under the closing line ("Sincerely,"). */
+.document-editor > .ProseMirror > p,
+.document-editor > .ProseMirror > ul,
+.document-editor > .ProseMirror > ol {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.document-editor > .ProseMirror > p.text-right,
+.document-editor > .ProseMirror > p.text-center {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.document-editor > .ProseMirror > :is(h2, h3, h4, h5, h6),
+.document-editor > .ProseMirror > p.doc-section-heading {
+  margin-top: 1.5em;
+  margin-bottom: 0.25em;
+}
+
+.document-editor > .ProseMirror > :is(h2, h3, h4, h5, h6, .doc-section-heading) + * {
+  margin-top: 0.25em;
+}
+
+.document-editor > .ProseMirror > p.doc-closing {
+  margin-bottom: 2.5em;
+}
+
 .cm-editor,
 .cm-gutters {
   @apply bg-background dark:bg-zinc-800 outline-none selection:bg-zinc-900 !important;

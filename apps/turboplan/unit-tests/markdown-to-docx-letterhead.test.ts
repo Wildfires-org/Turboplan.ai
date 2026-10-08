@@ -7,10 +7,10 @@ import { generateDocxFromMarkdown } from "../lib/export/markdown-to-docx";
 
 // A4 content width in twips (11906 − 2×1440 margins).
 const CONTENT_WIDTH_TWIPS = 9026;
-// The letterhead font is 10.5pt, i.e. 210 twips per em.
-const HEADER_EM_TWIPS = 210;
-// The body font is 12pt, i.e. 240 twips per em.
-const BODY_EM_TWIPS = 240;
+// The letterhead font is 9.5pt, i.e. 190 twips per em.
+const HEADER_EM_TWIPS = 190;
+// The body font is 11pt, i.e. 220 twips per em.
+const BODY_EM_TWIPS = 220;
 
 // Reads one file out of the .docx zip. docx (JSZip) writes sizes into every
 // local file header, so walking the headers is enough.
@@ -96,8 +96,21 @@ describe("DOCX letterhead — explicit layout (separator markers)", () => {
   it("aligns each column from its marker", async () => {
     const cells = cellsOf(firstTable(await renderDocumentXml(markdown)));
     assert.strictEqual(alignmentOf(cells[0]), "left");
-    assert.strictEqual(alignmentOf(cells[1]), "right");
-    assert.strictEqual(alignmentOf(cells[3]), "right");
+    assert.strictEqual(cells.length, 2);
+    const addressLines = cells[1].match(/<w:p>[\s\S]*?<\/w:p>/g) ?? [];
+    assert.strictEqual(addressLines.length, 2);
+    for (const line of addressLines) {
+      assert.strictEqual(alignmentOf(line), "right");
+    }
+  });
+
+  it("stacks each column's lines in one row so they stay tight", async () => {
+    const table = firstTable(await renderDocumentXml(markdown));
+    assert.strictEqual(table.match(/<w:tr>/g)?.length, 1);
+    const address = cellsOf(table)[1];
+    assert.ok(address.includes(">[INSERT: street address]</w:t>"));
+    assert.ok(address.includes(">Eureka, CA 95501</w:t>"));
+    assert.ok(!table.includes("w:vMerge"), "merged cells");
   });
 
   it("bolds only what the markdown marks bold, including a bold placeholder", async () => {
@@ -170,12 +183,14 @@ describe("DOCX aligned paragraphs and body text", () => {
     assert.strictEqual(alignmentOf(date), "right");
   });
 
-  it("keeps body placeholders unbolded without leaking asterisks", async () => {
+  it("keeps inline bold in body text without leaking asterisks", async () => {
     const xml = await renderDocumentXml(
-      `${BUG_REPORT_LETTERHEAD}\n\nPlease confirm **[INSERT: contact name]** today.`,
+      `${BUG_REPORT_LETTERHEAD}\n\nPlease confirm **[INSERT: contact name]** by **Friday**.`,
     );
     const body = xml.slice(xml.indexOf("</w:tbl>"));
-    assert.ok(!isBold(runWithText(body, "[INSERT: contact name]")));
+    assert.ok(isBold(runWithText(body, "[INSERT: contact name]")));
+    assert.ok(isBold(runWithText(body, "Friday")));
+    assert.ok(!isBold(runWithText(body, "Please confirm ")));
     assert.ok(!body.includes("*"), "emphasis markers leaked into the body");
   });
 
@@ -259,15 +274,15 @@ describe("DOCX body tables", () => {
     }
   });
 
-  it("keeps the letterhead table borderless", async () => {
+  it("draws only the rule (its bottom border) on the letterhead table", async () => {
     const letterhead = firstTable(
       await renderDocumentXml(`${BUG_REPORT_LETTERHEAD}\n\n${scheduleTable}`),
     );
     const styles = borderStyles(letterhead);
     assert.ok(styles.length > 0, "letterhead borders not set");
-    assert.ok(
-      styles.every(([, style]) => style === "none"),
-      `visible letterhead border: ${JSON.stringify(styles)}`,
+    assert.deepStrictEqual(
+      styles.filter(([, style]) => style !== "none"),
+      [["bottom", "single"]],
     );
   });
 
@@ -332,9 +347,11 @@ describe("DOCX banner letterhead and brand color", () => {
       Number(extent[2]),
       Math.round(CONTENT_WIDTH_PX / 6) * EMU_PER_PX,
     );
-    // The image paragraph comes first, the rule right after it.
-    assert.ok(xml.indexOf("<wp:inline") < xml.indexOf('w:color="1F5F3A"'));
-    assert.match(xml, /<w:bottom w:val="single" w:color="1F5F3A"/);
+    // The image sits in a 1×1 table whose bottom border is the rule.
+    const table = firstTable(xml);
+    assert.ok(table.includes("<wp:inline"), "banner not in its table");
+    assert.strictEqual(cellsOf(table).length, 1);
+    assert.match(table, /<w:bottom w:val="single" w:color="1F5F3A"/);
   });
 
   it("treats the first table as body content under a banner", async () => {
@@ -361,5 +378,177 @@ describe("DOCX banner letterhead and brand color", () => {
     assert.doesNotMatch(runWithText(xml, "3348 Alpine Blvd"), /<w:color /);
     assert.doesNotMatch(runWithText(xml, "text"), /<w:color /);
     assert.match(xml, /<w:bottom w:val="single" w:color="1E3A8A"/);
+  });
+});
+
+describe("DOCX portability (Word, Pages, Google Docs, LibreOffice)", () => {
+  // A 1×1 PNG; the exporter only needs bytes plus the intrinsic size below.
+  const logo = {
+    data: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+      "base64",
+    ),
+    type: "png" as const,
+    width: 220,
+    height: 280,
+  };
+  const LETTERHEAD =
+    "| **Forest Service** | 3348 Alpine Blvd |\n| :--- | ---: |\n| | Alpine, CA 91901 |";
+
+  const render = async (
+    markdown: string,
+    placement?: "margin" | "inline" | "above" | "banner",
+    color?: string,
+  ) => {
+    const blob = await generateDocxFromMarkdown(
+      markdown,
+      "Test",
+      placement ? logo : undefined,
+      undefined,
+      placement,
+      color,
+    );
+    const zip = Buffer.from(await blob.arrayBuffer());
+    return {
+      document: readZipEntry(zip, "word/document.xml"),
+      styles: readZipEntry(zip, "word/styles.xml"),
+    };
+  };
+
+  const paragraphs = (xml: string): string[] =>
+    xml.match(/<w:p>[\s\S]*?<\/w:p>/g) ?? [];
+  const paragraphWith = (xml: string, text: string): string => {
+    const found = paragraphs(xml).find((p) => p.includes(`>${text}</w:t>`));
+    assert.ok(found, `no paragraph with "${text}"`);
+    return found;
+  };
+  const spacingOf = (paragraphXml: string) => {
+    const spacing = paragraphXml.match(/<w:spacing [^>]*\/>/)?.[0] ?? "";
+    const attr = (name: string) =>
+      spacing.match(new RegExp(`w:${name}="(\\d+)"`))?.[1];
+    return { before: attr("before"), after: attr("after"), line: attr("line") };
+  };
+
+  for (const placement of ["margin", "inline", "above", "banner"] as const) {
+    it(`draws the ${placement} logo as an inline image, never anchored`, async () => {
+      const { document } = await render(`${LETTERHEAD}\n\nBody`, placement);
+      assert.ok(document.includes("<wp:inline"), "logo missing");
+      assert.ok(!document.includes("<wp:anchor"), "floating image");
+      assert.ok(!document.includes("<w:pBdr>"), "paragraph-border rule");
+    });
+  }
+
+  for (const [placement, logoWidthPx] of [
+    ["margin", 57],
+    ["inline", 68],
+  ] as const) {
+    it(`puts the ${placement} logo in its own first letterhead column`, async () => {
+      const { document } = await render(`${LETTERHEAD}\n\nBody`, placement);
+      const table = firstTable(document);
+      const widths = gridWidths(table);
+      assert.strictEqual(widths.length, 3);
+      assert.strictEqual(widths[0], logoWidthPx * 15 + 180);
+      assert.strictEqual(sum(widths), CONTENT_WIDTH_TWIPS);
+      const logoCell = cellsOf(table)[0];
+      assert.ok(logoCell.includes("<wp:inline"), "logo not in first cell");
+      assert.strictEqual(table.match(/<w:tr>/g)?.length, 1);
+      assert.ok(logoCell.includes('<w:vAlign w:val="top"/>'));
+      assert.ok(!cellsOf(table)[1].includes("<w:drawing>"));
+    });
+  }
+
+  it("draws the rule under the letterhead as its table's colored bottom border", async () => {
+    const { document } = await render(
+      `${LETTERHEAD}\n\nBody`,
+      "inline",
+      "#1e3a8a",
+    );
+    const tableBorders = firstTable(document).match(
+      /<w:tblBorders>[\s\S]*?<\/w:tblBorders>/,
+    )?.[0];
+    assert.ok(tableBorders, "no table borders");
+    assert.match(tableBorders, /<w:bottom w:val="single" w:color="1E3A8A"/);
+  });
+
+  it("marks a default paragraph style so Pages keeps direct formatting", async () => {
+    const { styles } = await render("Body");
+    assert.match(
+      styles,
+      /<w:style w:type="paragraph" w:default="1" w:styleId="Normal">/,
+    );
+    assert.match(styles, /<w:style w:type="table" w:default="1"/);
+    assert.match(styles, /<w:sz w:val="22"\/>/);
+    assert.match(styles, /w:after="160"/);
+    assert.match(styles, /w:line="276"/);
+  });
+
+  it("gives body paragraphs 1.15 lines, 8pt after and no indents", async () => {
+    const { document } = await render("First paragraph.\n\nSecond one.");
+    const first = paragraphWith(document, "First paragraph.");
+    assert.deepStrictEqual(spacingOf(first), {
+      before: "0",
+      after: "160",
+      line: "276",
+    });
+    assert.strictEqual(alignmentOf(first), "left");
+    assert.match(first, /<w:ind w:left="0" w:right="0" w:firstLine="0"\/>/);
+    assert.ok(!first.includes("w:hanging"));
+  });
+
+  it("turns single newlines into line breaks within one paragraph", async () => {
+    const { document } = await render(
+      "Sincerely,\n\nMARIA DELGADO\nDistrict Ranger",
+    );
+    const signature = paragraphWith(document, "MARIA DELGADO");
+    assert.ok(signature.includes(">District Ranger</w:t>"));
+    assert.strictEqual(signature.match(/<w:br\/>/g)?.length, 1);
+  });
+
+  it("treats a bold-only paragraph as a section heading", async () => {
+    const { document } = await render(
+      "**Purpose and Need**\n\nText with **some** bold.",
+    );
+    const heading = paragraphWith(document, "Purpose and Need");
+    assert.ok(isBold(runWithText(heading, "Purpose and Need")));
+    assert.ok(heading.includes("<w:keepNext/>"));
+    assert.deepStrictEqual(spacingOf(heading), {
+      before: "240",
+      after: "80",
+      line: "276",
+    });
+    const body = paragraphWith(document, "Text with ");
+    assert.ok(!body.includes("<w:keepNext/>"), "mixed bold is not a heading");
+  });
+
+  it("bolds markdown headings at their level's size", async () => {
+    const { document } = await render("## Proposed Treatments");
+    const heading = paragraphWith(document, "Proposed Treatments");
+    assert.ok(heading.includes('<w:pStyle w:val="Heading2"/>'));
+    const run = runWithText(heading, "Proposed Treatments");
+    assert.ok(isBold(run));
+    assert.match(run, /<w:sz w:val="30"\/>/);
+    assert.ok(heading.includes("<w:keepNext/>"));
+  });
+
+  it("leaves 36pt after a complimentary close", async () => {
+    for (const close of ["Sincerely,", "Respectfully", "sincerely yours,"]) {
+      const { document } = await render(`${close}\n\nMARIA DELGADO`);
+      assert.strictEqual(
+        spacingOf(paragraphWith(document, close)).after,
+        "720",
+      );
+    }
+  });
+
+  it("right-aligns consecutive {right} lines, spacing only after the last", async () => {
+    const { document } = await render(
+      "{right}**File Code:** 1950\n\n{right}**Date:** August 7, 2026\n\nDear reader,",
+    );
+    const fileCode = paragraphWith(document, "File Code:");
+    const date = paragraphWith(document, "Date:");
+    assert.strictEqual(alignmentOf(fileCode), "right");
+    assert.strictEqual(alignmentOf(date), "right");
+    assert.strictEqual(spacingOf(fileCode).after, "0");
+    assert.strictEqual(spacingOf(date).after, "160");
   });
 });

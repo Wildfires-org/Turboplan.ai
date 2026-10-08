@@ -40,6 +40,11 @@ export interface SystemPromptProps {
    * so it extends the prompt-cached prefix.
    */
   organizationContextData?: string;
+  /**
+   * The office's document details and letterhead, which the document generator
+   * fills in on its own, so the chat never reports them as missing.
+   */
+  officeDocumentContext?: string;
   researchAgentStatus?: string;
   projectContextData?: string;
   projectFieldsContext?: string;

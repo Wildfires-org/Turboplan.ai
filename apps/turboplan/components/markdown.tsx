@@ -4,8 +4,17 @@ import React, { memo, useEffect, useMemo, useState } from "react";
 
 import type { CodeHighlighterPlugin } from "@streamdown/code";
 import Link from "next/link";
-import { type Components, Streamdown } from "streamdown";
+import {
+  type Components,
+  defaultRehypePlugins,
+  defaultRemarkPlugins,
+  Streamdown,
+} from "streamdown";
 
+import {
+  rehypeTightBlocks,
+  remarkLineBreaks,
+} from "@/lib/editor/markdown-plugins";
 import { highlightPlaceholders } from "@/lib/markdown-placeholders";
 import {
   stripPlaceholderNotes,
@@ -61,6 +70,71 @@ const ALIGN_CLASSES: Record<string, string> = {
   center: "text-center",
 };
 
+// The editor renders soft breaks as <br> (see remarkLineBreaks), so one markdown
+// paragraph can hold several aligned lines ("{right}A\n{right}B") or an aligned
+// line followed by body text. The export treats each line on its own, so split
+// such a paragraph: every aligned line becomes its own aligned <p>, and the
+// other lines stay together, joined by <br>. `data-tight-before` records that a
+// part sat on the next line (not after a blank line), so the editor's
+// serializer writes it back that way.
+type ParagraphGroup = { align: string | null; lines: React.ReactNode[][] };
+
+const isLineBreak = (node: React.ReactNode) =>
+  React.isValidElement(node) && node.type === "br";
+
+const splitLines = (children: React.ReactNode[]): React.ReactNode[][] => {
+  const lines: React.ReactNode[][] = [[]];
+  for (const child of children) {
+    const line = lines[lines.length - 1];
+    if (isLineBreak(child)) {
+      lines.push([]);
+    } else if (typeof child === "string" && line.length === 0) {
+      // Drop the "\n" that follows each <br> in the HTML, so a marker at the
+      // start of the line is found.
+      const text = child.replace(/^\n/, "");
+      if (text) {
+        line.push(text);
+      }
+    } else {
+      line.push(child);
+    }
+  }
+  return lines;
+};
+
+const lineAlignment = (line: React.ReactNode[]) => {
+  const first = line[0];
+  return typeof first === "string"
+    ? (first.match(ALIGNED_LINE_REGEX)?.[1] ?? null)
+    : null;
+};
+
+const stripAlignment = (line: React.ReactNode[]): React.ReactNode[] => {
+  const [first, ...rest] = line;
+  return [String(first).replace(ALIGNED_LINE_REGEX, ""), ...rest];
+};
+
+const groupLines = (lines: React.ReactNode[][]): ParagraphGroup[] => {
+  const groups: ParagraphGroup[] = [];
+  for (const line of lines) {
+    const align = lineAlignment(line);
+    const last = groups.at(-1);
+    if (align) {
+      groups.push({ align, lines: [stripAlignment(line)] });
+    } else if (last && !last.align) {
+      last.lines.push(line);
+    } else {
+      groups.push({ align: null, lines: [line] });
+    }
+  }
+  return groups;
+};
+
+const joinLines = (lines: React.ReactNode[][]): React.ReactNode[] =>
+  lines.flatMap((line, index) =>
+    index === 0 ? line : [<br key={`br-${index}`} />, ...line],
+  );
+
 const components: Partial<Components> = {
   a: ({ node, children, ...props }) => {
     return (
@@ -86,6 +160,24 @@ const components: Partial<Components> = {
   },
   p: ({ node, children, ...props }) => {
     const childArray = React.Children.toArray(children);
+    const lines = splitLines(childArray);
+    if (lines.length > 1 && lines.some((line) => lineAlignment(line))) {
+      const groups = groupLines(lines);
+      return (
+        <>
+          {groups.map((group, index) => (
+            <p
+              key={index}
+              {...props}
+              {...(index > 0 && { "data-tight-before": true })}
+              className={group.align ? ALIGN_CLASSES[group.align] : undefined}
+            >
+              {highlightPlaceholders(joinLines(group.lines))}
+            </p>
+          ))}
+        </>
+      );
+    }
     const firstChild = childArray[0];
     if (typeof firstChild === "string") {
       const alignMatch = firstChild.match(ALIGNED_LINE_REGEX);
@@ -113,11 +205,26 @@ const components: Partial<Components> = {
   },
 };
 
+const EDITOR_REMARK_PLUGINS = [
+  ...Object.values(defaultRemarkPlugins),
+  remarkLineBreaks,
+];
+const EDITOR_REHYPE_PLUGINS = [
+  ...Object.values(defaultRehypePlugins),
+  rehypeTightBlocks,
+];
+// One block, so rehypeTightBlocks sees how every block sits against the last.
+const parseAsOneBlock = (markdown: string) => [markdown];
+
 const NonMemoizedMarkdown = ({
   children,
   stripNotes = true,
+  lineBreaks = false,
 }: {
   children: string;
+  // The document editor treats a single newline as a line break, like the
+  // PDF/DOCX export. Chat and other display surfaces keep markdown's default.
+  lineBreaks?: boolean;
   // Display surfaces (chat, copy) strip reviewer-guidance notes. The editor's
   // document builder passes `false` so the notes survive into the ProseMirror
   // doc — and thus through edits to the docx export — where a decoration hides
@@ -131,6 +238,13 @@ const NonMemoizedMarkdown = ({
     ? stripPlaceholderNotes(children)
     : stripPlaceholderNotesInTableRows(children);
   const normalized = source.replace(/(?<=.) *\{(right|center)\}/g, "\n\n{$1}");
+  const editorProps = lineBreaks
+    ? {
+        remarkPlugins: EDITOR_REMARK_PLUGINS,
+        rehypePlugins: EDITOR_REHYPE_PLUGINS,
+        parseMarkdownIntoBlocksFn: parseAsOneBlock,
+      }
+    : {};
   const plugins = useMemo(
     () => (codePlugin ? { code: codePlugin } : undefined),
     [codePlugin],
@@ -139,6 +253,7 @@ const NonMemoizedMarkdown = ({
     <Streamdown
       className="size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
       plugins={plugins}
+      {...editorProps}
       components={components}
     >
       {normalized}
@@ -150,5 +265,6 @@ export const Markdown = memo(
   NonMemoizedMarkdown,
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children &&
-    prevProps.stripNotes === nextProps.stripNotes,
+    prevProps.stripNotes === nextProps.stripNotes &&
+    prevProps.lineBreaks === nextProps.lineBreaks,
 );

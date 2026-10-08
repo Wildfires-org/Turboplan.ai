@@ -208,7 +208,7 @@ test.describe("Document letterhead API", () => {
     expect(unknownDocument.status()).toBe(404);
 
     // A document of another project (the outsider's own workspace).
-    const other = await createOwnedWorkspace("letterhead-api-other");
+    const other = await createOwnedWorkspace("lh-api-other");
     const { documentId: otherDocumentId } = await seedChatDocument({
       userId: other.owner.id,
       projectId: other.projectId,

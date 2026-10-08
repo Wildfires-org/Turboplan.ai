@@ -103,7 +103,7 @@ test.describe("Office Slug Updates", () => {
       .waitFor({ state: "visible" });
 
     // Update the name
-    const nameInput = page.getByLabel("Name");
+    const nameInput = page.getByRole("textbox", { name: /^Name/ });
     await nameInput.clear();
     await nameInput.fill(newOfficeName);
 

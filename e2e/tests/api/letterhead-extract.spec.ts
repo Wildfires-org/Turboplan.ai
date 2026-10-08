@@ -32,7 +32,7 @@ test.describe("Letterhead import (extract) API", () => {
   let outsider: ApiTestUser;
 
   test.beforeAll(async () => {
-    workspace = await createOwnedWorkspace("letterhead-extract-api");
+    workspace = await createOwnedWorkspace("lh-extract-api");
     viewer = await createApiTestUser("letterhead-extract-api-viewer");
     outsider = await createApiTestUser("letterhead-extract-api-outsider");
     await addOrganizationViewer({
