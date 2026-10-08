@@ -72,7 +72,7 @@ export function SidebarUserSection({
                 src={profile?.avatarUrl || ""}
                 alt={displayName || undefined}
               />
-              <AvatarFallback className="bg-primary text-primary-foreground">
+              <AvatarFallback className="bg-slate-100 text-slate-700">
                 {initials}
               </AvatarFallback>
             </Avatar>

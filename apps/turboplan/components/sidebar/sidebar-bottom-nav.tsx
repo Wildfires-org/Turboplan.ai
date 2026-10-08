@@ -71,7 +71,7 @@ export function SidebarBottomNav() {
   if (bottomNavItems.length === 0) return null;
 
   return (
-    <SidebarGroup className="border-t border-brandAlt-100 bg-white py-3">
+    <SidebarGroup className="border-t border-slate-100 bg-white py-3">
       <SidebarGroupContent>
         <SidebarMenu>
           {bottomNavItems.map((item) => (

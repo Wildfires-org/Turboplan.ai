@@ -287,9 +287,9 @@ export function SidebarProjectContent({
                     isActive={active}
                     asChild
                     className={cn(
-                      "text-gray-550 hover:bg-brandAlt-100 hover:text-brand-900 [&>svg]:text-current",
+                      "text-gray-550 hover:bg-slate-900/[0.04] hover:text-slate-900 [&>svg]:text-current",
                       active &&
-                        "!bg-brand-800 !text-white hover:!bg-brand-800 hover:!text-white data-[active=true]:!bg-brand-800 data-[active=true]:!text-white",
+                        "!bg-slate-900/[0.07] !text-slate-900 hover:!bg-slate-900/[0.07] hover:!text-slate-900 data-[active=true]:!bg-slate-900/[0.07] data-[active=true]:!text-slate-900",
                     )}
                   >
                     <Link href={itemHref}>

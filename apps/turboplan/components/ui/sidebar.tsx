@@ -552,7 +552,7 @@ SidebarMenuItem.displayName = "SidebarMenuItem";
 // icon itself - avatars, initials badges, skeleton icon squares - opt out with
 // `data-sidebar-keep`, or they would vanish along with the label.
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-lg p-3 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding,background-color,color] hover:bg-brandAlt-100 hover:text-brand-900 focus-visible:ring-2 active:bg-brandAlt-100 active:text-brand-900 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-brand-800 data-[active=true]:font-medium data-[active=true]:text-white data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] data-[active=true]:[&>svg]:text-white data-[state=open]:hover:bg-brandAlt-100 data-[state=open]:hover:text-brand-900 group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:[&>span:not([data-sidebar-keep])]:hidden [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-lg p-3 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding,background-color,color] hover:bg-slate-900/[0.04] hover:text-slate-900 focus-visible:ring-2 active:bg-slate-900/[0.06] active:text-slate-900 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-slate-900/[0.07] data-[active=true]:font-medium data-[active=true]:text-slate-900 data-[active=true]:[&>svg]:text-slate-900 data-[state=open]:hover:bg-slate-900/[0.04] data-[state=open]:hover:text-slate-900 group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:[&>span:not([data-sidebar-keep])]:hidden [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -763,7 +763,7 @@ const SidebarMenuSubButton = React.forwardRef<
       data-active={isActive}
       className={cn(
         "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
-        "data-[active=true]:bg-brand-800 data-[active=true]:font-medium data-[active=true]:text-white data-[active=true]:[&>svg]:text-white",
+        "data-[active=true]:bg-slate-900/[0.07] data-[active=true]:font-medium data-[active=true]:text-slate-900 data-[active=true]:[&>svg]:text-slate-900",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
         "group-data-[collapsible=icon]:hidden",

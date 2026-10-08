@@ -26,7 +26,7 @@ import { OrgAvatar } from "../org-avatar";
 const SEPARATOR_CLASS = "h-px shrink-0 bg-slate-900/[0.06] dark:bg-white/10";
 
 const ICON_BUTTON_CLASS =
-  "press flex size-7 items-center justify-center rounded-lg text-gray-550 hover:bg-brandAlt-100 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700";
+  "press flex size-7 items-center justify-center rounded-lg text-gray-550 hover:bg-slate-900/[0.04] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-400";
 
 export const ORG_MEMBERSHIP_FILTER_STORAGE_KEY =
   "turboplan-org-switcher-members-only";
@@ -196,7 +196,7 @@ export function SidebarOrgOfficeSearch({
 
   return (
     <div className="flex flex-col">
-      <label className="glass-inset flex h-9 items-center gap-2 rounded-xl px-3 focus-within:outline focus-within:outline-2 focus-within:outline-brand-700/40">
+      <label className="glass-inset flex h-9 items-center gap-2 rounded-xl px-3 focus-within:outline focus-within:outline-2 focus-within:outline-slate-400/50">
         <Search aria-hidden className="size-4 shrink-0 text-gray-550" />
         <input
           ref={inputRef}
@@ -247,7 +247,7 @@ export function SidebarOrgOfficeSearch({
             <div key={org.id} className="flex flex-col gap-0.5">
               {index > 0 && <div className={cn(SEPARATOR_CLASS, "my-1")} />}
 
-              <div className="group/org flex h-11 w-full items-center gap-2 rounded-xl px-2 transition-colors hover:bg-brandAlt-100/60">
+              <div className="group/org flex h-11 w-full items-center gap-2 rounded-xl px-2 transition-colors hover:bg-slate-900/[0.03]">
                 <button
                   type="button"
                   onClick={() => hasOffices && toggleOrg(org.id)}
@@ -264,7 +264,7 @@ export function SidebarOrgOfficeSearch({
                     logoUrl={org.logoUrl}
                     className={cn(
                       "size-8 shrink-0 rounded-lg border border-white shadow-sm",
-                      isCurrentOrg && "ring-2 ring-brand-800/25",
+                      isCurrentOrg && "ring-2 ring-slate-900/15",
                     )}
                   />
                   <span
@@ -280,7 +280,7 @@ export function SidebarOrgOfficeSearch({
                       No offices available
                     </span>
                   ) : isCurrentOrg ? (
-                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium leading-4 text-brand-800 ring-1 ring-inset ring-brand-800/15">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium leading-4 text-slate-600 ring-1 ring-inset ring-slate-900/[0.06]">
                       Active
                     </span>
                   ) : (
@@ -340,10 +340,10 @@ export function SidebarOrgOfficeSearch({
                         }}
                         aria-current={isCurrent ? "page" : undefined}
                         className={cn(
-                          "group/office flex h-9 w-full items-center gap-2.5 rounded-xl px-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700",
+                          "group/office flex h-9 w-full items-center gap-2.5 rounded-xl px-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-400",
                           isCurrent
-                            ? "bg-brandAlt-100 text-brand-900"
-                            : "text-foreground hover:bg-brandAlt-100/60",
+                            ? "bg-slate-900/[0.06] text-slate-900"
+                            : "text-foreground hover:bg-slate-900/[0.03]",
                         )}
                       >
                         {/* Gutter the width of the org avatar, so office names
@@ -352,7 +352,7 @@ export function SidebarOrgOfficeSearch({
                           {isCurrent && (
                             <Check
                               aria-hidden
-                              className="size-4 text-brand-800"
+                              className="size-4 text-slate-700"
                             />
                           )}
                         </span>
@@ -368,7 +368,7 @@ export function SidebarOrgOfficeSearch({
                         </span>
 
                         {!isCurrent && (
-                          <span className="flex items-center gap-1 text-xs font-medium text-brand-800 opacity-0 transition-opacity group-hover/office:opacity-100 group-focus-visible/office:opacity-100">
+                          <span className="flex items-center gap-1 text-xs font-medium text-slate-700 opacity-0 transition-opacity group-hover/office:opacity-100 group-focus-visible/office:opacity-100">
                             Switch
                             <ArrowRight aria-hidden className="size-3.5" />
                           </span>
@@ -409,7 +409,7 @@ export function SidebarOrgOfficeSearch({
               aria-label="Only my organizations"
               // The shared Switch defaults to `bg-primary` (near-black here);
               // match the popover's green accent instead.
-              className="data-[state=checked]:bg-brand-800"
+              className="data-[state=checked]:bg-slate-800"
             />
           </div>
         </>

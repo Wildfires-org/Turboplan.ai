@@ -74,7 +74,7 @@ export function NavUser({ user, profile }: NavUserProps) {
                   src={profile?.avatarUrl || ""}
                   alt={displayName || undefined}
                 />
-                <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
+                <AvatarFallback className="rounded-lg bg-slate-100 text-slate-700">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -98,7 +98,7 @@ export function NavUser({ user, profile }: NavUserProps) {
                     src={profile?.avatarUrl || ""}
                     alt={displayName || undefined}
                   />
-                  <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
+                  <AvatarFallback className="rounded-lg bg-slate-100 text-slate-700">
                     {initials}
                   </AvatarFallback>
                 </Avatar>

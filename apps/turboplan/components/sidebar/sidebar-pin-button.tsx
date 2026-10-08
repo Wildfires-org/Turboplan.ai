@@ -28,7 +28,7 @@ export function SidebarPinButton({
           onClick={onToggle}
         >
           {isPinned ? (
-            <PanelRight className="size-4 text-green-600" />
+            <PanelRight className="size-4 text-slate-500" />
           ) : (
             <PanelRightDashed className="size-4 text-muted-foreground" />
           )}

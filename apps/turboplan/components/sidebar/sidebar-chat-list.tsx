@@ -33,10 +33,10 @@ import {
   PROJECT_NAV_SUB_ITEM_CLASS,
 } from "./sidebar-project-nav-classes";
 
-/** Small mint icon button (brand chip tone): brand-800 glyph on brand-50,
+/** Small neutral icon button: slate glyph on white with a hairline ring,
  * inset hairline, press scale + outline focus like the glass buttons. */
 const NEW_CHAT_BUTTON_CLASS =
-  "size-8 shrink-0 rounded-lg bg-brand-50 text-brand-800 ring-1 ring-inset ring-brand-800/15 transition-[transform,background-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-brand-100 hover:text-brand-900 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 focus-visible:ring-1 focus-visible:ring-offset-0 disabled:bg-slate-100 disabled:text-slate-500 disabled:opacity-100 disabled:ring-slate-900/[0.08] motion-reduce:active:scale-100";
+  "size-8 shrink-0 rounded-lg bg-white text-slate-600 ring-1 ring-inset ring-slate-900/10 transition-[transform,background-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-slate-50 hover:text-slate-900 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 focus-visible:ring-1 focus-visible:ring-offset-0 disabled:bg-slate-100 disabled:text-slate-500 disabled:opacity-100 disabled:ring-slate-900/[0.08] motion-reduce:active:scale-100";
 
 interface SidebarChatListProps {
   projectId: string;
@@ -170,8 +170,9 @@ export function SidebarChatList({
                   key={chatEntry.id}
                   href={chatHref}
                   className={cn(
-                    "flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-xs text-gray-550 transition-colors hover:bg-brandAlt-100 hover:text-brand-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700",
-                    chatActive && "bg-brand-50 font-medium text-brand-900",
+                    "flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-xs text-gray-550 transition-colors hover:bg-slate-900/[0.04] hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-400",
+                    chatActive &&
+                      "bg-slate-900/[0.06] font-medium text-slate-900",
                   )}
                 >
                   {chatEntry.isInitial && (
