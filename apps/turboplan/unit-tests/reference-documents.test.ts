@@ -129,6 +129,30 @@ describe("resolveReferenceDocuments", () => {
 
     assert.deepEqual(documents, []);
   });
+
+  it("gives up on a slow fetch and keeps the cached references", async (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const cache = createReferenceCache();
+    cache.remember([
+      { url: "https://a.gov/cached", title: "Cached", text: "Cached body" },
+    ]);
+    const startedAt = Date.now();
+
+    const documents = await resolveReferenceDocuments({
+      urls: ["https://a.gov/cached", "https://a.gov/slow"],
+      cache,
+      fetchContents: () => new Promise(() => {}),
+      timeoutMs: 20,
+    });
+
+    assert.deepEqual(documents, [
+      { url: "https://a.gov/cached", title: "Cached", text: "Cached body" },
+    ]);
+    assert.ok(Date.now() - startedAt < 1_000);
+    const logged = warn.mock.calls.flatMap((call) => call.arguments).join(" ");
+    assert.match(logged, /TimeoutError/);
+    assert.doesNotMatch(logged, /a\.gov\/slow/);
+  });
 });
 
 describe("formatReferenceDocuments", () => {

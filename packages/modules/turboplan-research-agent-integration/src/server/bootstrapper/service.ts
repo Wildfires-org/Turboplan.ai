@@ -64,6 +64,7 @@ import {
   insertMilestonesWithTasks,
   insertProjectFields,
   updateLastForwardedAt,
+  updateResearchAgentChatByExternalId,
   updateResearchAgentChatExternalId,
   updateResearchAgentChatStatus,
   updateResearchAgentMessageData,
@@ -530,7 +531,9 @@ export const startResearchAgent = async ({
 /**
  * If the external agent finished but our DB still shows "active",
  * reconcile the DB and return the updated status/step.
- * Returns null when no reconciliation was needed.
+ * Returns null when nothing was written: the agent is still running, or the
+ * row is already terminal (cancelled, or finished by a webhook) or was reset
+ * by a retry.
  */
 export async function reconcileExternalStatus(
   chatId: string,
@@ -559,16 +562,24 @@ export async function reconcileExternalStatus(
         ? "Analysis complete"
         : `Agent ${externalStatus.status}: ${externalStatus.lastError ?? "unknown error"}`;
 
-    await updateResearchAgentChatStatus({
-      chatId,
+    // Runs on every progress webhook as well as the status poll, so it can land
+    // after a cancel or a retry. Scope the write to this run and skip terminal
+    // rows: a by-chat write would turn CANCELLED into FAILED, or fail the
+    // retried run (a retry clears externalRunId, so this misses it).
+    const updated = await updateResearchAgentChatByExternalId({
+      externalRunId,
       status: reconciledStatus,
       currentStep: reconciledStep,
     });
 
+    if (!updated) {
+      return null;
+    }
+
     return { status: reconciledStatus, currentStep: reconciledStep };
   } catch (error) {
     console.error(
-      "[bootstrapper-fallback] Failed to check external status:",
+      `[bootstrapper-fallback] Failed to check external status for chat ${chatId}:`,
       error,
     );
     return null;

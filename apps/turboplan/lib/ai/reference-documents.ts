@@ -4,6 +4,12 @@ export const MAX_REFERENCE_URLS = 2;
 /** Per-reference cap on injected text; matches getContents' deep-read cap. */
 export const MAX_REFERENCE_CHARS = 10_000;
 
+/**
+ * How long a cache-miss fetch may hold up a document. The artifact panel is
+ * already open by then, and Exa's own timeout (30s) would leave it blank.
+ */
+export const REFERENCE_FETCH_TIMEOUT_MS = 10_000;
+
 const TRUNCATION_MARKER = "\n\n[Reference text truncated here.]";
 
 export type ReferenceDocument = {
@@ -76,19 +82,45 @@ const capText = (document: ReferenceDocument): ReferenceDocument =>
       }
     : document;
 
+const fetchWithTimeout = async (
+  fetchContents: FetchReferenceContents,
+  urls: string[],
+  timeoutMs: number,
+): Promise<{ results: ContentResult[] }> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`Reference fetch exceeded ${timeoutMs}ms`);
+      error.name = "TimeoutError";
+      reject(error);
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([
+      fetchContents(urls, MAX_REFERENCE_CHARS),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 /**
  * Text for up to MAX_REFERENCE_URLS reference URLs: cached reads first, one
- * fetch for the rest. URLs that are invalid or cannot be read are dropped, so
- * a bad reference never blocks the document.
+ * fetch for the rest. URLs that are invalid, cannot be read, or take longer
+ * than `timeoutMs` to fetch are dropped, so a bad reference never blocks the
+ * document.
  */
 export const resolveReferenceDocuments = async ({
   urls,
   cache,
   fetchContents,
+  timeoutMs = REFERENCE_FETCH_TIMEOUT_MS,
 }: {
   urls: string[];
   cache: ReferenceCache;
   fetchContents: FetchReferenceContents;
+  timeoutMs?: number;
 }): Promise<ReferenceDocument[]> => {
   const seenKeys = new Set<string>();
   const requested = urls
@@ -111,15 +143,22 @@ export const resolveReferenceDocuments = async ({
   let fetched: ReferenceDocument[] = [];
   if (misses.length > 0) {
     try {
-      const { results } = await fetchContents(misses, MAX_REFERENCE_CHARS);
+      const { results } = await fetchWithTimeout(
+        fetchContents,
+        misses,
+        timeoutMs,
+      );
       fetched = results.flatMap(({ url, title, text }) =>
         text ? [{ url, title, text }] : [],
       );
     } catch (error) {
-      console.error(
-        "[Document] Reference fetch failed:",
-        error instanceof Error ? error.name : typeof error,
-      );
+      const errorName = error instanceof Error ? error.name : typeof error;
+      // A slow fetch is expected now and then; only real failures are errors.
+      if (errorName === "TimeoutError") {
+        console.warn("[Document] Reference fetch timed out:", errorName);
+      } else {
+        console.error("[Document] Reference fetch failed:", errorName);
+      }
     }
   }
 
