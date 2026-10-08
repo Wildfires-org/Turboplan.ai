@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { billingCreditUsage, organization } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
 
 import { CATALOG, type PlanKey, planHasHardStop } from "../types";
@@ -58,6 +59,11 @@ const isStampableThreshold = (value: number): value is AlertThreshold =>
  * Stamps every crossed threshold and emails org owners about the HIGHEST one
  * (a burst that jumps 0→100% sends one email, not three; the lower stamps are
  * still set so no later, stale alert fires).
+ *
+ * Skipped for hard-stop plans when billing enforcement is disabled
+ * (`IS_BILLING_ENFORCEMENT_ENABLED=false`): there is no hard stop to warn
+ * about, and the 100% copy would wrongly say AI features are paused. Paid
+ * plans still get alerts — their overage keeps billing either way.
  */
 export const maybeSendUsageAlerts = async (params: {
   organizationId: string;
@@ -67,6 +73,10 @@ export const maybeSendUsageAlerts = async (params: {
   allowance: number;
   plan: PlanKey;
 }): Promise<void> => {
+  if (!isBillingEnforcementEnabled() && planHasHardStop(params.plan)) {
+    return;
+  }
+
   const crossed = crossedThresholds({
     usedBefore: params.usedBefore,
     usedAfter: params.usedAfter,

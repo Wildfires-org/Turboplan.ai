@@ -19,6 +19,8 @@ const entitlementsUrl = new URL(
   "../src/server/entitlements.ts",
   import.meta.url,
 ).href;
+const usageAlertsUrl = new URL("../src/server/usage-alerts.ts", import.meta.url)
+  .href;
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 
 type ChildResult = {
@@ -28,6 +30,7 @@ type ChildResult = {
     credits: string;
     requiresUpgrade: boolean;
     seatAllowed: boolean;
+    usageAlert: string;
   };
 };
 
@@ -44,14 +47,26 @@ const runWithEnv = (
     if (${callGates}) {
       const { assertCreditsAvailable } = await import(${JSON.stringify(creditsUrl)});
       const { getProjectCreationEntitlement, assertSeatAvailable } = await import(${JSON.stringify(entitlementsUrl)});
+      const { maybeSendUsageAlerts } = await import(${JSON.stringify(usageAlertsUrl)});
       const orgId = "00000000-0000-0000-0000-000000000000";
       await assertCreditsAvailable(orgId, 1000000);
       const entitlement = await getProjectCreationEntitlement(orgId);
       const seat = await assertSeatAvailable({ organizationId: orgId, addedBillableSeats: 1000 });
+      // Crosses every threshold on a hard-stop plan: without the gate this
+      // would hit the DB and fail.
+      await maybeSendUsageAlerts({
+        organizationId: orgId,
+        periodStart: new Date(),
+        usedBefore: 0,
+        usedAfter: 5000,
+        allowance: 5000,
+        plan: "starter",
+      });
       result.gates = {
         credits: "passed",
         requiresUpgrade: entitlement.requiresUpgrade,
         seatAllowed: seat.allowed,
+        usageAlert: "skipped",
       };
     }
     console.log(JSON.stringify(result));
@@ -111,6 +126,7 @@ describe("billing enforcement flag", () => {
         credits: "passed",
         requiresUpgrade: false,
         seatAllowed: true,
+        usageAlert: "skipped",
       });
     });
   }
@@ -123,6 +139,7 @@ describe("billing enforcement flag", () => {
       credits: "passed",
       requiresUpgrade: false,
       seatAllowed: true,
+      usageAlert: "skipped",
     });
   });
 });
