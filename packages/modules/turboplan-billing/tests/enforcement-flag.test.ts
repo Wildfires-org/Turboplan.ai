@@ -52,15 +52,15 @@ const runWithEnv = (
       await assertCreditsAvailable(orgId, 1000000);
       const entitlement = await getProjectCreationEntitlement(orgId);
       const seat = await assertSeatAvailable({ organizationId: orgId, addedBillableSeats: 1000 });
-      // Crosses every threshold on a hard-stop plan: without the gate this
-      // would hit the DB and fail.
+      // Crosses every threshold on a paid plan: without the gate this would
+      // hit the DB and fail.
       await maybeSendUsageAlerts({
         organizationId: orgId,
         periodStart: new Date(),
         usedBefore: 0,
         usedAfter: 5000,
         allowance: 5000,
-        plan: "starter",
+        plan: "pro",
       });
       result.gates = {
         credits: "passed",

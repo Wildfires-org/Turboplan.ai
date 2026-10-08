@@ -60,10 +60,8 @@ const isStampableThreshold = (value: number): value is AlertThreshold =>
  * (a burst that jumps 0→100% sends one email, not three; the lower stamps are
  * still set so no later, stale alert fires).
  *
- * Skipped for hard-stop plans when billing enforcement is disabled
- * (`IS_BILLING_ENFORCEMENT_ENABLED=false`): there is no hard stop to warn
- * about, and the 100% copy would wrongly say AI features are paused. Paid
- * plans still get alerts — their overage keeps billing either way.
+ * Skipped on every plan when billing enforcement is disabled
+ * (`IS_BILLING_ENFORCEMENT_ENABLED=false`).
  */
 export const maybeSendUsageAlerts = async (params: {
   organizationId: string;
@@ -73,7 +71,7 @@ export const maybeSendUsageAlerts = async (params: {
   allowance: number;
   plan: PlanKey;
 }): Promise<void> => {
-  if (!isBillingEnforcementEnabled() && planHasHardStop(params.plan)) {
+  if (!isBillingEnforcementEnabled()) {
     return;
   }
 
