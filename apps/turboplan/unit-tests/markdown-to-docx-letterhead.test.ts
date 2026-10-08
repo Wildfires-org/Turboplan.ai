@@ -287,3 +287,79 @@ describe("DOCX body tables", () => {
     assert.ok(xml.includes(">extra</w:t>"), "surplus cell missing");
   });
 });
+
+describe("DOCX banner letterhead and brand color", () => {
+  // A 1×1 PNG; the exporter only needs bytes plus the intrinsic size below.
+  const PNG_BYTES = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64",
+  );
+  const banner = {
+    data: PNG_BYTES,
+    type: "png" as const,
+    width: 2400,
+    height: 400,
+  };
+  // Content width in px at 96 dpi (9026 twips / 15).
+  const CONTENT_WIDTH_PX = 601;
+  const EMU_PER_PX = 9525;
+
+  const renderWith = async (
+    markdown: string,
+    placement: "banner" | "inline",
+    color?: string,
+  ): Promise<string> => {
+    const blob = await generateDocxFromMarkdown(
+      markdown,
+      "Test",
+      banner,
+      undefined,
+      placement,
+      color,
+    );
+    return readZipEntry(
+      Buffer.from(await blob.arrayBuffer()),
+      "word/document.xml",
+    );
+  };
+
+  it("draws the banner full content width, keeping its aspect, then a colored rule", async () => {
+    const xml = await renderWith("Dear reader,", "banner", "#1f5f3a");
+    const extent = xml.match(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/);
+    assert.ok(extent, "no banner image");
+    assert.strictEqual(Number(extent[1]), CONTENT_WIDTH_PX * EMU_PER_PX);
+    assert.strictEqual(
+      Number(extent[2]),
+      Math.round(CONTENT_WIDTH_PX / 6) * EMU_PER_PX,
+    );
+    // The image paragraph comes first, the rule right after it.
+    assert.ok(xml.indexOf("<wp:inline") < xml.indexOf('w:color="1F5F3A"'));
+    assert.match(xml, /<w:bottom w:val="single" w:color="1F5F3A"/);
+  });
+
+  it("treats the first table as body content under a banner", async () => {
+    const xml = await renderWith(
+      "| A | B |\n| --- | --- |\n| 1 | 2 |",
+      "banner",
+    );
+    // Body tables carry the visible grid; the letterhead would be borderless.
+    assert.ok(
+      borderStyles(firstTable(xml)).some(([, style]) => style === "single"),
+    );
+  });
+
+  it("colors the letterhead's bold runs and its rule, not the body", async () => {
+    const xml = await renderWith(
+      "| **Forest Service** | 3348 Alpine Blvd |\n| :--- | ---: |\n\nBody **text**",
+      "inline",
+      "#1e3a8a",
+    );
+    assert.match(
+      runWithText(xml, "Forest Service"),
+      /<w:color w:val="1E3A8A"\/>/,
+    );
+    assert.doesNotMatch(runWithText(xml, "3348 Alpine Blvd"), /<w:color /);
+    assert.doesNotMatch(runWithText(xml, "text"), /<w:color /);
+    assert.match(xml, /<w:bottom w:val="single" w:color="1E3A8A"/);
+  });
+});

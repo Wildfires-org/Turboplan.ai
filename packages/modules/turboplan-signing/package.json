@@ -44,6 +44,7 @@
     "@wildfires-org/turboplan-timeline-records": "workspace:*",
     "@wildfires-org/turboplan-upload": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
+    "@wildfires-org/turboplan-workspace": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.23",
     "lucide-react": "^0.446.0",

@@ -38,6 +38,7 @@ import {
   normalizeEmailDomains,
 } from "@wildfires-org/turboplan-utils/server";
 
+import { normalizeDocumentProfile } from "../../document-profile";
 import type { PendingInvitation } from "../../types";
 import { sendMemberAddedNotification } from "../invitations/email";
 import { getEntityInvitationsWithInviter } from "../invitations/queries";
@@ -175,6 +176,11 @@ organizationsRouter.put(
         documentFooterText,
         documentFooterNote,
         documentFooterLogoUrl,
+        documentLetterheadLayout,
+        documentLetterheadLines,
+        documentLetterheadContact,
+        documentLetterheadColor,
+        documentProfile,
       } = validationResult.data;
 
       // Org `type` and `status` control public cataloging and email-domain
@@ -238,6 +244,14 @@ organizationsRouter.put(
         documentFooterText,
         documentFooterNote,
         documentFooterLogoUrl,
+        documentLetterheadLayout,
+        documentLetterheadLines,
+        documentLetterheadContact,
+        documentLetterheadColor,
+        documentProfile:
+          documentProfile === undefined
+            ? undefined
+            : normalizeDocumentProfile(documentProfile),
       });
 
       // Clean up old logos from storage once the row no longer points at them.

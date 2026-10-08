@@ -28,8 +28,13 @@ import {
 } from "@wildfires-org/turboplan-workspace/types";
 
 import { toast } from "@/components/toast";
+import type { LetterheadImportValues } from "@/lib/letterhead-import";
 import { AppUrls } from "@/lib/nav/urls";
-import { DocumentBrandingFields } from "./document-branding-fields";
+import {
+  DocumentBrandingFields,
+  toDocumentProfileErrors,
+  toDocumentProfileFormValues,
+} from "./document-branding-fields";
 
 const apiClient = new ApiClient();
 
@@ -61,6 +66,11 @@ export function EditOfficeDialog({
       documentFooterText: office.documentFooterText || "",
       documentFooterNote: office.documentFooterNote || "",
       documentFooterLogoUrl: office.documentFooterLogoUrl || "",
+      documentLetterheadLayout: office.documentLetterheadLayout ?? "split",
+      documentLetterheadLines: office.documentLetterheadLines || "",
+      documentLetterheadContact: office.documentLetterheadContact || "",
+      documentLetterheadColor: office.documentLetterheadColor || "",
+      documentProfile: toDocumentProfileFormValues(office.documentProfile),
     },
   });
 
@@ -71,6 +81,28 @@ export function EditOfficeDialog({
     setValue,
     formState: { errors },
   } = form;
+
+  // Fields read by "Import from document"; saved with the rest of the form.
+  const handleLetterheadImport = ({
+    layout,
+    lines,
+    contact,
+    color,
+    logoUrl,
+  }: LetterheadImportValues) => {
+    const options = { shouldDirty: true };
+    setValue("documentLetterheadLayout", layout, options);
+    setValue("documentLetterheadColor", color, options);
+    if (lines !== undefined) {
+      setValue("documentLetterheadLines", lines, options);
+    }
+    if (contact !== undefined) {
+      setValue("documentLetterheadContact", contact, options);
+    }
+    if (logoUrl) {
+      setValue("documentLogoUrl", logoUrl, options);
+    }
+  };
 
   const onSubmit = handleSubmit(async (data) => {
     setIsLoading(true);
@@ -139,6 +171,26 @@ export function EditOfficeDialog({
           <DocumentBrandingFields
             textField={register("documentFooterText")}
             noteField={register("documentFooterNote")}
+            letterheadLinesField={register("documentLetterheadLines")}
+            letterheadContactField={register("documentLetterheadContact")}
+            registerProfileField={(key) => register(`documentProfile.${key}`)}
+            profileErrors={toDocumentProfileErrors(errors.documentProfile)}
+            letterheadLayout={watch("documentLetterheadLayout") || "split"}
+            letterheadLines={watch("documentLetterheadLines") ?? ""}
+            letterheadContact={watch("documentLetterheadContact") ?? ""}
+            documentLogoUrl={watch("documentLogoUrl") ?? ""}
+            letterheadColor={watch("documentLetterheadColor") ?? ""}
+            onLetterheadLayoutChange={(layout) =>
+              setValue("documentLetterheadLayout", layout, {
+                shouldDirty: true,
+              })
+            }
+            onLetterheadColorChange={(color) =>
+              setValue("documentLetterheadColor", color, { shouldDirty: true })
+            }
+            onLetterheadImport={handleLetterheadImport}
+            organizationId={office.organizationId}
+            officeId={office.id}
             onDocumentLogoChange={(url) =>
               setValue("documentLogoUrl", url ?? "")
             }
@@ -149,6 +201,8 @@ export function EditOfficeDialog({
             initialFooterLogoUrl={office.documentFooterLogoUrl}
             textError={errors.documentFooterText?.message}
             noteError={errors.documentFooterNote?.message}
+            letterheadLinesError={errors.documentLetterheadLines?.message}
+            letterheadContactError={errors.documentLetterheadContact?.message}
             disabled={isLoading}
           />
 

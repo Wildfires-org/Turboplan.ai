@@ -1,6 +1,7 @@
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
 import { getServerUrl } from "@wildfires-org/turboplan-env";
 
+import { letterheadQuery } from "./letterhead";
 import type { DocxLetterheadLogo } from "./markdown-to-docx";
 
 const apiClient = new ApiClient();
@@ -20,13 +21,13 @@ const mimeToLogoType = (
   return null;
 };
 
-// Fetches the org/office document letterhead logo for a project so it can be
-// embedded into a client-generated .docx. A missing logo is a normal state, so
-// this NEVER throws — any failure returns null and the export proceeds without
-// a logo.
-export const fetchLetterheadLogo = async (
-  projectId?: string,
-): Promise<DocxLetterheadLogo | null> => {
+// Fetches the raw letterhead logo (PNG/JPEG) for a document's letterhead
+// selection (or the project's default when no documentId). A missing logo is
+// a normal state, so this NEVER throws — any failure returns null.
+export const fetchLetterheadLogoBlob = async (
+  projectId?: string | null,
+  documentId?: string | null,
+): Promise<{ blob: Blob; type: DocxLetterheadLogo["type"] } | null> => {
   if (!projectId) {
     return null;
   }
@@ -38,9 +39,7 @@ export const fetchLetterheadLogo = async (
     }
 
     const res = await fetch(
-      `${getServerUrl()}/api/documents/letterhead-logo?projectId=${encodeURIComponent(
-        projectId,
-      )}`,
+      `${getServerUrl()}/api/documents/letterhead-logo?${letterheadQuery(projectId, documentId)}`,
       {
         method: "GET",
         credentials: "include",
@@ -50,7 +49,7 @@ export const fetchLetterheadLogo = async (
       },
     );
 
-    // 204 (no logo configured) or any non-ok status means no logo to embed.
+    // 204 (no logo configured) or any non-ok status means no logo.
     if (res.status === 204 || !res.ok) {
       return null;
     }
@@ -65,16 +64,34 @@ export const fetchLetterheadLogo = async (
       return null;
     }
 
+    return { blob, type };
+  } catch {
+    return null;
+  }
+};
+
+// Fetches the letterhead logo so it can be embedded into a client-generated
+// .docx. Never throws — the export proceeds without a logo on any failure.
+export const fetchLetterheadLogo = async (
+  projectId?: string | null,
+  documentId?: string | null,
+): Promise<DocxLetterheadLogo | null> => {
+  const logo = await fetchLetterheadLogoBlob(projectId, documentId);
+  if (!logo) {
+    return null;
+  }
+
+  try {
     // createImageBitmap gives intrinsic dimensions needed to preserve aspect
     // ratio when scaling the logo to its display height in the docx.
-    const bitmap = await createImageBitmap(blob);
+    const bitmap = await createImageBitmap(logo.blob);
     const width = bitmap.width;
     const height = bitmap.height;
     bitmap.close();
 
-    const data = await blob.arrayBuffer();
+    const data = await logo.blob.arrayBuffer();
 
-    return { data, type, width, height };
+    return { data, type: logo.type, width, height };
   } catch {
     return null;
   }

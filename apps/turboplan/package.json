@@ -97,6 +97,7 @@
     "orderedmap": "^2.1.1",
     "papaparse": "^5.5.2",
     "partial-json-parser": "^1.2.2",
+    "pdfjs-dist": "4.8.69",
     "postgres": "^3.4.4",
     "posthog-js": "^1.417.1",
     "posthog-node": "^5.24.1",

@@ -18,6 +18,14 @@ import {
   isValidSlug,
 } from "@wildfires-org/turboplan-utils/server";
 
+import {
+  type DocumentProfile,
+  normalizeDocumentProfile,
+} from "../../document-profile";
+import {
+  type LetterheadLayout,
+  normalizeLetterheadColor,
+} from "../../letterhead";
 import type { SlugLookupResult } from "../../types";
 import { emitWorkspaceAnalytics } from "../analytics";
 import type { OfficeWithAccess, OrganizationWithOffices } from "./types";
@@ -288,6 +296,11 @@ export async function updateOrganization({
   documentFooterText,
   documentFooterNote,
   documentFooterLogoUrl,
+  documentLetterheadLayout,
+  documentLetterheadLines,
+  documentLetterheadContact,
+  documentLetterheadColor,
+  documentProfile,
 }: {
   id: string;
   name?: string;
@@ -303,6 +316,11 @@ export async function updateOrganization({
   documentFooterText?: string;
   documentFooterNote?: string;
   documentFooterLogoUrl?: string;
+  documentLetterheadLayout?: LetterheadLayout | "";
+  documentLetterheadLines?: string;
+  documentLetterheadContact?: string;
+  documentLetterheadColor?: string;
+  documentProfile?: DocumentProfile | null;
 }): Promise<unknown> {
   try {
     // Validate slug format if provided
@@ -336,6 +354,23 @@ export async function updateOrganization({
       }
       if (documentFooterLogoUrl !== undefined) {
         updateData.documentFooterLogoUrl = documentFooterLogoUrl;
+      }
+      if (documentLetterheadLayout !== undefined) {
+        updateData.documentLetterheadLayout = documentLetterheadLayout || null;
+      }
+      if (documentLetterheadLines !== undefined) {
+        updateData.documentLetterheadLines = documentLetterheadLines;
+      }
+      if (documentLetterheadContact !== undefined) {
+        updateData.documentLetterheadContact = documentLetterheadContact;
+      }
+      if (documentLetterheadColor !== undefined) {
+        updateData.documentLetterheadColor = normalizeLetterheadColor(
+          documentLetterheadColor,
+        );
+      }
+      if (documentProfile !== undefined) {
+        updateData.documentProfile = normalizeDocumentProfile(documentProfile);
       }
 
       // Handle slug change with history tracking

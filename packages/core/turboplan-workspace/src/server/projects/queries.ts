@@ -40,6 +40,15 @@ import {
   user,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
+import {
+  deleteDocumentLetterheadSelection,
+  getDocumentLetterheadById,
+  getDocumentLetterheadSelectionRow,
+  getOrganizationIdForProject,
+  getProjectIdByDocumentId,
+  listDocumentLetterheads,
+  upsertDocumentLetterheadSelection,
+} from "@wildfires-org/turboplan-db/queries";
 import { EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { isStorageUrl } from "@wildfires-org/turboplan-upload/server";
@@ -49,6 +58,20 @@ import {
   isValidSlug,
 } from "@wildfires-org/turboplan-utils/server";
 
+import {
+  type DocumentProfile,
+  mergeDocumentProfiles,
+} from "../../document-profile";
+import {
+  type DocumentLetterhead,
+  effectiveSelection,
+  type LetterheadLayout,
+  type LetterheadLogoPlacement,
+  type LetterheadSelection,
+  libraryLetterheadToDocumentLetterhead,
+  planLetterheadBranding,
+  selectionFromRow,
+} from "../../letterhead";
 import type { SlugLookupResult } from "../../types";
 import { getOfficeById } from "../offices/queries";
 import { getOrganizationById } from "../organizations/queries";
@@ -184,6 +207,72 @@ export async function getProjectLetterheadLogo(
 }
 
 /**
+ * The office → org default letterhead plus, for a banner, the URL of its
+ * graphic (the same entity's `documentLogoUrl`).
+ */
+async function resolveProjectDefaultLetterhead(projectId: string): Promise<{
+  letterhead: DocumentLetterhead | null;
+  bannerLogoUrl: string | null;
+}> {
+  const none = { letterhead: null, bannerLogoUrl: null };
+  const proj = await getProjectById(projectId);
+  if (!proj) {
+    return none;
+  }
+
+  const office = await getOfficeById(proj.officeId);
+  if (!office) {
+    return none;
+  }
+
+  const toLetterhead = (entity: {
+    documentLetterheadLayout: LetterheadLayout | null;
+    documentLetterheadLines: string | null;
+    documentLetterheadContact: string | null;
+    documentLetterheadColor: string | null;
+    documentLogoUrl: string | null;
+  }) => {
+    const letterhead = libraryLetterheadToDocumentLetterhead({
+      layout: entity.documentLetterheadLayout,
+      lines: entity.documentLetterheadLines,
+      contact: entity.documentLetterheadContact,
+      logoUrl: entity.documentLogoUrl,
+      color: entity.documentLetterheadColor,
+    });
+    if (!letterhead) {
+      return null;
+    }
+    return {
+      letterhead,
+      bannerLogoUrl:
+        letterhead.layout === "banner" ? entity.documentLogoUrl : null,
+    };
+  };
+
+  const fromOffice = toLetterhead(office);
+  if (fromOffice) {
+    return fromOffice;
+  }
+
+  const org = await getOrganizationById(office.organizationId);
+  return (org && toLetterhead(org)) || none;
+}
+
+/**
+ * Resolve the structured document letterhead for a project.
+ *
+ * Unlike the footer, the letterhead resolves as a whole (never mixing office
+ * and org lines or colors): the office wins when it is configured (name lines,
+ * or a banner with a document logo), else the organization, else null. Layout
+ * defaults to "split".
+ */
+export async function getProjectLetterhead(
+  projectId: string,
+): Promise<DocumentLetterhead | null> {
+  return (await resolveProjectDefaultLetterhead(projectId)).letterhead;
+}
+
+/**
  * Resolve the document footer for a project: tagline text, right-aligned note,
  * and footer logo bytes.
  *
@@ -222,6 +311,264 @@ export async function getProjectFooter(projectId: string): Promise<{
     console.error("Failed to fetch project footer:", error);
     return { text: null, note: null, logo: null };
   }
+}
+
+/**
+ * Resolve the document profile for a project: the office profile merged over
+ * the organization profile (office wins per field; facts are combined). An
+ * unknown project or office resolves to an empty profile.
+ */
+export async function getProjectDocumentProfile(
+  projectId: string,
+): Promise<DocumentProfile> {
+  const proj = await getProjectById(projectId);
+  if (!proj) {
+    return {};
+  }
+
+  const office = await getOfficeById(proj.officeId);
+  if (!office) {
+    return {};
+  }
+
+  const org = await getOrganizationById(office.organizationId);
+  return mergeDocumentProfiles(office.documentProfile, org?.documentProfile);
+}
+
+/** The letterhead a document selected (see {@link LetterheadSelection}). */
+export async function getDocumentLetterheadSelection(
+  documentId: string,
+): Promise<LetterheadSelection> {
+  return selectionFromRow(await getDocumentLetterheadSelectionRow(documentId));
+}
+
+type ImageBytes = { data: Uint8Array; contentType: string };
+
+type ResolvedSelection =
+  | { selection: "default" | "none"; library: null }
+  | {
+      selection: string;
+      library: NonNullable<
+        Awaited<ReturnType<typeof getDocumentLetterheadById>>
+      >;
+    };
+
+/**
+ * The selection that applies to `documentId` when rendered in `projectId`.
+ * A document outside the project, or a library letterhead outside the
+ * project's organization, resolves to "default".
+ */
+async function resolveSelection(
+  projectId: string,
+  documentId: string | undefined,
+): Promise<ResolvedSelection> {
+  if (!documentId) {
+    return { selection: "default", library: null };
+  }
+
+  if ((await getProjectIdByDocumentId({ id: documentId })) !== projectId) {
+    return { selection: "default", library: null };
+  }
+
+  const stored = await getDocumentLetterheadSelection(documentId);
+  if (stored === "default" || stored === "none") {
+    return { selection: stored, library: null };
+  }
+
+  const [library, organizationId] = await Promise.all([
+    getDocumentLetterheadById(stored),
+    getOrganizationIdForProject(projectId),
+  ]);
+  const selection = effectiveSelection(
+    stored,
+    library?.organizationId,
+    organizationId,
+  );
+  if (selection === "default" || !library) {
+    return { selection: "default", library: null };
+  }
+  return { selection, library };
+}
+
+const resolveProjectDefaultLetterheadSafe = (projectId: string) =>
+  resolveProjectDefaultLetterhead(projectId).catch((error: unknown) => {
+    console.error("Failed to resolve project letterhead:", error);
+    return { letterhead: null, bannerLogoUrl: null };
+  });
+
+const getProjectLetterheadSafe = async (projectId: string) =>
+  (await resolveProjectDefaultLetterheadSafe(projectId)).letterhead;
+
+const fetchLetterheadImage = (url: string | null) =>
+  fetchImageBytes(url).catch((error: unknown) => {
+    console.error("Failed to fetch letterhead logo:", error);
+    return null;
+  });
+
+/**
+ * Resolve the letterhead and letterhead logo a document is rendered with:
+ * the office → org default, none, or the selected library letterhead.
+ * Without a `documentId` this is always the default. For a banner the logo is
+ * the banner graphic of the entity the letterhead came from.
+ */
+export async function resolveDocumentLetterhead(
+  projectId: string,
+  documentId?: string,
+): Promise<{
+  letterhead: DocumentLetterhead | null;
+  logo: ImageBytes | null;
+  selection: LetterheadSelection;
+}> {
+  const { selection, library } = await resolveSelection(projectId, documentId);
+
+  if (selection === "none") {
+    return { letterhead: null, logo: null, selection };
+  }
+
+  if (!library) {
+    const { letterhead, bannerLogoUrl } =
+      await resolveProjectDefaultLetterheadSafe(projectId);
+    const logo =
+      letterhead?.layout === "banner"
+        ? await fetchLetterheadImage(bannerLogoUrl)
+        : await getProjectLetterheadLogo(projectId);
+    return { letterhead, logo, selection: "default" };
+  }
+
+  const logo = await fetchLetterheadImage(library.logoUrl);
+  return {
+    letterhead: libraryLetterheadToDocumentLetterhead(library),
+    logo,
+    selection,
+  };
+}
+
+/**
+ * Everything the letterhead picker shows for a document: the resolved
+ * letterhead and selection, the default (office → org) letterhead, and the
+ * project organization's library letterheads. No logo bytes are fetched.
+ */
+export async function getDocumentLetterheadOverview(
+  projectId: string,
+  documentId?: string,
+): Promise<{
+  letterhead: DocumentLetterhead | null;
+  selection: LetterheadSelection;
+  defaultLetterhead: DocumentLetterhead | null;
+  options: { id: string; name: string }[];
+}> {
+  const [{ selection, library }, defaultLetterhead, organizationId] =
+    await Promise.all([
+      resolveSelection(projectId, documentId),
+      getProjectLetterheadSafe(projectId),
+      getOrganizationIdForProject(projectId),
+    ]);
+  const libraryRows = organizationId
+    ? await listDocumentLetterheads(organizationId)
+    : [];
+
+  let letterhead: DocumentLetterhead | null = null;
+  if (library) {
+    letterhead = libraryLetterheadToDocumentLetterhead(library);
+  } else if (selection === "default") {
+    letterhead = defaultLetterhead;
+  }
+
+  return {
+    letterhead,
+    selection,
+    defaultLetterhead,
+    options: libraryRows.map(({ id, name }) => ({ id, name })),
+  };
+}
+
+/**
+ * Store a document's letterhead selection. Fails (without revealing which
+ * check failed) unless the document belongs to the project and a library
+ * letterhead belongs to the project's organization.
+ */
+export async function setDocumentLetterheadSelection({
+  projectId,
+  documentId,
+  selection,
+  userId,
+}: {
+  projectId: string;
+  documentId: string;
+  selection: LetterheadSelection;
+  userId: string;
+}): Promise<{ ok: true } | { ok: false; reason: "document" | "letterhead" }> {
+  if ((await getProjectIdByDocumentId({ id: documentId })) !== projectId) {
+    return { ok: false, reason: "document" };
+  }
+
+  if (selection === "default") {
+    await deleteDocumentLetterheadSelection(documentId);
+    return { ok: true };
+  }
+
+  if (selection === "none") {
+    await upsertDocumentLetterheadSelection({
+      documentId,
+      letterheadId: null,
+      updatedBy: userId,
+    });
+    return { ok: true };
+  }
+
+  const [library, organizationId] = await Promise.all([
+    getDocumentLetterheadById(selection),
+    getOrganizationIdForProject(projectId),
+  ]);
+  if (
+    effectiveSelection(selection, library?.organizationId, organizationId) !==
+    selection
+  ) {
+    return { ok: false, reason: "letterhead" };
+  }
+
+  await upsertDocumentLetterheadSelection({
+    documentId,
+    letterheadId: selection,
+    updatedBy: userId,
+  });
+  return { ok: true };
+}
+
+/**
+ * Resolve everything a rendered project document is branded with: letterhead
+ * logo, footer, accent color, and the structured letterhead prepended to
+ * `content` (unless the content already opens with its own letterhead table).
+ * With a `documentId` the document's letterhead selection applies — "none"
+ * drops both the letterhead and its logo. A banner letterhead adds no table;
+ * it comes back as `logoPlacement: "banner"` with the graphic as `logo`. See
+ * {@link planLetterheadBranding} for the exact rules.
+ */
+export async function getProjectDocumentBranding(
+  projectId: string,
+  content: string,
+  documentId?: string,
+): Promise<{
+  content: string;
+  logo: ImageBytes | null;
+  footer: Awaited<ReturnType<typeof getProjectFooter>>;
+  logoPlacement: LetterheadLogoPlacement | undefined;
+  color: string | null;
+}> {
+  const [{ letterhead, logo }, footer] = await Promise.all([
+    resolveDocumentLetterhead(projectId, documentId),
+    getProjectFooter(projectId),
+  ]);
+
+  const plan = planLetterheadBranding(content, letterhead, logo !== null);
+
+  return {
+    content: plan.content,
+    logo: plan.keepLogo ? logo : null,
+    footer,
+    logoPlacement: plan.logoPlacement,
+    color: plan.color,
+  };
 }
 
 /**

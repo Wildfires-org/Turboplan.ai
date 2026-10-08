@@ -30,6 +30,7 @@ export * from "./modules/webhook-request-log";
 export * from "./workspace/billing-credit-event";
 export * from "./workspace/billing-credit-usage";
 export * from "./workspace/billing-webhook-event";
+export * from "./workspace/document-letterhead";
 export * from "./workspace/invitations";
 export * from "./workspace/office";
 export * from "./workspace/office-users";

@@ -14,6 +14,14 @@ import {
   resolveBillingOrgForUser,
 } from "@wildfires-org/turboplan-billing/server";
 import { getChatById } from "@wildfires-org/turboplan-db/queries";
+import {
+  getProjectDocumentProfile,
+  getProjectLetterhead,
+} from "@wildfires-org/turboplan-workspace/server";
+import {
+  type DocumentLetterhead,
+  documentProfileToFacts,
+} from "@wildfires-org/turboplan-workspace/types";
 
 import {
   type ChatTimingLog,
@@ -30,7 +38,7 @@ import type { AuthUser } from "@/lib/types/auth";
 // the chat system prompt, not this separate generation model) and the logged-in
 // user's name. Supplied as authoritative context so the draft fills them in
 // rather than leaving [INSERT: ...] placeholders.
-const buildKnownFacts = (session: Session): string => {
+const buildKnownFacts = (session: Session, officeFacts: string[]): string => {
   const today = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -50,7 +58,49 @@ const buildKnownFacts = (session: Session): string => {
     );
   }
 
+  if (officeFacts.length > 0) {
+    facts.push(
+      "Office document details (confirmed by the office — use these values wherever the document needs them):",
+      ...officeFacts.map((fact) => `- ${fact}`),
+    );
+  }
+
   return facts.join("\n");
+};
+
+// Confirmed office/org facts (signatory, contacts, file code, …) from the
+// office's document details. Never breaks document generation.
+const loadOfficeFacts = async (
+  projectId: string | null | undefined,
+): Promise<string[]> => {
+  if (!projectId) {
+    return [];
+  }
+  try {
+    return documentProfileToFacts(await getProjectDocumentProfile(projectId));
+  } catch (error) {
+    console.error("[documents] failed to load document profile:", error);
+    return [];
+  }
+};
+
+// The office/org letterhead the app renders above the document. Its presence
+// tells the generator to skip the letterhead table it would otherwise write.
+const buildLetterheadSection = (letterhead: DocumentLetterhead): string => {
+  const lines = [
+    "The application renders this letterhead above the document. Do NOT write a letterhead table.",
+    "Omit ONLY the letterhead table: still write everything that follows it for this document type (e.g. the {right} File Code and Date lines of agency correspondence, or a centered title block).",
+  ];
+  // A banner letterhead is an image, so it may carry no text lines.
+  if (letterhead.nameLines.length > 0) {
+    lines.push(`Author identity: ${letterhead.nameLines.join(" / ")}`);
+  }
+  if (letterhead.contactLines.length > 0) {
+    lines.push(
+      `Author address and contact: ${letterhead.contactLines.join(", ")}`,
+    );
+  }
+  return lines.join("\n");
 };
 
 /**
@@ -173,13 +223,22 @@ export const textDocumentHandler = createDocumentHandler<"text">({
     const startedAt = Date.now();
     const logTiming = createChatTimer({ chatId, startedAt });
 
-    const [systemPrompt, referenceDocuments] = await Promise.all([
-      getPrompt("text-document"),
-      loadReferenceDocuments?.() ?? [],
-    ]);
+    const [systemPrompt, referenceDocuments, letterhead, officeFacts] =
+      await Promise.all([
+        getPrompt("text-document"),
+        loadReferenceDocuments?.() ?? [],
+        projectId ? getProjectLetterhead(projectId).catch(() => null) : null,
+        loadOfficeFacts(projectId),
+      ]);
+    // The letterhead's address block is the office's own, so it is confirmed too.
+    if (letterhead && letterhead.contactLines.length > 0) {
+      officeFacts.push(
+        `Office address and contact (letterhead): ${letterhead.contactLines.join(", ")}`,
+      );
+    }
 
     const promptParts = [
-      `## Known facts (authoritative — use these exact values; do NOT replace them with placeholders)\n${buildKnownFacts(session)}`,
+      `## Known facts (authoritative — use these exact values; do NOT replace them with placeholders)\n${buildKnownFacts(session, officeFacts)}`,
       `Document title: ${title}`,
     ];
 
@@ -195,6 +254,12 @@ export const textDocumentHandler = createDocumentHandler<"text">({
 
     if (projectContext) {
       promptParts.push(`## Project Context\n${projectContext}`);
+    }
+
+    if (letterhead) {
+      promptParts.push(
+        `## Application letterhead\n${buildLetterheadSection(letterhead)}`,
+      );
     }
 
     const userPrompt = promptParts.join("\n\n");
@@ -235,6 +300,16 @@ export const textDocumentHandler = createDocumentHandler<"text">({
     const startedAt = Date.now();
     const logTiming = createChatTimer({ chatId: document.chatId, startedAt });
 
+    // The document row has no project column — its chat does.
+    const chat = document.chatId
+      ? await getChatById({ id: document.chatId })
+      : null;
+    const officeFacts = await loadOfficeFacts(chat?.projectId);
+    const prompt =
+      officeFacts.length > 0
+        ? `${description}\n\n## Office document details (confirmed — use these values to fill matching [INSERT: …] placeholders)\n${officeFacts.map((fact) => `- ${fact}`).join("\n")}`
+        : description;
+
     const systemPrompt = await getPrompt("update-document-text", {
       currentContent: document.content,
     });
@@ -249,7 +324,7 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       model: await getModel("primary"),
       system: systemPrompt,
       experimental_transform: smoothStream({ chunking: "word" }),
-      prompt: description,
+      prompt,
       providerOptions: {
         openai: {
           prediction: {
@@ -267,10 +342,6 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       startedAt,
     });
 
-    // The document row has no project column — its chat does.
-    const chat = document.chatId
-      ? await getChatById({ id: document.chatId })
-      : null;
     await meterDocumentRun({ result, session, projectId: chat?.projectId });
 
     return stripPlaceholderNotesInTableRows(draftContent);

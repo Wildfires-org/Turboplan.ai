@@ -18,6 +18,13 @@ import {
   isValidSlug,
 } from "@wildfires-org/turboplan-utils/server";
 
+import {
+  appendDocumentProfileFact,
+  DOCUMENT_PROFILE_FACTS_MAX_CHARS,
+  type DocumentProfile,
+  normalizeDocumentProfile,
+} from "../../document-profile";
+import { normalizeLetterheadColor } from "../../letterhead";
 import type { SlugLookupResult } from "../../types";
 import type {
   CreateOfficeRequest,
@@ -289,6 +296,31 @@ export async function updateOffice(data: UpdateOfficeRequest): Promise<void> {
         updateData.documentFooterLogoUrl = data.documentFooterLogoUrl;
       }
 
+      if (data.documentLetterheadLayout !== undefined) {
+        updateData.documentLetterheadLayout =
+          data.documentLetterheadLayout || null;
+      }
+
+      if (data.documentLetterheadLines !== undefined) {
+        updateData.documentLetterheadLines = data.documentLetterheadLines;
+      }
+
+      if (data.documentLetterheadContact !== undefined) {
+        updateData.documentLetterheadContact = data.documentLetterheadContact;
+      }
+
+      if (data.documentLetterheadColor !== undefined) {
+        updateData.documentLetterheadColor = normalizeLetterheadColor(
+          data.documentLetterheadColor,
+        );
+      }
+
+      if (data.documentProfile !== undefined) {
+        updateData.documentProfile = normalizeDocumentProfile(
+          data.documentProfile,
+        );
+      }
+
       // Handle slug change with history tracking
       if (data.slug !== undefined) {
         const [current] = await tx
@@ -461,3 +493,48 @@ export async function getUserAccessibleOffices(
     throw error;
   }
 }
+
+/**
+ * Append the fact line `${label}: ${value}` to an office's document profile
+ * (no-op when an identical line exists). The row is locked so concurrent
+ * appends cannot drop each other's facts. Fails with `facts_too_long` when the
+ * facts would exceed {@link DOCUMENT_PROFILE_FACTS_MAX_CHARS}.
+ */
+export const appendOfficeDocumentProfileFact = async (
+  officeId: string,
+  label: string,
+  value: string,
+): Promise<
+  | { ok: true; documentProfile: DocumentProfile }
+  | { ok: false; reason: "not_found" | "facts_too_long" }
+> => {
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ documentProfile: office.documentProfile })
+      .from(office)
+      .where(eq(office.id, officeId))
+      .for("update");
+    if (!current) {
+      return { ok: false, reason: "not_found" } as const;
+    }
+
+    const { profile, changed } = appendDocumentProfileFact(
+      current.documentProfile,
+      label,
+      value,
+    );
+    if (!changed) {
+      return { ok: true, documentProfile: profile } as const;
+    }
+    if ((profile.facts ?? "").length > DOCUMENT_PROFILE_FACTS_MAX_CHARS) {
+      return { ok: false, reason: "facts_too_long" } as const;
+    }
+
+    const documentProfile = normalizeDocumentProfile(profile) ?? {};
+    await tx
+      .update(office)
+      .set({ documentProfile, updatedAt: new Date() })
+      .where(eq(office.id, officeId));
+    return { ok: true, documentProfile } as const;
+  });
+};

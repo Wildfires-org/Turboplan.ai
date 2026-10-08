@@ -53,6 +53,27 @@ const LOGO_H = 56;
 // Gap (points) between the margin logo and the letterhead text, which starts
 // flush at the content margin (mirrors LOGO_GAP_PX in the DOCX export).
 const LOGO_GAP = 4;
+// Inline logo box (firm-style "split" letterhead): the logo sits at the content
+// left edge and the letterhead table starts INLINE_LOGO_GAP to its right.
+const INLINE_LOGO_W = 56;
+const INLINE_LOGO_H = 64;
+const INLINE_LOGO_GAP = 12;
+// Logo box centered above the letterhead table ("centered" letterhead).
+const ABOVE_LOGO_W = 160;
+const ABOVE_LOGO_H = 64;
+const ABOVE_LOGO_GAP = 6;
+// Banner letterhead (an uploaded, ready-made letterhead graphic): drawn at the
+// full content width on page 1, aspect kept, never taller than this.
+const BANNER_MAX_H = 120;
+const BANNER_GAP = 6;
+const DEFAULT_INK = "#000000";
+
+// Where the letterhead logo goes: the left page margin (default — legacy AI
+// letterheads and agency "columns" letterheads), inline at the content left
+// edge with the table beside it, centered above the table, or — for a banner
+// letterhead — the logo IS the letterhead, drawn full width at the top of
+// page 1 (the content then carries no letterhead table).
+export type LogoPlacement = "margin" | "inline" | "above" | "banner";
 
 // An org/office letterhead logo. PDFKit's `doc.image()` only accepts PNG/JPEG
 // buffers; the caller guarantees png/jpeg, but the renderer still wraps the call
@@ -82,6 +103,7 @@ const NUMBERED_REGEX = /^[\s]*\d+\.\s+(.+)$/;
 const TABLE_ROW_REGEX = /^\|(.+)\|$/;
 const TABLE_SEPARATOR_REGEX = /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|$/;
 const ALIGNED_LINE_REGEX = /^\{(right|center)\}/;
+const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
 
 // Heading font sizes by markdown level (1-6).
 const HEADING_SIZES = [20, 15, 13, 12, 11, 11];
@@ -187,7 +209,14 @@ const decodeHtmlEntities = (text: string): string =>
 export const generatePdfFromMarkdown = async (
   markdown: string,
   title: string,
-  options?: { logo?: LetterheadLogo; footer?: DocumentFooter },
+  options?: {
+    logo?: LetterheadLogo;
+    footer?: DocumentFooter;
+    logoPlacement?: LogoPlacement;
+    // Hex color ("#1f5f3a") for the rule under the letterhead and the bold
+    // text of the letterhead table.
+    accentColor?: string;
+  },
 ): Promise<Uint8Array> => {
   // The document content already carries its own letterhead/heading, so don't
   // inject the title as a visible heading — only set it as PDF metadata. Same
@@ -212,6 +241,11 @@ export const generatePdfFromMarkdown = async (
 
   const usableWidth =
     doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  // Only a well-formed hex reaches PDFKit; anything else keeps the default ink.
+  const accentColor =
+    options?.accentColor && HEX_COLOR_REGEX.test(options.accentColor)
+      ? options.accentColor
+      : undefined;
 
   // Greedy word wrap of formatted runs into lines no wider than maxWidth, at
   // the current font size. Lines break only at whitespace; a word wider than
@@ -268,12 +302,15 @@ export const generatePdfFromMarkdown = async (
   // every `continued` fragment independently, so combining `continued` with
   // right/center alignment makes mixed-format runs overlap; positioning each
   // fragment manually keeps them flush.
+  // `boldColor` tints bold fragments (the letterhead accent); everything else
+  // is drawn in the default ink.
   const drawLine = (
     line: Line,
     x: number,
     y: number,
     width: number,
     align: TextAlign,
+    boldColor?: string,
   ) => {
     const freeSpace = width - line.width;
     let fragmentX = x;
@@ -287,12 +324,15 @@ export const generatePdfFromMarkdown = async (
         fragmentX += word.spaceBefore;
       }
       for (const fragment of word.fragments) {
+        const isBold = fragment.font.startsWith("Times-Bold");
         doc
+          .fillColor(boldColor && isBold ? boldColor : DEFAULT_INK)
           .font(fragment.font)
           .text(fragment.text, fragmentX, y, { lineBreak: false });
         fragmentX += fragment.width;
       }
     });
+    doc.fillColor(DEFAULT_INK);
   };
 
   const writeRuns = (
@@ -342,10 +382,13 @@ export const generatePdfFromMarkdown = async (
       return doc.widthOfString(text);
     };
 
+  // `region` is the horizontal band the table occupies — the full content
+  // width unless an inline logo takes the left part of the letterhead.
   const renderTable = (
     rows: string[][],
     alignments: ColumnAlignment[],
     isHeader: boolean,
+    region = { x: doc.page.margins.left, width: usableWidth },
   ) => {
     const colCount = rows[0]?.length ?? 0;
     if (colCount === 0) {
@@ -353,12 +396,11 @@ export const generatePdfFromMarkdown = async (
     }
     // The letterhead renders slightly smaller than the body.
     const fontSize = isHeader ? HEADER_FONT_SIZE : BODY_FONT_SIZE;
-    // Columns are sized to their content, like the DOCX export. Tables always
-    // span the full content width — the letterhead logo sits in the page
-    // margin.
+    // Columns are sized to their content, like the DOCX export, and span the
+    // whole region.
     const widths = computeColumnWidths({
       rows,
-      totalWidth: usableWidth,
+      totalWidth: region.width,
       measure: measureTableText(fontSize),
       padding: isHeader ? HEADER_COLUMN_GAP : BODY_CELL_PADDING * 2,
       emptyWidth: EMPTY_COLUMN_WIDTH,
@@ -376,7 +418,7 @@ export const generatePdfFromMarkdown = async (
       isHeader
         ? { left: 0, right: ci < colCount - 1 ? HEADER_COLUMN_GAP : 0 }
         : { left: cellPadding, right: cellPadding };
-    let columnX = doc.page.margins.left;
+    let columnX = region.x;
     const textBoxes = widths.map((width, ci) => {
       const { left, right } = insetsFor(ci);
       const box = { x: columnX + left, width: width - left - right };
@@ -403,7 +445,7 @@ export const generatePdfFromMarkdown = async (
     // never leaks into later drawing.
     const strokeCellBorders = (rowY: number, rowBoxHeight: number) => {
       doc.save().lineWidth(TABLE_BORDER_WIDTH).strokeColor("#000000");
-      let cellX = doc.page.margins.left;
+      let cellX = region.x;
       for (const width of widths) {
         doc.rect(cellX, rowY, width, rowBoxHeight);
         cellX += width;
@@ -442,6 +484,7 @@ export const generatePdfFromMarkdown = async (
             rowY + cellPadding + li * lineHeight,
             textBoxes[ci].width,
             alignFor(ci),
+            isHeader ? accentColor : undefined,
           );
         });
       });
@@ -462,7 +505,7 @@ export const generatePdfFromMarkdown = async (
     doc
       .save()
       .lineWidth(0.75)
-      .strokeColor("#000000")
+      .strokeColor(accentColor ?? DEFAULT_INK)
       .moveTo(doc.page.margins.left, y)
       .lineTo(doc.page.margins.left + usableWidth, y)
       .stroke()
@@ -471,9 +514,62 @@ export const generatePdfFromMarkdown = async (
     doc.y = y + PARAGRAPH_GAP;
   };
 
+  // PDFKit's standalone bundle ships its own Buffer/fs shims: passing a host
+  // Buffer/Uint8Array fails its internal `Buffer.isBuffer` check, falls
+  // through to the filename path, and throws "fs.readFileSync is not a
+  // function". A base64 data URL is the only input the bundle decodes without
+  // touching the filesystem.
+  const toImageSrc = (image: LetterheadLogo) =>
+    `data:${image.contentType};base64,${Buffer.from(image.data).toString("base64")}`;
+
+  // Natural size of an image. `openImage` exists at runtime but is missing
+  // from @types/pdfkit.
+  const imageSize = (src: string) =>
+    (
+      doc as unknown as {
+        openImage: (src: string) => { width: number; height: number };
+      }
+    ).openImage(src);
+
+  // Banner letterhead: the graphic spans the content width (shrunk and
+  // centered if that would exceed BANNER_MAX_H), then the rule. Returns false
+  // when the image can't be embedded — the document then has no letterhead.
+  const drawBanner = (banner: LetterheadLogo): boolean => {
+    const top = doc.y;
+    try {
+      const src = toImageSrc(banner);
+      const image = imageSize(src);
+      const scale = Math.min(
+        usableWidth / image.width,
+        BANNER_MAX_H / image.height,
+      );
+      const width = image.width * scale;
+      const height = image.height * scale;
+      doc.image(src, doc.page.margins.left + (usableWidth - width) / 2, top, {
+        width,
+        height,
+      });
+      doc.x = doc.page.margins.left;
+      doc.y = top + height + BANNER_GAP;
+      drawHorizontalRule();
+      return true;
+    } catch (error) {
+      console.error(
+        "[pdf-generator] Failed to embed letterhead banner:",
+        error,
+      );
+      doc.x = doc.page.margins.left;
+      doc.y = top;
+      return false;
+    }
+  };
+
+  const isBanner = options?.logoPlacement === "banner";
   const lines = normalized.split("\n");
   let i = 0;
-  let isFirstTable = true;
+  // With a banner the letterhead is drawn up front, so every table in the
+  // content is a body table.
+  let isFirstTable = !(isBanner && options?.logo && drawBanner(options.logo));
 
   while (i < lines.length) {
     const line = lines[i];
@@ -506,38 +602,60 @@ export const generatePdfFromMarkdown = async (
       }
       if (tableRows.length > 0) {
         const wasHeaderTable = isFirstTable;
-        // The logo sits in the left page margin, so the letterhead table always
-        // renders at full content width. A bad logo is simply skipped so it can
-        // never break the PDF.
+        // A bad logo is simply skipped so it can never break the PDF.
         let logoBottom = 0;
+        let headerRegion: { x: number; width: number } | undefined;
 
-        if (wasHeaderTable && options?.logo) {
+        if (wasHeaderTable && options?.logo && !isBanner) {
           const logoTop = doc.y;
+          const placement = options.logoPlacement ?? "margin";
           try {
-            // PDFKit's standalone bundle ships its own Buffer/fs shims: passing a
-            // host Buffer/Uint8Array fails its internal `Buffer.isBuffer` check,
-            // falls through to the filename path, and throws
-            // "fs.readFileSync is not a function". A base64 data URL is the only
-            // input the bundle decodes without touching the filesystem.
-            const base64 = Buffer.from(options.logo.data).toString("base64");
-            // Place the logo in the left margin: right-aligned in its box so
-            // its right edge sits LOGO_GAP before the content margin, extending
-            // left into the margin whitespace (clamped to the page edge), so
-            // the table keeps the full width.
-            const logoLeft = Math.max(
-              2,
-              doc.page.margins.left - LOGO_W - LOGO_GAP,
-            );
-            doc.image(
-              `data:${options.logo.contentType};base64,${base64}`,
-              logoLeft,
-              logoTop,
-              { fit: [LOGO_W, LOGO_H], align: "right" },
-            );
-            logoBottom = logoTop + LOGO_H;
-            // `doc.image()` advances doc.y past the image; reset to logoTop so
-            // the header table starts at the same top edge as the logo.
-            doc.y = logoTop;
+            const src = toImageSrc(options.logo);
+            if (placement === "margin") {
+              // Place the logo in the left margin: right-aligned in its box so
+              // its right edge sits LOGO_GAP before the content margin,
+              // extending left into the margin whitespace (clamped to the page
+              // edge), so the table keeps the full width.
+              const logoLeft = Math.max(
+                2,
+                doc.page.margins.left - LOGO_W - LOGO_GAP,
+              );
+              doc.image(src, logoLeft, logoTop, {
+                fit: [LOGO_W, LOGO_H],
+                align: "right",
+              });
+              logoBottom = logoTop + LOGO_H;
+              // `doc.image()` advances doc.y past the image; reset to logoTop
+              // so the header table starts at the same top edge as the logo.
+              doc.y = logoTop;
+            } else {
+              // Size the logo to its box (aspect kept) up front so the table
+              // can be laid out around its real footprint.
+              const image = imageSize(src);
+              const [boxW, boxH] =
+                placement === "inline"
+                  ? [INLINE_LOGO_W, INLINE_LOGO_H]
+                  : [ABOVE_LOGO_W, ABOVE_LOGO_H];
+              const scale = Math.min(boxW / image.width, boxH / image.height);
+              const width = image.width * scale;
+              const height = image.height * scale;
+              const left =
+                placement === "inline"
+                  ? doc.page.margins.left
+                  : doc.page.margins.left + (usableWidth - width) / 2;
+              doc.image(src, left, logoTop, { width, height });
+              if (placement === "inline") {
+                logoBottom = logoTop + height;
+                const offset = width + INLINE_LOGO_GAP;
+                headerRegion = {
+                  x: doc.page.margins.left + offset,
+                  width: usableWidth - offset,
+                };
+                doc.y = logoTop;
+              } else {
+                doc.y = logoTop + height + ABOVE_LOGO_GAP;
+              }
+            }
           } catch (error) {
             // Bad/unsupported image: render the letterhead anyway rather than
             // failing the whole PDF. Logged so the cause isn't silently lost.
@@ -546,10 +664,12 @@ export const generatePdfFromMarkdown = async (
               error,
             );
             logoBottom = 0;
+            headerRegion = undefined;
+            doc.y = logoTop;
           }
         }
 
-        renderTable(tableRows, alignments, isFirstTable);
+        renderTable(tableRows, alignments, isFirstTable, headerRegion);
         isFirstTable = false;
         if (wasHeaderTable) {
           // Keep the rule and body below a tall logo: drop doc.y to the lower of

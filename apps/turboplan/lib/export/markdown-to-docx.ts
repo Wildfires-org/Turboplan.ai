@@ -1,5 +1,7 @@
 import type { FileChild, ICommentOptions, IPropertiesOptions } from "docx";
 
+import type { LetterheadLogoPlacement } from "@wildfires-org/turboplan-workspace/types";
+
 import {
   type ColumnAlignment,
   computeColumnWidths,
@@ -48,11 +50,27 @@ const FOOTER_LOGO_HEIGHT = 20;
 // center/right tab stops sit on it.
 const CONTENT_WIDTH_TWIPS = 9026;
 
-// Letterhead logos are scaled to fit this box (px, the unit docx ImageRun
-// expects). Kept small enough to sit within the page's left margin (~1 inch =
-// 96px) so the letterhead text keeps the full content width.
-const LOGO_MAX_WIDTH = 58;
-const LOGO_MAX_HEIGHT = 72;
+type LogoBox = { width: number; height: number };
+
+// Letterhead logos are scaled to fit a box (px, the unit docx ImageRun
+// expects). The margin logo is kept small enough to sit within the page's left
+// margin (~1 inch = 96px) so the letterhead text keeps the full content width;
+// inline and centered logos are ~0.75in tall.
+// Placements (see LETTERHEAD_LOGO_PLACEMENT): "margin" floats the logo in the
+// left page margin beside a full-width letterhead (AI-written letterheads and
+// "columns"); "inline" floats it at the content's left edge with the table
+// indented past it ("split"); "above" centers it above the table ("centered").
+const LOGO_BOXES: Record<
+  Exclude<LetterheadLogoPlacement, "banner">,
+  LogoBox
+> = {
+  margin: { width: 58, height: 72 },
+  inline: { width: 144, height: 72 },
+  above: { width: 192, height: 72 },
+};
+
+// Twips per pixel at 96 dpi (1in = 1440 twips = 96px).
+const TWIPS_PER_PX = 15;
 
 // EMU per pixel at 96 dpi (1px = 1/96in, 1in = 914400 EMU). docx floating
 // offsets are in EMU.
@@ -60,20 +78,20 @@ const EMU_PER_PX = 9525;
 
 // Horizontal gap (px) between the margin logo and the content edge.
 const LOGO_GAP_PX = 6;
+// Gap (px) between an inline logo and the indented letterhead text.
+const INLINE_LOGO_GAP_PX = 12;
 
-// Scales the logo's intrinsic dimensions down to fit the LOGO_MAX box while
+// Scales the logo's intrinsic dimensions down to fit its placement's box while
 // preserving aspect ratio. Never upscales beyond the intrinsic size.
 const computeLogoDisplaySize = (
   logo: DocxLetterheadLogo,
-): { width: number; height: number } => {
+  placement: keyof typeof LOGO_BOXES = "margin",
+): LogoBox => {
+  const box = LOGO_BOXES[placement];
   if (logo.height <= 0 || logo.width <= 0) {
-    return { width: LOGO_MAX_WIDTH, height: LOGO_MAX_HEIGHT };
+    return box;
   }
-  const scale = Math.min(
-    1,
-    LOGO_MAX_WIDTH / logo.width,
-    LOGO_MAX_HEIGHT / logo.height,
-  );
+  const scale = Math.min(1, box.width / logo.width, box.height / logo.height);
   return {
     width: Math.round(logo.width * scale),
     height: Math.round(logo.height * scale),
@@ -85,9 +103,14 @@ const computeLogoDisplaySize = (
 // letterhead text without consuming content width — the table stays full-width.
 // It is anchored inside the first letterhead cell's paragraph (not its own
 // paragraph) so it adds no stray empty line and stays tied to real content.
+//
+// The "inline" placement floats a larger logo at the content's left edge
+// instead (offset 0 from the page margin, not the cell); the letterhead table
+// is indented past it (see inlineLogoIndentTwips).
 const buildLetterheadLogoImage = (
   logo: DocxLetterheadLogo,
   docxModule: typeof import("docx"),
+  placement: "margin" | "inline" = "margin",
 ): InstanceType<typeof import("docx").ImageRun> => {
   const {
     ImageRun,
@@ -95,15 +118,19 @@ const buildLetterheadLogoImage = (
     VerticalPositionRelativeFrom,
     TextWrappingType,
   } = docxModule;
-  const { width, height } = computeLogoDisplaySize(logo);
+  const { width, height } = computeLogoDisplaySize(logo, placement);
+  const isInline = placement === "inline";
   // Negative offset pushes the image left of the content margin into the margin
   // whitespace; its right edge ends LOGO_GAP_PX before the text.
-  const offset = -((width + LOGO_GAP_PX) * EMU_PER_PX);
+  const offset = isInline ? 0 : -((width + LOGO_GAP_PX) * EMU_PER_PX);
   return new ImageRun({
     data: logo.data,
     type: logo.type,
     transformation: { width, height },
     floating: {
+      // Position the inline logo from the page margin even though it's
+      // anchored inside the (indented) table's first cell.
+      layoutInCell: !isInline,
       horizontalPosition: {
         relative: HorizontalPositionRelativeFrom.MARGIN,
         offset,
@@ -116,6 +143,75 @@ const buildLetterheadLogoImage = (
       // No text wrapping — the logo lives in the margin, clear of the table.
       wrap: { type: TextWrappingType.NONE },
     },
+  });
+};
+
+// A "banner" letterhead is the organization's own letterhead graphic: scaled
+// (up or down) to the full content width, keeping its aspect ratio, but never
+// taller than BANNER_MAX_HEIGHT_PX so an odd image can't swallow the page.
+const BANNER_MAX_HEIGHT_PX = 240;
+
+const computeBannerDisplaySize = (logo: DocxLetterheadLogo): LogoBox => {
+  const contentWidthPx = Math.floor(CONTENT_WIDTH_TWIPS / TWIPS_PER_PX);
+  if (logo.height <= 0 || logo.width <= 0) {
+    return { width: contentWidthPx, height: BANNER_MAX_HEIGHT_PX / 2 };
+  }
+  const scale = Math.min(
+    contentWidthPx / logo.width,
+    BANNER_MAX_HEIGHT_PX / logo.height,
+  );
+  return {
+    width: Math.round(logo.width * scale),
+    height: Math.round(logo.height * scale),
+  };
+};
+
+const buildBannerParagraph = (
+  logo: DocxLetterheadLogo,
+  docxModule: typeof import("docx"),
+): InstanceType<typeof import("docx").Paragraph> => {
+  const { Paragraph, ImageRun, AlignmentType } = docxModule;
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 0 },
+    children: [
+      new ImageRun({
+        data: logo.data,
+        type: logo.type,
+        transformation: computeBannerDisplaySize(logo),
+      }),
+    ],
+  });
+};
+
+// "#1f5f3a" → "1F5F3A" (docx colors are bare hex); anything else → undefined.
+const toDocxColor = (color?: string | null): string | undefined =>
+  color && /^#[0-9a-fA-F]{6}$/.test(color)
+    ? color.slice(1).toUpperCase()
+    : undefined;
+
+// Indent (twips) of a letterhead table that sits beside an inline logo.
+const inlineLogoIndentTwips = (logo: DocxLetterheadLogo): number =>
+  (computeLogoDisplaySize(logo, "inline").width + INLINE_LOGO_GAP_PX) *
+  TWIPS_PER_PX;
+
+// A centered paragraph holding the logo above a "centered" letterhead.
+const buildCenteredLogoParagraph = (
+  logo: DocxLetterheadLogo,
+  docxModule: typeof import("docx"),
+): InstanceType<typeof import("docx").Paragraph> => {
+  const { Paragraph, ImageRun, AlignmentType } = docxModule;
+  const { width, height } = computeLogoDisplaySize(logo, "above");
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 80 },
+    children: [
+      new ImageRun({
+        data: logo.data,
+        type: logo.type,
+        transformation: { width, height },
+      }),
+    ],
   });
 };
 
@@ -138,6 +234,8 @@ const BODY_FONT_HALFPT = 24;
 const BODY_CELL_PADDING_TWIPS = 108 * 2;
 
 type TableSizing = {
+  // Width (twips) the columns share; defaults to the full content width.
+  totalWidth?: number;
   // Run size in half-points the cell text renders at.
   fontHalfPt: number;
   // Horizontal cell padding (left + right margins) in twips.
@@ -154,18 +252,23 @@ type TableSizing = {
 // columns that renderers other than Word (Pages, Google Docs) honor.
 const computeTableColumnWidths = (
   rows: string[][],
-  { fontHalfPt, padding, emptyWidth }: TableSizing,
+  {
+    totalWidth = CONTENT_WIDTH_TWIPS,
+    fontHalfPt,
+    padding,
+    emptyWidth,
+  }: TableSizing,
 ): number[] => {
   const widths = computeColumnWidths({
     rows,
-    totalWidth: CONTENT_WIDTH_TWIPS,
+    totalWidth,
     measure: (text) => estimateTextWidthEm(text) * fontHalfPt * 10,
     padding,
     emptyWidth,
   }).map(Math.round);
   // OOXML widths are whole twips; the last column absorbs the rounding.
   const rounded = widths.reduce((total, width) => total + width, 0);
-  widths[widths.length - 1] += CONTENT_WIDTH_TWIPS - rounded;
+  widths[widths.length - 1] += totalWidth - rounded;
   return widths;
 };
 
@@ -177,6 +280,8 @@ type RunOptions = {
   suppressBold?: boolean;
   // Run size override in half-points (e.g. the smaller letterhead font).
   size?: number;
+  // Color (bare hex) of the bold runs — the letterhead's brand color.
+  boldColor?: string;
 };
 
 const parseInlineFormatting = (
@@ -288,10 +393,12 @@ const parseFormattedRuns = (
 ): InstanceType<typeof import("docx").TextRun>[] => {
   const { TextRun } = docxModule;
   const runs: InstanceType<typeof import("docx").TextRun>[] = [];
-  const { forceBold = false, suppressBold = false, size } = opts;
+  const { forceBold = false, suppressBold = false, size, boldColor } = opts;
   // Marker bold and forced bold both yield to suppression; explicit `false` (not
   // omission) is emitted so it overrides any inherited paragraph/heading style.
   const bold = (value: boolean) => (suppressBold ? false : value);
+  const colorFor = (value: boolean) =>
+    boldColor && bold(value) ? boldColor : undefined;
 
   // Match bold+italic (***text*** or ___text___), bold (**text** or __text__), italic (*text* or _text_)
   const inlineRegex = /(\*\*\*|___)(.+?)\1|(\*\*|__)(.+?)\3|(\*|_)(.+?)\5/g;
@@ -304,6 +411,7 @@ const parseFormattedRuns = (
         new TextRun({
           text: text.slice(lastIdx, inlineMatch.index),
           bold: bold(forceBold),
+          color: colorFor(forceBold),
           size,
         }),
       );
@@ -314,17 +422,26 @@ const parseFormattedRuns = (
         new TextRun({
           text: inlineMatch[2],
           bold: bold(true),
+          color: colorFor(true),
           italics: true,
           size,
         }),
       );
     } else if (inlineMatch[3]) {
-      runs.push(new TextRun({ text: inlineMatch[4], bold: bold(true), size }));
+      runs.push(
+        new TextRun({
+          text: inlineMatch[4],
+          bold: bold(true),
+          color: colorFor(true),
+          size,
+        }),
+      );
     } else if (inlineMatch[5]) {
       runs.push(
         new TextRun({
           text: inlineMatch[6],
           bold: bold(forceBold),
+          color: colorFor(forceBold),
           italics: true,
           size,
         }),
@@ -336,7 +453,12 @@ const parseFormattedRuns = (
 
   if (lastIdx < text.length) {
     runs.push(
-      new TextRun({ text: text.slice(lastIdx), bold: bold(forceBold), size }),
+      new TextRun({
+        text: text.slice(lastIdx),
+        bold: bold(forceBold),
+        color: colorFor(forceBold),
+        size,
+      }),
     );
   }
 
@@ -378,6 +500,9 @@ const buildTable = (
   docxModule: typeof import("docx"),
   isHeader = false,
   logo?: DocxLetterheadLogo,
+  logoPlacement: "margin" | "inline" = "margin",
+  // Brand color (bare hex) of the letterhead's bold runs.
+  accentColor?: string,
 ): InstanceType<typeof import("docx").Table> => {
   const {
     Table,
@@ -389,6 +514,7 @@ const buildTable = (
     TableLayoutType,
     AlignmentType,
     VerticalAlign,
+    HeightRule,
   } = docxModule;
 
   const noBorder = {
@@ -411,11 +537,27 @@ const buildTable = (
     ? noBorder
     : { style: BorderStyle.SINGLE, size: 4, color: "000000" };
 
+  // An inline logo floats at the content's left edge; the table starts past it.
+  const indent =
+    isHeader && logo && logoPlacement === "inline"
+      ? inlineLogoIndentTwips(logo)
+      : 0;
+  const tableWidth = CONTENT_WIDTH_TWIPS - indent;
+  // Rows share the inline logo's height so the table is at least as tall.
+  const inlineRowHeight =
+    indent > 0 && logo && rows.length > 0
+      ? Math.ceil(
+          (computeLogoDisplaySize(logo, "inline").height * TWIPS_PER_PX) /
+            rows.length,
+        )
+      : 0;
+
   const colCount = rows[0]?.length ?? 0;
   const colWidths = computeTableColumnWidths(
     rows,
     isHeader
       ? {
+          totalWidth: tableWidth,
           fontHalfPt: HEADER_FONT_HALFPT,
           padding: HEADER_CELL_MARGINS.left + HEADER_CELL_MARGINS.right,
           emptyWidth: EMPTY_COLUMN_TWIPS,
@@ -472,6 +614,7 @@ const buildTable = (
             : rowIndex === 0,
           // The letterhead renders slightly smaller than the body.
           size: isHeader ? HEADER_FONT_HALFPT : undefined,
+          boldColor: isHeader ? accentColor : undefined,
         },
       );
       // Anchor the floating margin logo to the first letterhead cell's paragraph
@@ -479,7 +622,10 @@ const buildTable = (
       // stray empty anchor paragraph above the table.
       const cellChildren =
         isHeader && logo && rowIndex === 0 && colIndex === 0
-          ? [buildLetterheadLogoImage(logo, docxModule), ...formatted]
+          ? [
+              buildLetterheadLogoImage(logo, docxModule, logoPlacement),
+              ...formatted,
+            ]
           : formatted;
       const headerMargins = isLastColumn
         ? LAST_HEADER_CELL_MARGINS
@@ -504,12 +650,20 @@ const buildTable = (
       });
     });
 
-    return new TableRow({ children: dataCells });
+    return new TableRow({
+      children: dataCells,
+      // A floating logo doesn't grow the table, so a short letterhead beside
+      // the taller inline logo would let the rule below run through it.
+      height: inlineRowHeight
+        ? { value: inlineRowHeight, rule: HeightRule.ATLEAST }
+        : undefined,
+    });
   });
 
   return new Table({
     rows: tableRows,
-    width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
+    width: { size: tableWidth, type: WidthType.DXA },
+    indent: indent > 0 ? { size: indent, type: WidthType.DXA } : undefined,
     borders: {
       top: tableBorder,
       bottom: tableBorder,
@@ -528,6 +682,7 @@ const buildTable = (
 // separate the letterhead from the document body.
 const buildHorizontalRule = (
   docxModule: typeof import("docx"),
+  color = "000000",
 ): InstanceType<typeof import("docx").Paragraph> => {
   const { Paragraph, BorderStyle } = docxModule;
   return new Paragraph({
@@ -536,7 +691,7 @@ const buildHorizontalRule = (
       bottom: {
         style: BorderStyle.SINGLE,
         size: 6,
-        color: "000000",
+        color,
         space: 1,
       },
     },
@@ -641,6 +796,10 @@ export const generateDocxFromMarkdown = async (
   title: string,
   logo?: DocxLetterheadLogo,
   footer?: DocxDocumentFooter,
+  logoPlacement: LetterheadLogoPlacement = "margin",
+  // The applied letterhead's brand color ("#rrggbb"): tints the rule under the
+  // letterhead and its bold lines.
+  letterheadColor?: string | null,
 ): Promise<Blob> => {
   const docx = await import("docx");
   const { Document, Paragraph, Packer, HeadingLevel, AlignmentType } = docx;
@@ -662,7 +821,17 @@ export const generateDocxFromMarkdown = async (
   const comments: CommentEntry[] = [];
   const commentCounter = { value: 0 };
   const paragraphs: FileChild[] = [];
-  let isFirstTable = true;
+  const accentColor = toDocxColor(letterheadColor);
+  // A banner letterhead is the image itself, drawn above the content; the
+  // document's first table is then ordinary body content.
+  const isBanner = logoPlacement === "banner";
+  if (isBanner && logo) {
+    paragraphs.push(
+      buildBannerParagraph(logo, docx),
+      buildHorizontalRule(docx, accentColor),
+    );
+  }
+  let isFirstTable = !isBanner;
 
   const lines = normalizedContent.split("\n");
   let i = 0;
@@ -697,6 +866,10 @@ export const generateDocxFromMarkdown = async (
       }
       if (tableRows.length > 0) {
         const wasHeaderTable = isFirstTable;
+        const letterheadLogo = isFirstTable ? logo : undefined;
+        if (letterheadLogo && logoPlacement === "above") {
+          paragraphs.push(buildCenteredLogoParagraph(letterheadLogo, docx));
+        }
         // The logo only decorates the first table (the letterhead). It floats in
         // the left margin, anchored inside the table's first cell (no extra
         // paragraph), so it adds no blank line above the letterhead.
@@ -708,12 +881,14 @@ export const generateDocxFromMarkdown = async (
             comments,
             docx,
             isFirstTable,
-            isFirstTable ? logo : undefined,
+            logoPlacement === "above" ? undefined : letterheadLogo,
+            logoPlacement === "inline" ? "inline" : "margin",
+            wasHeaderTable ? accentColor : undefined,
           ),
         );
         isFirstTable = false;
         if (wasHeaderTable) {
-          paragraphs.push(buildHorizontalRule(docx));
+          paragraphs.push(buildHorizontalRule(docx, accentColor));
         }
       }
       continue;

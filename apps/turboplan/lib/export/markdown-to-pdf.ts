@@ -7,6 +7,7 @@ export const generatePdfFromMarkdownClient = async (
   content: string,
   title: string,
   projectId?: string,
+  documentId?: string,
 ): Promise<Blob> => {
   // The PDF endpoint lives on the Hono server (getServerUrl), not the Next app.
   // ApiClient.post parses JSON, so it can't return binary — replicate its auth
@@ -24,7 +25,7 @@ export const generatePdfFromMarkdownClient = async (
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ content, title, projectId }),
+    body: JSON.stringify({ content, title, projectId, documentId }),
   });
 
   if (!res.ok) {

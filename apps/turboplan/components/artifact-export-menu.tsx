@@ -16,6 +16,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@wildfires-org/turboplan-utils";
+import { planLetterheadBranding } from "@wildfires-org/turboplan-workspace/types";
 
 import { DownloadIcon } from "@/components/icons";
 
@@ -39,12 +40,18 @@ const buildBlob = async (
   content: string,
   title: string,
   projectId?: string,
+  documentId?: string,
 ): Promise<BuiltBlob> => {
   if (format === "pdf") {
     const { generatePdfFromMarkdownClient, sanitizePdfFilename } = await import(
       "@/lib/export/markdown-to-pdf"
     );
-    const blob = await generatePdfFromMarkdownClient(content, title, projectId);
+    const blob = await generatePdfFromMarkdownClient(
+      content,
+      title,
+      projectId,
+      documentId,
+    );
     return { blob, filename: sanitizePdfFilename(title), mime: PDF_MIME };
   }
 
@@ -53,18 +60,31 @@ const buildBlob = async (
   );
   const { fetchLetterheadLogo } = await import("@/lib/export/letterhead-logo");
   const { fetchDocumentFooter } = await import("@/lib/export/document-footer");
-  // The server embeds the logo and footer for PDFs; for client-generated docx
-  // we fetch them here. Both resolve to empty when unconfigured and the export
-  // proceeds without them.
-  const [logo, footer] = await Promise.all([
-    fetchLetterheadLogo(projectId),
+  const { fetchDocumentLetterhead } = await import("@/lib/export/letterhead");
+  // The server embeds the letterhead, logo and footer for PDFs; for
+  // client-generated docx we fetch them here, for the document's letterhead
+  // selection. All resolve to empty when unconfigured (or "none") and the
+  // export proceeds without them.
+  const [logo, footer, letterhead] = await Promise.all([
+    fetchLetterheadLogo(projectId, documentId),
     fetchDocumentFooter(projectId),
+    fetchDocumentLetterhead(projectId, documentId),
   ]);
-  const blob = await generateDocxFromMarkdown(
+  // The chosen letterhead replaces an AI-written one; documents that already
+  // carry their own letterhead table keep it (and the margin logo). A banner
+  // is drawn as its image, never as a margin logo.
+  const plan = planLetterheadBranding(
     content,
+    letterhead?.letterhead ?? null,
+    !!logo,
+  );
+  const blob = await generateDocxFromMarkdown(
+    plan.content,
     title,
-    logo ?? undefined,
+    (plan.keepLogo ? logo : null) ?? undefined,
     footer,
+    plan.logoPlacement ?? "margin",
+    plan.color,
   );
   return { blob, filename: sanitizeFilename(title), mime: DOCX_MIME };
 };
@@ -73,6 +93,9 @@ interface ExportDocumentMenuProps {
   content: string;
   title: string;
   projectId?: string;
+  // Persisted document id ("init" before the first save), so exports use the
+  // document's letterhead selection.
+  documentId?: string;
   disabled?: boolean;
 }
 
@@ -80,9 +103,11 @@ export function ExportDocumentMenu({
   content,
   title,
   projectId,
+  documentId,
   disabled = false,
 }: ExportDocumentMenuProps) {
   const [isBusy, setIsBusy] = useState(false);
+  const savedDocumentId = documentId !== "init" ? documentId : undefined;
   const isInteractionBlocked = isBusy || disabled;
 
   const handleDownload = async (format: ExportFormat) => {
@@ -95,6 +120,7 @@ export function ExportDocumentMenu({
         content,
         title,
         projectId,
+        savedDocumentId,
       );
       const { downloadBlob } = await import("@/lib/export/markdown-to-docx");
       downloadBlob(blob, filename);
@@ -120,6 +146,7 @@ export function ExportDocumentMenu({
         content,
         title,
         projectId,
+        savedDocumentId,
       );
       const file = new File([blob], filename, { type: mime });
       await uploadBlobToProject(projectId, file);
@@ -147,6 +174,7 @@ export function ExportDocumentMenu({
         content,
         title,
         projectId,
+        savedDocumentId,
       );
       const { downloadBlob } = await import("@/lib/export/markdown-to-docx");
       downloadBlob(blob, filename);

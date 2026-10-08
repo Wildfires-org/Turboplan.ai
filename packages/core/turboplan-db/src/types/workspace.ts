@@ -9,7 +9,10 @@ export type { Office } from "../schemas/workspace/office";
 // Enums (runtime values)
 export { OfficeStatus } from "../schemas/workspace/office";
 export type { OfficeUser } from "../schemas/workspace/office-users";
-export type { Organization } from "../schemas/workspace/organization";
+export type {
+  DocumentProfile,
+  Organization,
+} from "../schemas/workspace/organization";
 export {
   OrganizationStatus,
   OrganizationType,

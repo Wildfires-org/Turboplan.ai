@@ -11,6 +11,7 @@ import {
   type LucideIcon,
   Palette,
   SlidersHorizontal,
+  Stamp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -45,14 +46,25 @@ import {
 
 import { useUser } from "@/components/providers/user-provider";
 import { toast } from "@/components/toast";
+import type { LetterheadImportValues } from "@/lib/letterhead-import";
 import { AppUrls } from "@/lib/nav/urls";
-import { DocumentBrandingFields } from "./document-branding-fields";
+import {
+  DocumentBrandingFields,
+  toDocumentProfileErrors,
+  toDocumentProfileFormValues,
+} from "./document-branding-fields";
 import { OrgEmailDomainsSection } from "./org-email-domains-section";
+import { OrgLetterheadsSection } from "./org-letterheads-section";
 import { OrganizationLogoUpload } from "./organization-logo-upload";
 
 const apiClient = new ApiClient();
 
-type OrgSettingsTab = "general" | "branding" | "domains" | "signing";
+type OrgSettingsTab =
+  | "general"
+  | "branding"
+  | "letterheads"
+  | "domains"
+  | "signing";
 
 interface OrgSettingsTabConfig {
   key: OrgSettingsTab;
@@ -70,6 +82,7 @@ const BASE_TABS: OrgSettingsTabConfig[] = [
     usesSharedForm: true,
   },
   { key: "branding", label: "Branding", icon: Palette, usesSharedForm: true },
+  { key: "letterheads", label: "Letterheads", icon: Stamp },
   { key: "domains", label: "Email Domains", icon: AtSign },
 ];
 
@@ -125,6 +138,14 @@ export function EditOrganizationDialog({
       documentFooterText: organization.documentFooterText || "",
       documentFooterNote: organization.documentFooterNote || "",
       documentFooterLogoUrl: organization.documentFooterLogoUrl || "",
+      documentLetterheadLayout:
+        organization.documentLetterheadLayout ?? "split",
+      documentLetterheadLines: organization.documentLetterheadLines || "",
+      documentLetterheadContact: organization.documentLetterheadContact || "",
+      documentLetterheadColor: organization.documentLetterheadColor || "",
+      documentProfile: toDocumentProfileFormValues(
+        organization.documentProfile,
+      ),
     },
   });
 
@@ -135,6 +156,28 @@ export function EditOrganizationDialog({
     setValue,
     watch,
   } = form;
+
+  // Fields read by "Import from document"; saved with the rest of the form.
+  const handleLetterheadImport = ({
+    layout,
+    lines,
+    contact,
+    color,
+    logoUrl,
+  }: LetterheadImportValues) => {
+    const options = { shouldDirty: true };
+    setValue("documentLetterheadLayout", layout, options);
+    setValue("documentLetterheadColor", color, options);
+    if (lines !== undefined) {
+      setValue("documentLetterheadLines", lines, options);
+    }
+    if (contact !== undefined) {
+      setValue("documentLetterheadContact", contact, options);
+    }
+    if (logoUrl) {
+      setValue("documentLogoUrl", logoUrl, options);
+    }
+  };
 
   const watchedName = watch("name") as string;
 
@@ -390,6 +433,33 @@ export function EditOrganizationDialog({
                 <DocumentBrandingFields
                   textField={register("documentFooterText")}
                   noteField={register("documentFooterNote")}
+                  letterheadLinesField={register("documentLetterheadLines")}
+                  letterheadContactField={register("documentLetterheadContact")}
+                  registerProfileField={(key) =>
+                    register(`documentProfile.${key}`)
+                  }
+                  profileErrors={toDocumentProfileErrors(
+                    errors.documentProfile,
+                  )}
+                  letterheadLayout={
+                    watch("documentLetterheadLayout") || "split"
+                  }
+                  letterheadLines={watch("documentLetterheadLines") ?? ""}
+                  letterheadContact={watch("documentLetterheadContact") ?? ""}
+                  documentLogoUrl={watch("documentLogoUrl") ?? ""}
+                  letterheadColor={watch("documentLetterheadColor") ?? ""}
+                  onLetterheadLayoutChange={(layout) =>
+                    setValue("documentLetterheadLayout", layout, {
+                      shouldDirty: true,
+                    })
+                  }
+                  onLetterheadColorChange={(color) =>
+                    setValue("documentLetterheadColor", color, {
+                      shouldDirty: true,
+                    })
+                  }
+                  onLetterheadImport={handleLetterheadImport}
+                  organizationId={organization.id}
                   onDocumentLogoChange={(url) =>
                     setValue("documentLogoUrl", url ?? "")
                   }
@@ -400,10 +470,21 @@ export function EditOrganizationDialog({
                   initialFooterLogoUrl={organization.documentFooterLogoUrl}
                   textError={errors.documentFooterText?.message}
                   noteError={errors.documentFooterNote?.message}
+                  letterheadLinesError={errors.documentLetterheadLines?.message}
+                  letterheadContactError={
+                    errors.documentLetterheadContact?.message
+                  }
                   disabled={isLoading}
                 />
               </div>
             </form>
+
+            {/* Letterheads — the org's library of extra letterheads, saved one
+                at a time via their own endpoints. Callers only mount this
+                dialog for users who can update the organization. */}
+            {activeTab === "letterheads" && (
+              <OrgLetterheadsSection organizationId={organization.id} canEdit />
+            )}
 
             {/* Email Domains — saves via its own dedicated endpoint. Kept
                 mounted (hidden when inactive) so unsaved pill edits survive tab

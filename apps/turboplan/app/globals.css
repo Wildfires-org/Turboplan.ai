@@ -538,6 +538,39 @@ main[class*="overflow-auto"] {
   outline: none;
 }
 
+/* A leading table is the AI-written letterhead (a later table is body content,
+   e.g. under a configured letterhead band). Render it like the PDF/DOCX export:
+   borderless and compact, with a rule beneath it. Cell outlines appear only on
+   hover so empty cells stay findable while editing. */
+.ProseMirror > table:first-child {
+  @apply my-0 text-[0.8125rem] leading-snug;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.6);
+}
+
+.ProseMirror > table:first-child tr {
+  @apply border-0;
+}
+
+.ProseMirror > table:first-child td {
+  @apply border-0 px-1.5 pt-0 pb-1 align-top;
+}
+
+.ProseMirror > table:first-child:hover td {
+  @apply outline-dashed outline-1 -outline-offset-1 outline-gray-200 dark:outline-zinc-700;
+}
+
+.ProseMirror > table:first-child td:first-child {
+  @apply pl-0;
+}
+
+.ProseMirror > table:first-child td:last-child {
+  @apply pr-0;
+}
+
+.ProseMirror > table:first-child tr:last-child td {
+  @apply pb-3;
+}
+
 .cm-editor,
 .cm-gutters {
   @apply bg-background dark:bg-zinc-800 outline-none selection:bg-zinc-900 !important;

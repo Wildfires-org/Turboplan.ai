@@ -5,13 +5,15 @@ import { useRef, useState } from "react";
 import { ImageIcon } from "lucide-react";
 
 import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
-import { Button, toast } from "@wildfires-org/turboplan-utils";
+import { Button, cn, toast } from "@wildfires-org/turboplan-utils";
 
 interface DocumentLogoUploadProps {
   label: string;
   value: string | null;
   onChange: (url: string | null) => void;
   helperText?: string;
+  // A wide image (a full letterhead banner): wider thumbnail, "image" wording.
+  isWide?: boolean;
   disabled?: boolean;
 }
 
@@ -25,6 +27,7 @@ export function DocumentLogoUpload({
   value,
   onChange,
   helperText = DEFAULT_HELPER_TEXT,
+  isWide = false,
   disabled = false,
 }: DocumentLogoUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(value || null);
@@ -91,8 +94,13 @@ export function DocumentLogoUpload({
   return (
     <div className="space-y-2">
       <span className="text-sm font-medium">{label}</span>
-      <div className="flex items-center gap-4">
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-white shadow-[inset_0_2px_6px_rgba(15,23,42,0.10),inset_0_1px_2px_rgba(15,23,42,0.08)] dark:bg-slate-900">
+      <div className="flex flex-wrap items-center gap-4">
+        <div
+          className={cn(
+            "relative h-16 shrink-0 overflow-hidden rounded-xl bg-white shadow-[inset_0_2px_6px_rgba(15,23,42,0.10),inset_0_1px_2px_rgba(15,23,42,0.08)] dark:bg-slate-900",
+            isWide ? "w-32 sm:w-40" : "w-16",
+          )}
+        >
           {previewUrl ? (
             // Logo previews are user-uploaded blob/remote URLs of unknown
             // dimensions, so a plain img keeps the square thumbnail simple.
@@ -119,8 +127,8 @@ export function DocumentLogoUpload({
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <div className="flex gap-2">
+        <div className="flex min-w-0 flex-1 basis-48 flex-col gap-1.5">
+          <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               variant="glass"
@@ -128,7 +136,9 @@ export function DocumentLogoUpload({
               onClick={handleChangeLogo}
               disabled={isBusy}
             >
-              {previewUrl ? "Change logo" : "Upload logo"}
+              {previewUrl
+                ? `Change ${isWide ? "image" : "logo"}`
+                : `Upload ${isWide ? "image" : "logo"}`}
             </Button>
 
             {previewUrl && (

@@ -5,6 +5,9 @@ import type {
 } from "@wildfires-org/turboplan-db/types";
 import { OfficeStatus } from "@wildfires-org/turboplan-db/types";
 
+import type { DocumentProfile } from "../../document-profile";
+import type { LetterheadLayout } from "../../letterhead";
+
 // Re-export enums from turboplan-db
 export { OfficeStatus } from "@wildfires-org/turboplan-db/types";
 
@@ -18,6 +21,12 @@ interface BaseOfficeData {
   documentFooterText?: string;
   documentFooterNote?: string;
   documentFooterLogoUrl?: string;
+  documentLetterheadLayout?: LetterheadLayout | "";
+  documentLetterheadLines?: string;
+  documentLetterheadContact?: string;
+  // "#rrggbb", or "" to clear.
+  documentLetterheadColor?: string;
+  documentProfile?: DocumentProfile | null;
 }
 
 export interface CreateOfficeRequest extends BaseOfficeData {

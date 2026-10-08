@@ -2,6 +2,11 @@ import { z } from "zod";
 
 import { EMAIL_DOMAIN_REGEX } from "@wildfires-org/turboplan-utils/server";
 
+import { documentProfileSchema } from "../../document-profile";
+import {
+  letterheadColorSchema,
+  letterheadLayoutSchema,
+} from "./letterhead-validation";
 import { OrganizationStatus, OrganizationType } from "./types";
 
 // Organization validation schemas
@@ -51,6 +56,19 @@ export const editOrganizationSchema = z.object({
     .url("Please enter a valid URL")
     .optional()
     .or(z.literal("")),
+  documentLetterheadLayout: letterheadLayoutSchema.optional().or(z.literal("")),
+  documentLetterheadLines: z
+    .string()
+    .max(400, "Letterhead name lines must be less than 400 characters")
+    .optional()
+    .or(z.literal("")),
+  documentLetterheadContact: z
+    .string()
+    .max(400, "Letterhead contact lines must be less than 400 characters")
+    .optional()
+    .or(z.literal("")),
+  documentLetterheadColor: letterheadColorSchema.optional(),
+  documentProfile: documentProfileSchema.nullable().optional(),
 });
 
 export const createOrganizationSchema = editOrganizationSchema

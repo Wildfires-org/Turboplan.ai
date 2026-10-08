@@ -780,6 +780,9 @@ importers:
       partial-json-parser:
         specifier: ^1.2.2
         version: 1.2.2
+      pdfjs-dist:
+        specifier: 4.8.69
+        version: 4.8.69
       postgres:
         specifier: ^3.4.4
         version: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
@@ -2318,6 +2321,9 @@ importers:
       '@wildfires-org/turboplan-utils':
         specifier: workspace:*
         version: link:../../core/turboplan-utils
+      '@wildfires-org/turboplan-workspace':
+        specifier: workspace:*
+        version: link:../../core/turboplan-workspace
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.2)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))

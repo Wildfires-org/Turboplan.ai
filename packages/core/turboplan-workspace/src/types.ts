@@ -143,6 +143,53 @@ export {
 } from "./server/projects/validation";
 
 // ============================================================================
+// DOCUMENT LETTERHEAD
+// ============================================================================
+
+export {
+  applyLetterhead,
+  buildLetterheadMarkdown,
+  contentHasLetterheadTable,
+  type DocumentLetterhead,
+  isLetterheadConfigured,
+  LETTERHEAD_COLOR_PATTERN,
+  LETTERHEAD_LAYOUTS,
+  LETTERHEAD_LOGO_PLACEMENT,
+  type LetterheadBrandingPlan,
+  type LetterheadLayout,
+  type LetterheadLogoPlacement,
+  type LetterheadSelection,
+  type LibraryLetterhead,
+  libraryLetterheadToDocumentLetterhead,
+  MAX_LIBRARY_LETTERHEADS,
+  normalizeLetterheadColor,
+  parseLetterheadLines,
+  planLetterheadBranding,
+} from "./letterhead";
+export {
+  type LibraryLetterheadFormData,
+  letterheadColorSchema,
+  letterheadLayoutSchema,
+  libraryLetterheadSchema,
+} from "./server/organizations/letterhead-validation";
+
+// ============================================================================
+// DOCUMENT PROFILE
+// ============================================================================
+
+export {
+  appendDocumentProfileFact,
+  DOCUMENT_PROFILE_FACTS_MAX_CHARS,
+  DOCUMENT_PROFILE_FIELDS,
+  type DocumentProfile,
+  type DocumentProfileFormData,
+  documentProfileSchema,
+  documentProfileToFacts,
+  mergeDocumentProfiles,
+  normalizeDocumentProfile,
+} from "./document-profile";
+
+// ============================================================================
 // ORGANIZATION CONTEXT
 // ============================================================================
 
