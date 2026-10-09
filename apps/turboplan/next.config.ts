@@ -222,6 +222,16 @@ const nextConfig: NextConfig = {
       config.resolve.alias = {
         ...config.resolve.alias,
         "@streamdown/code": false,
+        // `@sentry/nextjs`'s server entry re-exports `withSentryConfig`, which
+        // drags its build-time webpack plugin (via @sentry/server-utils) into
+        // the runtime bundle. That plugin inlines `es-module-lexer`, whose
+        // module body calls `WebAssembly.compile()` at load — Cloudflare Workers
+        // forbid runtime wasm codegen, so every cold start logged three
+        // unhandled "Wasm code generation disallowed by embedder" errors
+        // (harmless, but they drown real errors). Nothing at runtime calls
+        // the plugin, so alias the package to an empty module here. Build-time
+        // use in this file is a plain Node require and is unaffected.
+        "@apm-js-collab/code-transformer-bundler-plugins": false,
       };
     }
 

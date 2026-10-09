@@ -132,6 +132,22 @@ const nextConfig: NextConfig = {
         fs: false,
       };
     }
+
+    if (isServer) {
+      // `@sentry/nextjs`'s server entry re-exports `withSentryConfig`, which
+      // drags its build-time webpack plugin into the runtime bundle. That
+      // plugin inlines `es-module-lexer`, whose module body calls
+      // `WebAssembly.compile()` at load — Cloudflare Workers forbid runtime
+      // wasm codegen, so every cold start logged three unhandled
+      // "Wasm code generation disallowed by embedder" errors. Nothing at
+      // runtime calls the plugin; alias it to an empty module. Same fix as
+      // apps/turboplan/next.config.ts.
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "@apm-js-collab/code-transformer-bundler-plugins": false,
+      };
+    }
+
     return config;
   },
 
