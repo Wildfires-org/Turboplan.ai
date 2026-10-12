@@ -89,6 +89,7 @@ export const toolDescWebSearch = `Search the web for relevant environmental & re
 
 Rules:
 - For comparable project searches: use searchType: "neural" (and the category param where it helps) to find semantically similar projects
+- For comparable project searches: compare every result before picking an analog — the best match is often not the top result
 - Every factual claim from web research MUST cite its source in italics: *[Source Name]*
 - Prefer official/authoritative sources (the responsible authority's own publications, environmental registries) over general web results
 - Use the returned highlights to evaluate which results are most relevant before calling getContents
