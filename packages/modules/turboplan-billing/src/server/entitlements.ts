@@ -14,10 +14,7 @@ import {
   subscription,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
-import {
-  isBillingEnforcementEnabled,
-  isBillingPackageEnabled,
-} from "@wildfires-org/turboplan-feature-flags";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 
 import {
   allowancePlanKey,
@@ -243,9 +240,14 @@ export const isUserOrgSeat = async (
  * the belt to that suspenders). Users without a personal org resolve false —
  * the plan step will offer them Starter, which activateStarterPlan can only
  * apply once an org exists.
+ *
+ * Always true when billing enforcement is disabled (billing package off, or
+ * `IS_BILLING_ENFORCEMENT_ENABLED=false`): no limit applies, so a paid plan
+ * unlocks nothing and the plan step is skipped. Nothing is stamped, so those
+ * users see the step once if enforcement is later turned on.
  */
 export const hasChosenPlan = async (userId: string): Promise<boolean> => {
-  if (!isBillingPackageEnabled()) {
+  if (!isBillingEnforcementEnabled()) {
     return true;
   }
 

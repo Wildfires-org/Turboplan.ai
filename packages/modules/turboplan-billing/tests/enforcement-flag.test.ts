@@ -33,6 +33,7 @@ type ChildResult = {
     seatAllowed: boolean;
     usageAlert: string;
     chargeableSeats: number;
+    planChosen: boolean;
   };
 };
 
@@ -48,7 +49,7 @@ const runWithEnv = (
     };
     if (${callGates}) {
       const { assertCreditsAvailable } = await import(${JSON.stringify(creditsUrl)});
-      const { getProjectCreationEntitlement, assertSeatAvailable } = await import(${JSON.stringify(entitlementsUrl)});
+      const { getProjectCreationEntitlement, assertSeatAvailable, hasChosenPlan } = await import(${JSON.stringify(entitlementsUrl)});
       const { maybeSendUsageAlerts } = await import(${JSON.stringify(usageAlertsUrl)});
       const { countChargeableSeats } = await import(${JSON.stringify(queriesUrl)});
       const orgId = "00000000-0000-0000-0000-000000000000";
@@ -72,6 +73,9 @@ const runWithEnv = (
         usageAlert: "skipped",
         // Stripe-facing seat count: 0 => no extra-seat item on any plan.
         chargeableSeats: await countChargeableSeats(orgId),
+        // Onboarding plan step is skipped. Takes a user id; the zero UUID
+        // works because it returns before touching the DB.
+        planChosen: await hasChosenPlan(orgId),
       };
     }
     console.log(JSON.stringify(result));
@@ -133,6 +137,7 @@ describe("billing enforcement flag", () => {
         seatAllowed: true,
         usageAlert: "skipped",
         chargeableSeats: 0,
+        planChosen: true,
       });
     });
   }
@@ -147,6 +152,7 @@ describe("billing enforcement flag", () => {
       seatAllowed: true,
       usageAlert: "skipped",
       chargeableSeats: 0,
+      planChosen: true,
     });
   });
 });

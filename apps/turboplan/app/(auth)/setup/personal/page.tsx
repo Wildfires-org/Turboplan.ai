@@ -46,9 +46,9 @@ export default function SetupPage() {
   useEffect(() => {
     if (state.status === FormStatus.SUCCESS) {
       toast({ type: "success", description: "Profile setup complete!" });
-      // Next onboarding step. When billing is disabled, /setup/plan
-      // immediately redirects to /?setup=true, so this push is safe for
-      // open-source installs too.
+      // Next onboarding step. When billing enforcement is disabled (billing
+      // off, as on open-source installs, or enforcement off), /setup/plan
+      // immediately redirects to /?setup=true, so this push is always safe.
       router.push("/setup/plan");
     } else if (state.status === FormStatus.FAILED) {
       toast({ type: "error", description: "Failed to save your information!" });

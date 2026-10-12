@@ -14,12 +14,22 @@ import { createTestUserWithMagicLink } from "../../utils";
 const isTruthy = (value: string | undefined): boolean =>
   value === "true" || value === "1";
 
+const isExplicitlyFalse = (value: string | undefined): boolean =>
+  value === "false" || value === "0";
+
 const isBillingEnabled = (): boolean =>
   isTruthy(process.env.IS_BILLING_PACKAGE_ENABLED) ||
   isTruthy(process.env.NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED);
 
+// Mirrors isBillingEnforcementEnabled(): on unless either name is "false"/"0".
+const isBillingEnforcementEnabled = (): boolean =>
+  isBillingEnabled() &&
+  !isExplicitlyFalse(process.env.IS_BILLING_ENFORCEMENT_ENABLED) &&
+  !isExplicitlyFalse(process.env.NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED);
+
 /**
- * Onboarding plan step (/setup/plan), billing flag ON.
+ * Onboarding plan step (/setup/plan), billing enforcement ON (the step is
+ * skipped while enforcement is off).
  *
  * Fresh users complete /setup/personal and land on the plan step; picking
  * Starter or pressing Skip stamps the free plan on their personal org
@@ -51,7 +61,10 @@ const gotoFreshPlanStep = async (page: Page): Promise<string> => {
 };
 
 test.describe("Onboarding plan step", () => {
-  test.skip(!isBillingEnabled(), "Billing package disabled — skipping.");
+  test.skip(
+    !isBillingEnforcementEnabled(),
+    "Billing package or enforcement disabled — skipping.",
+  );
 
   test("personal step routes to the plan step with Pro preselected", async ({
     page,

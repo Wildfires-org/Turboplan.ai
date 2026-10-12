@@ -238,9 +238,10 @@ Stripe objects with
 switches off billing *limits* — the credit hard-stop, the active-project cap and
 the seat cap — and seat billing: no extra-seat item is added to Stripe, seat
 sync and reconciliation remove existing ones, the invite-time seat notice is
-hidden, and the checkout price previews (the app's and the landing page's
-`/checkout`) show the flat workspace price without a seat breakdown. Plans,
-pricing, checkout, the base subscription and credit metering keep working.
+hidden, the checkout price previews (the app's and the landing page's
+`/checkout`) show the flat workspace price without a seat breakdown, and
+onboarding skips the `/setup/plan` step. Plans, pricing, checkout, the base
+subscription and credit metering keep working.
 Unlike the module flags it defaults to **on**: only an explicit `false` or `0`
 in either name disables it, and it has no effect unless billing itself is
 enabled. The API server reads `IS_BILLING_ENFORCEMENT_ENABLED`; the web app and

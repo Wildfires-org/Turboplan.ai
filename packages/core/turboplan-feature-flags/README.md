@@ -28,7 +28,7 @@ Each flag reads two environment variables — `NEXT_PUBLIC_IS_*` (for Next.js cl
 
 There is also a generic `isPackageEnabled(packageName)` that throws on unknown package names.
 
-`isBillingEnforcementEnabled()` gates billing limits (credits, active projects, seats) and extra-seat billing via `IS_BILLING_ENFORCEMENT_ENABLED` / `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`; when it is off, no seat is billed in Stripe. Unlike the package flags it defaults to **on**: it is `true` whenever the billing package is enabled, unless either variable is explicitly `false` or `0`.
+`isBillingEnforcementEnabled()` gates billing limits (credits, active projects, seats) and extra-seat billing via `IS_BILLING_ENFORCEMENT_ENABLED` / `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`; when it is off, no seat is billed in Stripe and onboarding skips the plan step. Unlike the package flags it defaults to **on**: it is `true` whenever the billing package is enabled, unless either variable is explicitly `false` or `0`.
 
 ## Setup
 
