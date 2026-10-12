@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Command } from "cmdk";
-import { Check, Loader2, UserPlus, X } from "lucide-react";
+import { Loader2, UserPlus, X } from "lucide-react";
 
 import {
   Avatar,
@@ -21,6 +21,7 @@ import {
   type UserSearchScope,
   useUserSearch,
 } from "../../hooks/use-user-search";
+import { isValidEmail, resolveEmailInput } from "./email-input";
 
 // ============================================================================
 // TYPES
@@ -79,20 +80,11 @@ export type UserSelectorProps = {
 };
 
 // ============================================================================
-// HELPERS
+// CONSTANTS
 // ============================================================================
 
-/**
- * Email validation regex
- */
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/**
- * Check if a string is a valid email address
- */
-function isValidEmail(value: string): boolean {
-  return EMAIL_REGEX.test(value.trim());
-}
+/** Shorter queries don't search, and no (possibly stale) results are shown */
+const MIN_QUERY_LENGTH = 3;
 
 // ============================================================================
 // COMPONENT
@@ -134,6 +126,7 @@ export function UserSelector({
 }: UserSelectorProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [activeValue, setActiveValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -150,7 +143,7 @@ export function UserSelector({
   const { users, isLoading, shouldSearch } = useUserSearch(
     inputValue,
     searchScope,
-    { enabled: open && !disabled },
+    { enabled: open && !disabled, minQueryLength: MIN_QUERY_LENGTH },
   );
 
   // Filter out already selected users from results
@@ -174,44 +167,68 @@ export function UserSelector({
     [users, selectedIds, excludeEmails],
   );
 
-  // Check if input looks like an email (for hiding search results)
-  const isEmailInput = useMemo(() => isValidEmail(inputValue), [inputValue]);
+  // Emails that can't be picked again: excluded (e.g. existing members) or
+  // already selected
+  const takenEmails = useMemo(() => {
+    const emails = new Set<string>(excludeEmails);
+    for (const item of value) {
+      emails.add(item.email.toLowerCase());
+    }
+    return emails;
+  }, [excludeEmails, value]);
 
-  // Check if we should show the invite option
-  const showInviteOption = useMemo(() => {
-    if (!allowInvite) return false;
-    if (!isEmailInput) return false;
+  // A typed email never shows fuzzy results: either its exact user, a
+  // "taken" hint, or the invite option. Null for regular (non-email) input.
+  const emailInput = useMemo(
+    () => resolveEmailInput(inputValue, users, takenEmails),
+    [inputValue, users, takenEmails],
+  );
 
-    const trimmedEmail = inputValue.trim().toLowerCase();
+  // Results can be stale from a previous query (`keepPreviousData`), e.g. just
+  // after a pick clears the input — never show them for a too-short query.
+  const isQueryTooShort = inputValue.trim().length < MIN_QUERY_LENGTH;
 
-    // Check if email is already in search results
-    const emailInResults = users.some(
-      (user) => user.email.toLowerCase() === trimmedEmail,
-    );
-    if (emailInResults) return false;
+  const visibleUsers = useMemo(() => {
+    if (isQueryTooShort) {
+      return [];
+    }
+    if (!emailInput) {
+      return filteredUsers;
+    }
+    return emailInput.status === "match" ? [emailInput.user] : [];
+  }, [isQueryTooShort, emailInput, filteredUsers]);
 
-    // Check if email is excluded (existing member)
-    if (excludeEmails?.has(trimmedEmail)) return false;
+  const showInviteOption = allowInvite && emailInput?.status === "new";
+  const isTakenEmail = emailInput?.status === "taken";
 
-    // Check if email is already selected
-    const emailAlreadySelected = value.some((v) => {
-      if (isInviteUser(v)) {
-        return v.email.toLowerCase() === trimmedEmail;
-      }
-      return v.email.toLowerCase() === trimmedEmail;
-    });
-    if (emailAlreadySelected) return false;
+  // cmdk item values are trimmed, so build the invite value the same way
+  const inviteItemValue = `invite-${inputValue.trim()}`;
 
-    return true;
-  }, [allowInvite, isEmailInput, inputValue, users, value]);
-
-  // Hide search results when user typed a valid email that's not in the system
-  // This provides cleaner UX: either search for users OR invite a specific email
-  const shouldHideSearchResults = isEmailInput && showInviteOption;
+  // Controlled highlight: cmdk only auto-selects the first item while it holds
+  // no value, so when results swap items (e.g. the invite option gives way to
+  // the exact user) a stale value would leave nothing highlighted and Enter
+  // would do nothing. Fall back to the first visible item instead.
+  const itemValues = [
+    ...visibleUsers.map((user) => user.id),
+    ...(showInviteOption ? [inviteItemValue] : []),
+  ];
+  const selectedValue = itemValues.includes(activeValue)
+    ? activeValue
+    : (itemValues[0] ?? "");
 
   // Check if max selections reached
   const maxReached =
     maxSelections !== undefined && value.length >= maxSelections;
+
+  // After a pick, keep focus for the next entry but close the dropdown so it
+  // doesn't cover what sits below (e.g. a pending list); typing reopens it.
+  const resetAfterPick = useCallback(() => {
+    setInputValue("");
+    inputRef.current?.focus();
+    // Must follow focus(): after a mouse pick the input had blurred, so
+    // focus() fires onFocus, which opens the dropdown again.
+    setOpen(false);
+  }, []);
 
   // Handle selecting a user
   const handleSelectUser = useCallback(
@@ -219,10 +236,9 @@ export function UserSelector({
       if (maxReached) return;
 
       onChange([...value, user]);
-      setInputValue("");
-      inputRef.current?.focus();
+      resetAfterPick();
     },
-    [value, onChange, maxReached],
+    [value, onChange, maxReached, resetAfterPick],
   );
 
   // Handle inviting a new user
@@ -235,9 +251,8 @@ export function UserSelector({
       email: inputValue.trim(),
     };
     onChange([...value, invite]);
-    setInputValue("");
-    inputRef.current?.focus();
-  }, [value, onChange, inputValue, maxReached]);
+    resetAfterPick();
+  }, [value, onChange, inputValue, maxReached, resetAfterPick]);
 
   // Handle removing a selected user/invite
   const handleRemove = useCallback(
@@ -262,7 +277,12 @@ export function UserSelector({
 
   return (
     <div className={cn("relative", className)}>
-      <Command className="overflow-visible bg-transparent" shouldFilter={false}>
+      <Command
+        className="overflow-visible bg-transparent"
+        shouldFilter={false}
+        value={selectedValue}
+        onValueChange={setActiveValue}
+      >
         {/* Selected chips and input */}
         <div
           className={cn(
@@ -271,7 +291,16 @@ export function UserSelector({
             "focus-within:outline focus-within:outline-2 focus-within:outline-brand-700/40",
             disabled && "cursor-not-allowed opacity-50",
           )}
-          onClick={() => inputRef.current?.focus()}
+          onClick={() => {
+            // The input is disabled then, so it can't blur to close the list
+            if (disabled || maxReached) {
+              return;
+            }
+            inputRef.current?.focus();
+            // The input may already be focused (after a pick), so focus alone
+            // wouldn't reopen the dropdown
+            setOpen(true);
+          }}
         >
           {/* Selected items as chips */}
           {value.map((item, index) => (
@@ -311,8 +340,17 @@ export function UserSelector({
           <Command.Input
             ref={inputRef}
             value={inputValue}
-            onValueChange={setInputValue}
-            onFocus={() => setOpen(true)}
+            onValueChange={(nextValue) => {
+              setInputValue(nextValue);
+              setOpen(true);
+            }}
+            onFocus={() => {
+              // A pending close from a mouse pick must not hide the reopened list
+              if (blurTimeoutRef.current) {
+                clearTimeout(blurTimeoutRef.current);
+              }
+              setOpen(true);
+            }}
             onBlur={() => {
               // Delay closing to allow clicking on items
               blurTimeoutRef.current = setTimeout(() => setOpen(false), 200);
@@ -334,7 +372,7 @@ export function UserSelector({
         </div>
 
         {/* Dropdown results */}
-        {open && !disabled && (
+        {open && !disabled && !maxReached && (
           <div
             className={cn(
               "absolute top-full z-50 mt-1 w-full text-popover-foreground",
@@ -342,97 +380,100 @@ export function UserSelector({
             )}
           >
             <Command.List className="max-h-60 overflow-auto p-1">
+              {/* Typed email is already selected or excluded — nothing to pick */}
+              {isTakenEmail && (
+                <div className="break-words px-3 py-4 text-center text-sm text-muted-foreground">
+                  {inputValue.trim()} is already added or a member
+                </div>
+              )}
+
               {/* Hint to type more characters */}
-              {!shouldSearch &&
+              {(isQueryTooShort || !shouldSearch) &&
                 !showInviteOption &&
-                filteredUsers.length === 0 && (
+                !isTakenEmail &&
+                visibleUsers.length === 0 && (
                   <div className="py-4 text-center text-sm text-muted-foreground">
-                    Type at least 3 characters to search
+                    Type at least {MIN_QUERY_LENGTH} characters to search
                   </div>
                 )}
 
               {/* Loading state */}
-              {shouldSearch && isLoading && filteredUsers.length === 0 && (
-                <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Searching...
-                </div>
-              )}
+              {shouldSearch &&
+                !isQueryTooShort &&
+                isLoading &&
+                !isTakenEmail &&
+                visibleUsers.length === 0 && (
+                  <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Searching...
+                  </div>
+                )}
 
               {/* No results message */}
               {shouldSearch &&
-                filteredUsers.length === 0 &&
+                !isQueryTooShort &&
+                visibleUsers.length === 0 &&
                 !showInviteOption &&
+                !isTakenEmail &&
                 !isLoading && (
                   <Command.Empty className="py-4 text-center text-sm text-muted-foreground">
                     No users found
                   </Command.Empty>
                 )}
 
-              {/* User results - hidden when user typed a valid non-existent email */}
-              {!shouldHideSearchResults &&
-                filteredUsers.map((user) => (
-                  <Command.Item
-                    key={user.id}
-                    value={user.id}
-                    onSelect={() => handleSelectUser(user)}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2",
-                      "aria-selected:bg-brandAlt-100 aria-selected:text-brand-900",
-                    )}
-                  >
-                    {/* Avatar */}
-                    <Avatar className="size-8 shrink-0 text-xs font-medium">
-                      <AvatarImage src={user.avatarUrl ?? undefined} alt="" />
-                      <AvatarFallback>{generateInitials(user)}</AvatarFallback>
-                    </Avatar>
+              {/* User results (only the exact match for a typed email) */}
+              {visibleUsers.map((user) => (
+                <Command.Item
+                  key={user.id}
+                  value={user.id}
+                  onSelect={() => handleSelectUser(user)}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2",
+                    "aria-selected:bg-brandAlt-100 aria-selected:text-brand-900",
+                  )}
+                >
+                  {/* Avatar */}
+                  <Avatar className="size-8 shrink-0 text-xs font-medium">
+                    <AvatarImage src={user.avatarUrl ?? undefined} alt="" />
+                    <AvatarFallback>{generateInitials(user)}</AvatarFallback>
+                  </Avatar>
 
-                    {/* Name and email */}
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate font-medium">
-                        {generateDisplayName(user)}
+                  {/* Name and email */}
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate font-medium">
+                      {generateDisplayName(user)}
+                    </span>
+                    {(user.firstName || user.lastName) && (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {user.email}
                       </span>
-                      {(user.firstName || user.lastName) && (
-                        <span className="truncate text-xs text-muted-foreground">
-                          {user.email}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Selected indicator */}
-                    {selectedIds.has(user.id) && (
-                      <Check className="size-4 text-brand-700" />
                     )}
-                  </Command.Item>
-                ))}
+                  </div>
+                </Command.Item>
+              ))}
 
               {/* Invite option */}
               {showInviteOption && (
-                <>
-                  {!shouldHideSearchResults && filteredUsers.length > 0 && (
-                    <div className="my-1 h-px bg-border" />
+                <Command.Item
+                  value={inviteItemValue}
+                  onSelect={handleInvite}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2",
+                    "aria-selected:bg-brandAlt-100 aria-selected:text-brand-900",
                   )}
-                  <Command.Item
-                    value={`invite-${inputValue}`}
-                    onSelect={handleInvite}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2",
-                      "aria-selected:bg-brandAlt-100 aria-selected:text-brand-900",
-                    )}
-                  >
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-orange-300 bg-orange-50">
-                      <UserPlus className="size-4 text-orange-600" />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="font-medium text-orange-700">
-                        Create and invite
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {inputValue.trim()}
-                      </span>
-                    </div>
-                  </Command.Item>
-                </>
+                >
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-orange-300 bg-orange-50">
+                    <UserPlus className="size-4 text-orange-600" />
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="font-medium text-orange-700">
+                      Create and invite
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {inputValue.trim()}
+                    </span>
+                  </div>
+                </Command.Item>
               )}
             </Command.List>
           </div>

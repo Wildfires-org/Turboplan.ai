@@ -65,16 +65,14 @@ export function AddOfficeDialog({
     },
   });
   const {
+    addInvitees,
     currentRole,
     excludedEmails,
-    handleAssign,
     handleRemove,
     handleRoleChange,
     pendingInvitees,
     resetInvitations,
-    selectedUsers,
     setCurrentRole,
-    setSelectedUsers,
   } = useMemberInvitation();
 
   const resetState = useCallback(() => {
@@ -205,15 +203,13 @@ export function AddOfficeDialog({
               Add Members
             </Label>
             <MemberAssignRow
-              selectedUsers={selectedUsers}
-              onSelectedUsersChange={setSelectedUsers}
+              onAdd={addInvitees}
               searchScope={{
                 entityType: EntityType.ORGANIZATION,
                 entityId: organizationId,
               }}
               currentRole={currentRole}
               onRoleChange={setCurrentRole}
-              onAssign={handleAssign}
               disabled={form.formState.isSubmitting}
               excludeEmails={excludedEmails}
             />

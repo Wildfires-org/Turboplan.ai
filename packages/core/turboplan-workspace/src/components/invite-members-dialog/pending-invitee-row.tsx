@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import {
   Avatar,
@@ -52,7 +52,6 @@ export function PendingInviteeRow({
         >
           <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full px-3 text-sm">
             <SelectValue />
-            <ChevronDown className="size-3.5 opacity-50" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={MemberRole.OWNER}>

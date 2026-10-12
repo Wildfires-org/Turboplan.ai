@@ -48,16 +48,14 @@ export function InviteMembersDialog({
   seatBillingActive = false,
 }: InviteMembersDialogProps) {
   const {
+    addInvitees,
     currentRole,
     excludedEmails,
-    handleAssign,
     handleRemove,
     handleRoleChange,
     pendingInvitees,
     resetInvitations,
-    selectedUsers,
     setCurrentRole,
-    setSelectedUsers,
   } = useMemberInvitation({ existingEmails });
 
   const handleOpenChange = useCallback(
@@ -106,12 +104,10 @@ export function InviteMembersDialog({
               Add Members
             </span>
             <MemberAssignRow
-              selectedUsers={selectedUsers}
-              onSelectedUsersChange={setSelectedUsers}
+              onAdd={addInvitees}
               searchScope={searchScope}
               currentRole={currentRole}
               onRoleChange={setCurrentRole}
-              onAssign={handleAssign}
               disabled={isSubmitting}
               excludeEmails={excludedEmails}
             />
