@@ -19,6 +19,7 @@ import {
   PAYMENT_FAILED_STATUS_VALUES,
   PLANS,
 } from "@wildfires-org/turboplan-billing/types";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 import {
   Button,
   Card,
@@ -156,7 +157,9 @@ export function BillingView({
           <DialogDescription>
             {HAS_TRIAL
               ? `You won't be charged until your ${TRIAL_DAYS}-day free trial ends.`
-              : "A flat workspace price — seats beyond the included count bill separately."}
+              : isBillingEnforcementEnabled()
+                ? "A flat workspace price — seats beyond the included count bill separately."
+                : "A flat monthly workspace price."}
           </DialogDescription>
         </DialogHeader>
         <CheckoutView

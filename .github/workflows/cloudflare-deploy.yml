@@ -377,6 +377,12 @@ jobs:
           NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN_LANDING }}
+          # /checkout (the pricing buttons' target) renders "Billing is not
+          # enabled" without it. Same flag as the web build.
+          NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          # Off means extra seats are never billed, so the /checkout preview
+          # drops the seat breakdown. Same flag and fallback as the web build.
+          NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED: ${{ vars.FF_IS_BILLING_ENFORCEMENT_ENABLED || 'true' }}
 
       - name: Deploy
         id: deploy
@@ -403,6 +409,8 @@ jobs:
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED: ${{ vars.FF_IS_BILLING_ENFORCEMENT_ENABLED || 'true' }}
           # Sentry (optional — monitoring/sourcemap upload disabled when unset)
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN_LANDING }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

@@ -6,7 +6,7 @@ import {
   planSeatItemTransition,
   transitionChangesStripe,
 } from "../src/server/seat-items";
-import { PLANS } from "../src/types";
+import { PAID_PLAN_KEYS, PLANS } from "../src/types";
 
 type FakeItem = { id: string; quantity?: number; lookupKey: string | null };
 
@@ -186,5 +186,38 @@ describe("planSeatItemTransition", () => {
     });
     assert.equal(transition.previousExtraQuantity, 3);
     assert.equal(transition.desiredExtraQuantity, 1);
+  });
+});
+
+// countChargeableSeats returns 0 while billing enforcement is off; these pin
+// what every Stripe-facing seat path then does with it.
+describe("planSeatItemTransition with zero chargeable seats", () => {
+  it("never creates a seat item, on any paid plan", () => {
+    for (const plan of PAID_PLAN_KEYS) {
+      const transition = planSeatItemTransition({
+        items: [base, overage],
+        plan,
+        billableSeats: 0,
+      });
+      assert.deepEqual(transition.action, { type: "none" }, plan);
+      assert.equal(transition.desiredExtraQuantity, 0, plan);
+      assert.equal(transitionChangesStripe(transition), false, plan);
+    }
+  });
+
+  it("removes every existing seat item without prorations", () => {
+    const transition = planSeatItemTransition({
+      items: [base, proSeat(3), maxSeat(1), overage],
+      plan: "pro",
+      billableSeats: 0,
+    });
+    assert.deepEqual(transition.action, {
+      type: "delete",
+      itemId: "si_seat_pro",
+    });
+    assert.deepEqual(transition.removeItemIds, ["si_seat_max"]);
+    assert.equal(transition.prorationBehavior, "none");
+    assert.equal(transition.previousExtraQuantity, 3);
+    assert.equal(transition.desiredExtraQuantity, 0);
   });
 });

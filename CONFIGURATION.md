@@ -225,7 +225,7 @@ reads `IS_<MODULE>_PACKAGE_ENABLED`, the browser bundle reads
 | Fields | `IS_FIELDS_PACKAGE_ENABLED` | No | Custom project fields | — |
 | Documents | `IS_DOCUMENTS_PACKAGE_ENABLED` | No | PDF/Word upload per project | Working `R2_*` credentials, or every upload returns 500 |
 | Timeline records | `IS_TIMELINE_RECORDS_PACKAGE_ENABLED` | No | Project activity log | — |
-| Billing | `IS_BILLING_PACKAGE_ENABLED` | No | Stripe plans, checkout, seat reconciliation, `/setup/plan` | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (API server throws at startup without them). Optional: `RECONCILE_SECRET`, `LANDING_URL` |
+| Billing | `IS_BILLING_PACKAGE_ENABLED` | No | Stripe plans, checkout (the app and the landing page's `/checkout`, which the pricing buttons open), seat reconciliation, `/setup/plan` | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (API server throws at startup without them). Optional: `RECONCILE_SECRET`, `LANDING_URL` |
 | Signing | `IS_SIGNING_PACKAGE_ENABLED` | No | Documenso signature requests | `DOCUMENSO_API_URL`, `DOCUMENSO_API_KEY`, `DOCUMENSO_WEBHOOK_SECRET` (API server throws at startup without them) plus a running Documenso |
 
 Prices for the billing module are **not** environment variables. They resolve at
@@ -236,11 +236,17 @@ Stripe objects with
 
 `IS_BILLING_ENFORCEMENT_ENABLED` (and `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`)
 switches off billing *limits* — the credit hard-stop, the active-project cap and
-the seat cap — while plans, pricing, checkout, Stripe sync and credit metering
-keep working. Unlike the module flags it defaults to **on**: only an explicit
-`false` or `0` in either name disables it, and it has no effect unless billing
-itself is enabled. CI reads it from the `FF_IS_BILLING_ENFORCEMENT_ENABLED` repo
-variable, falling back to `true`.
+the seat cap — and seat billing: no extra-seat item is added to Stripe, seat
+sync and reconciliation remove existing ones, the invite-time seat notice is
+hidden, and the checkout price previews (the app's and the landing page's
+`/checkout`) show the flat workspace price without a seat breakdown. Plans,
+pricing, checkout, the base subscription and credit metering keep working.
+Unlike the module flags it defaults to **on**: only an explicit `false` or `0`
+in either name disables it, and it has no effect unless billing itself is
+enabled. The API server reads `IS_BILLING_ENFORCEMENT_ENABLED`; the web app and
+landing page read `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`, inlined at build
+time, so keep all three in agreement. CI sets every one from the
+`FF_IS_BILLING_ENFORCEMENT_ENABLED` repo variable, falling back to `true`.
 
 ## Deployment
 

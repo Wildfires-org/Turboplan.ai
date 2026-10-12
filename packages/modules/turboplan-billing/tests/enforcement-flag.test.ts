@@ -21,6 +21,7 @@ const entitlementsUrl = new URL(
 ).href;
 const usageAlertsUrl = new URL("../src/server/usage-alerts.ts", import.meta.url)
   .href;
+const queriesUrl = new URL("../src/server/queries.ts", import.meta.url).href;
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 
 type ChildResult = {
@@ -31,6 +32,7 @@ type ChildResult = {
     requiresUpgrade: boolean;
     seatAllowed: boolean;
     usageAlert: string;
+    chargeableSeats: number;
   };
 };
 
@@ -48,6 +50,7 @@ const runWithEnv = (
       const { assertCreditsAvailable } = await import(${JSON.stringify(creditsUrl)});
       const { getProjectCreationEntitlement, assertSeatAvailable } = await import(${JSON.stringify(entitlementsUrl)});
       const { maybeSendUsageAlerts } = await import(${JSON.stringify(usageAlertsUrl)});
+      const { countChargeableSeats } = await import(${JSON.stringify(queriesUrl)});
       const orgId = "00000000-0000-0000-0000-000000000000";
       await assertCreditsAvailable(orgId, 1000000);
       const entitlement = await getProjectCreationEntitlement(orgId);
@@ -67,6 +70,8 @@ const runWithEnv = (
         requiresUpgrade: entitlement.requiresUpgrade,
         seatAllowed: seat.allowed,
         usageAlert: "skipped",
+        // Stripe-facing seat count: 0 => no extra-seat item on any plan.
+        chargeableSeats: await countChargeableSeats(orgId),
       };
     }
     console.log(JSON.stringify(result));
@@ -127,6 +132,7 @@ describe("billing enforcement flag", () => {
         requiresUpgrade: false,
         seatAllowed: true,
         usageAlert: "skipped",
+        chargeableSeats: 0,
       });
     });
   }
@@ -140,6 +146,7 @@ describe("billing enforcement flag", () => {
       requiresUpgrade: false,
       seatAllowed: true,
       usageAlert: "skipped",
+      chargeableSeats: 0,
     });
   });
 });

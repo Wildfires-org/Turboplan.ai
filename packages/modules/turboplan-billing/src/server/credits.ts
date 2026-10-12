@@ -20,7 +20,10 @@ import {
   planHasOverage,
 } from "../types";
 import { planFromSubscriptionRow } from "./entitlements";
-import { getSubscriptionByOrganizationId } from "./queries";
+import {
+  getSubscriptionByOrganizationId,
+  resolveCreditSeatCount,
+} from "./queries";
 
 export {
   resolveBillingOrgForProject,
@@ -132,9 +135,12 @@ const getOrgCreditContext = async (
 ): Promise<OrgCreditContext> => {
   const subscription = await getSubscriptionByOrganizationId(organizationId);
   const plan = planFromSubscriptionRow(subscription ?? null);
-  // The seats mirror stores provisioned seats (included + extra), so the
-  // extra-seat credit grant derives directly from it.
-  const extraSeatCount = extraSeats(subscription?.seats ?? 0, plan);
+  // Provisioned seats (included + extra): normally the seats mirror, real
+  // members while enforcement is off so the per-seat grant is kept.
+  const extraSeatCount = extraSeats(
+    await resolveCreditSeatCount(subscription),
+    plan,
+  );
   return {
     plan,
     allowance: creditAllowance(plan, extraSeatCount),

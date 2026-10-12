@@ -54,9 +54,12 @@ export const featureFlags = {
   },
   // Sub-feature toggles that refine an enabled package rather than load one.
   billing: {
-    // Credit, active-project and seat limits. Default ON (upstream-safe): only
-    // an explicit "false"/"0" in either variant turns enforcement off, while
-    // plans, pricing, checkout, Stripe and metering keep working.
+    // Credit, active-project and seat limits, plus extra-seat billing. Default
+    // ON, so existing deployments keep their limits: only an explicit
+    // "false"/"0" in either variant turns enforcement off. Off means no seat
+    // is billed (no extra-seat item in Stripe; seat sync removes existing
+    // ones), while plans, pricing, checkout, the base subscription and credit
+    // metering keep working.
     enforcement: !(
       isEnvValueExplicitlyFalse(
         process.env.NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED,

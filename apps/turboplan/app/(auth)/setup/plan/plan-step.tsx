@@ -13,6 +13,7 @@ import {
   PLANS,
   type PlanKey,
 } from "@wildfires-org/turboplan-billing/types";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { Button, cn, Skeleton } from "@wildfires-org/turboplan-utils";
 
 import { toast } from "@/components/toast";
@@ -35,6 +36,10 @@ const planSummary = (plan: PlanKey): string => {
   if (plan === "starter") {
     const activeProjects: number = STARTER_PROJECT_LIMIT;
     return `${seats} · ${credits} · ${activeProjects} active ${activeProjects === 1 ? "project" : "projects"}`;
+  }
+  // Extra seats are never billed while billing enforcement is off.
+  if (!isBillingEnforcementEnabled()) {
+    return `${seats} · ${credits}`;
   }
   return `${seats} · ${credits} · +$${config.additional_seat_price_usd}/extra seat`;
 };

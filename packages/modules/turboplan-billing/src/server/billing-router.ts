@@ -7,6 +7,7 @@ import { z } from "zod";
 import { organization } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 import {
   Action,
   EntityType,
@@ -41,6 +42,7 @@ import {
   getBillableSeatMembers,
   getNonViewerMembershipsForUser,
   getSubscriptionByOrganizationId,
+  resolveCreditSeatCount,
   resolveOrganizationIdForEntity,
 } from "./queries";
 import {
@@ -219,7 +221,13 @@ billingRouter.get(
 
     const planForAllowances = allowancePlanKey(subscriptionRow.plan);
     const includedSeats = PLANS[planForAllowances].included_seats;
+    // Billed extra seats come from the mirror (0 while enforcement is off);
+    // the credit grant still counts real members then.
     const extraSeatCount = extraSeats(subscriptionRow.seats, planForAllowances);
+    const creditExtraSeats = extraSeats(
+      await resolveCreditSeatCount(subscriptionRow),
+      planForAllowances,
+    );
 
     // Explicit allowlist — this endpoint is readable by upward-inherited
     // VIEWER access (any project collaborator in the org), so Stripe object
@@ -244,7 +252,7 @@ billingRouter.get(
       plan,
       includedSeats,
       extraSeats: extraSeatCount,
-      creditAllowance: creditAllowance(planForAllowances, extraSeatCount),
+      creditAllowance: creditAllowance(planForAllowances, creditExtraSeats),
     });
   },
 );
@@ -279,10 +287,11 @@ billingRouter.get(
 );
 
 // GET /seat-billing-active?entityType=&entityId= — whether adding a non-viewer
-// member to this entity would change the org's seat-based bill (i.e. the owning
-// org has an active/trialing subscription). Drives the invite-time billing
-// notice. RBAC: READ on the entity itself, so project/office inviters who are
-// not org members still get an accurate answer.
+// member to this entity would change the org's seat-based bill (i.e. billing
+// enforcement is on and the owning org has an active/trialing paid
+// subscription). Drives the invite-time billing notice. RBAC: READ on the
+// entity itself, so project/office inviters who are not org members still get
+// an accurate answer.
 billingRouter.get(
   "/seat-billing-active",
   zValidator("query", seatBillingQuerySchema),
@@ -302,6 +311,12 @@ billingRouter.get(
         { error: "Forbidden", reason: permissionResult.reason },
         403,
       );
+    }
+
+    // Seats are never billed while enforcement is off (see
+    // countChargeableSeats), so there is nothing to warn about.
+    if (!isBillingEnforcementEnabled()) {
+      return c.json({ seatBillingActive: false });
     }
 
     const organizationId = await resolveOrganizationIdForEntity(

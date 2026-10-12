@@ -23,7 +23,11 @@ import {
   planFromLookupKey,
   seatLookupKey,
 } from "../types";
-import { countBillableSeats, getSubscriptionByOrganizationId } from "./queries";
+import {
+  countBillableSeats,
+  countChargeableSeats,
+  getSubscriptionByOrganizationId,
+} from "./queries";
 import { planSeatItemTransition, transitionChangesStripe } from "./seat-items";
 import { classifyItems } from "./webhook-helpers";
 
@@ -315,10 +319,11 @@ const createCheckoutSessionUnlocked = async ({
 
   // base_plus_seats cart: the base price covers the included seats at a flat
   // workspace price; only billable members beyond the included count add an
-  // extra-seat item; the metered overage item carries no quantity — Stripe
-  // bills it from reported meter events.
-  const billableSeats = await countBillableSeats(organizationId);
-  const extraSeatCount = extraSeats(billableSeats, plan);
+  // extra-seat item (never while enforcement is off — see
+  // countChargeableSeats); the metered overage item carries no quantity —
+  // Stripe bills it from reported meter events.
+  const chargeableSeats = await countChargeableSeats(organizationId);
+  const extraSeatCount = extraSeats(chargeableSeats, plan);
 
   const [basePriceId, seatPriceId, overagePriceId] = await Promise.all([
     resolvePriceIdByLookupKey(planConfig.lookup_key),
@@ -414,7 +419,7 @@ export const changeSubscriptionPlan = async (
     );
   }
 
-  const billableSeats = await countBillableSeats(organizationId);
+  const chargeableSeats = await countChargeableSeats(organizationId);
 
   // Seat-item handling (reprice to the new plan's seat price, requantify,
   // delete at zero, heal duplicate items from raced updates) comes from the
@@ -422,7 +427,7 @@ export const changeSubscriptionPlan = async (
   const seatTransition = planSeatItemTransition({
     items: stripeSub.items.data,
     plan: newPlan,
-    billableSeats,
+    billableSeats: chargeableSeats,
   });
 
   const [newBasePriceId, newOveragePriceId] = await Promise.all([
@@ -535,6 +540,8 @@ export const activateStarterPlan = async (
     "This organization has an active paid subscription. Cancel it before switching to the free plan.",
   );
 
+  // Raw member count, not countChargeableSeats: Starter has no Stripe seat
+  // item and grants no per-seat credits, so this mirror is never billed.
   const seats = await countBillableSeats(organizationId);
   const now = new Date();
   const starterState = {
@@ -730,7 +737,9 @@ const applySeatItems = async (
  *
  * No-op when billing is disabled, the org has no live subscription, or the
  * derived extra-seat quantity already matches the mirror. Transition and
- * proration rules live in {@link planSeatItemTransition}.
+ * proration rules live in {@link planSeatItemTransition}. While billing
+ * enforcement is off the desired extra quantity is always 0
+ * ({@link countChargeableSeats}), so a mirrored extra-seat item is deleted.
  *
  * After talking to Stripe we optimistically mirror the provisioned seats
  * (included + extra) onto the subscription row. The
@@ -755,7 +764,7 @@ export const syncSubscriptionSeats = async (
     return;
   }
 
-  const billableSeats = await countBillableSeats(organizationId);
+  const chargeableSeats = await countChargeableSeats(organizationId);
 
   // Cheap short-circuit on the EXTRA quantity: the mirror stores provisioned
   // seats (included + extra), so compare derived extras rather than raw
@@ -764,7 +773,7 @@ export const syncSubscriptionSeats = async (
   // deliberately does NOT take this short-circuit; it always retrieves from
   // Stripe to catch mirror/Stripe drift.
   const plan = allowancePlanKey(existing.plan);
-  const desiredExtra = extraSeats(billableSeats, plan);
+  const desiredExtra = extraSeats(chargeableSeats, plan);
   const mirrorExtra = Math.max(existing.seats - PLANS[plan].included_seats, 0);
   if (desiredExtra === mirrorExtra) {
     return;
@@ -773,7 +782,7 @@ export const syncSubscriptionSeats = async (
   await applySeatItems(
     organizationId,
     existing.stripeSubscriptionId,
-    billableSeats,
+    chargeableSeats,
     existing.seats,
   );
 };
@@ -787,7 +796,8 @@ export const syncSubscriptionSeats = async (
  *
  * Assumes the caller has already established that the subscription is live and
  * seat-syncable (has a `stripeSubscriptionId` in a {@link SEAT_SYNC_STATUSES}
- * status), so it does NOT re-check billing-enabled/status here.
+ * status), so it does NOT re-check billing-enabled/status here. `seats` must
+ * come from {@link countChargeableSeats} so the enforcement flag applies.
  */
 export const reconcileSeatQuantityForSubscription = async (params: {
   organizationId: string;
