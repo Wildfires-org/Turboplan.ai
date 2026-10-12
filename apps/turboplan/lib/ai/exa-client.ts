@@ -1,9 +1,9 @@
 import { getWebEnv } from "@wildfires-org/turboplan-env";
 
 const EXA_BASE_URL = "https://api.exa.ai";
+const EXA_SEARCH_NUM_RESULTS = 5;
 
 type ExaSearchOptions = {
-  numResults?: number;
   searchType?: "auto" | "neural" | "keyword";
   category?: string;
   startPublishedDate?: string;
@@ -93,7 +93,7 @@ export const exaSearch = async (
       signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({
         query,
-        numResults: options?.numResults ?? 5,
+        numResults: EXA_SEARCH_NUM_RESULTS,
         type: options?.searchType ?? "auto",
         ...(options?.category && { category: options.category }),
         ...(options?.startPublishedDate && {

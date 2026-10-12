@@ -12,13 +12,6 @@ export const webSearch = async () => {
     description,
     inputSchema: z.object({
       query: z.string().describe("The search query"),
-      numResults: z
-        .number()
-        .int()
-        .min(5)
-        .max(10)
-        .optional()
-        .describe("Number of results to return (default 10, min 5)"),
       searchType: z
         .enum(["auto", "neural", "keyword"])
         .optional()
@@ -42,14 +35,12 @@ export const webSearch = async () => {
     }),
     execute: async ({
       query,
-      numResults,
       searchType,
       category,
       startPublishedDate,
       endPublishedDate,
     }) => {
       const response = await exaSearch(query, {
-        numResults,
         searchType,
         category,
         startPublishedDate,

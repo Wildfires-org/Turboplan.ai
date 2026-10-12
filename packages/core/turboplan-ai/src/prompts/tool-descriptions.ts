@@ -88,7 +88,6 @@ generateQuickResponses({ conversationContext: "Asked which body leads this proje
 export const toolDescWebSearch = `Search the web for relevant environmental & regulatory documents, environmental data, authority guidance, similar projects, or any information needed. Returns titles, URLs, and query-relevant highlights (key excerpts matched to your query). Use getContents to read more from the most relevant results.
 
 Rules:
-- Always request numResults: 10 when searching for comparable projects — the best analog is often not the top result
 - For comparable project searches: use searchType: "neural" (and the category param where it helps) to find semantically similar projects
 - Every factual claim from web research MUST cite its source in italics: *[Source Name]*
 - Prefer official/authoritative sources (the responsible authority's own publications, environmental registries) over general web results
