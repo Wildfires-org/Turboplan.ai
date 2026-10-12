@@ -76,6 +76,14 @@ const canUserAccessOrganization = async (
   }
 };
 
+/**
+ * Whether createDocument, updateDocument and requestSuggestions are offered:
+ * only after the research phase. An omitted mode is full mode.
+ */
+const hasDocumentToolsForMode = (mode?: ChatMode): boolean =>
+  (isTasksPackageEnabled() || isMapPackageEnabled()) &&
+  mode !== ChatMode.Research;
+
 type SystemPromptContext = {
   /** Defaults to ChatMode.Full when omitted. Only set to ChatMode.Research during active research phase. */
   mode?: ChatMode;
@@ -126,11 +134,8 @@ export const buildSystemPromptArgs = async ({
 } = {}) => {
   const context = await fetchSystemPromptContext({ projectId, chatId, userId });
 
-  const isResearchPhase = context.mode === ChatMode.Research;
-
   // Document tools are only available after the research phase is complete
-  const hasDocumentTools =
-    (isTasksPackageEnabled() || isMapPackageEnabled()) && !isResearchPhase;
+  const hasDocumentTools = hasDocumentToolsForMode(context.mode);
 
   // Reading uploaded project documents works in BOTH research and full mode —
   // it only needs a project (to scope/secure the query) and the documents
@@ -348,8 +353,10 @@ const fetchSystemPromptContext = async ({
   fetchers.push(
     (async () => {
       try {
-        context.officeDocumentContext =
-          await buildOfficeDocumentContext(projectId);
+        context.officeDocumentContext = await buildOfficeDocumentContext(
+          projectId,
+          hasDocumentToolsForMode(context.mode),
+        );
       } catch (error) {
         console.error(
           "[SystemPromptContext] Failed to fetch office document details:",
@@ -521,6 +528,7 @@ const buildAvailableLetterheadsSection = (
 
 const buildOfficeDocumentContext = async (
   projectId: string,
+  hasCreateDocumentTool: boolean,
 ): Promise<string | undefined> => {
   const [profile, { defaultLetterhead: letterhead, library }] =
     await Promise.all([
@@ -546,9 +554,11 @@ const buildOfficeDocumentContext = async (
       ].join("\n"),
     );
   }
-  // Only orgs with library letterheads get a choice; without one the context
-  // is exactly the office details above.
-  if (library.length > 0) {
+  // Only orgs with library letterheads get a choice, and only when
+  // createDocument (which takes the `letterheadId`) is offered: without the
+  // tool, as in research mode, the model writes the ids into its reply.
+  // Without a choice the context is exactly the office details above.
+  if (hasCreateDocumentTool && library.length > 0) {
     sections.push(buildAvailableLetterheadsSection(letterhead, library));
   }
   return sections.length > 0 ? sections.join("\n\n") : undefined;
