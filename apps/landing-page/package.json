@@ -36,6 +36,7 @@
     "@wildfires-org/turboplan-billing": "workspace:*",
     "@wildfires-org/turboplan-documents": "workspace:*",
     "@wildfires-org/turboplan-env": "workspace:*",
+    "@wildfires-org/turboplan-feature-flags": "workspace:*",
     "@wildfires-org/turboplan-fields": "workspace:*",
     "@wildfires-org/turboplan-map": "workspace:*",
     "@wildfires-org/turboplan-public": "workspace:*",

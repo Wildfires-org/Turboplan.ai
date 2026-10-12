@@ -110,6 +110,9 @@ importers:
       '@wildfires-org/turboplan-env':
         specifier: workspace:*
         version: link:../../packages/core/turboplan-env
+      '@wildfires-org/turboplan-feature-flags':
+        specifier: workspace:*
+        version: link:../../packages/core/turboplan-feature-flags
       '@wildfires-org/turboplan-fields':
         specifier: workspace:*
         version: link:../../packages/modules/turboplan-fields
