@@ -78,6 +78,13 @@
       "when": 1791453156251,
       "tag": "0010_letterhead_banner_color",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791551055863,
+      "tag": "0011_letterhead_description",
+      "breakpoints": true
     }
   ]
 }

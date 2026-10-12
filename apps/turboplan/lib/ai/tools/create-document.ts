@@ -8,7 +8,10 @@ import {
   isMapPackageEnabled,
   isTasksPackageEnabled,
 } from "@wildfires-org/turboplan-feature-flags";
+import { chooseDocumentLetterhead } from "@wildfires-org/turboplan-workspace/server";
+import type { DocumentLetterhead } from "@wildfires-org/turboplan-workspace/types";
 
+import { createChatTimer } from "@/lib/ai/chat-timing";
 import { exaGetContents } from "@/lib/ai/exa-client";
 import {
   MAX_REFERENCE_URLS,
@@ -123,8 +126,22 @@ export const createDocument = async ({
         .describe(
           "The document request for the generator — keep it COMPACT. The generator already receives the full project context (project fields, saved and unsaved research findings, tasks, saved documents list) and, via referenceUrls, the reference document's text, so never repeat either here. Include only: 'USER-CONFIRMED:' — facts the user explicitly stated or confirmed in THIS conversation that the project context does not already hold (quote or closely paraphrase the user's own words; one confirmed answer does not confirm anything else). 'UNCONFIRMED:' — other facts worth passing that the project context lacks: web-search findings, your own inferences. The generator flags UNCONFIRMED values for review — NEVER present them as confirmed project facts, and NEVER instruct the generator to copy a reference document's values (contacts, addresses, file codes, deadlines, citations, treatment lists); references supply structure and style only. A short 'LETTERHEAD LAYOUT' note: whose letterhead the document carries (its author/sender, never the recipient) and the reference header's layout in plain words (columns, left/center/right, bold lines, centered title block). Short format instructions (e.g. match the reference's length and structure).",
         ),
+      // Loose on purpose, like referenceUrls: the server falls back to the
+      // default letterhead for any id it does not recognize.
+      letterheadId: z
+        .string()
+        .optional()
+        .describe(
+          'One id from the AVAILABLE LETTERHEADS section ("default", "none" or a letterhead id): the letterhead of the document\'s author/sender, never its recipient. Omit when that section is absent.',
+        ),
     }),
-    execute: async ({ title, kind, userContext, referenceUrls }) => {
+    execute: async ({
+      title,
+      kind,
+      userContext,
+      referenceUrls,
+      letterheadId,
+    }) => {
       const id = generateUUID();
 
       writer.write({
@@ -176,6 +193,27 @@ export const createDocument = async ({
         throw new Error(`No document handler found for kind: ${kind}`);
       }
 
+      // Letterheads apply to project text documents only. Resolved (and a
+      // non-default choice stored) before generation, so the generator's author
+      // identity matches the letterhead the document renders with. Without a
+      // choice (the org has no library letterheads) it stays undefined and the
+      // handler resolves the default in parallel with its other loads, as before.
+      let letterhead: DocumentLetterhead | null | undefined;
+      if (kind === "text" && projectId && letterheadId !== undefined) {
+        const logTiming = createChatTimer({ chatId, startedAt: Date.now() });
+        const chosen = await chooseDocumentLetterhead({
+          projectId,
+          documentId: id,
+          choice: letterheadId,
+          userId: session.user?.id,
+        });
+        logTiming("letterhead-chosen", {
+          requested: letterheadId ?? null,
+          selection: chosen.selection,
+        });
+        letterhead = chosen.letterhead;
+      }
+
       await documentHandler.onCreateDocument({
         id,
         title,
@@ -194,6 +232,7 @@ export const createDocument = async ({
                 fetchContents: exaGetContents,
               })
           : undefined,
+        letterhead,
       });
 
       writer.write({

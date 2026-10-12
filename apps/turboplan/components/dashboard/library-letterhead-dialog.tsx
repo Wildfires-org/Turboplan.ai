@@ -15,6 +15,7 @@ import {
   DialogTitle,
   Input,
   Label,
+  Textarea,
 } from "@wildfires-org/turboplan-utils";
 import {
   type LibraryLetterhead,
@@ -67,6 +68,8 @@ export function LibraryLetterheadDialog({
     resolver: zodResolver(libraryLetterheadSchema),
     defaultValues: {
       name: letterhead?.name ?? "",
+      // Always sent: the API stores an omitted description as "".
+      description: letterhead?.description ?? "",
       layout: letterhead?.layout ?? "split",
       lines: letterhead?.lines ?? "",
       contact: letterhead?.contact ?? "",
@@ -137,6 +140,31 @@ export function LibraryLetterheadDialog({
             )}
             <p className="text-xs text-gray-550">
               Shown in the document letterhead picker.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="libraryLetterheadDescription"
+              className="text-sm font-medium"
+            >
+              When to use
+            </Label>
+            <Textarea
+              id="libraryLetterheadDescription"
+              rows={3}
+              maxLength={300}
+              placeholder="e.g. Letters and reports we send on behalf of Cleveland National Forest"
+              {...register("description")}
+            />
+            {errors.description && (
+              <p className="text-xs text-error-700">
+                {errors.description.message}
+              </p>
+            )}
+            <p className="text-xs text-gray-550">
+              The assistant reads this to pick the right letterhead for new
+              documents.
             </p>
           </div>
 

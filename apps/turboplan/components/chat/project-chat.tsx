@@ -26,6 +26,8 @@ import {
   useArtifactSelector,
 } from "@/hooks/use-artifact";
 import { useChatCompat } from "@/hooks/use-chat-compat";
+import { documentLetterheadKey } from "@/hooks/use-document-letterhead";
+import { letterheadLogoKey } from "@/hooks/use-letterhead-logo";
 import { getSidebarChatsKey } from "@/hooks/use-sidebar-chats";
 import { getChatHistoryPaginationKey } from "@/lib/chat-history";
 import {
@@ -108,10 +110,34 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       };
     }, [id, setArtifact, setMetadata]);
 
+    // The document the current run is streaming: set by its "id" delta, cleared
+    // when the run finishes it (or stops/fails before that).
+    const streamingDocumentIdRef = useRef<string | null>(null);
+
+    // The server stores the chosen letterhead before the document exists, so
+    // the preview's fetch on the "id" delta cached the default. Refetch both
+    // keys (as the letterhead picker does) once the document is saved.
+    const revalidateDocumentLetterhead = useCallback(
+      (documentId: string) => {
+        if (!projectId) {
+          return;
+        }
+        void Promise.all([
+          mutate(documentLetterheadKey(projectId, documentId)),
+          mutate(letterheadLogoKey(projectId, documentId)),
+        ]);
+      },
+      [projectId, mutate],
+    );
+
     const handleArtifactDelta = useCallback(
       (delta: ArtifactStreamDelta) => {
         if (!isMountedRef.current) {
           return;
+        }
+
+        if (delta.type === "id") {
+          streamingDocumentIdRef.current = delta.content as string;
         }
 
         const artifactDefinition = artifactDefinitions.find(
@@ -192,8 +218,14 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
               return draftArtifact;
           }
         });
+
+        // Outside the updater above, which must stay free of side effects.
+        if (delta.type === "finish" && streamingDocumentIdRef.current) {
+          revalidateDocumentLetterhead(streamingDocumentIdRef.current);
+          streamingDocumentIdRef.current = null;
+        }
       },
-      [artifact.kind, setArtifact, setMetadata],
+      [artifact.kind, setArtifact, setMetadata, revalidateDocumentLetterhead],
     );
 
     const {
@@ -229,6 +261,13 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         // unmounted: the artifact then belongs to another chat.
         if (!isMountedRef.current) {
           return;
+        }
+        // Such a run may already have stored its letterhead choice and saved a
+        // draft, so refresh the letterhead as "finish" would have.
+        const documentId = streamingDocumentIdRef.current;
+        if (documentId) {
+          streamingDocumentIdRef.current = null;
+          revalidateDocumentLetterhead(documentId);
         }
         setArtifact((currentArtifact) =>
           currentArtifact.status === "streaming"

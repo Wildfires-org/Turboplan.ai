@@ -69,7 +69,7 @@ const parseBody = async (
     };
   }
 
-  const { logoUrl, color, ...rest } = result.data;
+  const { description, logoUrl, color, ...rest } = result.data;
   const nextLogoUrl = logoUrl || null;
   const owner: StorageOwner = {
     userId: c.get("user").userId,
@@ -88,6 +88,7 @@ const parseBody = async (
   return {
     fields: {
       ...rest,
+      description: description ?? "",
       logoUrl: nextLogoUrl,
       color: color === undefined ? undefined : normalizeLetterheadColor(color),
     },

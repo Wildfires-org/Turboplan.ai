@@ -11,9 +11,13 @@ import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import {
   getProjectDocumentProfile,
-  getProjectLetterhead,
+  listProjectLetterheadCandidates,
 } from "@wildfires-org/turboplan-workspace/server";
-import { documentProfileToFacts } from "@wildfires-org/turboplan-workspace/types";
+import {
+  type DocumentLetterhead,
+  documentProfileToFacts,
+  type LetterheadCandidate,
+} from "@wildfires-org/turboplan-workspace/types";
 
 /**
  * Whether the user may write to the project (UPDATE permission). Fails closed:
@@ -480,13 +484,49 @@ const fetchSystemPromptContext = async ({
   return context;
 };
 
+// Admin-written letterhead text goes into the system prompt as data: collapsed
+// to one line so it cannot open a new section or pose as an instruction.
+const toPromptLine = (text: string) => text.replace(/\s+/g, " ").trim();
+
+const toQuotedPromptValue = (text: string) =>
+  `"${toPromptLine(text).replace(/"/g, "'")}"`;
+
+const describeLibraryLetterhead = ({
+  id,
+  name,
+  description,
+  firstLine,
+}: LetterheadCandidate) => {
+  const whenToUse = toPromptLine(description)
+    ? toQuotedPromptValue(description)
+    : "no description";
+  return `- \`${id}\` — ${toQuotedPromptValue(name)}: ${whenToUse} (first line: ${toPromptLine(firstLine)})`;
+};
+
+const buildAvailableLetterheadsSection = (
+  defaultLetterhead: DocumentLetterhead | null,
+  library: LetterheadCandidate[],
+) => {
+  const defaultOption = defaultLetterhead
+    ? `office/organization default (first line: ${toPromptLine(defaultLetterhead.nameLines[0] ?? "(banner image)")})`
+    : "no default letterhead configured — the generator writes the author's letterhead";
+  return [
+    "# AVAILABLE LETTERHEADS",
+    "Pass one id below as createDocument's `letterheadId`: the letterhead of the document's AUTHOR/sender (the same party as in your LETTERHEAD LAYOUT note), never its recipient. Pick a library letterhead only when its name, description or first line identifies that SAME organization — never one that is merely the same kind of organization (another consulting firm, another agency). If the author is a party none of them names, pass `none`. Pass `default` when the office itself is the author or you cannot tell who is.",
+    `- \`default\` — ${defaultOption}`,
+    ...library.map(describeLibraryLetterhead),
+    "- `none` — no stored letterhead belongs to the author; the generator writes the author's letterhead from the reference.",
+  ].join("\n");
+};
+
 const buildOfficeDocumentContext = async (
   projectId: string,
 ): Promise<string | undefined> => {
-  const [profile, letterhead] = await Promise.all([
-    getProjectDocumentProfile(projectId),
-    getProjectLetterhead(projectId),
-  ]);
+  const [profile, { defaultLetterhead: letterhead, library }] =
+    await Promise.all([
+      getProjectDocumentProfile(projectId),
+      listProjectLetterheadCandidates(projectId),
+    ]);
   const facts = documentProfileToFacts(profile);
   if (letterhead && letterhead.nameLines.length > 0) {
     facts.unshift(`Letterhead: ${letterhead.nameLines.join(" / ")}`);
@@ -496,12 +536,20 @@ const buildOfficeDocumentContext = async (
       `Office address and contact: ${letterhead.contactLines.join(", ")}`,
     );
   }
-  if (facts.length === 0) {
-    return undefined;
+  const sections: string[] = [];
+  if (facts.length > 0) {
+    sections.push(
+      [
+        "# OFFICE DOCUMENT DETAILS",
+        "Confirmed by the office. The document generator receives these and fills them into every document automatically (the letterhead is added by the app). Never list them as missing placeholders or ask the user for them.",
+        ...facts.map((fact) => `- ${fact}`),
+      ].join("\n"),
+    );
   }
-  return [
-    "# OFFICE DOCUMENT DETAILS",
-    "Confirmed by the office. The document generator receives these and fills them into every document automatically (the letterhead is added by the app). Never list them as missing placeholders or ask the user for them.",
-    ...facts.map((fact) => `- ${fact}`),
-  ].join("\n");
+  // Only orgs with library letterheads get a choice; without one the context
+  // is exactly the office details above.
+  if (library.length > 0) {
+    sections.push(buildAvailableLetterheadsSection(letterhead, library));
+  }
+  return sections.length > 0 ? sections.join("\n\n") : undefined;
 };

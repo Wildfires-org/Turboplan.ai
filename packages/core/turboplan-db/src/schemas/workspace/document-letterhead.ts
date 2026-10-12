@@ -24,6 +24,8 @@ export const documentLetterhead = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    // Admin-written "when to use this letterhead", shown to the chat model.
+    description: text("description").notNull().default(""),
     layout: varchar("layout", {
       enum: ["columns", "split", "centered", "banner"],
     })

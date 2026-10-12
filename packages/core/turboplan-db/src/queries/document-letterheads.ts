@@ -11,7 +11,7 @@ import {
 // `color` omitted (undefined) leaves the stored color unchanged on update.
 export type DocumentLetterheadFields = Pick<
   DocumentLetterheadRow,
-  "name" | "layout" | "lines" | "contact" | "logoUrl"
+  "name" | "description" | "layout" | "lines" | "contact" | "logoUrl"
 > & { color?: string | null };
 
 /** An organization's library letterheads, oldest first. */

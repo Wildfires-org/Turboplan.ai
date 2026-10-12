@@ -8,6 +8,7 @@ export const toLibraryLetterhead = (
   id: row.id,
   organizationId: row.organizationId,
   name: row.name,
+  description: row.description,
   layout: row.layout,
   lines: row.lines,
   contact: row.contact,

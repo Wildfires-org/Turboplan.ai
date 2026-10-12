@@ -12,6 +12,7 @@ import {
 } from "@wildfires-org/turboplan-feature-flags";
 import { mapDocumentHandler } from "@wildfires-org/turboplan-map/server";
 import { taskDocumentHandler } from "@wildfires-org/turboplan-tasks/artifact/server";
+import type { DocumentLetterhead } from "@wildfires-org/turboplan-workspace/types";
 
 import { textDocumentHandler } from "@/artifacts/text/server";
 import { ArtifactKind } from "@/components/artifact";
@@ -43,6 +44,12 @@ export interface CreateDocumentCallbackProps {
   attachments?: Array<{ name?: string; contentType?: string; url: string }>;
   /** Reference documents the chat model passed by URL (text kind only). */
   loadReferenceDocuments?: () => Promise<ReferenceDocument[]>;
+  /**
+   * The letterhead the document carries (text kind only). Undefined: the
+   * handler resolves the project default itself. Null: no application
+   * letterhead, so the generator writes the author's own.
+   */
+  letterhead?: DocumentLetterhead | null;
   /** Called with the full draft so far on every streamed delta. */
   onDraftProgress?: (content: string) => void;
 }
@@ -120,6 +127,7 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
         chatId: args.chatId,
         attachments: args.attachments,
         loadReferenceDocuments: args.loadReferenceDocuments,
+        letterhead: args.letterhead,
         onDraftProgress: userId ? checkpointer.offer : undefined,
       });
 

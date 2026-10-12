@@ -16,14 +16,20 @@ export const letterheadColorSchema = z
   .or(z.literal(""));
 
 // Body of POST/PUT /api/organizations/:organizationId/letterheads[/:id].
-// An empty logoUrl / color clears it (stored as null). A banner letterhead
-// is its logo image, so it needs no name lines.
+// An empty logoUrl / color clears it (stored as null). An omitted description
+// is stored as "". A banner letterhead is its logo image, so it needs no name
+// lines.
 export const libraryLetterheadSchema = z.object({
   name: z
     .string()
     .trim()
     .min(1, "Name is required")
     .max(80, "Name must be at most 80 characters"),
+  description: z
+    .string()
+    .trim()
+    .max(300, "Description must be at most 300 characters")
+    .optional(),
   layout: letterheadLayoutSchema,
   lines: z
     .string()

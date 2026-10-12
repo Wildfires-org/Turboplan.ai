@@ -65,10 +65,13 @@ import {
 import {
   type DocumentLetterhead,
   effectiveSelection,
+  type LetterheadCandidate,
   type LetterheadLayout,
   type LetterheadLogoPlacement,
   type LetterheadSelection,
+  libraryLetterheadToCandidate,
   libraryLetterheadToDocumentLetterhead,
+  normalizeLetterheadChoice,
   planLetterheadBranding,
   selectionFromRow,
 } from "../../letterhead";
@@ -534,6 +537,108 @@ export async function setDocumentLetterheadSelection({
   });
   return { ok: true };
 }
+
+/**
+ * The letterheads the chat model may choose from for a new project document:
+ * the office → org default and the project organization's library letterheads
+ * that have something to render, oldest first. Never throws — on failure no
+ * choices are offered.
+ */
+export const listProjectLetterheadCandidates = async (
+  projectId: string,
+): Promise<{
+  defaultLetterhead: DocumentLetterhead | null;
+  library: LetterheadCandidate[];
+}> => {
+  try {
+    const [defaultLetterhead, organizationId] = await Promise.all([
+      getProjectLetterheadSafe(projectId),
+      getOrganizationIdForProject(projectId),
+    ]);
+    const rows = organizationId
+      ? await listDocumentLetterheads(organizationId)
+      : [];
+    return {
+      defaultLetterhead,
+      library: rows.flatMap((row) => libraryLetterheadToCandidate(row) ?? []),
+    };
+  } catch (error) {
+    console.error("Failed to list letterhead candidates:", error);
+    return { defaultLetterhead: null, library: [] };
+  }
+};
+
+type ChosenLetterhead = {
+  selection: LetterheadSelection;
+  letterhead: DocumentLetterhead | null;
+};
+
+/**
+ * Apply the letterhead the chat model chose when creating a document:
+ * "default", "none" or a library letterhead id. The choice is untrusted model
+ * output — a library id is honored only when it belongs to the project's
+ * organization and has something to render; anything else falls back to the
+ * default. A non-default choice is stored before the document's first save
+ * (the selection table has no document FK, and {@link resolveSelection}
+ * ignores the row until the document belongs to the project). Never throws:
+ * document generation must not fail on the letterhead.
+ */
+export const chooseDocumentLetterhead = async ({
+  projectId,
+  documentId,
+  choice,
+  userId,
+}: {
+  projectId: string;
+  documentId: string;
+  choice?: string;
+  userId?: string | null;
+}): Promise<ChosenLetterhead> => {
+  const chooseDefault = async (): Promise<ChosenLetterhead> => ({
+    selection: "default",
+    letterhead: await getProjectLetterheadSafe(projectId),
+  });
+
+  try {
+    const selection = normalizeLetterheadChoice(choice);
+    if (selection === "default") {
+      return await chooseDefault();
+    }
+
+    if (selection === "none") {
+      await upsertDocumentLetterheadSelection({
+        documentId,
+        letterheadId: null,
+        updatedBy: userId ?? null,
+      });
+      return { selection, letterhead: null };
+    }
+
+    const [library, organizationId] = await Promise.all([
+      getDocumentLetterheadById(selection),
+      getOrganizationIdForProject(projectId),
+    ]);
+    const letterhead =
+      library && libraryLetterheadToDocumentLetterhead(library);
+    if (
+      !letterhead ||
+      effectiveSelection(selection, library?.organizationId, organizationId) !==
+        selection
+    ) {
+      return await chooseDefault();
+    }
+
+    await upsertDocumentLetterheadSelection({
+      documentId,
+      letterheadId: selection,
+      updatedBy: userId ?? null,
+    });
+    return { selection, letterhead };
+  } catch (error) {
+    console.error("Failed to choose document letterhead:", error);
+    return chooseDefault();
+  }
+};
 
 /**
  * Resolve everything a rendered project document is branded with: letterhead

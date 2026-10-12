@@ -84,8 +84,9 @@ const loadOfficeFacts = async (
   }
 };
 
-// The office/org letterhead the app renders above the document. Its presence
-// tells the generator to skip the letterhead table it would otherwise write.
+// The letterhead the app renders above the document (the project default or
+// the one chosen for it). Its presence tells the generator to skip the
+// letterhead table it would otherwise write.
 const buildLetterheadSection = (letterhead: DocumentLetterhead): string => {
   const lines = [
     "The application renders this letterhead above the document. Do NOT write a letterhead table.",
@@ -218,22 +219,31 @@ export const textDocumentHandler = createDocumentHandler<"text">({
     projectId,
     chatId,
     loadReferenceDocuments,
+    letterhead: chosenLetterhead,
     onDraftProgress,
   }) => {
     const startedAt = Date.now();
     const logTiming = createChatTimer({ chatId, startedAt });
 
+    // Undefined: no letterhead was chosen for this document, so fall back to
+    // the project default. Null ("none") stays null — no Application
+    // letterhead section, so the generator writes the author's own.
     const [systemPrompt, referenceDocuments, letterhead, officeFacts] =
       await Promise.all([
         getPrompt("text-document"),
         loadReferenceDocuments?.() ?? [],
-        projectId ? getProjectLetterhead(projectId).catch(() => null) : null,
+        chosenLetterhead !== undefined
+          ? chosenLetterhead
+          : projectId
+            ? getProjectLetterhead(projectId).catch(() => null)
+            : null,
         loadOfficeFacts(projectId),
       ]);
-    // The letterhead's address block is the office's own, so it is confirmed too.
+    // The rendered letterhead's address block is the document author's — which
+    // may be a partner agency rather than the office — so it is confirmed too.
     if (letterhead && letterhead.contactLines.length > 0) {
       officeFacts.push(
-        `Office address and contact (letterhead): ${letterhead.contactLines.join(", ")}`,
+        `Author address and contact (letterhead): ${letterhead.contactLines.join(", ")}`,
       );
     }
 

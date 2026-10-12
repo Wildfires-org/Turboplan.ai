@@ -129,9 +129,23 @@ export function OrgLetterheadsSection({
               className="flex items-center gap-3 rounded-2xl bg-brandAlt-100/80 p-2 pr-3 ring-1 ring-inset ring-brandAlt-200/70 dark:bg-white/5 dark:ring-white/10"
             >
               <LetterheadThumbnail letterhead={letterhead} />
-              <p className="min-w-0 flex-1 truncate text-sm font-medium">
-                {letterhead.name}
-              </p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {letterhead.name}
+                </p>
+                {letterhead.description ? (
+                  <p
+                    className="truncate text-xs text-gray-550"
+                    title={letterhead.description}
+                  >
+                    {letterhead.description}
+                  </p>
+                ) : (
+                  <p className="truncate text-xs italic text-gray-550">
+                    No description — the assistant matches on name only.
+                  </p>
+                )}
+              </div>
               {canEdit && (
                 <div className="flex shrink-0 items-center gap-1">
                   <Button

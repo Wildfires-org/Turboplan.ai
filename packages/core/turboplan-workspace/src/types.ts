@@ -156,6 +156,7 @@ export {
   LETTERHEAD_LAYOUTS,
   LETTERHEAD_LOGO_PLACEMENT,
   type LetterheadBrandingPlan,
+  type LetterheadCandidate,
   type LetterheadLayout,
   type LetterheadLogoPlacement,
   type LetterheadSelection,

@@ -225,6 +225,7 @@ export type LibraryLetterhead = {
   id: string;
   organizationId: string;
   name: string;
+  description: string;
   layout: LetterheadLayout;
   lines: string;
   contact: string;
@@ -293,4 +294,60 @@ export const libraryLetterheadToDocumentLetterhead = (entry: {
       layout === "banner" ? [] : parseLetterheadLines(entry.contact),
     color: normalizeLetterheadColor(entry.color),
   };
+};
+
+// ============================================================================
+// AI LETTERHEAD CHOICE
+// ============================================================================
+
+// A library letterhead as the chat model is offered it when creating a
+// document; `firstLine` shows whose letterhead it is.
+export type LetterheadCandidate = {
+  id: string;
+  name: string;
+  description: string;
+  firstLine: string;
+};
+
+// Library letterhead → chat-model candidate, or null when it has nothing to
+// render (the model is never offered a letterhead that would come out blank).
+export const libraryLetterheadToCandidate = (entry: {
+  id: string;
+  name: string;
+  description: string;
+  layout: LetterheadLayout | null;
+  lines: string | null;
+  contact: string | null;
+  logoUrl?: string | null;
+}): LetterheadCandidate | null => {
+  if (!libraryLetterheadToDocumentLetterhead(entry)) {
+    return null;
+  }
+  const firstLine =
+    parseLetterheadLines(entry.lines)[0] ??
+    (entry.layout === "banner" ? "(banner image)" : "");
+  return {
+    id: entry.id,
+    name: entry.name,
+    description: entry.description,
+    firstLine,
+  };
+};
+
+// A plain pattern rather than zod: the MCP Worker aliases "zod" to "zod/v3",
+// which has no top-level `z.uuid()`, and this module loads there too.
+const LETTERHEAD_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+// The letterhead the chat model asked for → "default", "none" or a lowercase
+// letterhead id. Missing, blank, "default" and non-UUID values all mean the
+// default; whether an id may be used is checked against the database.
+export const normalizeLetterheadChoice = (
+  choice: string | null | undefined,
+): LetterheadSelection => {
+  const normalized = choice?.trim().toLowerCase() ?? "";
+  if (normalized === "none") {
+    return "none";
+  }
+  return LETTERHEAD_ID_PATTERN.test(normalized) ? normalized : "default";
 };
