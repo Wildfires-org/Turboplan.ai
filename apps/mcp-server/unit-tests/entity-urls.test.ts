@@ -49,21 +49,21 @@ describe("dashboard URLs", () => {
   it("builds organization URL and strips trailing slash from base", () => {
     assert.strictEqual(
       getOrganizationDashboardUrl("blm"),
-      "https://app.example.test/organizations/blm",
+      "https://app.example.test/blm",
     );
   });
 
   it("builds office URL", () => {
     assert.strictEqual(
       getOfficeDashboardUrl("blm", "shoshone-field-office"),
-      "https://app.example.test/organizations/blm/offices/shoshone-field-office",
+      "https://app.example.test/blm/shoshone-field-office",
     );
   });
 
   it("builds project URL", () => {
     assert.strictEqual(
       getProjectDashboardUrl("blm", "shoshone-field-office", "lava-ridge"),
-      "https://app.example.test/organizations/blm/offices/shoshone-field-office/projects/lava-ridge",
+      "https://app.example.test/blm/shoshone-field-office/lava-ridge",
     );
   });
 });
@@ -79,7 +79,7 @@ describe("slug encoding", () => {
   it("encodes spaces and non-ASCII characters", () => {
     assert.strictEqual(
       getProjectDashboardUrl("org", "off ice", "zażółć"),
-      "https://app.example.test/organizations/org/offices/off%20ice/projects/za%C5%BC%C3%B3%C5%82%C4%87",
+      "https://app.example.test/org/off%20ice/za%C5%BC%C3%B3%C5%82%C4%87",
     );
   });
 

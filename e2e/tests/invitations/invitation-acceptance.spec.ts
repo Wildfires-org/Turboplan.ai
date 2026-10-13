@@ -1,6 +1,10 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 
-import { getTestUserCredentials, TEST_CREDENTIALS } from "../../config";
+import {
+  getTestUserCredentials,
+  TEST_CREDENTIALS,
+  WORKSPACE_URL_PATTERN,
+} from "../../config";
 import { TurboplanInvitePage, TurboplanSetupPage } from "../../pages";
 import {
   createTestInvitation,
@@ -107,11 +111,11 @@ test.describe("Invitation Acceptance Flow", () => {
       );
 
       // User should be redirected somewhere after acceptance
-      // Could be /setup/personal (new user), /organizations/... (has profile), or / (home)
+      // Could be /setup/personal (new user), /<org>/... (has profile), or / (home)
       const currentUrl = inviteePage.url();
       const validRedirect =
         currentUrl.includes("/setup") ||
-        currentUrl.includes("/organizations") ||
+        WORKSPACE_URL_PATTERN.test(currentUrl) ||
         currentUrl.endsWith("/") ||
         currentUrl.match(/localhost:\d+\/?$/);
 

@@ -22,6 +22,7 @@ import {
   getRBACService,
   RBACService,
 } from "@wildfires-org/turboplan-rbac/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 import {
   allowancePlanKey,
@@ -455,7 +456,7 @@ billingRouter.post(
         ? `${env.TURBOPLAN_URL}/?setup=true`
         : returnPath
           ? `${landingBase}${returnPath}${returnPath.includes("?") ? "&" : "?"}checkout=success`
-          : `${env.TURBOPLAN_URL}/organizations/${org.slug}/billing?checkout=success`;
+          : `${env.TURBOPLAN_URL}${appPaths.organization(org.slug)}/billing?checkout=success`;
     // Mirror the success-URL origin split: a landing-originated checkout
     // (carries `returnPath`) cancels back to the landing page; an in-app
     // checkout (no `returnPath`) cancels back to the org's billing settings so
@@ -465,7 +466,7 @@ billingRouter.post(
         ? `${env.TURBOPLAN_URL}/setup/plan?checkout=cancelled`
         : returnPath
           ? `${landingBase}/?checkout=cancelled`
-          : `${env.TURBOPLAN_URL}/organizations/${org.slug}/billing?checkout=cancelled`;
+          : `${env.TURBOPLAN_URL}${appPaths.organization(org.slug)}/billing?checkout=cancelled`;
 
     try {
       const url = await createCheckoutSession({
@@ -605,7 +606,7 @@ billingRouter.post(
     }
 
     const env = getApiEnv();
-    const returnUrl = `${env.TURBOPLAN_URL}/organizations/${org.slug}/billing`;
+    const returnUrl = `${env.TURBOPLAN_URL}${appPaths.organization(org.slug)}/billing`;
 
     const url = await createPortalSession({
       customerId: subscriptionRow.stripeCustomerId,

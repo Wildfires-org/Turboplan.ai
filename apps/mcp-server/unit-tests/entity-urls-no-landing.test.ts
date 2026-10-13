@@ -30,7 +30,7 @@ describe("without LANDING_URL", () => {
   it("dashboard builders still work", () => {
     assert.strictEqual(
       getOrganizationDashboardUrl("blm"),
-      "https://app.example.test/organizations/blm",
+      "https://app.example.test/blm",
     );
   });
 });

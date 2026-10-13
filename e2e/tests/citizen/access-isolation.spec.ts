@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { createToken } from "@wildfires-org/turboplan-api-client/server";
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
 
+import { PROJECT_URL_PATTERN } from "../../config/patterns";
 import { getCitizenCredentials } from "../../config/test-credentials";
 import {
   CITIZEN_GOV_PROJECT,
@@ -221,7 +222,7 @@ test.describe("Access Isolation", () => {
 
     if (await projectLink.isVisible()) {
       await projectLink.click();
-      await page.waitForURL(/\/projects\//, { timeout: 10000 });
+      await page.waitForURL(PROJECT_URL_PATTERN, { timeout: 10000 });
 
       await project.expectNoVisibilityControls();
     }

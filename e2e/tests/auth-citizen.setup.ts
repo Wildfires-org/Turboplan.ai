@@ -59,7 +59,7 @@ setup("authenticate citizen", async ({ page }, testInfo) => {
     userRole: CITIZEN_USER.USER_ROLE,
   });
 
-  // Verify user landed on the project page (/organizations/[slug]/offices/[slug]/projects/[slug])
+  // Verify user landed on the project page (/[org]/[office]/[project])
   expect(page.url()).toMatch(PROJECT_URL_PATTERN);
 
   // Verify project name is visible in the breadcrumb navigation

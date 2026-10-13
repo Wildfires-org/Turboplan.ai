@@ -940,6 +940,9 @@ importers:
       '@wildfires-org/turboplan-env':
         specifier: workspace:*
         version: link:../packages/core/turboplan-env
+      '@wildfires-org/turboplan-utils':
+        specifier: workspace:*
+        version: link:../packages/core/turboplan-utils
       '@wildfires-org/turboplan-workspace':
         specifier: workspace:*
         version: link:../packages/core/turboplan-workspace

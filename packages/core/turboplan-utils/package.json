@@ -21,6 +21,16 @@
       "import": "./dist/server.js",
       "default": "./dist/server.js"
     },
+    "./app-paths": {
+      "types": "./dist/app-paths.d.ts",
+      "import": "./dist/app-paths.js",
+      "default": "./dist/app-paths.js"
+    },
+    "./slug": {
+      "types": "./dist/slug.d.ts",
+      "import": "./dist/slug.js",
+      "default": "./dist/slug.js"
+    },
     "./ssrf": {
       "types": "./dist/ssrf.d.ts",
       "import": "./dist/ssrf.js",

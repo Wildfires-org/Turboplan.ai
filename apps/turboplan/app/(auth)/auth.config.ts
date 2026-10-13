@@ -1,5 +1,28 @@
 import type { NextAuthConfig } from "next-auth";
 
+/**
+ * Segment-aware route match: `/login` and `/login/x`, never `/login-team`.
+ * Org slugs live at the URL root (`/:org`), so a bare `startsWith` would treat
+ * an org like `registered-agents` as `/register`. Pure string logic, so it is
+ * safe in the Edge middleware this file runs in.
+ */
+export const isOnRoute = (pathname: string, route: string): boolean => {
+  return pathname === route || pathname.startsWith(`${route}/`);
+};
+
+// Reachable without a session.
+const PUBLIC_ROUTES = [
+  "/login",
+  "/register",
+  "/self-service",
+  "/verify",
+  "/check-email",
+  "/logout",
+];
+
+// Logged-in users are sent home from these (verify handles sign-in itself).
+const LOGGED_OUT_ONLY_ROUTES = ["/login", "/register", "/check-email"];
+
 export const authConfig = {
   pages: {
     signIn: "/login",
@@ -12,62 +35,23 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+      const { pathname } = nextUrl;
+      const isOnAnyRoute = (routes: string[]) => {
+        return routes.some((route) => isOnRoute(pathname, route));
+      };
 
-      // Define public routes that don't require authentication
-      const publicRoutes = [
-        "/login",
-        "/register",
-        "/self-service",
-        "/verify",
-        "/check-email",
-        "/logout",
-      ];
-      const isOnPublicRoute = publicRoutes.some((route) =>
-        nextUrl.pathname.startsWith(route),
-      );
-
-      // Dashboard is now at root - any route not in the public list requires authentication
-      const requiresAuthentication = !isOnPublicRoute;
-
-      const isOnRegister = nextUrl.pathname.startsWith("/register");
-      const isOnLogin = nextUrl.pathname.startsWith("/login");
-      const isOnSetup = nextUrl.pathname.startsWith("/setup");
-      const isOnSelfService = nextUrl.pathname.startsWith("/self-service");
-      const isOnVerify = nextUrl.pathname.startsWith("/verify");
-      const isOnCheckEmail = nextUrl.pathname.startsWith("/check-email");
-      const isOnLogout = nextUrl.pathname.startsWith("/logout");
-
-      // Redirect logged-in users away from auth pages (except verify which handles sign-in)
-      if (isLoggedIn && (isOnLogin || isOnRegister || isOnCheckEmail)) {
+      if (isLoggedIn && isOnAnyRoute(LOGGED_OUT_ONLY_ROUTES)) {
         return Response.redirect(new URL("/", nextUrl as unknown as URL));
       }
 
-      // Allow access to auth pages for unauthenticated users
-      if (
-        isOnRegister ||
-        isOnLogin ||
-        isOnSelfService ||
-        isOnVerify ||
-        isOnCheckEmail ||
-        isOnLogout
-      ) {
+      if (isOnAnyRoute(PUBLIC_ROUTES)) {
         return true;
       }
 
-      // Always allow access to setup for logged in users
-      if (isOnSetup) {
-        if (isLoggedIn) return true;
-        return false; // Redirect unauthenticated users to login page
-      }
-
-      // For protected routes, we need to check authentication
-      // The profile completion check will be handled by middleware
-      if (requiresAuthentication) {
-        if (isLoggedIn) return true;
-        return false; // Redirect unauthenticated users to login page
-      }
-
-      return true;
+      // Everything else, `/setup` and the dashboard at the root included,
+      // needs a session; returning false redirects to the login page. The
+      // profile completion check is handled by middleware.
+      return isLoggedIn;
     },
   },
 } satisfies NextAuthConfig;

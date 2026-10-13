@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
 
 import { OFFICE_URL_PATTERN, ORG_URL_PATTERN } from "../../config/patterns";
 import { getCitizenCredentials } from "../../config/test-credentials";
@@ -8,11 +9,13 @@ import { TurboplanSetupPage } from "../../pages/turboplan-setup";
 import { getTestUserOrganization } from "../../utils";
 
 /**
- * Helper to extract office slug from a URL path
+ * Helper to extract the office slug from an office page URL (`/:org/:office`)
  */
 function extractOfficeSlug(url: string): string | null {
-  const match = url.match(/\/offices\/([^/]+)/);
-  return match ? match[1] : null;
+  if (!OFFICE_URL_PATTERN.test(url)) {
+    return null;
+  }
+  return new URL(url).pathname.split("/")[2] ?? null;
 }
 
 /**
@@ -47,7 +50,7 @@ test.describe("Office Slug Updates", () => {
 
     // Navigate directly to citizen's own org (citizen may have access to
     // multiple orgs, so "/" redirect is not deterministic).
-    await page.goto(`/organizations/${orgSlug}`);
+    await page.goto(appPaths.organization(orgSlug));
     await page.waitForURL(ORG_URL_PATTERN);
 
     // Step 2: Create a new office specifically for this test
@@ -80,7 +83,7 @@ test.describe("Office Slug Updates", () => {
 
     // Click the three-dot menu on the page (we're on the office page now)
     // Navigate back to org page to find the office in the grid
-    await page.goto(`/organizations/${orgSlug}`);
+    await page.goto(appPaths.organization(orgSlug));
     await page.waitForURL(ORG_URL_PATTERN);
 
     // Find the office card and click its menu

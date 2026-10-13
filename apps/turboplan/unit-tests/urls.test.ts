@@ -32,30 +32,24 @@ describe("AppUrls", () => {
 
   describe("organization routes", () => {
     it("should generate correct organization URL", () => {
-      assert.strictEqual(
-        AppUrls.organization("my-org"),
-        "/organizations/my-org",
-      );
+      assert.strictEqual(AppUrls.organization("my-org"), "/my-org");
     });
 
     it("should handle slugs with numbers", () => {
-      assert.strictEqual(
-        AppUrls.organization("org-123"),
-        "/organizations/org-123",
-      );
+      assert.strictEqual(AppUrls.organization("org-123"), "/org-123");
     });
 
     it("should handle unique slug format", () => {
       assert.strictEqual(
         AppUrls.organization("my-organization-abc123"),
-        "/organizations/my-organization-abc123",
+        "/my-organization-abc123",
       );
     });
 
     it("should generate correct organization context URL", () => {
       assert.strictEqual(
         AppUrls.organizationContext("my-org"),
-        "/organizations/my-org/context",
+        "/my-org/context",
       );
     });
   });
@@ -64,21 +58,21 @@ describe("AppUrls", () => {
     it("should generate correct office URL", () => {
       assert.strictEqual(
         AppUrls.office("my-org", "my-office"),
-        "/organizations/my-org/offices/my-office",
+        "/my-org/my-office",
       );
     });
 
     it("should generate correct document templates URL", () => {
       assert.strictEqual(
         AppUrls.officeDocumentTemplates("my-org", "my-office"),
-        "/organizations/my-org/offices/my-office/templates/document",
+        "/my-org/my-office/templates/document",
       );
     });
 
     it("should generate correct project templates URL", () => {
       assert.strictEqual(
         AppUrls.officeProjectTemplates("my-org", "my-office"),
-        "/organizations/my-org/offices/my-office/templates",
+        "/my-org/my-office/templates",
       );
     });
   });
@@ -91,42 +85,42 @@ describe("AppUrls", () => {
     it("should generate correct project URL", () => {
       assert.strictEqual(
         AppUrls.project(orgSlug, officeSlug, projectSlug),
-        "/organizations/my-org/offices/my-office/projects/my-project",
+        "/my-org/my-office/my-project",
       );
     });
 
     it("should generate correct project overview URL", () => {
       assert.strictEqual(
         AppUrls.projectOverview(orgSlug, officeSlug, projectSlug),
-        "/organizations/my-org/offices/my-office/projects/my-project/overview",
+        "/my-org/my-office/my-project/overview",
       );
     });
 
     it("should generate correct project chat URL", () => {
       assert.strictEqual(
         AppUrls.projectChat(orgSlug, officeSlug, projectSlug),
-        "/organizations/my-org/offices/my-office/projects/my-project/chat",
+        "/my-org/my-office/my-project/chat",
       );
     });
 
     it("should generate correct project tasks URL", () => {
       assert.strictEqual(
         AppUrls.projectTasks(orgSlug, officeSlug, projectSlug),
-        "/organizations/my-org/offices/my-office/projects/my-project/tasks",
+        "/my-org/my-office/my-project/tasks",
       );
     });
 
     it("should generate correct project map URL", () => {
       assert.strictEqual(
         AppUrls.projectMap(orgSlug, officeSlug, projectSlug),
-        "/organizations/my-org/offices/my-office/projects/my-project/map",
+        "/my-org/my-office/my-project/map",
       );
     });
 
     it("should generate correct project documents URL", () => {
       assert.strictEqual(
         AppUrls.projectDocuments(orgSlug, officeSlug, projectSlug),
-        "/organizations/my-org/offices/my-office/projects/my-project/documents",
+        "/my-org/my-office/my-project/documents",
       );
     });
   });
@@ -152,8 +146,7 @@ describe("AppUrls", () => {
         officeSlug,
         projectSlug,
       );
-      const expectedBase =
-        "/organizations/test-org/offices/test-office/projects/test-project";
+      const expectedBase = "/test-org/test-office/test-project";
 
       assert.ok(subroutes.includes(expectedBase));
     });
@@ -164,8 +157,7 @@ describe("AppUrls", () => {
         officeSlug,
         projectSlug,
       );
-      const base =
-        "/organizations/test-org/offices/test-office/projects/test-project";
+      const base = "/test-org/test-office/test-project";
 
       assert.ok(subroutes.includes(base));
       assert.ok(subroutes.includes(`${base}/overview`));

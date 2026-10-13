@@ -13,6 +13,7 @@ import { CreateOfficeButton } from "@/components/dashboard/create-office-button"
 import { EditOrganizationDialog } from "@/components/dashboard/edit-organization-dialog";
 import { useInviteMembers } from "@/components/dashboard/invite-members-context";
 import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
+import { isActiveLink } from "@/lib/nav/activeLink";
 import { AppUrls } from "@/lib/nav/urls";
 
 interface OrgBannerActionsProps {
@@ -34,7 +35,8 @@ export function OrgBannerActions({
   const pathname = usePathname();
   const { openInviteForm } = useInviteMembers();
 
-  const isMembersTab = pathname.startsWith(
+  const isMembersTab = isActiveLink(
+    pathname,
     AppUrls.organizationMembers(organization.slug),
   );
 

@@ -10,6 +10,7 @@ import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { isBillingPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 import { CATALOG, LIVE_SUBSCRIPTION_STATUS_VALUES } from "../types";
 import { isDuplicateMeterEventError } from "./credits";
@@ -374,7 +375,7 @@ export const sweepDiscountEndingNotices =
           continue;
         }
 
-        const billingUrl = `${getApiEnv().TURBOPLAN_URL}/organizations/${row.orgSlug}/billing`;
+        const billingUrl = `${getApiEnv().TURBOPLAN_URL}${appPaths.organization(row.orgSlug)}/billing`;
         const endsAtLabel = row.discountEndsAt.toLocaleDateString("en-US", {
           year: "numeric",
           month: "long",

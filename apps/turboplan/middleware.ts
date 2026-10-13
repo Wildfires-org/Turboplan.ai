@@ -2,10 +2,13 @@ import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 
-import { PATHNAME_HEADER } from "@wildfires-org/turboplan-utils/server";
+import {
+  PATHNAME_HEADER,
+  SEARCH_HEADER,
+} from "@wildfires-org/turboplan-utils/server";
 
 import { stripTelemetryHeaders } from "@/lib/telemetry-proxy";
-import { authConfig } from "./app/(auth)/auth.config";
+import { authConfig, isOnRoute } from "./app/(auth)/auth.config";
 
 // CORS headers for preflight requests
 const corsHeaders = {
@@ -37,17 +40,19 @@ const { auth } = NextAuth(authConfig);
 // Auth middleware that adds pathname header and handles auth
 // Note: Slug redirects are handled in layouts (not middleware) due to Edge runtime limitations
 const authMiddleware = auth((request) => {
-  // Add pathname header for server components to access current path
+  // Add pathname + query headers for server components to access current URL
   const response = NextResponse.next();
   response.headers.set(PATHNAME_HEADER, request.nextUrl.pathname);
+  response.headers.set(SEARCH_HEADER, request.nextUrl.search);
   return response;
 });
 
 // Wrapper middleware to handle OPTIONS preflight requests before auth
 export function middleware(request: NextRequest, event: NextFetchEvent) {
   // Telemetry proxy: strip cookies so the session JWT never reaches the
-  // third-party ingestion host through the /ingest rewrite.
-  if (request.nextUrl.pathname.startsWith("/ingest")) {
+  // third-party ingestion host through the /ingest rewrite. Segment-aware, so
+  // an org slug such as `ingestion-team` keeps its session.
+  if (isOnRoute(request.nextUrl.pathname, "/ingest")) {
     return NextResponse.next({
       request: { headers: stripTelemetryHeaders(request.headers) },
     });

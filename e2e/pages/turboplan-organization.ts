@@ -1,6 +1,8 @@
 import type { Page } from "@playwright/test";
 
-import { ORG_URL_PATTERN } from "../config/patterns";
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
+import { ORG_URL_PATTERN, WORKSPACE_URL_PATTERN } from "../config/patterns";
 
 /**
  * Page Object Model for Organization Dashboard page.
@@ -13,7 +15,7 @@ export class TurboplanOrganizationPage {
    * Navigate to an organization by slug
    */
   async goto(orgSlug: string): Promise<void> {
-    await this.page.goto(`/organizations/${orgSlug}`);
+    await this.page.goto(appPaths.organization(orgSlug));
     await this.page.waitForURL(ORG_URL_PATTERN);
   }
 
@@ -22,8 +24,11 @@ export class TurboplanOrganizationPage {
    */
   getCurrentSlug(): string {
     const url = this.page.url();
-    const match = url.match(/\/organizations\/([^/]+)/);
-    return match?.[1] || "";
+    if (!WORKSPACE_URL_PATTERN.test(url)) {
+      return "";
+    }
+    // Workspace URLs start with the org slug: `/:org[/…]`.
+    return new URL(url).pathname.split("/")[1];
   }
 
   /**

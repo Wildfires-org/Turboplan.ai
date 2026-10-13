@@ -1,5 +1,5 @@
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { AccessError } from "@/components/access-error";
 import { DashboardProvider } from "@/components/providers/dashboard-provider";
@@ -8,6 +8,7 @@ import {
   getCachedSession,
   getValidatedProjectBySlug,
 } from "@/lib/cache/dashboard";
+import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
 import { handleSlugRedirect } from "@/lib/slug-redirect";
 
@@ -24,8 +25,14 @@ export default async function ProjectLayout({
   children,
   params,
 }: ProjectLayoutProps) {
-  const session = await getCachedSession();
   const resolvedParams = await params;
+
+  // 404 malformed or reserved slugs before any session or DB work.
+  if (!isRoutableSlugPath(resolvedParams)) {
+    notFound();
+  }
+
+  const session = await getCachedSession();
 
   if (!session?.user?.id) {
     redirect("/login");

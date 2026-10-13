@@ -79,3 +79,54 @@ export function isValidSlug(slug: string): boolean {
   const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   return slugRegex.test(slug) && slug.length <= MAX_SLUG_LENGTH;
 }
+
+/**
+ * Slugs that would collide with a static route at the level the entity is
+ * addressed in the app (`/:org/:office/:project`). A static segment wins over
+ * a dynamic one, so an entity holding one of these slugs would be unreachable.
+ * Keep in sync with the route folders under `apps/turboplan/app` — a unit test
+ * there fails when a new static segment is missing from these lists.
+ */
+export const RESERVED_SLUGS = {
+  // Root route folders, the /ingest (PostHog) and /monitoring (Sentry)
+  // rewrites, public/ folders, AppUrls.settings and the legacy /organizations
+  // prefix that next.config redirects.
+  organization: [
+    "actions",
+    "admin",
+    "animations",
+    "api",
+    "brand",
+    "check-email",
+    "images",
+    "ingest",
+    "invite",
+    "login",
+    "logout",
+    "monitoring",
+    "organizations",
+    "profile",
+    "register",
+    "self-service",
+    "settings",
+    "setup",
+    "verify",
+  ],
+  // Org-level pages, plus the legacy `offices` segment.
+  office: ["billing", "context", "members", "my-signatures", "offices"],
+  // Office-level pages, plus the legacy `projects` segment.
+  project: [
+    "citizen-submissions",
+    "members",
+    "my-submissions",
+    "projects",
+    "templates",
+  ],
+} as const satisfies Record<string, readonly string[]>;
+
+export type SlugLevel = keyof typeof RESERVED_SLUGS;
+
+/** True when the slug would be shadowed by a static route at that level. */
+export const isReservedSlug = (level: SlugLevel, slug: string): boolean => {
+  return (RESERVED_SLUGS[level] as readonly string[]).includes(slug);
+};

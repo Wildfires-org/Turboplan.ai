@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import type { UIMessage } from "ai";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
@@ -90,6 +90,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
   ) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const { orgSlug } = useParams<{ orgSlug?: string }>();
     const { mutate } = useSWRConfig();
     const sidebarChatsKey = getSidebarChatsKey(projectId ?? null);
 
@@ -283,9 +284,6 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         // The chat route returns 402 CREDITS_EXHAUSTED before opening a
         // stream; the SDK surfaces the JSON body as the error message.
         if (error.message.includes("CREDITS_EXHAUSTED")) {
-          const orgSlug = window.location.pathname.match(
-            /\/organizations\/([^/]+)/,
-          )?.[1];
           toast.error("Monthly credits used up", {
             description:
               "This organization has used its monthly AI credits. Upgrade the plan to keep going.",

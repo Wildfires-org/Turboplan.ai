@@ -71,7 +71,7 @@ export function getActiveLinkClass(
 /**
  * Check if a project subroute is active (for expanded project navigation)
  * @param currentPath - The current pathname
- * @param projectBasePath - The base path of the project (e.g., '/organizations/org/offices/office/projects/proj')
+ * @param projectBasePath - The base path of the project (e.g., '/org/office/proj')
  * @returns boolean indicating if any project subroute is active
  */
 export function isProjectRouteActive(
@@ -123,3 +123,24 @@ export function isProjectRouteActiveBySlug(
       normalizedCurrent === route || normalizedCurrent.startsWith(`${route}/`),
   );
 }
+
+/**
+ * True on a project's chat pages (`/chats/…` and the legacy `/chat`). Matched
+ * under the project base rather than anywhere in the path: org, office and
+ * project slugs sit in the URL too and may start with `chat`.
+ */
+export const isProjectChatRoute = (
+  currentPath: string,
+  orgSlug: string,
+  officeSlug: string,
+  projectSlug: string,
+): boolean => {
+  const projectBase = AppUrls.project(orgSlug, officeSlug, projectSlug);
+  return (
+    isActiveLink(currentPath, `${projectBase}/chats`) ||
+    isActiveLink(
+      currentPath,
+      AppUrls.projectChat(orgSlug, officeSlug, projectSlug),
+    )
+  );
+};

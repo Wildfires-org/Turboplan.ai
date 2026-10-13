@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
 import { OFFICE_URL_PATTERN } from "../config/patterns";
 import { LetterheadEditorSection } from "./turboplan-letterhead-editor";
 
@@ -32,7 +34,7 @@ export class TurboplanOfficeSettingsDialog {
    * office (the button is hidden otherwise).
    */
   async openFromOffice(orgSlug: string, officeSlug: string): Promise<void> {
-    await this.page.goto(`/organizations/${orgSlug}/offices/${officeSlug}`);
+    await this.page.goto(appPaths.office(orgSlug, officeSlug));
     await this.page.waitForURL(OFFICE_URL_PATTERN);
     // StickyEntityBanner renders its actions twice (full banner + compact
     // scroll header); the testid scopes to the full banner.

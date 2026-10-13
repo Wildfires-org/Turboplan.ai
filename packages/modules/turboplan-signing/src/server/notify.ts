@@ -1,11 +1,12 @@
 import type { SigningRecipientRow } from "@wildfires-org/turboplan-db";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 import { getProjectSlugs, type ProjectSlugs } from "./queries";
 
 const buildSigningPageUrl = (slugs: ProjectSlugs, appUrl: string): string =>
-  `${appUrl}/organizations/${slugs.orgSlug}/offices/${slugs.officeSlug}/projects/${slugs.projectSlug}/signing`;
+  `${appUrl}${appPaths.project(slugs.orgSlug, slugs.officeSlug, slugs.projectSlug)}/signing`;
 
 // These emails are assembled as raw HTML strings, so every interpolated value
 // that originates from user input (document titles, recipient names, rejection

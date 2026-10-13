@@ -62,11 +62,9 @@ export class TurboplanSetupPage {
     // page bounces straight through when billing is disabled) → /?setup=true
     // → dashboard → personal office page. Signup auto-creates a default "My
     // Office" the user owns, so the chain SETTLES on
-    // …/offices/<slug>[?create-project=true]. We must wait for that final
+    // /<org>/<office>[?create-project=true]. We must wait for that final
     // office page — NOT merely for the path to leave /setup, which resolves
-    // at the intermediate "/" before the office redirect lands. A pathname
-    // predicate is used so the ?create-project=true query does not break a
-    // `$`-anchored URL regex.
+    // at the intermediate "/" before the office redirect lands.
     await this.page.waitForURL(
       (url) =>
         this.isOnOfficePath(url.pathname) ||
@@ -116,9 +114,9 @@ export class TurboplanSetupPage {
     }
   }
 
-  /** True when a pathname is a `/organizations/<slug>/offices/<slug>` page. */
+  /** True when a pathname is an office page (`/<org>/<office>`). */
   private isOnOfficePath(pathname: string): boolean {
-    return /\/organizations\/[^/]+\/offices\/[^/]+/.test(pathname);
+    return OFFICE_URL_PATTERN.test(pathname);
   }
 
   /**
@@ -264,7 +262,7 @@ export class TurboplanSetupPage {
     // create the project there. createOffice is kept ONLY as a defensive
     // fallback for a no-office landing, which signup no longer produces.
     if (createWorkspace) {
-      const onOfficePage = this.page.url().includes("/offices/");
+      const onOfficePage = OFFICE_URL_PATTERN.test(this.page.url());
       if (!onOfficePage) {
         await this.createOffice(officeName, officeDescription);
         await this.navigateToOffice(officeName);

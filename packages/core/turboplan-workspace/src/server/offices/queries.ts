@@ -12,11 +12,7 @@ import {
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
-import {
-  generateSlug,
-  generateUniqueSlug,
-  isValidSlug,
-} from "@wildfires-org/turboplan-utils/server";
+import { isValidSlug } from "@wildfires-org/turboplan-utils/server";
 
 import {
   appendDocumentProfileFact,
@@ -26,6 +22,7 @@ import {
 } from "../../document-profile";
 import { normalizeLetterheadColor } from "../../letterhead";
 import type { SlugLookupResult } from "../../types";
+import { assertSlugNotReserved, generateAvailableSlug } from "../slug-policy";
 import type {
   CreateOfficeRequest,
   OfficeStatus,
@@ -130,25 +127,15 @@ async function isOfficeSlugTaken(
 
 /**
  * Generate a unique slug for an office within an organization
- * If the base slug is taken, appends a short unique ID
+ * If the base slug is taken or reserved, appends a short unique ID
  */
 async function generateUniqueOfficeSlug(
   organizationId: string,
   name: string,
 ): Promise<string> {
-  const baseSlug = generateSlug(name);
-
-  if (!baseSlug) {
-    return generateUniqueSlug(name);
-  }
-
-  const isTaken = await isOfficeSlugTaken(organizationId, baseSlug);
-  if (!isTaken) {
-    return baseSlug;
-  }
-
-  // Slug is taken, generate unique one
-  return generateUniqueSlug(name);
+  return generateAvailableSlug("office", name, (slug) =>
+    isOfficeSlugTaken(organizationId, slug),
+  );
 }
 
 export async function getOfficesByOrganization(
@@ -217,6 +204,9 @@ export async function getOfficesByOrganization(
 
 export async function createOffice(data: CreateOfficeRequest): Promise<Office> {
   try {
+    if (data.slug) {
+      assertSlugNotReserved("office", data.slug);
+    }
     // Generate slug from name if not provided
     const finalSlug =
       data.slug ||
@@ -260,6 +250,9 @@ export async function updateOffice(data: UpdateOfficeRequest): Promise<void> {
     // Validate slug format if provided
     if (data.slug !== undefined && !isValidSlug(data.slug)) {
       throw new Error(`Invalid slug format: "${data.slug}"`);
+    }
+    if (data.slug !== undefined) {
+      assertSlugNotReserved("office", data.slug);
     }
 
     // Use transaction to prevent race conditions during slug updates

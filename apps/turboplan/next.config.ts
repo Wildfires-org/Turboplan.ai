@@ -157,6 +157,30 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Dashboard URLs used to be `/organizations/:org/offices/:office/projects/
+  // :project`. Links in sent emails, Stripe, MCP output and bookmarks
+  // still point there, so map them onto the flat `/:org/:office/:project`
+  // shape. Most specific first. Next appends an optional trailing slash to
+  // every custom route regex, so `/organizations/usfs/` matches too.
+  async redirects() {
+    return [
+      {
+        source: "/organizations/:org/offices/:office/projects/:project/:path*",
+        destination: "/:org/:office/:project/:path*",
+        permanent: true,
+      },
+      {
+        source: "/organizations/:org/offices/:office/:path*",
+        destination: "/:org/:office/:path*",
+        permanent: true,
+      },
+      {
+        source: "/organizations/:org/:path*",
+        destination: "/:org/:path*",
+        permanent: true,
+      },
+    ];
+  },
   // PostHog same-origin proxy — browser events go to /ingest so ad-blockers
   // don't drop them. skipTrailingSlashRedirect keeps PostHog API paths intact.
   skipTrailingSlashRedirect: true,

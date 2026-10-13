@@ -9,6 +9,7 @@ import useSWR from "swr";
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
 import { useSession } from "@wildfires-org/turboplan-auth/client";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
 
 import {
   GLASS_BUTTON_CLASS,
@@ -317,9 +318,11 @@ export function CreateProjectFromTemplateButton({
       });
 
       const { location } = data;
-      const targetUrl =
-        `${TURBOPLAN_URL}/organizations/${location.organizationSlug}` +
-        `/offices/${location.officeSlug}/projects/${location.projectSlug}`;
+      const targetUrl = `${TURBOPLAN_URL}${appPaths.project(
+        location.organizationSlug,
+        location.officeSlug,
+        location.projectSlug,
+      )}`;
       router.push(targetUrl);
     } catch (error) {
       setIsRedirecting(false);

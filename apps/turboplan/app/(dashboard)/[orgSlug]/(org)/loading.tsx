@@ -12,6 +12,7 @@ import { OrgTabNav } from "@/components/dashboard/org-tab-nav";
 import { useOptionalDashboard } from "@/components/providers/dashboard-provider";
 import { useUser } from "@/components/providers/user-provider";
 import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
+import { isActiveLink } from "@/lib/nav/activeLink";
 import { AppUrls } from "@/lib/nav/urls";
 
 /**
@@ -35,7 +36,7 @@ export default function OrganizationTabLoading() {
   }
 
   const renderSection = () => {
-    if (pathname.startsWith(AppUrls.organizationMembers(orgSlug))) {
+    if (isActiveLink(pathname, AppUrls.organizationMembers(orgSlug))) {
       return (
         <OrgMembersSection
           user={user}
@@ -44,7 +45,7 @@ export default function OrganizationTabLoading() {
         />
       );
     }
-    if (pathname.startsWith(AppUrls.organizationBilling(orgSlug))) {
+    if (isActiveLink(pathname, AppUrls.organizationBilling(orgSlug))) {
       return (
         <BillingSettingsSection
           userId={userId}
@@ -53,7 +54,7 @@ export default function OrganizationTabLoading() {
         />
       );
     }
-    if (pathname.startsWith(AppUrls.organizationSigning(orgSlug))) {
+    if (isActiveLink(pathname, AppUrls.organizationSigning(orgSlug))) {
       return (
         <div className="space-y-2">
           <div className={STICKY_TOOLBAR_CLASS}>

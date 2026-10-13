@@ -16,6 +16,7 @@ import {
 } from "@wildfires-org/turboplan-db/queries";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 import { getInvitationById } from "./queries";
 import type { InvitationEntityType, TaskAssignment } from "./types";
@@ -169,7 +170,7 @@ async function getEntityUrl(
     if (!org) {
       return undefined;
     }
-    return `${base}/organizations/${org.slug}`;
+    return `${base}${appPaths.organization(org.slug)}`;
   }
 
   if (entityType === "office") {
@@ -185,7 +186,7 @@ async function getEntityUrl(
     if (!off) {
       return undefined;
     }
-    return `${base}/organizations/${off.orgSlug}/offices/${off.officeSlug}`;
+    return `${base}${appPaths.office(off.orgSlug, off.officeSlug)}`;
   }
 
   const [proj] = await db
@@ -202,7 +203,7 @@ async function getEntityUrl(
   if (!proj) {
     return undefined;
   }
-  return `${base}/organizations/${proj.orgSlug}/offices/${proj.officeSlug}/projects/${proj.projectSlug}`;
+  return `${base}${appPaths.project(proj.orgSlug, proj.officeSlug, proj.projectSlug)}`;
 }
 
 /**

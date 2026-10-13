@@ -14,6 +14,7 @@ import { EditOfficeDialog } from "@/components/dashboard/edit-office-dialog";
 import { useInviteMembers } from "@/components/dashboard/invite-members-context";
 import { useOptionalDashboard } from "@/components/providers/dashboard-provider";
 import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
+import { isActiveLink } from "@/lib/nav/activeLink";
 import { AppUrls } from "@/lib/nav/urls";
 
 interface OfficeBannerActionsProps {
@@ -37,7 +38,8 @@ export function OfficeBannerActions({
   const canCreateProject = officeActions.includes(Action.CREATE);
   const canManageMembers = officeActions.includes(Action.MANAGE_MEMBERS);
 
-  const isMembersTab = pathname.startsWith(
+  const isMembersTab = isActiveLink(
+    pathname,
     AppUrls.officeMembers(organizationSlug, office.slug),
   );
 

@@ -1,7 +1,13 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 
-import { generateSlug, generateUniqueSlug, isValidSlug } from "../src/slug";
+import {
+  generateSlug,
+  generateUniqueSlug,
+  isReservedSlug,
+  isValidSlug,
+  RESERVED_SLUGS,
+} from "../src/slug";
 
 describe("generateSlug", () => {
   it("should convert a title to lowercase slug", () => {
@@ -145,5 +151,40 @@ describe("isValidSlug", () => {
   it("should return true for slugs exactly 40 characters", () => {
     const slug40 = "a".repeat(40);
     assert.strictEqual(isValidSlug(slug40), true);
+  });
+});
+
+describe("isReservedSlug", () => {
+  it("reserves root route names for organizations", () => {
+    assert.strictEqual(isReservedSlug("organization", "login"), true);
+    assert.strictEqual(isReservedSlug("organization", "organizations"), true);
+  });
+
+  it("reserves org-level pages for offices", () => {
+    assert.strictEqual(isReservedSlug("office", "members"), true);
+    assert.strictEqual(isReservedSlug("office", "billing"), true);
+  });
+
+  it("reserves office-level pages for projects", () => {
+    assert.strictEqual(isReservedSlug("project", "templates"), true);
+    assert.strictEqual(isReservedSlug("project", "my-submissions"), true);
+  });
+
+  it("only reserves a name at the level it collides", () => {
+    assert.strictEqual(isReservedSlug("organization", "members"), false);
+    assert.strictEqual(isReservedSlug("project", "billing"), false);
+  });
+
+  it("does not reserve names that merely share a prefix", () => {
+    assert.strictEqual(isReservedSlug("organization", "login-co"), false);
+    assert.strictEqual(isReservedSlug("office", "members-hq"), false);
+  });
+
+  it("keeps every reserved slug in valid slug format", () => {
+    for (const slugs of Object.values(RESERVED_SLUGS)) {
+      for (const slug of slugs) {
+        assert.strictEqual(isValidSlug(slug), true, slug);
+      }
+    }
   });
 });

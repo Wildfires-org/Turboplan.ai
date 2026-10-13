@@ -1,5 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
 import { PROJECT_URL_PATTERN } from "../config/patterns";
 
 /**
@@ -19,14 +21,14 @@ export class TurboplanDashboardPage {
     // "domcontentloaded" instead of the default "load": the office page hydrates
     // its project list client-side, so waiting on every subresource is slow and
     // unnecessary — callers assert on specific elements afterwards.
-    await this.page.goto(`/organizations/${orgSlug}/offices/${officeSlug}`, {
+    await this.page.goto(appPaths.office(orgSlug, officeSlug), {
       waitUntil: "domcontentloaded",
     });
   }
 
   /** Navigate directly to an organization's offices page */
   async gotoOrganization(orgSlug: string): Promise<void> {
-    await this.page.goto(`/organizations/${orgSlug}`, {
+    await this.page.goto(appPaths.organization(orgSlug), {
       waitUntil: "domcontentloaded",
     });
   }
@@ -115,8 +117,6 @@ export class TurboplanDashboardPage {
     officeSlug: string,
     projectSlug: string,
   ): Promise<void> {
-    await this.page.goto(
-      `/organizations/${orgSlug}/offices/${officeSlug}/projects/${projectSlug}`,
-    );
+    await this.page.goto(appPaths.project(orgSlug, officeSlug, projectSlug));
   }
 }

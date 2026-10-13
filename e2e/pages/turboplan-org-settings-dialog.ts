@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
 import { ORG_URL_PATTERN } from "../config/patterns";
 import { LetterheadEditorSection } from "./turboplan-letterhead-editor";
 
@@ -32,7 +34,7 @@ export class TurboplanOrgSettingsDialog {
    * Organization" action is member-only).
    */
   async openFromOrg(orgSlug: string): Promise<void> {
-    await this.page.goto(`/organizations/${orgSlug}`);
+    await this.page.goto(appPaths.organization(orgSlug));
     await this.page.waitForURL(ORG_URL_PATTERN);
     // StickyEntityBanner renders the banner actions twice (full banner +
     // compact scroll header). The duplicate is inert, but Playwright's role

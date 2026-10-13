@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 
+import { WORKSPACE_URL_PATTERN } from "../config/patterns";
+
 /**
  * Page Object Model for the Invitation acceptance page.
  * Provides methods for interacting with the invitation flow.
@@ -169,7 +171,10 @@ export class TurboplanInvitePage {
    * @param expectedUrlPattern - URL pattern to wait for after acceptance
    */
   async waitForAcceptanceRedirect(
-    expectedUrlPattern: RegExp = /\/(setup|organizations|$)/,
+    // Home, setup, or any workspace page.
+    expectedUrlPattern: RegExp = new RegExp(
+      `^https?://[^/]+/(?:setup(?:[/?#].*)?)?$|${WORKSPACE_URL_PATTERN.source}`,
+    ),
   ): Promise<void> {
     // Wait for redirect away from the invite page
     await this.page.waitForURL((url) => !url.pathname.startsWith("/invite"), {

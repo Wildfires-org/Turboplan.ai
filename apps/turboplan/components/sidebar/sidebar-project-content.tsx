@@ -40,6 +40,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { SKELETON_BAR_CLASS } from "@/lib/glass";
+import { isProjectChatRoute } from "@/lib/nav/activeLink";
 import { AppUrls } from "@/lib/nav/urls";
 import {
   SidebarChatList,
@@ -146,8 +147,12 @@ export function SidebarProjectContent({
     [],
   );
 
-  const isOnChatsRoute =
-    pathname.includes("/chats/") || pathname.includes("/chat");
+  const isOnChatsRoute = isProjectChatRoute(
+    pathname,
+    orgSlug,
+    officeSlug,
+    projectSlug,
+  );
 
   const isActive = (item: NavItem) => {
     const itemHref = item.href(orgSlug, officeSlug, projectSlug);

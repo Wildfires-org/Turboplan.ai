@@ -9,6 +9,7 @@ import {
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 
+import { OFFICE_URL_PATTERN } from "../../config/patterns";
 import { createTestUserWithMagicLink } from "../../utils";
 
 const isTruthy = (value: string | undefined): boolean =>
@@ -94,10 +95,9 @@ test.describe("Onboarding plan step", () => {
     await page.getByRole("button", { name: "Skip for now" }).click();
 
     // Redirect chain settles on the personal office page (never back to setup).
-    await page.waitForURL(
-      (url) => /\/organizations\/[^/]+\/offices\/[^/]+/.test(url.pathname),
-      { timeout: 20000 },
-    );
+    await page.waitForURL((url) => OFFICE_URL_PATTERN.test(url.pathname), {
+      timeout: 20000,
+    });
 
     const row = await getSubscriptionForUserPersonalOrg(email);
     expect(row?.plan).toBe("starter");
@@ -117,10 +117,9 @@ test.describe("Onboarding plan step", () => {
     await expect(startFree).toBeVisible();
     await startFree.click();
 
-    await page.waitForURL(
-      (url) => /\/organizations\/[^/]+\/offices\/[^/]+/.test(url.pathname),
-      { timeout: 20000 },
-    );
+    await page.waitForURL((url) => OFFICE_URL_PATTERN.test(url.pathname), {
+      timeout: 20000,
+    });
 
     const row = await getSubscriptionForUserPersonalOrg(email);
     expect(row?.plan).toBe("starter");

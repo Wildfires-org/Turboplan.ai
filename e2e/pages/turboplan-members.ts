@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
 import { TurboplanInviteMembersDialog } from "./turboplan-invite-members-dialog";
 
 /**
@@ -19,7 +21,7 @@ export class TurboplanMembersPage {
    * already a member once that list is in.
    */
   async gotoOrganization(orgSlug: string, memberEmail: string): Promise<void> {
-    await this.page.goto(`/organizations/${orgSlug}/members`);
+    await this.page.goto(`${appPaths.organization(orgSlug)}/members`);
     await expect(this.main.getByText(memberEmail, { exact: true })).toBeVisible(
       { timeout: 15000 },
     );

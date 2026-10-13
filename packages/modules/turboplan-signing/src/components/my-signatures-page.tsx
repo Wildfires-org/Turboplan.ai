@@ -5,6 +5,7 @@ import { useState } from "react";
 import { FileSignature, FileText } from "lucide-react";
 
 import {
+  appPaths,
   Badge,
   Button,
   cn,
@@ -76,7 +77,7 @@ export const MySignaturesPage = ({ organizationId }: MySignaturesPageProps) => {
       ) : (
         <div className="flex flex-col gap-4">
           {signingRequests.map((request) => {
-            const signingPageUrl = `/organizations/${request.orgSlug}/offices/${request.officeSlug}/projects/${request.projectSlug}/signing`;
+            const signingPageUrl = `${appPaths.project(request.orgSlug, request.officeSlug, request.projectSlug)}/signing`;
 
             return (
               <div

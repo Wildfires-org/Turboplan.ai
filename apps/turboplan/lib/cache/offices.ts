@@ -21,6 +21,7 @@ import {
   getOrganizationBySlug,
 } from "@wildfires-org/turboplan-workspace/server";
 
+import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
 import {
   getCachedOrganizationBySlug,
@@ -64,6 +65,13 @@ export const getValidatedOfficeBySlug = cache(
       >;
     }>
   > => {
+    // Malformed or reserved slugs (`/wp-admin.php`, `/organizations`) can't
+    // name an entity: skip the DB. Layouts 404 on them; this covers the
+    // pages' generateMetadata, which runs alongside the layouts.
+    if (!isRoutableSlugPath({ orgSlug, officeSlug })) {
+      return { data: null };
+    }
+
     // Single query to resolve organization (current or historical)
     const { entity: organization, foundViaHistory: orgRedirect } =
       await getCachedOrganizationBySlug(orgSlug);

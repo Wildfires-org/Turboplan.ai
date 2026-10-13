@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { Organization } from "@wildfires-org/turboplan-workspace/types";
 
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { isActiveLink } from "@/lib/nav/activeLink";
 import { AppUrls } from "@/lib/nav/urls";
 
 interface OrgDashboardHeaderProps {
@@ -23,7 +24,7 @@ export function OrgDashboardHeader({ organization }: OrgDashboardHeaderProps) {
       label: "My Signatures",
     },
     { href: AppUrls.organizationBilling(organization.slug), label: "Billing" },
-  ].find((tab) => pathname.startsWith(tab.href))?.label;
+  ].find((tab) => isActiveLink(pathname, tab.href))?.label;
 
   const breadcrumbs = tabLabel
     ? [

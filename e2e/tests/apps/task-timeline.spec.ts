@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
 
 import { PROJECT_URL_PATTERN } from "../../config/patterns";
 import { getCitizenCredentials } from "../../config/test-credentials";
@@ -48,9 +49,7 @@ test.describe("Project Timeline", () => {
   const navigateToProject = async (page: import("@playwright/test").Page) => {
     // Navigate directly to citizen's office (citizen may have access to
     // multiple orgs, so "/" redirect is not deterministic).
-    await page.goto(
-      `/organizations/${citizenOrgSlug}/offices/${citizenOfficeSlug}`,
-    );
+    await page.goto(appPaths.office(citizenOrgSlug, citizenOfficeSlug));
 
     const main = page.getByRole("main");
     await expect(

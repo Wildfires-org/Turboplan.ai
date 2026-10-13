@@ -18,6 +18,7 @@ import {
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { getOrganizationBySlug } from "@wildfires-org/turboplan-workspace/server";
 
+import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
 
 // ============================================================================
@@ -57,6 +58,13 @@ export const getValidatedOrganizationBySlug = cache(
       NonNullable<Awaited<ReturnType<typeof getOrganizationBySlug>>["entity"]>
     >
   > => {
+    // Malformed or reserved slugs (`/wp-admin.php`, `/organizations`) can't
+    // name an entity: skip the DB. Layouts 404 on them; this covers the
+    // pages' generateMetadata, which runs alongside the layouts.
+    if (!isRoutableSlugPath({ orgSlug })) {
+      return { data: null };
+    }
+
     // Single query to check both current and historical slugs
     const { entity: organization, foundViaHistory } =
       await getCachedOrganizationBySlug(orgSlug);

@@ -3,6 +3,7 @@
  * These exports do not include any React components or client-side code
  */
 
+export * from "./app-paths";
 export * from "./constants";
 export * from "./email";
 export * from "./rate-limit";

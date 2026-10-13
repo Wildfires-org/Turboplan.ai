@@ -1,7 +1,9 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
 /**
- * Page Object for a project chat (`.../projects/[projectSlug]/chats/[chatId]`)
+ * Page Object for a project chat (`/[org]/[office]/[project]/chats/[chatId]`)
  * and the project sidebar links used to leave and re-enter it.
  */
 export class TurboplanProjectChatPage {
@@ -16,7 +18,7 @@ export class TurboplanProjectChatPage {
   }): Promise<void> {
     const { orgSlug, officeSlug, projectSlug, chatId } = params;
     await this.page.goto(
-      `/organizations/${orgSlug}/offices/${officeSlug}/projects/${projectSlug}/chats/${chatId}`,
+      `${appPaths.project(orgSlug, officeSlug, projectSlug)}/chats/${chatId}`,
       { waitUntil: "domcontentloaded" },
     );
     await this.expectComposerReady();

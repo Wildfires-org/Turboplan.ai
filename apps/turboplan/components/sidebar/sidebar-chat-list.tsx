@@ -27,6 +27,7 @@ import {
 import { useNewChat } from "@/contexts/new-chat-context";
 import { useSidebarChats } from "@/hooks/use-sidebar-chats";
 import { SKELETON_BAR_CLASS } from "@/lib/glass";
+import { isProjectChatRoute } from "@/lib/nav/activeLink";
 import { AppUrls } from "@/lib/nav/urls";
 import {
   PROJECT_NAV_SUB_BUTTON_CLASS,
@@ -58,8 +59,12 @@ export function SidebarChatList({
 
   const { orgSlug, officeSlug, projectSlug } = params;
 
-  const isOnChatsRoute =
-    pathname.includes("/chats/") || pathname.includes("/chat");
+  const isOnChatsRoute = isProjectChatRoute(
+    pathname,
+    orgSlug,
+    officeSlug,
+    projectSlug,
+  );
   const [isChatExpanded, setIsChatExpanded] = useState(isOnChatsRoute);
 
   const { chats, isLoading: isLoadingChats } = useSidebarChats({

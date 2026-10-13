@@ -52,11 +52,7 @@ import {
 import { EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { isStorageUrl } from "@wildfires-org/turboplan-upload/server";
-import {
-  generateSlug,
-  generateUniqueSlug,
-  isValidSlug,
-} from "@wildfires-org/turboplan-utils/server";
+import { isValidSlug } from "@wildfires-org/turboplan-utils/server";
 
 import {
   type DocumentProfile,
@@ -78,6 +74,7 @@ import {
 import type { SlugLookupResult } from "../../types";
 import { getOfficeById } from "../offices/queries";
 import { getOrganizationById } from "../organizations/queries";
+import { assertSlugNotReserved, generateAvailableSlug } from "../slug-policy";
 import {
   isProjectDocumentInScope,
   resolveTemplateCopyScope,
@@ -747,25 +744,15 @@ async function isProjectSlugTaken(
 
 /**
  * Generate a unique slug for a project within an office
- * If the base slug is taken, appends a short unique ID
+ * If the base slug is taken or reserved, appends a short unique ID
  */
 export async function generateUniqueProjectSlug(
   officeId: string,
   name: string,
 ): Promise<string> {
-  const baseSlug = generateSlug(name);
-
-  if (!baseSlug) {
-    return generateUniqueSlug(name);
-  }
-
-  const isTaken = await isProjectSlugTaken(officeId, baseSlug);
-  if (!isTaken) {
-    return baseSlug;
-  }
-
-  // Slug is taken, generate unique one
-  return generateUniqueSlug(name);
+  return generateAvailableSlug("project", name, (slug) =>
+    isProjectSlugTaken(officeId, slug),
+  );
 }
 
 /**
@@ -1041,6 +1028,9 @@ export async function updateProject(data: UpdateProjectRequest): Promise<void> {
     // Validate slug format if provided
     if (data.slug !== undefined && !isValidSlug(data.slug)) {
       throw new Error(`Invalid slug format: "${data.slug}"`);
+    }
+    if (data.slug !== undefined) {
+      assertSlugNotReserved("project", data.slug);
     }
 
     // Use transaction to prevent race conditions during slug updates
