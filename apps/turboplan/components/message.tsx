@@ -21,6 +21,7 @@ import {
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
 import { useStreamingDots } from "@/hooks/use-streaming-dots";
 import { getToolErrorMessage, isToolPartInterrupted } from "@/lib/chat-status";
+import { orderMessageParts } from "@/lib/order-message-parts";
 import { cn } from "@/lib/utils";
 import { ToolInvocationState } from "@/types/ToolInvocationState";
 import { Tools } from "@/types/Tools";
@@ -176,7 +177,7 @@ const PurePreviewMessage = ({
               );
             })()}
 
-            {message.parts?.map((part, index) => {
+            {orderMessageParts(message.parts ?? []).map(({ part, index }) => {
               const { type } = part;
               const key = `message-${message.id}-part-${index}`;
 
