@@ -19,16 +19,30 @@ const expandTransition = {
 };
 
 const MAX_TRACKED_IDS = 500;
-const collapsedReasoning = new Set<string>();
+// Explicit open/closed choices, kept across remounts. Without one, reasoning is
+// open while the reply streams and folds away once it is done.
+const userChoices = new Map<string, boolean>();
+
+const rememberChoice = (id: string, isExpanded: boolean) => {
+  userChoices.delete(id);
+  if (userChoices.size >= MAX_TRACKED_IDS) {
+    const oldest = userChoices.keys().next().value;
+    if (oldest !== undefined) {
+      userChoices.delete(oldest);
+    }
+  }
+  userChoices.set(id, isExpanded);
+};
 
 export function MessageReasoning({
   id,
   isLoading,
   reasoning,
 }: MessageReasoningProps) {
-  const [isExpanded, setIsExpanded] = useState(
-    () => !collapsedReasoning.has(id),
+  const [userChoice, setUserChoice] = useState<boolean | undefined>(() =>
+    userChoices.get(id),
   );
+  const isExpanded = userChoice ?? isLoading;
 
   return (
     <div className="flex flex-col">
@@ -49,21 +63,8 @@ export function MessageReasoning({
             aria-expanded={isExpanded}
             className="press flex size-6 cursor-pointer items-center justify-center rounded-full hover:bg-white/70 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
             onClick={() => {
-              setIsExpanded((prev) => {
-                const next = !prev;
-                if (next) {
-                  collapsedReasoning.delete(id);
-                } else {
-                  if (collapsedReasoning.size >= MAX_TRACKED_IDS) {
-                    const first = collapsedReasoning.values().next().value;
-                    if (first !== undefined) {
-                      collapsedReasoning.delete(first);
-                    }
-                  }
-                  collapsedReasoning.add(id);
-                }
-                return next;
-              });
+              rememberChoice(id, !isExpanded);
+              setUserChoice(!isExpanded);
             }}
           >
             <motion.span
