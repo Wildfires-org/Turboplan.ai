@@ -3,7 +3,6 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  hasToolCall,
   smoothStream,
   stepCountIs,
   streamText,
@@ -57,6 +56,7 @@ import {
   getErrorName,
 } from "@/lib/ai/chat-timing";
 import { generateTitleFromUserMessage } from "@/lib/ai/generate-title";
+import { hasToolCallAfterText } from "@/lib/ai/has-tool-call-after-text";
 import { createReferenceCache } from "@/lib/ai/reference-documents";
 import {
   type ChatMessageWithAttachments,
@@ -704,9 +704,14 @@ export async function POST(request: Request) {
           messages: modelMessages,
           tools,
           activeTools: promptArgs.activeTools as Array<keyof typeof tools>,
-          // Quick responses end the answer; without the second condition the
-          // model gets one more (wasted) call after them.
-          stopWhen: [stepCountIs(10), hasToolCall("generateQuickResponses")],
+          // Quick responses end the answer, so stop once they are generated
+          // instead of making one more (wasted) model call. Only stop if the
+          // answer text already exists: thinking models sometimes draft the
+          // answer in reasoning and call the chips before writing any text.
+          stopWhen: [
+            stepCountIs(10),
+            hasToolCallAfterText("generateQuickResponses"),
+          ],
           experimental_transform: smoothStream({ chunking: "word" }),
           onChunk: stepTimer.onChunk,
           onStepFinish: (step) => {
