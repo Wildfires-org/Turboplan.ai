@@ -27,6 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { PROJECT_DESCRIPTION_PARAM } from "@/consts/urlParams";
 import { useBillingAccess } from "@/hooks/use-billing-access";
 import {
   formatMegabytes,
@@ -252,13 +253,20 @@ export function SearchInput({
             </AnimatePresence>
           </ul>
 
-          <div className="flex items-end gap-4 sm:gap-6">
+          {/* Phones stack the buttons under the text: beside it they take a
+              third of the width and squeeze a typed project into a narrow
+              column. From sm up they sit beside it. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-6">
             {/* Textarea — self-center keeps the single-line placeholder
                 vertically centered against the buttons; once the textarea
                 grows it defines the row height and centering is moot. */}
-            <div className="relative flex-1 self-center">
+            <div className="relative w-full sm:flex-1 sm:self-center">
               <textarea
                 ref={textareaRef}
+                // A send before hydration is a native GET to this page; named
+                // like the prefill param, the text comes back in the box
+                // instead of being lost (slow phones).
+                name={PROJECT_DESCRIPTION_PARAM}
                 rows={1}
                 value={inputValue}
                 onChange={handleChange}
@@ -279,12 +287,14 @@ export function SearchInput({
                   }
                 }}
                 placeholder={placeholder}
-                className="w-full resize-none bg-transparent font-heading text-[15px] font-normal leading-[22px] tracking-normal text-egray-900 outline-hidden placeholder:text-egray-400"
+                // 16px on phones: iOS Safari zooms the page into any field
+                // under 16px when it gets focus.
+                className="w-full resize-none bg-transparent font-heading text-[16px] font-normal leading-[22px] tracking-normal text-egray-900 outline-hidden placeholder:text-egray-400 sm:text-[15px]"
                 aria-label="Describe your project"
               />
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-auto">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
