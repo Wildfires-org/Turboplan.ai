@@ -197,6 +197,22 @@ describe("getLandingUploadDestination", () => {
     assert.strictEqual(send.mock.callCount(), 0);
   });
 
+  // Regression: with a list, the whole list used to be the base, so every
+  // claim failed ("does not map to a storage URL").
+  it("uses the first base of a comma-separated R2_PUBLIC_URL", () => {
+    process.env.R2_PUBLIC_URL = `${PUBLIC_URL},https://images.example.test`;
+    resetEnvCache();
+    try {
+      const destinationKey = `uploads/${USER_ID}/${SEGMENT}`;
+      const { url } = getLandingUploadDestination(KEY, USER_ID);
+      assert.strictEqual(url, `${PUBLIC_URL}/${destinationKey}`);
+      assert.ok(isOwnedUploadUrl(url, USER_ID));
+    } finally {
+      process.env.R2_PUBLIC_URL = PUBLIC_URL;
+      resetEnvCache();
+    }
+  });
+
   it("refuses a malformed key or an owner id that could widen the prefix", () => {
     for (const [key, userId] of [
       ["landing-uploads/report.pdf", USER_ID],

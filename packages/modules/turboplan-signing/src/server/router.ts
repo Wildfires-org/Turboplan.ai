@@ -222,6 +222,7 @@ signingRouter.post("/", async (c) => {
         footer: branding.footer,
         logoPlacement: branding.logoPlacement,
         accentColor: branding.color ?? undefined,
+        gridLetterhead: branding.gridLetterhead ?? undefined,
       },
     );
 

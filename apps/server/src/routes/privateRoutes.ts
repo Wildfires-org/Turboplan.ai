@@ -22,14 +22,17 @@ import {
   commentsRouter,
   configureWorkspaceAnalytics,
   invitationsRouter,
+  officeLetterheadGridRouter,
   officesRouter,
   organizationContextRouter,
   organizationDocumentsRouter,
+  organizationLetterheadGridRouter,
   organizationLetterheadsRouter,
   organizationMemoriesRouter,
   organizationSigningConfigRouter,
   organizationsRouter,
   projectDocumentsRouter,
+  projectLetterheadTargetRouter,
   projectsRouter,
   usersRouter,
 } from "@wildfires-org/turboplan-workspace/server";
@@ -89,8 +92,14 @@ export async function registerPrivateRoutes(router: Hono) {
   router.route("/api/organizations", organizationsRouter);
   // Organization letterhead library (/:organizationId/letterheads)
   router.route("/api/organizations", organizationLetterheadsRouter);
+  // Default letterhead grid (/:organizationId/letterhead-grid,
+  // /:officeId/letterhead-grid) and where a project's documents can save
+  // theirs (/:projectId/letterhead-target)
+  router.route("/api/organizations", organizationLetterheadGridRouter);
   router.route("/api/offices", officesRouter);
+  router.route("/api/offices", officeLetterheadGridRouter);
   router.route("/api/projects", projectsRouter);
+  router.route("/api/projects", projectLetterheadTargetRouter);
   router.route("/api/project-documents", projectDocumentsRouter);
   router.route("/api/comments", commentsRouter);
 

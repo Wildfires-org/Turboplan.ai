@@ -27,12 +27,28 @@
       "types": "./dist/errors.d.ts",
       "import": "./dist/errors.js",
       "default": "./dist/errors.js"
+    },
+    "./limits": {
+      "types": "./dist/limits.d.ts",
+      "import": "./dist/limits.js",
+      "default": "./dist/limits.js"
+    },
+    "./download": {
+      "types": "./dist/download.d.ts",
+      "import": "./dist/download.js",
+      "default": "./dist/download.js"
+    },
+    "./letterhead": {
+      "types": "./dist/letterhead.d.ts",
+      "import": "./dist/letterhead.js",
+      "default": "./dist/letterhead.js"
     }
   },
   "dependencies": {
     "mammoth": "^1.12.0",
     "unpdf": "^1.6.2",
-    "word-extractor": "1.0.4"
+    "word-extractor": "1.0.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.4",

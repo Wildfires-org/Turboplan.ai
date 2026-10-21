@@ -1,3 +1,6 @@
+import type { Office } from "./server/offices/types";
+import type { Organization } from "./server/organizations/types";
+
 // ============================================================================
 // SLUG LOOKUP TYPES
 // ============================================================================
@@ -121,6 +124,15 @@ export {
   editOfficeSchema,
 } from "./server/offices/validation";
 
+// An organization or office as the browser receives it: every payload drops
+// the default letterhead grid, whose logo cells are storage keys (the server
+// strips it with `withoutLetterheadGrid`; the settings UI reads the grid from
+// `GET /api/{organizations,offices}/:id/letterhead-grid`).
+export type ClientOrganization = Omit<Organization, "documentLetterheadGrid">;
+export type ClientOffice = Omit<Office, "documentLetterheadGrid">;
+
+export { withoutLetterheadGrid } from "./server/without-letterhead-grid";
+
 // ============================================================================
 // PROJECT TYPES & VALIDATION
 // Re-export for client components
@@ -151,6 +163,7 @@ export {
   buildLetterheadMarkdown,
   contentHasLetterheadTable,
   type DocumentLetterhead,
+  type GridDocumentLetterhead,
   isLetterheadConfigured,
   LETTERHEAD_COLOR_PATTERN,
   LETTERHEAD_LAYOUTS,
@@ -164,9 +177,59 @@ export {
   libraryLetterheadToDocumentLetterhead,
   MAX_LIBRARY_LETTERHEADS,
   normalizeLetterheadColor,
+  type PublicDocumentLetterhead,
+  type PublicGridDocumentLetterhead,
   parseLetterheadLines,
   planLetterheadBranding,
+  toPublicDocumentLetterhead,
 } from "./letterhead";
+export {
+  cleanGridLineText,
+  GRID_LINE_SIZES,
+  GRID_VERTICAL_ALIGNS,
+  type GridLetterhead,
+  type GridLetterheadCell,
+  type GridLetterheadLine,
+  type GridLetterheadTextCell,
+  type GridLineSize,
+  type GridVerticalAlign,
+  gridToDocumentLetterhead,
+  gridToLines,
+  isGridLogoKey,
+  MAX_GRID_CELLS,
+  MAX_GRID_LINE_CHARS,
+  MAX_GRID_LINES_PER_CELL,
+  MAX_GRID_LOGOS,
+  type PublicGridLetterhead,
+  type PublicGridLetterheadCell,
+  type PublicGridLetterheadLogoCell,
+  parseLetterheadLogoIndex,
+  strictGridLetterheadSchema,
+  usableGridLetterhead,
+} from "./letterhead-grid";
+export {
+  applyGridLetterheadEdit,
+  type GridLetterheadEdit,
+  type GridLetterheadEditCell,
+  type GridLetterheadEditTextCell,
+  gridLetterheadEditSchema,
+  LETTERHEAD_EDIT_CONFLICT_ERROR,
+} from "./letterhead-grid-edit";
+export {
+  GRID_BASE_FONT_RATIO,
+  GRID_CELL_GUTTER,
+  GRID_LINE_SCALE,
+  GRID_PAGE_CONTENT_RATIO,
+  type GridSegment,
+  gridBaseFontRatio,
+  gridCellOffset,
+  gridLogoCells,
+  gridLogoSize,
+  layoutGridLetterhead,
+  MAX_GRID_FONT_RATIO,
+  MIN_GRID_FONT_RATIO,
+  toPublicGridLetterhead,
+} from "./letterhead-grid-layout";
 export {
   type LibraryLetterheadFormData,
   letterheadColorSchema,

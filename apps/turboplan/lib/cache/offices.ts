@@ -16,10 +16,12 @@ import {
   EntityType,
 } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
+import { getOfficeBySlug } from "@wildfires-org/turboplan-workspace/server";
 import {
-  getOfficeBySlug,
-  getOrganizationBySlug,
-} from "@wildfires-org/turboplan-workspace/server";
+  type ClientOffice,
+  type ClientOrganization,
+  withoutLetterheadGrid,
+} from "@wildfires-org/turboplan-workspace/types";
 
 import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
@@ -34,11 +36,20 @@ import {
 
 /**
  * Get office by slug with caching
- * Checks both current and historical slugs, returns entity and foundViaHistory flag
+ * Checks both current and historical slugs, returns entity and foundViaHistory flag.
+ * The office comes without its default letterhead grid (storage URLs): pages
+ * pass it on to client components.
  */
 export const getCachedOfficeBySlug = cache(
-  async (organizationSlug: string, officeSlug: string) => {
-    return getOfficeBySlug(organizationSlug, officeSlug);
+  async (
+    organizationSlug: string,
+    officeSlug: string,
+  ): Promise<{ entity: ClientOffice | null; foundViaHistory: boolean }> => {
+    const { entity, foundViaHistory } = await getOfficeBySlug(
+      organizationSlug,
+      officeSlug,
+    );
+    return { entity: entity && withoutLetterheadGrid(entity), foundViaHistory };
   },
 );
 
@@ -57,12 +68,8 @@ export const getValidatedOfficeBySlug = cache(
     officeSlug: string,
   ): Promise<
     SlugValidationResult<{
-      organization: NonNullable<
-        Awaited<ReturnType<typeof getOrganizationBySlug>>["entity"]
-      >;
-      office: NonNullable<
-        Awaited<ReturnType<typeof getOfficeBySlug>>["entity"]
-      >;
+      organization: ClientOrganization;
+      office: ClientOffice;
     }>
   > => {
     // Malformed or reserved slugs (`/wp-admin.php`, `/organizations`) can't

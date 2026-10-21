@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // A worker that never answers, so only the timeout can settle the run.
-const spawned = vi.hoisted(() => ({ terminated: 0 }));
+const spawned = vi.hoisted(() => ({
+  terminated: 0,
+  options: [] as unknown[],
+}));
 
 vi.mock("node:worker_threads", async () => {
   const { EventEmitter: Emitter } = await import("node:events");
   class SilentWorker extends Emitter {
+    constructor(_path: URL, options: unknown) {
+      super();
+      spawned.options.push(options);
+    }
     terminate() {
       spawned.terminated += 1;
       return Promise.resolve(0);
@@ -48,6 +55,7 @@ describe("runExtractionInWorker timeout", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     spawned.terminated = 0;
+    spawned.options = [];
   });
 
   afterEach(() => {
@@ -91,6 +99,27 @@ describe("runExtractionInWorker timeout", () => {
 
     expect(result.message).toContain("took too long");
     expect(result.message).not.toContain("as PDF");
+  });
+
+  it("starts an extract task with a 256 MB heap", () => {
+    void runExtractionInWorker({
+      url: "https://files.example.com/a.pdf",
+      mimeType: PDF_MIME,
+    });
+
+    expect(spawned.options).toEqual([
+      {
+        workerData: {
+          task: "extract",
+          url: "https://files.example.com/a.pdf",
+          mimeType: PDF_MIME,
+        },
+        resourceLimits: {
+          maxOldGenerationSizeMb: 256,
+          maxYoungGenerationSizeMb: 48,
+        },
+      },
+    ]);
   });
 
   it("still honours an explicit timeout", async () => {

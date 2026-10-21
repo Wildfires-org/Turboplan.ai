@@ -1,11 +1,14 @@
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 
 import { db } from "../db-client";
 import {
   type DocumentLetterheadRow,
   type DocumentLetterheadSelectionRow,
+  type DocumentOwnLetterheadRow,
   documentLetterhead,
   documentLetterheadSelection,
+  documentOwnLetterhead,
+  type StoredLetterheadGrid,
 } from "../schemas";
 
 // `color` omitted (undefined) leaves the stored color unchanged on update.
@@ -114,23 +117,32 @@ export const getDocumentLetterheadSelectionRow = async (
   return result ?? null;
 };
 
-/** Set the document's letterhead: an id, or null for "none". */
+// A stored (non-default) selection: a library letterhead id, or null with
+// `useOwn` for the document's own copy (true) or none (false, the default).
+type DocumentLetterheadSelectionValue =
+  | { letterheadId: string; useOwn?: false }
+  | { letterheadId: null; useOwn?: boolean };
+
+/**
+ * Set the document's letterhead: a library id, the document's own copy
+ * (`letterheadId: null, useOwn: true`) or none (`letterheadId: null`).
+ */
 export const upsertDocumentLetterheadSelection = async ({
   documentId,
   letterheadId,
+  useOwn = false,
   updatedBy,
-}: {
+}: DocumentLetterheadSelectionValue & {
   documentId: string;
-  letterheadId: string | null;
   updatedBy: string | null;
 }): Promise<void> => {
   const updatedAt = new Date();
   await db
     .insert(documentLetterheadSelection)
-    .values({ documentId, letterheadId, updatedBy, updatedAt })
+    .values({ documentId, letterheadId, useOwn, updatedBy, updatedAt })
     .onConflictDoUpdate({
       target: documentLetterheadSelection.documentId,
-      set: { letterheadId, updatedBy, updatedAt },
+      set: { letterheadId, useOwn, updatedBy, updatedAt },
     });
 };
 
@@ -141,4 +153,88 @@ export const deleteDocumentLetterheadSelection = async (
   await db
     .delete(documentLetterheadSelection)
     .where(eq(documentLetterheadSelection.documentId, documentId));
+};
+
+/** The document's own copy of its reference's letterhead, or null. */
+export const getDocumentOwnLetterhead = async (
+  documentId: string,
+): Promise<DocumentOwnLetterheadRow | null> => {
+  const [result] = await db
+    .select()
+    .from(documentOwnLetterhead)
+    .where(eq(documentOwnLetterhead.documentId, documentId))
+    .limit(1);
+
+  return result ?? null;
+};
+
+/**
+ * Store the document's own copy of a reference's letterhead, replacing any
+ * earlier copy (and its reference) for the document.
+ */
+export const upsertDocumentOwnLetterhead = async ({
+  documentId,
+  letterhead,
+  referenceFilename,
+  referenceProjectDocumentId = null,
+  referenceOrganizationDocumentId = null,
+  updatedBy,
+}: {
+  documentId: string;
+  letterhead: StoredLetterheadGrid;
+  referenceFilename: string;
+  referenceProjectDocumentId?: string | null;
+  referenceOrganizationDocumentId?: string | null;
+  updatedBy: string | null;
+}): Promise<void> => {
+  const updatedAt = new Date();
+  const values = {
+    letterhead,
+    referenceFilename,
+    referenceProjectDocumentId,
+    referenceOrganizationDocumentId,
+    updatedBy,
+    updatedAt,
+  };
+  await db
+    .insert(documentOwnLetterhead)
+    .values({ documentId, ...values })
+    .onConflictDoUpdate({
+      target: documentOwnLetterhead.documentId,
+      set: values,
+    });
+};
+
+/**
+ * Replace the grid of the document's own copy, only while it is still the
+ * version the edit was made on: `expectedUpdatedAt` is the copy's
+ * `updated_at` when it was read (compared to the millisecond, the precision
+ * a JS Date keeps). The copy's new `updated_at`, or null when the document
+ * has no copy or it changed meanwhile.
+ */
+export const updateDocumentOwnLetterhead = async ({
+  documentId,
+  letterhead,
+  updatedBy,
+  expectedUpdatedAt,
+}: {
+  documentId: string;
+  letterhead: StoredLetterheadGrid;
+  updatedBy: string | null;
+  expectedUpdatedAt: Date;
+}): Promise<Date | null> => {
+  const [result] = await db
+    .update(documentOwnLetterhead)
+    .set({ letterhead, updatedBy, updatedAt: new Date() })
+    .where(
+      and(
+        eq(documentOwnLetterhead.documentId, documentId),
+        // The column has no time zone; an ISO string's "Z" is ignored by the
+        // cast, as when drizzle writes a Date.
+        sql`date_trunc('milliseconds', ${documentOwnLetterhead.updatedAt}) = ${expectedUpdatedAt.toISOString()}::timestamp`,
+      ),
+    )
+    .returning({ updatedAt: documentOwnLetterhead.updatedAt });
+
+  return result?.updatedAt ?? null;
 };

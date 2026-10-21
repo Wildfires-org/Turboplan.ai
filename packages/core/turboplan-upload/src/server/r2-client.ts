@@ -1,19 +1,30 @@
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import { getR2Env } from "@wildfires-org/turboplan-env";
+import {
+  getR2CredentialsEnv,
+  getR2Env,
+  getR2PublicUrls,
+} from "@wildfires-org/turboplan-env";
+
+import { isSafeObjectKey } from "../types/object-key";
+import { readCapped } from "./read-capped";
 
 let _s3Client: S3Client | null = null;
 
+// The client and bucket need the credentials only: reading, writing and
+// deleting by key never depends on R2_PUBLIC_URL, which only builds and maps
+// public URLs (`getBaseUrl`).
 const getS3Client = (): S3Client => {
   if (!_s3Client) {
-    const env = getR2Env();
+    const env = getR2CredentialsEnv();
     _s3Client = new S3Client({
       endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
       region: "auto",
@@ -37,13 +48,15 @@ export const resetR2Client = (): void => {
 };
 
 const getBucketName = (): string => {
-  return getR2Env().R2_BUCKET_NAME;
+  return getR2CredentialsEnv().R2_BUCKET_NAME;
 };
 
-// R2_PUBLIC_URL with any trailing slash removed, so the `/` boundary below is
-// always present exactly once.
+// The write base: the first entry of R2_PUBLIC_URL, without a trailing slash
+// (so the `/` boundary below is present exactly once). Every URL we hand out,
+// and every ownership decision, is on this base; the other entries are
+// read-only aliases (`isStorageUrl`, `isStorageHost`).
 const getBaseUrl = (): string => {
-  return getR2Env().R2_PUBLIC_URL.replace(/\/+$/, "");
+  return getR2Env().R2_PUBLIC_URL;
 };
 
 export const getPublicUrl = (key: string): string => {
@@ -72,8 +85,24 @@ const hasUnsafeKeyChars = (key: string): boolean => {
  * victim's object once dot-segments are removed. Parsing with `new URL` does
  * that removal for us (WHATWG normalizes `pathname`), and the remaining checks
  * close the encoded variants of the same trick.
+ *
+ * Only under the write base (the first entry of R2_PUBLIC_URL): a URL under a
+ * read-only alias is ours (`isStorageUrl`) but resolves to no key here, so
+ * ownership checks and deletes refuse it.
  */
 export const canonicalStorageKey = (url: string): string | null => {
+  let baseUrl: string;
+  try {
+    baseUrl = getBaseUrl();
+  } catch {
+    return null;
+  }
+  return keyUnderBase(url, baseUrl);
+};
+
+// The object key `url` resolves to under one public base URL (no trailing
+// slash), or null: canonicalStorageKey's rules for any configured base.
+const keyUnderBase = (url: string, baseUrl: string): string | null => {
   if (typeof url !== "string" || url.length === 0) {
     return null;
   }
@@ -81,15 +110,22 @@ export const canonicalStorageKey = (url: string): string | null => {
   let base: URL;
   let parsed: URL;
   try {
-    base = new URL(`${getBaseUrl()}/`);
+    base = new URL(`${baseUrl}/`);
     parsed = new URL(url);
   } catch {
     return null;
   }
 
   // Origin equality replaces the old string-prefix check, so a host-suffix
-  // lookalike (`https://<base-host>.evil.test/...`) cannot pass.
-  if (parsed.origin === "null" || parsed.origin !== base.origin) {
+  // lookalike (`https://<base-host>.evil.test/...`) cannot pass. The origin
+  // ignores userinfo, so `https://user:pass@<base-host>/…` is refused here:
+  // no URL we hand out carries one.
+  if (
+    parsed.origin === "null" ||
+    parsed.origin !== base.origin ||
+    parsed.username !== "" ||
+    parsed.password !== ""
+  ) {
     return null;
   }
 
@@ -142,6 +178,9 @@ export const uploadFile = async (
 ): Promise<{ url: string; key: string }> => {
   // S3 SDK requires Uint8Array, not raw ArrayBuffer
   const payload = body instanceof ArrayBuffer ? new Uint8Array(body) : body;
+  // Built first: without R2_PUBLIC_URL nothing is written that no URL could
+  // name.
+  const url = getPublicUrl(key);
 
   await getS3Client().send(
     new PutObjectCommand({
@@ -152,7 +191,7 @@ export const uploadFile = async (
     }),
   );
 
-  return { url: getPublicUrl(key), key };
+  return { url, key };
 };
 
 /**
@@ -222,6 +261,134 @@ export const headStorageObject = async (
   }
 };
 
+/** An object's bytes and the content type storage holds for it. */
+export type StorageObjectBytes = { data: Uint8Array; contentType: string };
+
+// The body of a GetObject response as a web stream. The fetch request
+// handler (Workers) already returns one; the Node handler returns a Node
+// stream, which the SDK's stream mixin converts.
+const webStreamOf = (body: unknown): ReadableStream<Uint8Array> | null => {
+  const candidate = body as {
+    getReader?: unknown;
+    transformToWebStream?: () => ReadableStream<Uint8Array>;
+  } | null;
+  if (typeof candidate?.getReader === "function") {
+    return candidate as unknown as ReadableStream<Uint8Array>;
+  }
+  if (typeof candidate?.transformToWebStream === "function") {
+    return candidate.transformToWebStream();
+  }
+  return null;
+};
+
+// Why a read gave nothing, for the log line (never the key or a message,
+// which may carry one).
+type ObjectReadFailure =
+  | "invalid_key"
+  | "not_found"
+  | "too_large"
+  | "timeout"
+  | "no_body";
+
+const reportReadFailure = (reason: ObjectReadFailure | string): void => {
+  console.warn("[storage] Object read failed:", { reason });
+};
+
+/**
+ * Read the object at `key` with the bucket's credentials (S3 GetObject) —
+ * how the server reads objects it serves or embeds itself, whether or not
+ * the bucket is public. Only a key that names one object of the bucket is
+ * sent (`isSafeObjectKey`). Bounded: at most `maxBytes` (the declared
+ * `ContentLength` first, then the bytes actually streamed) within
+ * `timeoutMs` (request and body). `contentType` is the type storage holds
+ * for the object, lowercased and without parameters ("" when none) — never
+ * checked here, callers decide what they accept. Null — never throws — for
+ * an unsafe key, a missing object, one over `maxBytes`, a timeout, missing
+ * R2 credentials or any other failure (logged with its reason only, never
+ * the key). Needs no R2_PUBLIC_URL. Works with the Node and the Workers
+ * (fetch) request handlers.
+ */
+export const getObjectBytes = async (
+  key: string,
+  { maxBytes, timeoutMs }: { maxBytes: number; timeoutMs: number },
+): Promise<StorageObjectBytes | null> => {
+  if (!isSafeObjectKey(key)) {
+    reportReadFailure("invalid_key");
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timedOut = new Promise<"timeout">((resolve) => {
+    controller.signal.addEventListener("abort", () => resolve("timeout"), {
+      once: true,
+    });
+  });
+
+  const read = async (): Promise<StorageObjectBytes | ObjectReadFailure> => {
+    const response = await getS3Client().send(
+      new GetObjectCommand({ Bucket: getBucketName(), Key: key }),
+      // The SDK has no request timeout of its own.
+      { abortSignal: controller.signal },
+    );
+    const stream = webStreamOf(response.Body);
+    // A response may still arrive after the timeout (the caller has moved
+    // on): cancel its body rather than read it in the background.
+    if (controller.signal.aborted) {
+      await stream?.cancel().catch(() => {});
+      return "timeout";
+    }
+    if (!stream) {
+      return "no_body";
+    }
+    if (
+      typeof response.ContentLength === "number" &&
+      response.ContentLength > maxBytes
+    ) {
+      await stream.cancel().catch(() => {});
+      return "too_large";
+    }
+
+    // Storage may understate (or omit) the length: the bytes are counted.
+    const data = await readCapped(stream, maxBytes, controller.signal);
+    if (typeof data === "string") {
+      return data;
+    }
+    return {
+      data,
+      contentType: (response.ContentType ?? "")
+        .split(";")[0]
+        .trim()
+        .toLowerCase(),
+    };
+  };
+
+  const reading = read();
+  // Settled after a timeout too (the abort rejects it): never unhandled.
+  reading.catch(() => {});
+
+  try {
+    // The race also covers a request handler that ignores the abort signal.
+    const result = await Promise.race([reading, timedOut]);
+    if (typeof result === "string") {
+      reportReadFailure(result);
+      return null;
+    }
+    return result;
+  } catch (error) {
+    reportReadFailure(
+      isNotFoundError(error)
+        ? "not_found"
+        : error instanceof Error
+          ? error.name
+          : typeof error,
+    );
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 /**
  * Server-side copy within the bucket. With `ifMatch`, storage refuses the copy
  * unless the source still has that ETag, so the destination holds exactly the
@@ -287,12 +454,62 @@ export const generatePresignedUploadUrl = async (
 
 /**
  * Check whether a URL resolves to a well-formed object key in our storage
- * bucket. Delegates to `canonicalStorageKey`, so a host-suffix lookalike
+ * bucket, under ANY public base in R2_PUBLIC_URL (the write base or a
+ * read-only alias, comma-separated). Each base applies `canonicalStorageKey`'s
+ * rules (via `canonicalStorageUrl`), so a host-suffix lookalike
  * (`https://<base-host>.evil.com/...`) and an ambiguous/traversing path are
- * both rejected here rather than at the individual call sites.
+ * both rejected here rather than at the individual call sites. It only proves
+ * the URL is ours — ownership and deletes go through `canonicalStorageKey`,
+ * which knows the write base only.
  */
 export const isStorageUrl = (url: string): boolean => {
-  return canonicalStorageKey(url) !== null;
+  return canonicalStorageUrl(url) !== null;
+};
+
+// Lowercased hostname without a trailing dot, or null for an unparsable URL.
+const hostnameOf = (url: string): string | null => {
+  try {
+    return (
+      new URL(url.trim()).hostname.toLowerCase().replace(/\.$/, "") || null
+    );
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Whether `url` is on the host of any public base in R2_PUBLIC_URL (the write
+ * base or a read-only alias), on any scheme or port, ignoring host case and a
+ * trailing dot — whether or not its path is a well-formed key. Wider than
+ * `isStorageUrl` on purpose: it decides what must never be handed to a third
+ * party (e.g. a web reader) and what a write check must not wave through as
+ * an external link, so a URL here that maps to no known object is refused,
+ * never treated as external. Always false when R2_PUBLIC_URL is unset: there
+ * is no storage then.
+ */
+export const isStorageHost = (url: string): boolean => {
+  const hostname = hostnameOf(url);
+  return (
+    hostname !== null &&
+    getR2PublicUrls().some((baseUrl) => hostnameOf(baseUrl) === hostname)
+  );
+};
+
+/**
+ * The canonical public URL (`<base>/<encoded key>`) of the object `url`
+ * resolves to under any base in R2_PUBLIC_URL, with `canonicalStorageKey`'s
+ * rules per base, or null. Two spellings of one object (encoding, query,
+ * fragment) give the same string; the same key under two bases does not.
+ * For matching URLs to stored records — it never decides ownership.
+ */
+export const canonicalStorageUrl = (url: string): string | null => {
+  for (const baseUrl of getR2PublicUrls()) {
+    const key = keyUnderBase(url, baseUrl);
+    if (key !== null) {
+      return `${baseUrl}/${key.split("/").map(encodeURIComponent).join("/")}`;
+    }
+  }
+  return null;
 };
 
 // Project-scoped key prefixes written by server-side producers, each followed
@@ -392,30 +609,33 @@ export const isOwnedUploadUrl = (url: string, userId: string): boolean => {
   return isStorageUrlOwnedBy(url, { userId });
 };
 
-// Same-origin as our public bucket, whether or not the path is a well-formed
-// key. Wider than `isStorageUrl` on purpose: a malformed URL on our host must
-// not slip through a write check as if it were an external link.
-const isOnStorageOrigin = (url: string): boolean => {
-  try {
-    return new URL(url).origin === new URL(`${getBaseUrl()}/`).origin;
-  } catch {
-    return false;
-  }
+/**
+ * The canonical object key of a storage URL the given user uploaded
+ * (`uploads/{userId}/…` under the write base — `isOwnedUploadUrl`'s rule), or
+ * null for anything else: another user's upload, any other prefix, a
+ * read-only alias, an external or a traversing URL. For storing a user's
+ * upload by key rather than by its public URL.
+ */
+export const ownedUploadKey = (url: string, userId: string): string | null => {
+  return isOwnedUploadUrl(url, userId) ? canonicalStorageKey(url) : null;
 };
 
 /**
  * Whether `nextUrl` may be written to an image field that currently holds
  * `currentUrl`. Omitted, cleared and unchanged values are always fine, and so
- * are external links (not in our bucket). A URL on our storage origin must
- * resolve to an object `owner` owns — otherwise a caller could point their own
- * entity at another tenant's object and have it deleted on the next change.
+ * are external links (not on a storage host). A URL on the host of ANY base in
+ * R2_PUBLIC_URL — well-formed key or not, any scheme or port — must resolve to
+ * an object `owner` owns under the write base: otherwise a caller could point
+ * their own entity at another tenant's object and have it deleted on the next
+ * change. A URL under a read-only alias is ours but owned by no one, so it is
+ * refused, as is a malformed one on our host (never treated as external).
  */
 export const isAllowedStorageUrlUpdate = (
   nextUrl: string | null | undefined,
   currentUrl: string | null | undefined,
   owner: StorageOwner,
 ): boolean => {
-  if (!nextUrl || nextUrl === currentUrl || !isOnStorageOrigin(nextUrl)) {
+  if (!nextUrl || nextUrl === currentUrl || !isStorageHost(nextUrl)) {
     return true;
   }
 

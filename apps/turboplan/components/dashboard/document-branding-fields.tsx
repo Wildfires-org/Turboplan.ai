@@ -3,12 +3,15 @@
 import type { FieldErrors, UseFormRegisterReturn } from "react-hook-form";
 
 import { Input, Label, Textarea } from "@wildfires-org/turboplan-utils";
-import type {
-  DocumentProfile,
-  LetterheadLayout,
+import {
+  type DocumentProfile,
+  isLetterheadConfigured,
+  type LetterheadLayout,
+  parseLetterheadLines,
 } from "@wildfires-org/turboplan-workspace/types";
 
 import type { LetterheadImportValues } from "@/lib/letterhead-import";
+import { DefaultLetterheadGridSettings } from "./default-letterhead-grid-settings";
 import { DocumentLogoUpload } from "./document-logo-upload";
 import { LetterheadEditor } from "./letterhead-editor";
 
@@ -38,8 +41,7 @@ interface DocumentBrandingFieldsProps {
   // Persist the uploaded logo URLs back into the form (setValue(...)).
   onDocumentLogoChange: (url: string | null) => void;
   onFooterLogoChange: (url: string | null) => void;
-  // Initial logo URLs seed the upload previews.
-  initialDocumentLogoUrl?: string | null;
+  // Seeds the footer logo upload's preview.
   initialFooterLogoUrl?: string | null;
   textError?: string;
   noteError?: string;
@@ -135,7 +137,6 @@ export function DocumentBrandingFields({
   officeId,
   onDocumentLogoChange,
   onFooterLogoChange,
-  initialDocumentLogoUrl,
   initialFooterLogoUrl,
   textError,
   noteError,
@@ -143,6 +144,8 @@ export function DocumentBrandingFields({
   letterheadContactError,
   disabled = false,
 }: DocumentBrandingFieldsProps) {
+  const isBanner = letterheadLayout === "banner";
+
   return (
     <>
       {/* Document Letterhead Section */}
@@ -153,26 +156,46 @@ export function DocumentBrandingFields({
           the AI.
         </p>
 
-        <LetterheadEditor
-          idPrefix="documentLetterhead"
-          linesField={letterheadLinesField}
-          contactField={letterheadContactField}
-          layout={letterheadLayout}
-          lines={letterheadLines}
-          contact={letterheadContact}
-          logoUrl={documentLogoUrl}
-          color={letterheadColor}
-          onLayoutChange={onLetterheadLayoutChange}
-          onColorChange={onLetterheadColorChange}
-          onImport={onLetterheadImport}
-          organizationId={organizationId}
-          officeId={officeId}
-          onLogoChange={onDocumentLogoChange}
-          initialLogoUrl={initialDocumentLogoUrl}
-          linesError={letterheadLinesError}
-          contactError={letterheadContactError}
+        {/* A default saved from a document's letterhead replaces the layout
+            settings while it is set; react-hook-form keeps their values
+            while they are hidden. The document logo stays the margin logo
+            of a grid without logo cells, so the grid view uploads it too —
+            unless it is a banner's image. */}
+        <DefaultLetterheadGridSettings
+          owner={
+            officeId
+              ? { kind: "office", id: officeId }
+              : { kind: "organization", id: organizationId }
+          }
+          marginLogoSrc={isBanner ? null : documentLogoUrl || null}
+          onMarginLogoChange={isBanner ? undefined : onDocumentLogoChange}
+          hasLayoutLetterhead={isLetterheadConfigured(
+            letterheadLayout,
+            parseLetterheadLines(letterheadLines),
+            documentLogoUrl,
+          )}
           disabled={disabled}
-        />
+        >
+          <LetterheadEditor
+            idPrefix="documentLetterhead"
+            linesField={letterheadLinesField}
+            contactField={letterheadContactField}
+            layout={letterheadLayout}
+            lines={letterheadLines}
+            contact={letterheadContact}
+            logoUrl={documentLogoUrl}
+            color={letterheadColor}
+            onLayoutChange={onLetterheadLayoutChange}
+            onColorChange={onLetterheadColorChange}
+            onImport={onLetterheadImport}
+            organizationId={organizationId}
+            officeId={officeId}
+            onLogoChange={onDocumentLogoChange}
+            linesError={letterheadLinesError}
+            contactError={letterheadContactError}
+            disabled={disabled}
+          />
+        </DefaultLetterheadGridSettings>
       </fieldset>
 
       {/* Document Details Section */}

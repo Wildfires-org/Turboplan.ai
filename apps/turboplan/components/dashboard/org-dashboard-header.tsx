@@ -2,14 +2,14 @@
 
 import { usePathname } from "next/navigation";
 
-import type { Organization } from "@wildfires-org/turboplan-workspace/types";
+import type { ClientOrganization } from "@wildfires-org/turboplan-workspace/types";
 
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { isActiveLink } from "@/lib/nav/activeLink";
 import { AppUrls } from "@/lib/nav/urls";
 
 interface OrgDashboardHeaderProps {
-  organization: Organization;
+  organization: ClientOrganization;
 }
 
 /** Breadcrumbs for the organization tabs. Lives in the shared org layout, so

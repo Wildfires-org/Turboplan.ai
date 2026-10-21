@@ -6,14 +6,29 @@ pure JS, MIT). Split out of `@wildfires-org/turboplan-documents` so
 server consumers do not pull React, `react-pdf`, `docx-preview`, SWR and five
 workspace packages along with the extractor.
 
-Exports `.` (the extractor plus the MIME constants), `./mime` (the three
-document MIME constants alone, for client code that must not pull unpdf or
-mammoth into its bundle) and `./errors` (the generic user-facing failure
-message, for the research agent's main thread, which must not load the
-parsers either).
+Exports:
 
-Consumers: `@wildfires-org/turboplan-documents/server` (which re-exports the
-same symbols for existing callers) and the research-agent Fly app.
+- `.` — the extractor plus `./mime`, `./errors`, `./limits` and
+  `./download` (not `./letterhead`).
+- `./mime` — the three document MIME constants alone, for client code that
+  must not pull unpdf or mammoth into its bundle.
+- `./errors` — the user-facing failure messages (generic, re-save hint), for
+  the research agent's main thread, which must not load the parsers either.
+- `./limits` — `MAX_EXTRACTED_CHARS`, `MAX_PDF_PAGES`, `MAX_DOCUMENT_BYTES`,
+  also parser-free.
+- `./download` — `downloadDocument(url, { signal })`, the one place a stored
+  document is fetched (SSRF guard, every redirect re-checked, 50MB cap). Moving
+  storage behind credentials only changes this function.
+- `./letterhead` — letterhead analysis of a first page: the vision prompt and
+  output schema, logo candidates (placed images, pixel marks, marks that are
+  really text), matching the model's blocks to the PDF's text layer, and the
+  letterhead grid (text and logo cells in fractions of the letterhead's
+  width) with its ink colour. Pure (zod only). Rendering the page, calling the
+  model and storing the logo crops live in the research agent.
+
+Consumers: the research-agent Fly app (text extraction and letterhead
+analysis) and `@wildfires-org/turboplan-documents`, which imports only
+`./mime`.
 
 Memory notes — the extractor is expected to run in ~512MB:
 

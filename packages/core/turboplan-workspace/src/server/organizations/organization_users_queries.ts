@@ -94,11 +94,13 @@ export async function removeOrganizationUser(
 // ============================================================================
 
 /**
- * Get organizations for a user with their roles and full organization data
+ * Get organizations for a user with their roles and organization data — every
+ * column but the default letterhead grid (its logo cells are storage keys,
+ * which never leave the server raw).
  */
 export async function getUserOrganizationsWithRoles(userId: string): Promise<
   {
-    organization: Organization;
+    organization: Omit<Organization, "documentLetterheadGrid">;
     userRole: OrganizationUserRole;
     joinedAt: Date;
   }[]

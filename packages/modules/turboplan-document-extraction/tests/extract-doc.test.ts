@@ -6,7 +6,8 @@ import { Worker } from "node:worker_threads";
 
 import { DOC_MIME, DOCX_MIME, PDF_MIME } from "../src/document-mime";
 import { getGenericExtractionError } from "../src/errors";
-import { extractDocumentText, MAX_EXTRACTED_CHARS } from "../src/extract-text";
+import { extractDocumentText } from "../src/extract-text";
+import { MAX_EXTRACTED_CHARS } from "../src/limits";
 
 // Word 97-2003 file generated with macOS `textutil -convert doc` from a short
 // plain-text memo (19 KB, no author metadata).

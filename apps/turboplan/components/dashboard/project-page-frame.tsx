@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import type { User } from "next-auth";
 
 import type {
-  Office,
-  Organization,
+  ClientOffice,
+  ClientOrganization,
   Project,
 } from "@wildfires-org/turboplan-workspace/types";
 
@@ -22,8 +22,8 @@ import { cn } from "@/lib/utils";
 // ── Types ─────────────────────────────────────────────────────────────
 
 interface ProjectPageFrameProps {
-  organization: Organization;
-  office: Office;
+  organization: ClientOrganization;
+  office: ClientOffice;
   project: Project;
   coverImage: { imageUrl: string } | null;
   user?: User;
@@ -53,8 +53,8 @@ const DEFAULT_COVER_URL = "/images/project-header-default-background.jpg";
 // ── Helpers ───────────────────────────────────────────────────────────
 
 export const getProjectBreadcrumbs = (
-  organization: Organization,
-  office: Office,
+  organization: ClientOrganization,
+  office: ClientOffice,
   project: Project,
   section?: string,
 ) => {

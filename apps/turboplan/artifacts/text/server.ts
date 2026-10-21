@@ -18,10 +18,7 @@ import {
   getProjectDocumentProfile,
   getProjectLetterhead,
 } from "@wildfires-org/turboplan-workspace/server";
-import {
-  type DocumentLetterhead,
-  documentProfileToFacts,
-} from "@wildfires-org/turboplan-workspace/types";
+import { documentProfileToFacts } from "@wildfires-org/turboplan-workspace/types";
 
 import {
   type ChatTimingLog,
@@ -33,6 +30,10 @@ import { formatReferenceDocuments } from "@/lib/ai/reference-documents";
 import { createDocumentHandler } from "@/lib/artifacts/server";
 import { stripPlaceholderNotesInTableRows } from "@/lib/placeholders";
 import type { AuthUser } from "@/lib/types/auth";
+import {
+  buildLetterheadSection,
+  letterheadContactFact,
+} from "./letterhead-prompt";
 
 // Facts the document model can't see otherwise: today's date (it only lives in
 // the chat system prompt, not this separate generation model) and the logged-in
@@ -82,26 +83,6 @@ const loadOfficeFacts = async (
     console.error("[documents] failed to load document profile:", error);
     return [];
   }
-};
-
-// The letterhead the app renders above the document (the project default or
-// the one chosen for it). Its presence tells the generator to skip the
-// letterhead table it would otherwise write.
-const buildLetterheadSection = (letterhead: DocumentLetterhead): string => {
-  const lines = [
-    "The application renders this letterhead above the document. Do NOT write a letterhead table.",
-    "Omit ONLY the letterhead table: still write everything that follows it for this document type (e.g. the {right} File Code and Date lines of agency correspondence, or a centered title block).",
-  ];
-  // A banner letterhead is an image, so it may carry no text lines.
-  if (letterhead.nameLines.length > 0) {
-    lines.push(`Author identity: ${letterhead.nameLines.join(" / ")}`);
-  }
-  if (letterhead.contactLines.length > 0) {
-    lines.push(
-      `Author address and contact: ${letterhead.contactLines.join(", ")}`,
-    );
-  }
-  return lines.join("\n");
 };
 
 /**
@@ -239,12 +220,11 @@ export const textDocumentHandler = createDocumentHandler<"text">({
             : null,
         loadOfficeFacts(projectId),
       ]);
-    // The rendered letterhead's address block is the document author's — which
-    // may be a partner agency rather than the office — so it is confirmed too.
-    if (letterhead && letterhead.contactLines.length > 0) {
-      officeFacts.push(
-        `Author address and contact (letterhead): ${letterhead.contactLines.join(", ")}`,
-      );
+    // An admin-entered letterhead's address block is a confirmed fact; a
+    // reference copy's lines stay quoted data in the letterhead section.
+    const contactFact = letterheadContactFact(letterhead);
+    if (contactFact) {
+      officeFacts.push(contactFact);
     }
 
     const promptParts = [

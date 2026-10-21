@@ -52,7 +52,9 @@ export const toolDescCreateDocumentFooter = `
 
 DOCUMENT TITLES: Prefer setting document titles that match or extend the project name. For example, if the project is "Rattlesnake Creek Restoration", title a task document "Rattlesnake Creek Restoration — Tasks" rather than a generic "Project Tasks".
 
-Once created, inform the user that the document is ready and ask if they would like any changes.`;
+Once created, inform the user that the document is ready and ask if they would like any changes. If the result lists a reference under \`references.skipped\`, tell the user the document was not modeled on it — for reason "extraction-pending": its text is still being read, try again in a minute; for "no-text": its text could not be read. \`references.unresolved\` counts requested references that could not be found or used: never claim the document was modeled on one of them.
+
+If the result has \`letterheadFrom\`, add one short sentence: the document carries that file's letterhead and is written as its sender; to send it as the user's organization, switch the letterhead in the Letterhead menu and ask for the document to be updated. If \`letterheadFrom\` names a skipped reference, only its letterhead was used.`;
 
 export const toolDescUpdateDocument = `Revise an existing document in place: its content is rewritten per your description and saved as a new version of the SAME document, under the same title.
 
@@ -99,7 +101,7 @@ export const toolDescGetContents = `Read content from URLs. ALWAYS use after web
 
 By default returns highlights (query-relevant excerpts) and a summary per URL — no full text. This is sufficient for most research tasks.
 
-- When you have URLs from research agent results, you can use getContents on those directly
+- When you have web page URLs from research agent results, you can use getContents on those directly. Not for documents saved to the project or organization (our file-storage URLs, which it does not read): use readProjectDocuments / readOrganizationDocuments, or pass the ID in createDocument's referenceDocumentIds
 - Default mode (no maxCharacters): returns highlights + summary only — lean and effective for extracting key facts
 - Deep-read mode (pass maxCharacters): also returns full sequential text — use only when you need document structure, full context, or to quote specific passages
 - For most queries, the default highlights + summary from multiple URLs is enough to synthesize a well-cited answer`;

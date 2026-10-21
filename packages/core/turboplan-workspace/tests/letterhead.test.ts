@@ -11,6 +11,7 @@ import {
   normalizeLetterheadColor,
   parseLetterheadLines,
   planLetterheadBranding,
+  toPublicDocumentLetterhead,
 } from "../src/letterhead";
 
 describe("parseLetterheadLines", () => {
@@ -221,6 +222,7 @@ describe("planLetterheadBranding", () => {
       logoPlacement: undefined,
       color: null,
       keepLogo: true,
+      grid: null,
     });
   });
 
@@ -230,6 +232,7 @@ describe("planLetterheadBranding", () => {
     assert.equal(plan.logoPlacement, "inline");
     assert.equal(plan.color, "#1f5f3a");
     assert.equal(plan.keepLogo, true);
+    assert.equal(plan.grid, null);
   });
 
   it("does not stack a table letterhead on the content's own", () => {
@@ -238,6 +241,7 @@ describe("planLetterheadBranding", () => {
       logoPlacement: undefined,
       color: null,
       keepLogo: true,
+      grid: null,
     });
   });
 
@@ -247,6 +251,7 @@ describe("planLetterheadBranding", () => {
       logoPlacement: "banner",
       color: "#1f5f3a",
       keepLogo: true,
+      grid: null,
     });
   });
 
@@ -256,6 +261,7 @@ describe("planLetterheadBranding", () => {
       logoPlacement: undefined,
       color: null,
       keepLogo: false,
+      grid: null,
     });
   });
 
@@ -265,6 +271,105 @@ describe("planLetterheadBranding", () => {
       logoPlacement: undefined,
       color: null,
       keepLogo: false,
+      grid: null,
+    });
+  });
+});
+
+// Every renderer draws a grid from its structure: the exporters get the
+// public grid (logo cells by index, no keys) and the content untouched.
+describe("grid letterhead", () => {
+  const body = "# Letter\n\nDear Applicant,";
+  const tableBody = "| **Own** |\n| :--- |\n\nDear Applicant,";
+  const grid: DocumentLetterhead = {
+    layout: "grid",
+    grid: {
+      cells: [
+        {
+          kind: "logo",
+          x: 0,
+          width: 0.1,
+          height: 0.1,
+          key: "letterheads/project/doc/logo-0-abc.png",
+        },
+        {
+          kind: "text",
+          x: 0.12,
+          width: 0.5,
+          align: "left",
+          lines: [
+            { text: "Bureau of Land Management", bold: true, size: "large" },
+            { text: "Field Office", bold: true, size: "normal" },
+          ],
+        },
+        {
+          kind: "text",
+          x: 0.7,
+          width: 0.3,
+          align: "right",
+          lines: [{ text: "1 Main St", bold: false, size: "small" }],
+        },
+      ],
+      color: "#1f5f3a",
+    },
+    nameLines: ["Bureau of Land Management", "Field Office"],
+    contactLines: ["1 Main St"],
+    color: "#1f5f3a",
+  };
+  const publicGrid = toPublicDocumentLetterhead(grid);
+  const withoutLogoCells = toPublicDocumentLetterhead({
+    ...grid,
+    grid: { ...grid.grid, cells: grid.grid.cells.slice(1) },
+  } as DocumentLetterhead);
+
+  it("leaves a legacy letterhead as it is when going public", () => {
+    const split: DocumentLetterhead = {
+      layout: "split",
+      nameLines: ["Agency"],
+      contactLines: [],
+      color: null,
+    };
+    assert.equal(toPublicDocumentLetterhead(split), split);
+  });
+
+  it("goes public without its logo keys", () => {
+    assert.equal(publicGrid.layout, "grid");
+    assert.deepEqual(publicGrid.layout === "grid" && publicGrid.grid.cells[0], {
+      kind: "logo",
+      x: 0,
+      width: 0.1,
+      height: 0.1,
+      index: 0,
+    });
+    assert.equal(JSON.stringify(publicGrid).includes("letterheads/"), false);
+    assert.equal(JSON.stringify(publicGrid).includes('"key"'), false);
+  });
+
+  it("is handed to the exporters as the grid, content untouched, logo cells instead of the single logo", () => {
+    assert.deepEqual(planLetterheadBranding(body, publicGrid, true), {
+      content: body,
+      logoPlacement: undefined,
+      color: "#1f5f3a",
+      keepLogo: false,
+      grid: publicGrid.layout === "grid" ? publicGrid.grid : null,
+    });
+  });
+
+  it("keeps the single logo in the margin when it has no logo cells", () => {
+    const plan = planLetterheadBranding(body, withoutLogoCells, true);
+    assert.equal(plan.content, body);
+    assert.equal(plan.logoPlacement, "margin");
+    assert.equal(plan.keepLogo, true);
+    assert.equal(plan.grid?.cells.length, 2);
+  });
+
+  it("is not stacked on the content's own letterhead table", () => {
+    assert.deepEqual(planLetterheadBranding(tableBody, publicGrid, true), {
+      content: tableBody,
+      logoPlacement: undefined,
+      color: null,
+      keepLogo: true,
+      grid: null,
     });
   });
 });

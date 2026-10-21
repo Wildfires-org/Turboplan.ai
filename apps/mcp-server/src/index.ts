@@ -10,6 +10,7 @@ import {
   findPATByHash,
   updatePATLastUsed,
 } from "@wildfires-org/turboplan-db/queries";
+import { getR2PublicUrls } from "@wildfires-org/turboplan-env";
 
 import { createServer } from "./server.js";
 import {
@@ -389,8 +390,10 @@ export default Sentry.withSentry(
           );
         }
 
+        // R2_PUBLIC_URL may list several bases; the first is the write base
+        // (what getR2Env().R2_PUBLIC_URL resolves to after bridgeEnv).
         const server = createServer(authResult.user, {
-          publicUrl: env.R2_PUBLIC_URL,
+          publicUrl: getR2PublicUrls()[0] ?? "",
         });
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,

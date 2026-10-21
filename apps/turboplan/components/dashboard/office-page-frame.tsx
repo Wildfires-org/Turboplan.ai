@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 import type {
-  Office,
-  Organization,
+  ClientOffice,
+  ClientOrganization,
 } from "@wildfires-org/turboplan-workspace/types";
 
 import {
@@ -27,8 +27,8 @@ export type OfficeTab =
   | "templates";
 
 interface OfficePageFrameProps {
-  organization: Organization;
-  office: Office;
+  organization: ClientOrganization;
+  office: ClientOffice;
   userId?: string;
   tab: OfficeTab;
   children: ReactNode;
@@ -49,8 +49,8 @@ const PAGE_BODY_CLASS = cn(PAGE_CONTAINER_CLASS, "flex-1 pb-12");
 // ── Helpers ───────────────────────────────────────────────────────────
 
 const getOfficeBreadcrumbs = (
-  organization: Organization,
-  office: Office,
+  organization: ClientOrganization,
+  office: ClientOffice,
   tab: OfficeTab,
 ) => {
   const organizationCrumb = {

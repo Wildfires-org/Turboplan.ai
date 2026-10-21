@@ -90,6 +90,8 @@ See `.env.example` for all variables. Highlights:
 - `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` – required when not in local mode
 - `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` – passed to the agent runtime
 - `OPENROUTER_API_KEY` – optional; when set, all model traffic (Agent SDK + fast model) routes through OpenRouter's Anthropic-compatible endpoint (cost tracking in the OpenRouter dashboard). Takes precedence over `ANTHROPIC_API_KEY`
+- `CLAUDE_FAST_MODEL` – memory keywords, organization document summaries, and the default letterhead model
+- `CLAUDE_LETTERHEAD_MODEL` – optional letterhead analysis (vision) model; unset falls back to `CLAUDE_FAST_MODEL`, `off` disables the analysis loop. Letterhead analysis runs only through OpenRouter: without `OPENROUTER_API_KEY` it is off
 - `RUN_TIMEOUT_MS` – max runtime for a single run (default `600000` = 10 minutes)
 
 Run tables (`researchAgentRuns`, `researchAgentRunMessages`, `researchAgentRunLogs`) are part of the shared schema in `packages/core/turboplan-db`; apply them with the monorepo's normal DB workflow (`pnpm db:push` / `db:migrate` from `apps/turboplan`).
@@ -137,6 +139,68 @@ Worker — Workers cannot afford a PDF parser's memory or CPU.
   `pending` and is retried on a later pass.
 - **Observability** – `GET /health` reports
   `components.documentExtraction = { inFlight, lastRunAt, processed, failed }`.
+
+### Letterhead analysis
+
+Every uploaded PDF (project and organization documents) gets its letterhead
+read once, in the background, so a document drafted from it later carries a
+copy of it (`src/documents/letterhead/`). What is stored
+(`letterhead_analysis`) is a grid: one row of cells, left to right — text
+cells with their printed lines (text, bold, size, alignment) and logo cells —
+placed in fractions of the letterhead's width, plus the accent colour of the
+bold lines. Logo crops are PNGs cut from the render (at most two per
+letterhead, ≤ 300 KB each), uploaded to R2 under
+`letterheads/<project|organization>/<documentId>/logo-<n>-<hash>.png`
+(content-addressed, cached as immutable) by the main thread, and the grid keeps
+their object keys — never a public URL: the API reads them with its own R2
+credentials, so they keep working once the bucket is private
+(`src/documents/letterhead/logo-storage.ts`). Without the R2 credentials, or
+when an upload fails, the grid is stored without that logo cell (a failed load
+of the S3 SDK is retried by the next upload).
+
+- **Loop** – a second loop beside text extraction, independent of it (a
+  document does not wait for its text): polls `letterhead_status = 'pending'`
+  every 5s, **newest first**, 5 per batch, project then organization
+  documents, one document at a time. Non-PDFs are set to `none` without a
+  download.
+- **How** – a worker (`task: "letterhead"`, 60s, 256MB heap) downloads the PDF
+  through `downloadDocument`, renders the top 30 % of page 1 at 1568 px wide
+  with `pdfjs-dist` + `@napi-rs/canvas` (1568 px is the most Claude reads
+  without downscaling, so the model's boxes are in our pixels), and records
+  where the PDF draws images (exact logo boxes). A scan is one page-sized
+  image, so its logos are found as ink blobs in the pixels instead, minus
+  blobs that lie inside the model's text blocks (bold text passes the blob
+  test). One vision call (PNG as a base64 `image` block, OpenRouter, provider
+  pinned to Anthropic, temperature 0) returns whether there is a letterhead
+  and its text blocks; the blocks are matched line by line to the PDF's text
+  layer (exact positions, bold from the font's name, size from the font
+  height) and laid out as the grid in code
+  (`@wildfires-org/turboplan-document-extraction/letterhead`). A scan has no
+  text layer: the model's boxes are used, name blocks count as bold. The
+  header image never leaves the worker; only the grid and the logo crops do.
+- **Statuses written back** – `done` (with the grid), `none` (no
+  letterhead, or not a PDF), `failed` (download, render, model or answer
+  error; not retried). A row that cannot be persisted stays `pending`.
+- **Existing documents** – migration `0012_reference_letterhead` adds
+  `letterhead_status` as `pending` on every row, so after the deploy the loop
+  works through the documents already uploaded once, newest first (about
+  $0.004 per PDF; non-PDFs cost nothing).
+- **Config** – `CLAUDE_LETTERHEAD_MODEL` (default: `CLAUDE_FAST_MODEL`, Haiku
+  4.5; `off` disables it) and `OPENROUTER_API_KEY` (required). Off means the
+  loop does not start and documents stay `pending`; the startup log says which.
+  Logo storage: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+  `R2_BUCKET_NAME` — credentials for the API's bucket (a token scoped to that
+  bucket with Object Read & Write is enough; no public URL). Crops are written
+  to `letterheads/<source>/<documentId>/logo-<n>-<hash>.png` and the grid
+  stores those object keys, which the API reads with its own credentials.
+  Without them the grid is stored without logo cells; the startup log says
+  whether logos are stored.
+- **Logs** – one `[letterhead]` line per document: filename, status, the
+  grid's shape (cells, lines, logos, colour), logo source (`pdf` / `pixels` /
+  `none`), render and model time, tokens in / out. Never any document text.
+- **Cost** – about $0.004 per PDF with Haiku 4.5 (~1.6k tokens in, 75–450 out).
+- **Smoke test** – `pnpm exec tsx --env-file=.env.local scripts/letterhead-smoke.ts <pdf-path-or-https-url...>`
+  runs the real renderer and model on each file (about $0.004 each).
 
 ## Orphaned runs after restart
 
@@ -228,7 +292,7 @@ brew install flyctl
 1. Upload agent code to Modal volume: `pnpm deploy:agent`
 2. Build/deploy research-agent to Fly.io: `pnpm deploy:fly`
 3. Full deploy (Modal + Fly): `pnpm deploy`
-4. Set secrets: `AGENT_API_KEY`, `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`, `ANTHROPIC_API_KEY` (or `OPENROUTER_API_KEY`), `TARGET_API_*`
+4. Set secrets: `AGENT_API_KEY`, `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`, `ANTHROPIC_API_KEY` (or `OPENROUTER_API_KEY`), `TARGET_API_*`, and for letterhead logos `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` (the API's bucket; a token scoped to it with Object Read & Write; no `R2_PUBLIC_URL`)
 
 `flyctl deploy` intentionally uses the monorepo root as Docker build context so the workspace files (`pnpm-lock.yaml`, `pnpm-workspace.yaml`, root `package.json`) are available. The final image contains only research-agent: the Dockerfile builds and deploys with `--filter @wildfires-org/research-agent` and copies only its artifacts.
 

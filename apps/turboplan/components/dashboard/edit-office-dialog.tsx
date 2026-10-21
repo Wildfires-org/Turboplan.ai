@@ -21,9 +21,9 @@ import {
   Textarea,
 } from "@wildfires-org/turboplan-utils";
 import {
+  type ClientOffice,
   type EditOfficeFormData,
   editOfficeSchema,
-  type Office,
   OfficeStatus,
 } from "@wildfires-org/turboplan-workspace/types";
 
@@ -39,7 +39,7 @@ import {
 const apiClient = new ApiClient();
 
 interface EditOfficeDialogProps {
-  office: Office;
+  office: ClientOffice;
   organizationSlug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -108,10 +108,9 @@ export function EditOfficeDialog({
     setIsLoading(true);
 
     try {
-      const { data: response, error } = await apiClient.put<{ office: Office }>(
-        `/api/offices/${office.id}`,
-        data,
-      );
+      const { data: response, error } = await apiClient.put<{
+        office: ClientOffice;
+      }>(`/api/offices/${office.id}`, data);
 
       if (error) {
         throw new Error(error || "Failed to update office");
@@ -197,7 +196,6 @@ export function EditOfficeDialog({
             onFooterLogoChange={(url) =>
               setValue("documentFooterLogoUrl", url ?? "")
             }
-            initialDocumentLogoUrl={office.documentLogoUrl}
             initialFooterLogoUrl={office.documentFooterLogoUrl}
             textError={errors.documentFooterText?.message}
             noteError={errors.documentFooterNote?.message}

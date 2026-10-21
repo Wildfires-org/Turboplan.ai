@@ -182,6 +182,9 @@ export type ResearchAgentEnvType = {
   RUN_TIMEOUT_MS: number;
   LOG_STACK_TRACES: boolean;
   CLAUDE_FAST_MODEL: string | null;
+  // Letterhead analysis (vision) model - null falls back to CLAUDE_FAST_MODEL,
+  // "off" disables the analysis. Only ever runs through OpenRouter.
+  CLAUDE_LETTERHEAD_MODEL: string | null;
   CLAUDE_MODEL: string;
   DEBUG_CLAUDE_AGENT_SDK: boolean;
   ANTHROPIC_API_KEY: string;
@@ -197,13 +200,17 @@ export type ResearchAgentEnvType = {
   POSTHOG_API_KEY?: string;
 };
 
-type R2EnvType = {
+export type R2EnvType = {
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
   R2_BUCKET_NAME: string;
   R2_ACCOUNT_ID: string;
   R2_PUBLIC_URL: string;
 };
+
+// Credentialed access to the bucket (S3 API) without its public URL: for a
+// service that only writes and reads objects by key.
+export type R2CredentialsEnvType = Omit<R2EnvType, "R2_PUBLIC_URL">;
 
 // Cache variables
 let _dbEnv: DbEnvType | null = null;
@@ -214,6 +221,7 @@ let _landingPageEnv: LandingPageEnvType | null = null;
 let _releaseInfo: ReleaseInfo | null = null;
 let _researchAgentEnv: ResearchAgentEnvType | null = null;
 let _r2Env: R2EnvType | null = null;
+let _r2CredentialsEnv: R2CredentialsEnvType | null = null;
 
 const loadDbEnv = (): DbEnvType => {
   if (
@@ -646,6 +654,8 @@ const loadResearchAgentEnv = (): ResearchAgentEnvType => {
     RUN_TIMEOUT_MS: parseRunTimeoutMs(process.env.RUN_TIMEOUT_MS),
     LOG_STACK_TRACES: process.env.LOG_STACK_TRACES !== "false",
     CLAUDE_FAST_MODEL: process.env.CLAUDE_FAST_MODEL?.trim() || null,
+    CLAUDE_LETTERHEAD_MODEL:
+      process.env.CLAUDE_LETTERHEAD_MODEL?.trim() || null,
     CLAUDE_MODEL: process.env.CLAUDE_MODEL ?? "claude-sonnet-4-6",
     DEBUG_CLAUDE_AGENT_SDK: isEnvValueTruthy(
       process.env.DEBUG_CLAUDE_AGENT_SDK,
@@ -660,7 +670,22 @@ const loadResearchAgentEnv = (): ResearchAgentEnvType => {
   };
 };
 
-const loadR2Env = (): R2EnvType => {
+/**
+ * Every public storage base URL in R2_PUBLIC_URL, without trailing slashes, in
+ * order. A deployment may list several, comma-separated (the web app's
+ * next/image allowlist reads the same list): the FIRST is the write base —
+ * `getR2Env().R2_PUBLIC_URL`, under which new objects are stored and owned —
+ * and the rest are read-only aliases whose URLs still count as our storage.
+ * Empty when unset. Reads R2_PUBLIC_URL only, so it works without the R2
+ * credentials.
+ */
+export const getR2PublicUrls = (): string[] =>
+  (process.env.R2_PUBLIC_URL ?? "")
+    .split(",")
+    .map((url) => url.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+
+const loadR2CredentialsEnv = (): R2CredentialsEnvType => {
   if (!process.env.R2_ACCESS_KEY_ID) {
     throw new Error("Missing `R2_ACCESS_KEY_ID` env variable");
   }
@@ -677,17 +702,26 @@ const loadR2Env = (): R2EnvType => {
     throw new Error("Missing `R2_ACCOUNT_ID` env variable");
   }
 
-  if (!process.env.R2_PUBLIC_URL) {
-    throw new Error("Missing `R2_PUBLIC_URL` env variable");
-  }
-
   return {
     R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
     R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
     R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
-    R2_PUBLIC_URL: process.env.R2_PUBLIC_URL.replace(/\/+$/, ""),
   };
+};
+
+const loadR2Env = (): R2EnvType => {
+  const credentials = getR2CredentialsEnv();
+
+  // A comma-separated list: the first base is where new objects are written
+  // (and the only one ownership and deletes are decided on); the others are
+  // read-only aliases (see `getR2PublicUrls`).
+  const [publicUrl] = getR2PublicUrls();
+  if (!publicUrl) {
+    throw new Error("Missing `R2_PUBLIC_URL` env variable");
+  }
+
+  return { ...credentials, R2_PUBLIC_URL: publicUrl };
 };
 
 // Public getters with caching
@@ -740,11 +774,58 @@ export const getResearchAgentEnv = (): ResearchAgentEnvType => {
   return _researchAgentEnv;
 };
 
+/**
+ * The R2 credentials and bucket (S3 API access by object key), throwing when
+ * one is missing — the required counterpart of `getOptionalR2Env`. What the
+ * storage client needs to write, read and delete objects; R2_PUBLIC_URL is not
+ * needed for that.
+ */
+export const getR2CredentialsEnv = (): R2CredentialsEnvType => {
+  if (!_r2CredentialsEnv) {
+    _r2CredentialsEnv = loadR2CredentialsEnv();
+  }
+  return _r2CredentialsEnv;
+};
+
+/**
+ * The R2 credentials plus the write base of R2_PUBLIC_URL, throwing when any
+ * is missing. For building and mapping public URLs; reading and writing by
+ * key needs `getR2CredentialsEnv` only.
+ */
 export const getR2Env = (): R2EnvType => {
   if (!_r2Env) {
     _r2Env = loadR2Env();
   }
   return _r2Env;
+};
+
+/**
+ * R2 credentials for a service where storage is optional and keyed (the
+ * research agent writes its letterhead logo crops by key and stores the key,
+ * never a public URL): the four credential variables when all are set, else
+ * null. R2_PUBLIC_URL is not needed.
+ */
+export const getOptionalR2Env = (): R2CredentialsEnvType | null => {
+  const {
+    R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY,
+    R2_BUCKET_NAME,
+    R2_ACCOUNT_ID,
+  } = process.env;
+  if (
+    !R2_ACCESS_KEY_ID ||
+    !R2_SECRET_ACCESS_KEY ||
+    !R2_BUCKET_NAME ||
+    !R2_ACCOUNT_ID
+  ) {
+    return null;
+  }
+  return {
+    R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY,
+    R2_BUCKET_NAME,
+    R2_ACCOUNT_ID,
+  };
 };
 
 /**
@@ -758,6 +839,7 @@ export const resetEnvCache = (): void => {
   _landingPageEnv = null;
   _researchAgentEnv = null;
   _r2Env = null;
+  _r2CredentialsEnv = null;
 };
 
 export type SentryEnvType = {

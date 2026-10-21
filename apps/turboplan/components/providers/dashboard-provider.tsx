@@ -6,8 +6,8 @@ import { posthog } from "posthog-js";
 
 import type { ActionType } from "@wildfires-org/turboplan-rbac";
 import type {
-  Office,
-  Organization,
+  ClientOffice,
+  ClientOrganization,
   Project,
 } from "@wildfires-org/turboplan-workspace/types";
 
@@ -16,8 +16,8 @@ import type {
 // ============================================================================
 
 interface DashboardContext {
-  organization: Organization | null;
-  office: Office | null;
+  organization: ClientOrganization | null;
+  office: ClientOffice | null;
   project: Project | null;
   /** Resolved project cover URL, so loading states can paint the real
    * header without refetching it. */
@@ -47,8 +47,8 @@ const DashboardContext = createContext<DashboardContext | undefined>(undefined);
 
 interface DashboardProviderProps {
   children: ReactNode;
-  organization: Organization | null;
-  office?: Office | null;
+  organization: ClientOrganization | null;
+  office?: ClientOffice | null;
   project?: Project | null;
   projectCoverImageUrl?: string | null;
   isOrgMember?: boolean;

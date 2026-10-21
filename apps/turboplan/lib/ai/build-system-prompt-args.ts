@@ -510,19 +510,26 @@ const describeLibraryLetterhead = ({
   return `- \`${id}\` — ${toQuotedPromptValue(name)}: ${whenToUse} (first line: ${toPromptLine(firstLine)})`;
 };
 
+// A banner is only its image; a letterhead without a name line (e.g. a grid
+// of contact lines and a logo) is named by its first contact line.
+const firstLetterheadLine = (letterhead: DocumentLetterhead) =>
+  letterhead.layout === "banner"
+    ? "(banner image)"
+    : (letterhead.nameLines[0] ?? letterhead.contactLines[0] ?? "(logo)");
+
 const buildAvailableLetterheadsSection = (
   defaultLetterhead: DocumentLetterhead | null,
   library: LetterheadCandidate[],
 ) => {
   const defaultOption = defaultLetterhead
-    ? `office/organization default (first line: ${toPromptLine(defaultLetterhead.nameLines[0] ?? "(banner image)")})`
+    ? `office/organization default (first line: ${toPromptLine(firstLetterheadLine(defaultLetterhead))})`
     : "no default letterhead configured — the generator writes the author's letterhead";
   return [
     "# AVAILABLE LETTERHEADS",
-    "Pass one id below as createDocument's `letterheadId`: the letterhead of the document's AUTHOR/sender (the same party as in your LETTERHEAD LAYOUT note), never its recipient. Pick a library letterhead only when its name, description or first line identifies that SAME organization — never one that is merely the same kind of organization (another consulting firm, another agency). If the author is a party none of them names, pass `none`. Pass `default` when the office itself is the author or you cannot tell who is.",
+    "Pass one id below as createDocument's `letterheadId`: the letterhead of the document's AUTHOR/sender (the same party as in your LETTERHEAD LAYOUT note), never its recipient. Pick a library letterhead only when its name, description or first line identifies that SAME organization — never one that is merely the same kind of organization (another consulting firm, another agency). If the author is a party none of them names, pass `none`. Pass `default` when the office itself is the author or you cannot tell who is. A saved project or organization document used as the reference (by ID or its storage URL) brings its own letterhead when one was read from it; `default` and `none` never replace it. Pass a library letterhead id for such a document only when the user named that letterhead.",
     `- \`default\` — ${defaultOption}`,
     ...library.map(describeLibraryLetterhead),
-    "- `none` — no stored letterhead belongs to the author; the generator writes the author's letterhead from the reference.",
+    "- `none` — no stored letterhead belongs to the author; without a reference letterhead, the generator writes one from your LETTERHEAD LAYOUT note.",
   ].join("\n");
 };
 

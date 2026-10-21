@@ -25,6 +25,9 @@ app = "turboplan-research-agent"
   TARGET_API_HEALTH_PATH = "/health"
   CLAUDE_MODEL = "claude-sonnet-4-6"
   CLAUDE_FAST_MODEL = "claude-haiku-4-5-20251001"
+  # Letterhead analysis of uploaded PDFs (one vision call on the header of
+  # page 1), via OpenRouter only. "off" turns it off; documents stay pending.
+  CLAUDE_LETTERHEAD_MODEL = "claude-haiku-4-5-20251001"
   RUN_TIMEOUT_MS = "900000"
 
 [http_service]
@@ -47,7 +50,11 @@ app = "turboplan-research-agent"
 # 512MB is enough because PDF/DOCX parsing never runs on the main thread:
 # document extraction is spawned in a worker thread capped at a 256MB heap
 # (see src/documents/run-extraction-in-worker.ts), so a runaway document kills
-# the thread rather than the machine.
+# the thread rather than the machine. Letterhead analysis has its own loop and
+# worker (64MB heap cap; it renders one header, ~25-40MB heap), and pdf.js
+# skips images over 12M pixels, whose decoding happens outside the heap cap.
+# The two loops share a gate (src/documents/worker-gate.ts): only one document
+# worker runs at a time.
 [[vm]]
   memory = "512mb"
   cpu_kind = "shared"

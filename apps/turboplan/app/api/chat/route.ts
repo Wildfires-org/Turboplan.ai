@@ -187,6 +187,7 @@ const createTools = async ({
           session,
           writer,
           projectId,
+          organizationId,
           chatId,
           userMessage,
           projectContext,

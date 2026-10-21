@@ -13,6 +13,7 @@ export const TEST_ENV: ResearchAgentEnvType = {
   TARGET_API_ROOT_PATH: "/api/webhooks/research-agent",
   ALLOWED_ORIGINS: ["*"],
   CLAUDE_FAST_MODEL: null,
+  CLAUDE_LETTERHEAD_MODEL: null,
   PORT: 3003,
   AGENT_LOCAL: true,
   RUN_TIMEOUT_MS: 600000,

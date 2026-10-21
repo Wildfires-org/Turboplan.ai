@@ -44,14 +44,16 @@ import {
   deleteDocumentLetterheadSelection,
   getDocumentLetterheadById,
   getDocumentLetterheadSelectionRow,
+  getDocumentOwnLetterhead,
   getOrganizationIdForProject,
   getProjectIdByDocumentId,
   listDocumentLetterheads,
+  updateDocumentOwnLetterhead,
   upsertDocumentLetterheadSelection,
 } from "@wildfires-org/turboplan-db/queries";
 import { EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
-import { isStorageUrl } from "@wildfires-org/turboplan-upload/server";
+import { ownedUploadKey } from "@wildfires-org/turboplan-upload/server";
 import { isValidSlug } from "@wildfires-org/turboplan-utils/server";
 
 import {
@@ -70,11 +72,29 @@ import {
   normalizeLetterheadChoice,
   planLetterheadBranding,
   selectionFromRow,
+  toPublicDocumentLetterhead,
 } from "../../letterhead";
+import {
+  type GridLetterhead,
+  gridToDocumentLetterhead,
+  type PublicGridLetterhead,
+  usableGridLetterhead,
+} from "../../letterhead-grid";
+import {
+  applyGridLetterheadEdit,
+  type GridLetterheadEdit,
+} from "../../letterhead-grid-edit";
+import { gridLogoCells } from "../../letterhead-grid-layout";
 import type { SlugLookupResult } from "../../types";
+import {
+  errorName,
+  type ImageBytes,
+  readLetterheadImage,
+} from "../letterhead-image";
 import { getOfficeById } from "../offices/queries";
 import { getOrganizationById } from "../organizations/queries";
 import { assertSlugNotReserved, generateAvailableSlug } from "../slug-policy";
+import { withoutLetterheadGrid } from "../without-letterhead-grid";
 import {
   isProjectDocumentInScope,
   resolveTemplateCopyScope,
@@ -100,71 +120,25 @@ export async function getProjectById(id: string): Promise<Project | null> {
   }
 }
 
-// Image content types supported by both PDFKit and the docx generator. Logos in
-// any other format are ignored rather than passed through and failing downstream.
-const SUPPORTED_LETTERHEAD_CONTENT_TYPES = new Set(["image/png", "image/jpeg"]);
-
-// Bound the fetch so a hostile or unhealthy URL can't hang the export request or
-// exhaust memory. Logos live in our blob storage and are small.
-const IMAGE_FETCH_TIMEOUT_MS = 5000;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
-/**
- * Download an image URL as raw bytes, guarding to the PNG/JPEG formats both the
- * PDF and docx generators accept.
- *
- * Only URLs that point at our own blob storage are fetched — arbitrary URLs are
- * refused so an org/office admin can't aim the server at internal hosts (SSRF).
- * The fetch is also bounded by a timeout and a max size.
- *
- * Returns null when the url is null, not a storage URL, the fetch fails or times
- * out, the body exceeds MAX_IMAGE_BYTES, or the resource is not a supported type.
- */
-async function fetchImageBytes(
-  url: string | null,
-): Promise<{ data: Uint8Array; contentType: string } | null> {
-  if (!url) {
-    return null;
-  }
-
-  // SSRF guard: never fetch arbitrary, caller-supplied URLs — only our storage.
-  if (!isStorageUrl(url)) {
-    return null;
-  }
-
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
-  });
-  if (!res.ok) {
-    return null;
-  }
-
-  const contentType = res.headers.get("content-type")?.split(";")[0].trim();
-  if (!contentType || !SUPPORTED_LETTERHEAD_CONTENT_TYPES.has(contentType)) {
-    return null;
-  }
-
-  // Reject oversized payloads up front when the server declares a length.
-  const declaredLength = Number(res.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_IMAGE_BYTES) {
-    return null;
-  }
-
-  const data = new Uint8Array(await res.arrayBuffer());
-  // Guard again after download for servers that omit/understate content-length.
-  if (data.byteLength > MAX_IMAGE_BYTES) {
-    return null;
-  }
-
-  return { data, contentType };
-}
+// An entity's letterhead logo: its `documentLogoUrl`, unless its letterhead
+// layout is "banner" — then that URL is the banner graphic (drawn across the
+// content width), never a logo to place beside or above a letterhead.
+const entityLetterheadLogoUrl = (entity: {
+  documentLetterheadLayout: LetterheadLayout | null;
+  documentLogoUrl: string | null;
+}): string | null =>
+  entity.documentLetterheadLayout === "banner" ? null : entity.documentLogoUrl;
 
 /**
- * Resolve the letterhead logo URL for a project.
+ * Resolve the letterhead logo URL for a project: the logo of a letterhead
+ * that has no logo of its own (a legacy layout, or the margin logo of a grid
+ * without logo cells).
  *
  * Resolution order: the owning office's `documentLogoUrl`, falling back to the
- * owning organization's `documentLogoUrl`. Returns null when the project is
- * invalid or neither entity has a document logo configured.
+ * owning organization's `documentLogoUrl`; an entity whose letterhead layout
+ * is "banner" has no letterhead logo (its `documentLogoUrl` is the banner
+ * graphic). Returns null when the project is invalid or neither entity has a
+ * letterhead logo.
  */
 export async function resolveProjectLetterheadLogoUrl(
   projectId: string,
@@ -179,12 +153,13 @@ export async function resolveProjectLetterheadLogoUrl(
     return null;
   }
 
-  if (office.documentLogoUrl) {
-    return office.documentLogoUrl;
+  const officeLogoUrl = entityLetterheadLogoUrl(office);
+  if (officeLogoUrl) {
+    return officeLogoUrl;
   }
 
   const org = await getOrganizationById(office.organizationId);
-  return org?.documentLogoUrl ?? null;
+  return org ? entityLetterheadLogoUrl(org) : null;
 }
 
 /**
@@ -196,25 +171,66 @@ export async function resolveProjectLetterheadLogoUrl(
  */
 export async function getProjectLetterheadLogo(
   projectId: string,
-): Promise<{ data: Uint8Array; contentType: string } | null> {
+): Promise<ImageBytes | null> {
   try {
     const url = await resolveProjectLetterheadLogoUrl(projectId);
-    return await fetchImageBytes(url);
+    return await readLetterheadImage({ url });
   } catch (error) {
     console.error("Failed to fetch project letterhead logo:", error);
     return null;
   }
 }
 
-/**
- * The office → org default letterhead plus, for a banner, the URL of its
- * graphic (the same entity's `documentLogoUrl`).
- */
-async function resolveProjectDefaultLetterhead(projectId: string): Promise<{
+type DefaultLetterhead = {
   letterhead: DocumentLetterhead | null;
-  bannerLogoUrl: string | null;
-}> {
-  const none = { letterhead: null, bannerLogoUrl: null };
+  // A banner's graphic (the entity's document logo); null for every other
+  // letterhead (a grid's logos are its logo cells).
+  logoUrl: string | null;
+};
+
+/**
+ * An office's or organization's default letterhead: its grid when one is set
+ * and usable (the legacy fields are ignored then), else its legacy layout
+ * when configured, else null.
+ */
+const entityDefaultLetterhead = (entity: {
+  documentLetterheadGrid: unknown;
+  documentLetterheadLayout: LetterheadLayout | null;
+  documentLetterheadLines: string | null;
+  documentLetterheadContact: string | null;
+  documentLetterheadColor: string | null;
+  documentLogoUrl: string | null;
+}): DefaultLetterhead | null => {
+  const grid = usableGridLetterhead(entity.documentLetterheadGrid);
+  if (grid) {
+    return { letterhead: gridToDocumentLetterhead(grid), logoUrl: null };
+  }
+
+  const letterhead = libraryLetterheadToDocumentLetterhead({
+    layout: entity.documentLetterheadLayout,
+    lines: entity.documentLetterheadLines,
+    contact: entity.documentLetterheadContact,
+    logoUrl: entity.documentLogoUrl,
+    color: entity.documentLetterheadColor,
+  });
+  if (!letterhead) {
+    return null;
+  }
+  return {
+    letterhead,
+    logoUrl: letterhead.layout === "banner" ? entity.documentLogoUrl : null,
+  };
+};
+
+/**
+ * The office → org default letterhead plus the URL of its own logo (see
+ * {@link DefaultLetterhead}). Per entity a grid wins over the legacy fields:
+ * office grid → office legacy → org grid → org legacy.
+ */
+async function resolveProjectDefaultLetterhead(
+  projectId: string,
+): Promise<DefaultLetterhead> {
+  const none = { letterhead: null, logoUrl: null };
   const proj = await getProjectById(projectId);
   if (!proj) {
     return none;
@@ -225,46 +241,22 @@ async function resolveProjectDefaultLetterhead(projectId: string): Promise<{
     return none;
   }
 
-  const toLetterhead = (entity: {
-    documentLetterheadLayout: LetterheadLayout | null;
-    documentLetterheadLines: string | null;
-    documentLetterheadContact: string | null;
-    documentLetterheadColor: string | null;
-    documentLogoUrl: string | null;
-  }) => {
-    const letterhead = libraryLetterheadToDocumentLetterhead({
-      layout: entity.documentLetterheadLayout,
-      lines: entity.documentLetterheadLines,
-      contact: entity.documentLetterheadContact,
-      logoUrl: entity.documentLogoUrl,
-      color: entity.documentLetterheadColor,
-    });
-    if (!letterhead) {
-      return null;
-    }
-    return {
-      letterhead,
-      bannerLogoUrl:
-        letterhead.layout === "banner" ? entity.documentLogoUrl : null,
-    };
-  };
-
-  const fromOffice = toLetterhead(office);
+  const fromOffice = entityDefaultLetterhead(office);
   if (fromOffice) {
     return fromOffice;
   }
 
   const org = await getOrganizationById(office.organizationId);
-  return (org && toLetterhead(org)) || none;
+  return (org && entityDefaultLetterhead(org)) || none;
 }
 
 /**
  * Resolve the structured document letterhead for a project.
  *
  * Unlike the footer, the letterhead resolves as a whole (never mixing office
- * and org lines or colors): the office wins when it is configured (name lines,
- * or a banner with a document logo), else the organization, else null. Layout
- * defaults to "split".
+ * and org lines or colors): the office wins when it is configured (a grid,
+ * name lines, or a banner with a document logo), else the organization, else
+ * null. Layout defaults to "split".
  */
 export async function getProjectLetterhead(
   projectId: string,
@@ -304,7 +296,7 @@ export async function getProjectFooter(projectId: string): Promise<{
     const logoUrl =
       office.documentFooterLogoUrl || org?.documentFooterLogoUrl || null;
 
-    const logo = await fetchImageBytes(logoUrl);
+    const logo = await readLetterheadImage({ url: logoUrl });
 
     return { text, note, logo };
   } catch (error) {
@@ -342,37 +334,89 @@ export async function getDocumentLetterheadSelection(
   return selectionFromRow(await getDocumentLetterheadSelectionRow(documentId));
 }
 
-type ImageBytes = { data: Uint8Array; contentType: string };
+export type { ImageBytes };
 
-type ResolvedSelection =
-  | { selection: "default" | "none"; library: null }
+// The document's own copy of its reference's letterhead, validated.
+// `version`: its `updated_at` as an ISO string — the letterhead editor sends
+// it back, so an edit made on an older copy is refused (see
+// `editDocumentOwnLetterhead`).
+type OwnLetterhead = {
+  grid: GridLetterhead;
+  referenceFilename: string;
+  version: string;
+};
+
+const toOwnLetterhead = (
+  row: {
+    letterhead: unknown;
+    referenceFilename: string;
+    updatedAt: Date;
+  } | null,
+): OwnLetterhead | null => {
+  const grid = row && usableGridLetterhead(row.letterhead);
+  return grid
+    ? {
+        grid,
+        referenceFilename: row.referenceFilename,
+        version: row.updatedAt.toISOString(),
+      }
+    : null;
+};
+
+type ResolvedSelection = (
+  | { selection: "default" | "none" | "own"; library: null }
   | {
       selection: string;
       library: NonNullable<
         Awaited<ReturnType<typeof getDocumentLetterheadById>>
       >;
-    };
+    }
+) & {
+  // The document's copy: set when "own" is selected, and with `includeOwn`
+  // whatever is selected (the picker offers it).
+  own: OwnLetterhead | null;
+};
 
 /**
  * The selection that applies to `documentId` when rendered in `projectId`.
- * A document outside the project, or a library letterhead outside the
- * project's organization, resolves to "default".
+ * A document outside the project, a library letterhead outside the project's
+ * organization, and "own" without a (valid) copy resolve to "default".
  */
 async function resolveSelection(
   projectId: string,
   documentId: string | undefined,
+  { includeOwn = false }: { includeOwn?: boolean } = {},
 ): Promise<ResolvedSelection> {
+  const fallback = { selection: "default", library: null, own: null } as const;
   if (!documentId) {
-    return { selection: "default", library: null };
+    return fallback;
   }
 
+  // Checked first: the selection and own-letterhead queries are keyed by
+  // document id only.
   if ((await getProjectIdByDocumentId({ id: documentId })) !== projectId) {
-    return { selection: "default", library: null };
+    return fallback;
   }
 
-  const stored = await getDocumentLetterheadSelection(documentId);
+  // `undefined`: the copy was not read (yet).
+  const [stored, ownRow] = await Promise.all([
+    getDocumentLetterheadSelection(documentId),
+    includeOwn ? getDocumentOwnLetterhead(documentId) : undefined,
+  ]);
+  const own =
+    includeOwn || stored === "own"
+      ? toOwnLetterhead(
+          ownRow === undefined
+            ? await getDocumentOwnLetterhead(documentId)
+            : ownRow,
+        )
+      : null;
+
   if (stored === "default" || stored === "none") {
-    return { selection: stored, library: null };
+    return { selection: stored, library: null, own };
+  }
+  if (stored === "own") {
+    return own ? { selection: "own", library: null, own } : fallback;
   }
 
   const [library, organizationId] = await Promise.all([
@@ -385,68 +429,169 @@ async function resolveSelection(
     organizationId,
   );
   if (selection === "default" || !library) {
-    return { selection: "default", library: null };
+    return { selection: "default", library: null, own };
   }
-  return { selection, library };
+  return { selection, library, own };
 }
 
-const resolveProjectDefaultLetterheadSafe = (projectId: string) =>
+const resolveProjectDefaultLetterheadSafe = (
+  projectId: string,
+): Promise<DefaultLetterhead> =>
   resolveProjectDefaultLetterhead(projectId).catch((error: unknown) => {
     console.error("Failed to resolve project letterhead:", error);
-    return { letterhead: null, bannerLogoUrl: null };
+    return { letterhead: null, logoUrl: null };
   });
 
 const getProjectLetterheadSafe = async (projectId: string) =>
   (await resolveProjectDefaultLetterheadSafe(projectId)).letterhead;
 
-const fetchLetterheadImage = (url: string | null) =>
-  fetchImageBytes(url).catch((error: unknown) => {
-    console.error("Failed to fetch letterhead logo:", error);
-    return null;
-  });
+type LetterheadLogos = {
+  logo: ImageBytes | null;
+  logos: (ImageBytes | null)[];
+};
 
 /**
- * Resolve the letterhead and letterhead logo a document is rendered with:
- * the office → org default, none, or the selected library letterhead.
- * Without a `documentId` this is always the default. For a banner the logo is
- * the banner graphic of the entity the letterhead came from.
+ * A grid's logos: one per logo cell in `gridLogoCells` order (its `index`),
+ * read in parallel by object key (`readLetterheadImage`), null in the slot of
+ * one that does not load. Its single logo (legacy renderers, the margin) is
+ * the first logo cell's — never another one when that fails — or, for a grid
+ * without logo cells, the office → org letterhead logo.
+ */
+const resolveGridLogos = async (
+  projectId: string,
+  grid: GridLetterhead,
+): Promise<LetterheadLogos> => {
+  const logos = await Promise.all(
+    gridLogoCells(grid).map((cell) => readLetterheadImage({ key: cell.key })),
+  );
+  if (logos.length > 0) {
+    return { logo: logos[0], logos };
+  }
+  return { logo: await getProjectLetterheadLogo(projectId), logos };
+};
+
+export type ResolvedDocumentLetterhead = LetterheadLogos & {
+  letterhead: DocumentLetterhead | null;
+  selection: LetterheadSelection;
+};
+
+/**
+ * Resolve the letterhead and letterhead logo(s) a document is rendered with:
+ * the office → org default, none, the document's own copy of its reference's
+ * letterhead, or the selected library letterhead. Without a `documentId` this
+ * is always the default. `logo` is the single logo: for a banner the banner
+ * graphic of the entity the letterhead came from; for a grid (the copy, or a
+ * grid default) its first logo cell, or the office → org letterhead logo when
+ * it has no logo cell (see `resolveGridLogos`); otherwise the office → org
+ * letterhead logo. `logos` holds a grid's logos by cell `index`; empty for
+ * every other letterhead.
  */
 export async function resolveDocumentLetterhead(
   projectId: string,
   documentId?: string,
-): Promise<{
-  letterhead: DocumentLetterhead | null;
-  logo: ImageBytes | null;
-  selection: LetterheadSelection;
-}> {
-  const { selection, library } = await resolveSelection(projectId, documentId);
+): Promise<ResolvedDocumentLetterhead> {
+  const { selection, library, own } = await resolveSelection(
+    projectId,
+    documentId,
+  );
 
   if (selection === "none") {
-    return { letterhead: null, logo: null, selection };
+    return { letterhead: null, logo: null, logos: [], selection };
+  }
+
+  if (selection === "own" && own) {
+    return {
+      letterhead: gridToDocumentLetterhead(own.grid),
+      ...(await resolveGridLogos(projectId, own.grid)),
+      selection,
+    };
   }
 
   if (!library) {
-    const { letterhead, bannerLogoUrl } =
+    const { letterhead, logoUrl } =
       await resolveProjectDefaultLetterheadSafe(projectId);
+    if (letterhead?.layout === "grid") {
+      return {
+        letterhead,
+        ...(await resolveGridLogos(projectId, letterhead.grid)),
+        selection: "default",
+      };
+    }
     const logo =
       letterhead?.layout === "banner"
-        ? await fetchLetterheadImage(bannerLogoUrl)
+        ? await readLetterheadImage({ url: logoUrl })
         : await getProjectLetterheadLogo(projectId);
-    return { letterhead, logo, selection: "default" };
+    return { letterhead, logo, logos: [], selection: "default" };
   }
 
-  const logo = await fetchLetterheadImage(library.logoUrl);
+  const logo = await readLetterheadImage({ url: library.logoUrl });
   return {
     letterhead: libraryLetterheadToDocumentLetterhead(library),
     logo,
+    logos: [],
     selection,
   };
 }
 
 /**
+ * The one logo `GET /letterhead-logo?index=` serves, fetching no other: for a
+ * grid letterhead (the document's copy or a grid default) its logo cell
+ * `index` (`gridLogoCells` order), or — a grid without logo cells — the
+ * office → org letterhead logo at index 0; for every other letterhead its
+ * single logo (see {@link resolveDocumentLetterhead}) at index 0. Null for
+ * "none", past the last logo, and for a logo that does not load.
+ */
+export async function resolveDocumentLetterheadLogo(
+  projectId: string,
+  documentId: string | undefined,
+  index: number,
+): Promise<ImageBytes | null> {
+  const { selection, library, own } = await resolveSelection(
+    projectId,
+    documentId,
+  );
+
+  if (selection === "none") {
+    return null;
+  }
+
+  const gridLogo = async (grid: GridLetterhead) => {
+    const cells = gridLogoCells(grid);
+    if (cells.length > 0) {
+      const cell = cells[index];
+      return cell ? readLetterheadImage({ key: cell.key }) : null;
+    }
+    return index === 0 ? getProjectLetterheadLogo(projectId) : null;
+  };
+
+  if (selection === "own" && own) {
+    return gridLogo(own.grid);
+  }
+
+  if (library) {
+    return index === 0 ? readLetterheadImage({ url: library.logoUrl }) : null;
+  }
+
+  const { letterhead, logoUrl } =
+    await resolveProjectDefaultLetterheadSafe(projectId);
+  if (letterhead?.layout === "grid") {
+    return gridLogo(letterhead.grid);
+  }
+  if (index !== 0) {
+    return null;
+  }
+  return letterhead?.layout === "banner"
+    ? readLetterheadImage({ url: logoUrl })
+    : getProjectLetterheadLogo(projectId);
+}
+
+/**
  * Everything the letterhead picker shows for a document: the resolved
- * letterhead and selection, the default (office → org) letterhead, and the
- * project organization's library letterheads. No logo bytes are fetched.
+ * letterhead and selection, the default (office → org) letterhead, the
+ * project organization's library letterheads, and whether the document has
+ * its own copy of its reference's letterhead (`own`, offered whatever is
+ * selected, with the `version` the letterhead editor sends back). No logo
+ * bytes are fetched.
  */
 export async function getDocumentLetterheadOverview(
   projectId: string,
@@ -456,10 +601,11 @@ export async function getDocumentLetterheadOverview(
   selection: LetterheadSelection;
   defaultLetterhead: DocumentLetterhead | null;
   options: { id: string; name: string }[];
+  own: { referenceFilename: string; version: string } | null;
 }> {
-  const [{ selection, library }, defaultLetterhead, organizationId] =
+  const [{ selection, library, own }, defaultLetterhead, organizationId] =
     await Promise.all([
-      resolveSelection(projectId, documentId),
+      resolveSelection(projectId, documentId, { includeOwn: true }),
       getProjectLetterheadSafe(projectId),
       getOrganizationIdForProject(projectId),
     ]);
@@ -470,6 +616,8 @@ export async function getDocumentLetterheadOverview(
   let letterhead: DocumentLetterhead | null = null;
   if (library) {
     letterhead = libraryLetterheadToDocumentLetterhead(library);
+  } else if (selection === "own" && own) {
+    letterhead = gridToDocumentLetterhead(own.grid);
   } else if (selection === "default") {
     letterhead = defaultLetterhead;
   }
@@ -479,13 +627,16 @@ export async function getDocumentLetterheadOverview(
     selection,
     defaultLetterhead,
     options: libraryRows.map(({ id, name }) => ({ id, name })),
+    own: own
+      ? { referenceFilename: own.referenceFilename, version: own.version }
+      : null,
   };
 }
 
 /**
  * Store a document's letterhead selection. Fails (without revealing which
- * check failed) unless the document belongs to the project and a library
- * letterhead belongs to the project's organization.
+ * check failed) unless the document belongs to the project, a library
+ * letterhead belongs to the project's organization, and "own" has a copy.
  */
 export async function setDocumentLetterheadSelection({
   projectId,
@@ -516,6 +667,21 @@ export async function setDocumentLetterheadSelection({
     return { ok: true };
   }
 
+  if (selection === "own") {
+    // Validated like rendering does: a copy that no longer validates would
+    // render as the default, so it cannot be selected either.
+    if (!toOwnLetterhead(await getDocumentOwnLetterhead(documentId))) {
+      return { ok: false, reason: "letterhead" };
+    }
+    await upsertDocumentLetterheadSelection({
+      documentId,
+      letterheadId: null,
+      useOwn: true,
+      updatedBy: userId,
+    });
+    return { ok: true };
+  }
+
   const [library, organizationId] = await Promise.all([
     getDocumentLetterheadById(selection),
     getOrganizationIdForProject(projectId),
@@ -533,6 +699,83 @@ export async function setDocumentLetterheadSelection({
     updatedBy: userId,
   });
   return { ok: true };
+}
+
+export type EditDocumentOwnLetterheadResult =
+  // `version`: the saved copy's new version.
+  | { ok: true; letterhead: DocumentLetterhead; version: string }
+  // The document is not in the project, or has no (valid) copy.
+  | { ok: false; reason: "not_found" }
+  // The copy is no longer the `version` the edit was made on (edited
+  // elsewhere, or replaced by a new draft), so its logo indexes may mean
+  // other logos.
+  | { ok: false; reason: "conflict" }
+  // `field` / `message`: see `applyGridLetterheadEdit`.
+  | { ok: false; reason: "invalid"; field: string; message: string };
+
+/**
+ * Replace the grid of a document's own letterhead copy with the letterhead
+ * editor's version (see `applyGridLetterheadEdit`): a kept logo is the
+ * copy's logo (its key) at that index, a new logo must be an upload of
+ * `userId` (`uploads/<userId>/…` under the storage write base) and is stored
+ * by its object key (`ownedUploadKey`). `version` is the
+ * copy's version the editor was opened on (`own.version` of
+ * `getDocumentLetterheadOverview`). Checks, in order: the document belongs to
+ * the project, it has a copy that validates (as rendering does), the copy is
+ * still that version, the edit is valid; the write itself only applies to
+ * that version (a concurrent edit in between is a conflict too). Only that
+ * document's copy changes; the selection is left as it is.
+ */
+export async function editDocumentOwnLetterhead({
+  projectId,
+  documentId,
+  version,
+  edit,
+  userId,
+}: {
+  projectId: string;
+  documentId: string;
+  version: string;
+  edit: GridLetterheadEdit;
+  userId: string;
+}): Promise<EditDocumentOwnLetterheadResult> {
+  const notFound = { ok: false, reason: "not_found" } as const;
+  const conflict = { ok: false, reason: "conflict" } as const;
+  // Checked first: the own-letterhead queries are keyed by document id only.
+  if ((await getProjectIdByDocumentId({ id: documentId })) !== projectId) {
+    return notFound;
+  }
+
+  const own = toOwnLetterhead(await getDocumentOwnLetterhead(documentId));
+  if (!own) {
+    return notFound;
+  }
+  // Before the edit is applied: its logo indexes refer to that version.
+  if (own.version !== version) {
+    return conflict;
+  }
+
+  const result = applyGridLetterheadEdit(edit, own.grid, (url) =>
+    ownedUploadKey(url, userId),
+  );
+  if (!result.ok) {
+    return { ...result, reason: "invalid" };
+  }
+
+  const updatedAt = await updateDocumentOwnLetterhead({
+    documentId,
+    letterhead: result.grid,
+    updatedBy: userId,
+    expectedUpdatedAt: new Date(version),
+  });
+  if (!updatedAt) {
+    return conflict;
+  }
+  return {
+    ok: true,
+    letterhead: gridToDocumentLetterhead(result.grid),
+    version: updatedAt.toISOString(),
+  };
 }
 
 /**
@@ -643,7 +886,10 @@ export const chooseDocumentLetterhead = async ({
  * `content` (unless the content already opens with its own letterhead table).
  * With a `documentId` the document's letterhead selection applies — "none"
  * drops both the letterhead and its logo. A banner letterhead adds no table;
- * it comes back as `logoPlacement: "banner"` with the graphic as `logo`. See
+ * it comes back as `logoPlacement: "banner"` with the graphic as `logo`. A
+ * grid letterhead adds no table either: it comes back as `gridLetterhead`
+ * (the public grid + its logos by cell `index`) for the exporter to draw,
+ * with `logo` only as the margin logo of a grid without logo cells. See
  * {@link planLetterheadBranding} for the exact rules.
  */
 export async function getProjectDocumentBranding(
@@ -656,13 +902,28 @@ export async function getProjectDocumentBranding(
   footer: Awaited<ReturnType<typeof getProjectFooter>>;
   logoPlacement: LetterheadLogoPlacement | undefined;
   color: string | null;
+  gridLetterhead: {
+    grid: PublicGridLetterhead;
+    logos: (ImageBytes | null)[];
+  } | null;
 }> {
-  const [{ letterhead, logo }, footer] = await Promise.all([
-    resolveDocumentLetterhead(projectId, documentId),
+  const [{ letterhead, logo, logos }, footer] = await Promise.all([
+    // An export never fails on its letterhead: without one it keeps its
+    // footer and goes out unbranded.
+    resolveDocumentLetterhead(projectId, documentId).catch((error: unknown) => {
+      console.error("[branding] Letterhead resolution failed:", {
+        error: errorName(error),
+      });
+      return { letterhead: null, logo: null, logos: [] };
+    }),
     getProjectFooter(projectId),
   ]);
 
-  const plan = planLetterheadBranding(content, letterhead, logo !== null);
+  const plan = planLetterheadBranding(
+    content,
+    letterhead && toPublicDocumentLetterhead(letterhead),
+    logo !== null,
+  );
 
   return {
     content: plan.content,
@@ -670,6 +931,7 @@ export async function getProjectDocumentBranding(
     footer,
     logoPlacement: plan.logoPlacement,
     color: plan.color,
+    gridLetterhead: plan.grid ? { grid: plan.grid, logos } : null,
   };
 }
 
@@ -1147,12 +1409,16 @@ export async function softDeleteProject(
   }
 }
 
+// Every office column but its default letterhead grid: the office goes out in
+// project payloads (GET /api/projects/:id and the project updates).
+const projectOfficeColumns = withoutLetterheadGrid(getTableColumns(office));
+
 export async function getProjectWithRelations(id: string) {
   try {
     const result = await db
       .select({
         project: project,
-        office: office,
+        office: projectOfficeColumns,
         creator: user,
       })
       .from(project)
@@ -1480,6 +1746,10 @@ async function copyProjectContentToTarget(
         context: d.context,
         folder: d.folder,
         folderDescription: d.folderDescription,
+        // The analysis describes the shared file (its logo keys are shared
+        // too): copying it spares a paid re-analysis and duplicate logos.
+        letterheadStatus: d.letterheadStatus,
+        letterheadAnalysis: d.letterheadAnalysis,
       })),
     );
   }

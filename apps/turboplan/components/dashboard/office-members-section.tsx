@@ -7,7 +7,7 @@ import {
   InviteMembersDialog,
   MembersTable,
 } from "@wildfires-org/turboplan-workspace/client";
-import type { Office } from "@wildfires-org/turboplan-workspace/types";
+import type { ClientOffice } from "@wildfires-org/turboplan-workspace/types";
 
 import { OfficeTabNav } from "@/components/dashboard/office-tab-nav";
 import { useMembersSection } from "@/hooks/use-members-section";
@@ -16,7 +16,7 @@ import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 
 interface OfficeMembersSectionProps {
   user: User;
-  office: Office;
+  office: ClientOffice;
   orgSlug: string;
   officeSlug: string;
 }

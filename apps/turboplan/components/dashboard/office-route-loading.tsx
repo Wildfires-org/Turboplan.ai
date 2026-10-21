@@ -5,8 +5,8 @@ import type { User } from "next-auth";
 
 import { MembersTable } from "@wildfires-org/turboplan-workspace/client";
 import type {
-  Office,
-  Organization,
+  ClientOffice,
+  ClientOrganization,
 } from "@wildfires-org/turboplan-workspace/types";
 
 import ProjectLoading from "@/app/(dashboard)/[orgSlug]/[officeSlug]/[projectSlug]/loading";
@@ -35,7 +35,7 @@ interface OfficeTabBodyProps {
   user: User | null;
   orgSlug: string;
   officeSlug: string;
-  office: Office | null;
+  office: ClientOffice | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────
@@ -73,8 +73,9 @@ export function OfficeRouteLoading() {
     );
   }
 
-  const organization: Organization | null = dashboard?.organization ?? null;
-  const office: Office | null = dashboard?.office ?? null;
+  const organization: ClientOrganization | null =
+    dashboard?.organization ?? null;
+  const office: ClientOffice | null = dashboard?.office ?? null;
 
   const body = (
     <OfficeTabBody

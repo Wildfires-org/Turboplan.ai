@@ -3,7 +3,9 @@ import {
   bigint,
   index,
   integer,
+  jsonb,
   pgTable,
+  smallint,
   text,
   timestamp,
   uuid,
@@ -11,6 +13,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "../core/user";
+import {
+  type DocumentLetterheadStatus,
+  letterheadPendingPredicate,
+  type StoredLetterheadAnalysis,
+} from "../workspace/letterhead-analysis";
 import { project } from "../workspace/project";
 
 /**
@@ -91,6 +98,20 @@ export const projectDocument = pgTable(
     extractionError: text("extraction_error"),
     /** When `extractedText` was last written (set only on a "done" status) */
     extractedAt: timestamp("extracted_at"),
+    /** See {@link DocumentLetterheadStatus}. */
+    letterheadStatus: varchar("letterhead_status", { length: 20 })
+      .$type<DocumentLetterheadStatus>()
+      .notNull()
+      .default("pending"),
+    /** The first page's letterhead as a grid of cells; null until analyzed */
+    letterheadAnalysis: jsonb(
+      "letterhead_analysis",
+    ).$type<StoredLetterheadAnalysis>(),
+    /**
+     * Analyses started on this document, counted before each run (see
+     * `MAX_LETTERHEAD_ATTEMPTS`): a run the process never finished still counts.
+     */
+    letterheadAttempts: smallint("letterhead_attempts").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
@@ -100,6 +121,15 @@ export const projectDocument = pgTable(
     extractionStatusIdx: index("project_document_extraction_status_idx").on(
       table.extractionStatus,
     ),
+    /**
+     * The letterhead analysis loop's newest-pending-first read, without a
+     * scan or sort; holds only the rows still awaiting analysis. NULLS FIRST
+     * is what `ORDER BY created_at DESC` means (drizzle defaults an index to
+     * NULLS LAST, which that sort could not use).
+     */
+    letterheadPendingIdx: index("project_document_letterhead_pending_idx")
+      .on(table.createdAt.desc().nullsFirst())
+      .where(letterheadPendingPredicate(table.letterheadStatus)),
   }),
 );
 

@@ -8,6 +8,8 @@ import type * as ArtifactsServerModule from "../lib/artifacts/server";
 type DbCall = { op: "insert" | "update"; content: string; createdAt?: Date };
 
 const dbCalls: DbCall[] = [];
+// Stream writes, interleaved with the DB calls to show their order.
+const events: string[] = [];
 
 mock.module("@wildfires-org/turboplan-db/queries", {
   namedExports: {
@@ -19,6 +21,7 @@ mock.module("@wildfires-org/turboplan-db/queries", {
       createdAt?: Date;
     }) => {
       dbCalls.push({ op: "insert", content, createdAt });
+      events.push("insert");
     },
     updateDocumentVersionContent: async ({
       content,
@@ -28,6 +31,7 @@ mock.module("@wildfires-org/turboplan-db/queries", {
       createdAt: Date;
     }) => {
       dbCalls.push({ op: "update", content, createdAt });
+      events.push("update");
     },
   },
 });
@@ -56,12 +60,19 @@ before(async () => {
 
 beforeEach(() => {
   dbCalls.length = 0;
+  events.length = 0;
 });
+
+const recordingWriter = {
+  write: (part: { type: string; data?: { type: string; content: string } }) => {
+    events.push(`${part.type}:${part.data?.type}:${part.data?.content}`);
+  },
+} as unknown as UIMessageStreamWriter;
 
 const createArgs = (userId?: string) => ({
   id: "doc-id",
   title: "RFP",
-  writer: {} as UIMessageStreamWriter,
+  writer: recordingWriter,
   session: { user: userId ? { id: userId } : undefined } as Session,
 });
 
@@ -100,6 +111,13 @@ describe("createDocumentHandler.onCreateDocument", () => {
     for (const update of updates) {
       assert.equal(update.createdAt, insert?.createdAt);
     }
+    // The client hears once, right after the insert, that the document exists.
+    assert.deepEqual(events, [
+      "insert",
+      "data-artifact:saved:doc-id",
+      "update",
+      "update",
+    ]);
   });
 
   it("inserts the final draft when no checkpoint was saved", async () => {
@@ -115,6 +133,7 @@ describe("createDocumentHandler.onCreateDocument", () => {
       dbCalls.map(({ op, content }) => ({ op, content })),
       [{ op: "insert", content: "Short draft" }],
     );
+    assert.deepEqual(events, ["insert", "data-artifact:saved:doc-id"]);
   });
 
   it("saves nothing without a signed-in user", async () => {
@@ -132,5 +151,6 @@ describe("createDocumentHandler.onCreateDocument", () => {
 
     assert.equal(progress, undefined);
     assert.deepEqual(dbCalls, []);
+    assert.deepEqual(events, []);
   });
 });
