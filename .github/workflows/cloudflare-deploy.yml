@@ -27,6 +27,8 @@ jobs:
       web_changed: ${{ steps.changes.outputs.web_changed }}
       map_changed: ${{ steps.changes.outputs.map_changed }}
       mcp_changed: ${{ steps.changes.outputs.mcp_changed }}
+      research_agent_changed: ${{ steps.changes.outputs.research_agent_changed }}
+      research_agent_runtime_changed: ${{ steps.changes.outputs.research_agent_runtime_changed }}
       any_changed: ${{ steps.changes.outputs.any_changed }}
     steps:
       - name: Checkout
@@ -63,6 +65,29 @@ jobs:
               - 'packages/services/turboplan-map-server/**'
             mcp_only:
               - 'apps/mcp-server/**'
+            # The research agent's Fly image: the app, the workspace packages
+            # its Dockerfile copies (keep in sync with
+            # apps/research-agent/Dockerfile), and the root build context.
+            research_agent_only:
+              - 'apps/research-agent/**'
+              - 'packages/core/turboplan-auth/**'
+              - 'packages/core/turboplan-db/**'
+              - 'packages/core/turboplan-env/**'
+              - 'packages/core/turboplan-utils/**'
+              - 'packages/modules/turboplan-document-extraction/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'patches/**'
+              - '.dockerignore'
+            # What scripts/deploy-agent.ts uploads to the Modal volume: the
+            # sandbox runtime bundle (src/agent-runtime only, packages
+            # external) and the agent's workspace files.
+            research_agent_runtime:
+              - 'apps/research-agent/src/agent-runtime/**'
+              - 'apps/research-agent/workspace/.claude/**'
+              - 'apps/research-agent/scripts/deploy-agent.ts'
+              - 'apps/research-agent/esbuild.config.mjs'
 
       - name: Set change outputs
         id: changes
@@ -74,6 +99,9 @@ jobs:
             echo "web_changed=true" >> "$GITHUB_OUTPUT"
             echo "map_changed=true" >> "$GITHUB_OUTPUT"
             echo "mcp_changed=true" >> "$GITHUB_OUTPUT"
+            # deploy-research-agent itself runs on main only.
+            echo "research_agent_changed=true" >> "$GITHUB_OUTPUT"
+            echo "research_agent_runtime_changed=true" >> "$GITHUB_OUTPUT"
             echo "any_changed=true" >> "$GITHUB_OUTPUT"
           else
             INFRA="${{ steps.push-changes.outputs.infra }}"
@@ -83,6 +111,8 @@ jobs:
             WEB="${{ steps.push-changes.outputs.web_only }}"
             MAP="${{ steps.push-changes.outputs.map_only }}"
             MCP="${{ steps.push-changes.outputs.mcp_only }}"
+            RESEARCH_AGENT="${{ steps.push-changes.outputs.research_agent_only }}"
+            RESEARCH_AGENT_RUNTIME="${{ steps.push-changes.outputs.research_agent_runtime }}"
 
             if [ "$INFRA" = "true" ] || [ "$SHARED" = "true" ] || [ "$LANDING" = "true" ]; then
               LANDING_CHANGED=true
@@ -114,13 +144,29 @@ jobs:
               MCP_CHANGED=false
             fi
 
+            # A runtime change is also a Fly change (apps/research-agent/**):
+            # the app server and the sandbox share the wire protocol.
+            if [ "$INFRA" = "true" ] || [ "$RESEARCH_AGENT" = "true" ]; then
+              RESEARCH_AGENT_CHANGED=true
+            else
+              RESEARCH_AGENT_CHANGED=false
+            fi
+
+            if [ "$INFRA" = "true" ] || [ "$RESEARCH_AGENT_RUNTIME" = "true" ]; then
+              RESEARCH_AGENT_RUNTIME_CHANGED=true
+            else
+              RESEARCH_AGENT_RUNTIME_CHANGED=false
+            fi
+
             echo "landing_changed=$LANDING_CHANGED" >> "$GITHUB_OUTPUT"
             echo "server_changed=$SERVER_CHANGED" >> "$GITHUB_OUTPUT"
             echo "web_changed=$WEB_CHANGED" >> "$GITHUB_OUTPUT"
             echo "map_changed=$MAP_CHANGED" >> "$GITHUB_OUTPUT"
             echo "mcp_changed=$MCP_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "research_agent_changed=$RESEARCH_AGENT_CHANGED" >> "$GITHUB_OUTPUT"
+            echo "research_agent_runtime_changed=$RESEARCH_AGENT_RUNTIME_CHANGED" >> "$GITHUB_OUTPUT"
 
-            if [ "$LANDING_CHANGED" = "true" ] || [ "$SERVER_CHANGED" = "true" ] || [ "$WEB_CHANGED" = "true" ] || [ "$MAP_CHANGED" = "true" ] || [ "$MCP_CHANGED" = "true" ]; then
+            if [ "$LANDING_CHANGED" = "true" ] || [ "$SERVER_CHANGED" = "true" ] || [ "$WEB_CHANGED" = "true" ] || [ "$MAP_CHANGED" = "true" ] || [ "$MCP_CHANGED" = "true" ] || [ "$RESEARCH_AGENT_CHANGED" = "true" ]; then
               echo "any_changed=true" >> "$GITHUB_OUTPUT"
             else
               echo "any_changed=false" >> "$GITHUB_OUTPUT"
@@ -1166,6 +1212,92 @@ jobs:
           URL="https://${WORKER_NAME}.${WORKERS_SUBDOMAIN}"
           echo "deployed=true" >> "$GITHUB_OUTPUT"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  # The research agent: one Fly app and one Modal sandbox volume serve every
+  # environment (develop and PR previews call the same app), so only main
+  # deploys them. Modal first, as `pnpm deploy` does. Fly secrets are not
+  # managed here: set them with `fly secrets set` (they apply on the next
+  # deploy). Needs, in the production environment: secrets FLY_API_TOKEN (a
+  # deploy token for the app), MODAL_TOKEN_ID, MODAL_TOKEN_SECRET, and the
+  # variable RESEARCH_AGENT_FLY_APP (fly.toml's `app` is a placeholder).
+  deploy-research-agent:
+    name: Deploy Research Agent
+    runs-on: ubuntu-latest
+    needs: [detect-changes, code-quality, database-migrate]
+    if: ${{ !cancelled() && !failure() && github.event_name != 'pull_request' && github.ref_name == 'main' && needs.detect-changes.outputs.research_agent_changed == 'true' }}
+    environment: production
+    env:
+      FLY_APP: ${{ vars.RESEARCH_AGENT_FLY_APP }}
+      RUNTIME_CHANGED: ${{ needs.detect-changes.outputs.research_agent_runtime_changed }}
+    steps:
+      - name: Check deploy configuration
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          MISSING=""
+          for NAME in FLY_APP FLY_API_TOKEN; do
+            if [ -z "${!NAME}" ]; then
+              MISSING="$MISSING $NAME"
+            fi
+          done
+          if [ "$RUNTIME_CHANGED" = "true" ]; then
+            for NAME in MODAL_TOKEN_ID MODAL_TOKEN_SECRET; do
+              if [ -z "${!NAME}" ]; then
+                MISSING="$MISSING $NAME"
+              fi
+            done
+          fi
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing in the production environment:$MISSING (FLY_APP is the RESEARCH_AGENT_FLY_APP variable)"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        if: env.RUNTIME_CHANGED == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: env.RUNTIME_CHANGED == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install research agent dependencies
+        if: env.RUNTIME_CHANGED == 'true'
+        run: pnpm install --frozen-lockfile --filter @wildfires-org/research-agent...
+
+      # `pnpm deploy:agent` reads .env.deploy, which CI does not have: the same
+      # two commands with the Modal token from secrets.
+      - name: Deploy sandbox runtime to Modal
+        if: env.RUNTIME_CHANGED == 'true'
+        working-directory: apps/research-agent
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          pnpm build:agent
+          pnpm exec tsx scripts/deploy-agent.ts
+
+      - name: Setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      # Repo root as build context, as `pnpm deploy:fly` does; the Dockerfile
+      # installs and builds inside the image (.dockerignore keeps the runner's
+      # node_modules out of the context).
+      - name: Deploy app server to Fly
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --remote-only \
+            --app "$FLY_APP" \
+            --config apps/research-agent/fly.toml \
+            --dockerfile apps/research-agent/Dockerfile
 
   comment-preview-urls:
     runs-on: ubuntu-latest

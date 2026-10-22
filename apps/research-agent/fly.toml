@@ -35,6 +35,15 @@ app = "turboplan-research-agent"
   min_machines_running = 0
   processes = ["app"]
 
+# `fly deploy` waits for this to pass and fails otherwise. /health returns 503
+# when the database is unreachable, which also takes the machine out of routing.
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "30s"
+  timeout = "5s"
+  method = "GET"
+  path = "/health"
+
 # 512MB is enough because PDF/DOCX parsing never runs on the main thread:
 # document extraction is spawned in a worker thread capped at a 256MB heap
 # (see src/documents/run-extraction-in-worker.ts), so a runaway document kills

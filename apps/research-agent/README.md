@@ -212,6 +212,13 @@ pnpm --filter @wildfires-org/research-agent typecheck
 
 ## Production
 
+A push to `main` deploys automatically (`deploy-research-agent` in
+`.github/workflows/cloudflare-deploy.yml`) when the push touches the research
+agent or a package its image copies: Fly every time, Modal only when the
+sandbox runtime (`src/agent-runtime/`, `workspace/.claude/`) changed. A manual
+"Run workflow" on `main` deploys both. Fly secrets are still set by hand. The
+commands below are for a manual deploy.
+
 Prerequisite (Fly.io CLI):
 
 ```bash

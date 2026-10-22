@@ -1,0 +1,22 @@
+# Docker builds that use the repo root as their context — today only the
+# research agent (`pnpm deploy:fly` runs `flyctl deploy` from the repo root with
+# `--dockerfile apps/research-agent/Dockerfile`). Docker ignores
+# apps/research-agent/.dockerignore in that case, so without this file every
+# local `.env*` (real keys) and all `node_modules` went to the remote builder.
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Installed and built output (the Dockerfile installs and builds inside the image)
+**/node_modules
+**/dist
+**/.next
+**/.open-next
+**/.turbo
+**/.wrangler
+
+# Repo metadata and the research agent's local sandbox workspace
+.git
+apps/research-agent/workspace

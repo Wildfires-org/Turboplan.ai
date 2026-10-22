@@ -402,8 +402,19 @@ set, and the feature flags — which are named `FF_IS_<MODULE>_PACKAGE_ENABLED`
 and `FF_USE_EXTERNAL_PROMPTS` in the workflow to keep them out of the runner's
 ambient environment.
 
-The research agent is not part of this pipeline: it deploys to Modal (sandbox)
-and Fly.io (app server) via its own `pnpm deploy` script.
+The research agent deploys from `main` only (`deploy-research-agent`): one Fly
+app and one Modal sandbox volume serve every environment. A push that touches
+`apps/research-agent/` or a package its Dockerfile copies deploys the Fly app
+(after the database migration); one that touches the sandbox runtime
+(`src/agent-runtime/`, `workspace/.claude/`) first uploads it to Modal. It
+needs, in the `production` environment, the secrets `FLY_API_TOKEN` (`fly
+tokens create deploy -a <app>`), `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`,
+and the variable `RESEARCH_AGENT_FLY_APP` (the Fly app name; `fly.toml`'s is
+a placeholder). The app's runtime secrets stay in Fly (`fly secrets set`).
+The deploy succeeds only once the machine passes the `/health` check in
+`fly.toml`; a failed check is not rolled back, so redeploy the previous image
+(`fly releases --image`, then `fly deploy --image <image>`).
+Its own `pnpm deploy` script still deploys by hand.
 
 ## Troubleshooting
 
