@@ -14,8 +14,8 @@ overrides:
   modal>smol-toml: ^1.9.0
   nice-grpc>@grpc/grpc-js: ^1.14.4
   '@modelcontextprotocol/sdk>@hono/node-server': ^1.19.10
-  '@auth/core>nodemailer': ^9.1.1
-  next-auth>nodemailer: ^9.1.1
+  '@auth/core>nodemailer': ^10.0.9
+  next-auth>nodemailer: ^10.0.9
   next>sharp: ^0.35.5
   streamdown>mermaid: ^11.16.1
   prosemirror-markdown>markdown-it: ^14.3.3
@@ -215,7 +215,7 @@ importers:
         version: 15.5.28(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(babel-plugin-macros@3.1.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       next-auth:
         specifier: ^5.0.0-beta.32
-        version: 5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@9.1.1)(react@19.1.7)
+        version: 5.0.0-beta.32(next@15.5.28(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(babel-plugin-macros@3.1.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@10.2.1)(react@19.1.7)
       nuqs:
         specifier: ^2.2.3
         version: 2.8.6(next@15.5.28(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(babel-plugin-macros@3.1.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(react@19.1.7)
@@ -744,7 +744,7 @@ importers:
         version: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       next-auth:
         specifier: 5.0.0-beta.32
-        version: 5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@9.1.1)(react@19.1.7)
+        version: 5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@10.2.1)(react@19.1.7)
       next-themes:
         specifier: ^0.3.0
         version: 0.3.0(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
@@ -930,8 +930,8 @@ importers:
         specifier: ^0.45.2
         version: 0.45.3(@cloudflare/workers-types@4.20260511.1)(@opentelemetry/api@1.9.1)(@types/pg@8.11.6)(@vercel/postgres@0.10.0)(bun-types@1.4.4)(gel@2.1.1)(postgres@3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9))
       imapflow:
-        specifier: ^1.0.171
-        version: 1.2.0
+        specifier: ^1.7.8
+        version: 1.7.8
       stripe:
         specifier: ^22.2.1
         version: 22.2.1(@types/node@22.19.0)
@@ -1112,7 +1112,7 @@ importers:
     dependencies:
       '@auth/core':
         specifier: ^0.41.3
-        version: 0.41.3(nodemailer@9.1.1)
+        version: 0.41.3(nodemailer@10.2.1)
       '@wildfires-org/turboplan-db':
         specifier: workspace:*
         version: link:../turboplan-db
@@ -1124,7 +1124,7 @@ importers:
         version: 15.5.28(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(babel-plugin-macros@3.1.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       next-auth:
         specifier: ^5.0.0-beta.32
-        version: 5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@9.1.1)(react@19.1.7)
+        version: 5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@10.2.1)(react@19.1.7)
       react:
         specifier: 19.1.7
         version: 19.1.7
@@ -1234,8 +1234,8 @@ importers:
         specifier: ^4.13.11
         version: 4.13.14
       nodemailer:
-        specifier: ^9.1.1
-        version: 9.1.1
+        specifier: ^10.0.9
+        version: 10.2.1
       react:
         specifier: 19.1.7
         version: 19.1.7
@@ -1507,7 +1507,7 @@ importers:
         version: 0.539.0(react@19.1.7)
       next:
         specifier: '>=15.5.28'
-        version: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
+        version: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       react:
         specifier: 19.1.7
         version: 19.1.7
@@ -2424,7 +2424,7 @@ importers:
         version: 0.446.0(react@19.1.7)
       next-auth:
         specifier: 5.0.0-beta.32
-        version: 5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@9.1.1)(react@19.1.7)
+        version: 5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@10.2.1)(react@19.1.7)
       postgres:
         specifier: ^3.4.4
         version: 3.4.7(patch_hash=1e548fc8cad71068eeb98c91f3cc39a7d957af50479481d1748d6b4ac53f4cd9)
@@ -2713,7 +2713,7 @@ packages:
     peerDependencies:
       '@simplewebauthn/browser': ^9.0.1
       '@simplewebauthn/server': ^9.0.2
-      nodemailer: ^9.1.1
+      nodemailer: ^10.0.9
     peerDependenciesMeta:
       '@simplewebauthn/browser':
         optional: true
@@ -7361,8 +7361,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  '@zone-eu/mailsplit@5.4.8':
-    resolution: {integrity: sha512-eEyACj4JZ7sjzRvy26QhLgKEMWwQbsw1+QZnlLX+/gihcNH07lVPOcnwf5U6UAL7gkc//J3jVd76o/WS+taUiA==}
+  '@zone-eu/mailsplit@5.4.16':
+    resolution: {integrity: sha512-zQ9iXvlT3Wi/hazeC1MdI4rQc1UJwJ6IQ6QzSZ5KDxLZZWQSazWLOzImLFluXadKShJ9WJvI1xH+AyVS8b9azg==}
 
   abab@2.0.6:
     resolution: {integrity: sha512-j2afSsaIENvHZN2B8GOpF566vZ5WVk5opAiMTvWgaQT8DkbOqsTfvNAvHoRGU2zzP8cPoqys+xHTRDWW8L+/BA==}
@@ -8647,9 +8647,9 @@ packages:
     resolution: {integrity: sha512-Q0n9HRi4m6JuGIV1eFlmvJB7ZEVxu93IrMyiMsGC0lrMJMWzRgx6WGquyfQgZVb31vhGgXnfmPNNXmxnOkRBrg==}
     engines: {node: '>= 0.8'}
 
-  encoding-japanese@2.2.0:
-    resolution: {integrity: sha512-EuJWwlHPZ1LbADuKTClvHtwbaFn4rOD+dRAbWysqEOXRc2Uui0hJInNJrsdH0c+OhJA4nrCBdSkW4DD5YxAo6A==}
-    engines: {node: '>=8.10.0'}
+  encoding-japanese@2.3.0:
+    resolution: {integrity: sha512-eQyh1vzHz13DUkZcJO+0IOAoKXRQwKV5IBffeuYsWZyRLGiSzfzXObCqWvqFXdX0UU8qOk+lBXbkUhMCpdJe4Q==}
+    engines: {node: '>=18.0.0'}
 
   end-of-stream@1.4.5:
     resolution: {integrity: sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg==}
@@ -9584,8 +9584,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  imapflow@1.2.0:
-    resolution: {integrity: sha512-xX4L/61Cw6oKKWN6QpQu3eeyWEvn5Qjc/XJf1ycsMSXT4GlAKlYJHaKqQvPf6UdLEPcrVUcdD4noLdfXzsGqQA==}
+  imapflow@1.7.8:
+    resolution: {integrity: sha512-dJoCIdZOJh26Rn2PdwEzwj0bRDgGBxxX38pio534FagIHVuR2l0SAfLr6sJo32YfuJHiSs/U2ntNDHnMg3/Hlg==}
 
   immediate@3.0.6:
     resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
@@ -10137,8 +10137,8 @@ packages:
   libbase64@1.3.0:
     resolution: {integrity: sha512-GgOXd0Eo6phYgh0DJtjQ2tO8dc0IVINtZJeARPeiIJqge+HdsWSuaDTe8ztQ7j/cONByDZ3zeB325AHiv5O0dg==}
 
-  libmime@5.3.7:
-    resolution: {integrity: sha512-FlDb3Wtha8P01kTL3P9M+ZDNDWPKPmKHWaU/cG/lg5pfuAwdflVpZE+wm9m7pKmC5ww6s+zTxBKS1p6yl3KpSw==}
+  libmime@5.4.3:
+    resolution: {integrity: sha512-di9BoDabBUMqjeD/wGj+hHpSgdqAph5ui7w6OdY6NpzU6O6VFLQsMOg9tqCjm/zf9OHzAM9EZxSOF7uIb8O8Hw==}
 
   libqp@2.1.1:
     resolution: {integrity: sha512-0Wd+GPz1O134cP62YU2GTOPNA7Qgl09XwCqM5zpBv87ERCXdfDtyKXvV7c9U22yWJh44QZqBocFnXN11K96qow==}
@@ -10708,7 +10708,7 @@ packages:
       '@simplewebauthn/browser': ^9.0.1
       '@simplewebauthn/server': ^9.0.2
       next: ^14.0.0-0 || ^15.0.0 || ^16.0.0
-      nodemailer: ^9.1.1
+      nodemailer: ^10.0.9
       react: 19.1.7
     peerDependenciesMeta:
       '@simplewebauthn/browser':
@@ -10796,13 +10796,9 @@ packages:
     resolution: {integrity: sha512-OmO8+GM1JUZqXET720VrJCwkjUCXmCMQm0Z3UDDRbfNLHS4NEAvY60j5jiFv0tkKw2PNNlqOLhahVmwJIOLDIQ==}
     engines: {node: '>=18'}
 
-  nodemailer@7.0.11:
-    resolution: {integrity: sha512-gnXhNRE0FNhD7wPSCGhdNh46Hs6nm+uTyg+Kq0cZukNQiYdnCsoQjodNP9BQVG9XrcK/v6/MgpAPBUFyzh9pvw==}
-    engines: {node: '>=6.0.0'}
-
-  nodemailer@9.1.1:
-    resolution: {integrity: sha512-izw9mVKFix6YSnC9eLgV6g1opl9DUlRio9ZNcq+Wu9Ujn2UwF+8Nl0B8nz22kEC+CTZCvinkxwJ0DeFbb6NwcQ==}
-    engines: {node: '>=6.0.0'}
+  nodemailer@10.2.1:
+    resolution: {integrity: sha512-ZrDNsPFoDMwefNs7sJwrYiEJ/CG4ClJWDZv05iNJsEBWa8GRDry1QJHTJxsuTAY9eDDKjX4k+q3SxslXJOao7w==}
+    engines: {node: '>=20.0.0'}
 
   normalize-package-data@2.5.0:
     resolution: {integrity: sha512-/5CMN3T0R4XTj4DcGaexo+roZSdSFW/0AOOTROrjxzCG1wrWXEsGbRKevjlIL+ZDE4sZlJr5ED4YW0yqmkK+eA==}
@@ -11119,11 +11115,14 @@ packages:
   pino-abstract-transport@2.0.0:
     resolution: {integrity: sha512-F63x5tizV6WCh4R6RHyi2Ml+M70DNRXt/+HANowMflpgGFMAym/VKm6G7ZOQRjqN7XbGxK1Lg9t6ZrtzOaivMw==}
 
+  pino-abstract-transport@3.0.0:
+    resolution: {integrity: sha512-wlfUczU+n7Hy/Ha5j9a/gZNy7We5+cXp8YL+X+PG8S0KXxw7n/JXA3c46Y0zQznIJ83URJiwy7Lh56WLokNuxg==}
+
   pino-std-serializers@7.0.0:
     resolution: {integrity: sha512-e906FRY0+tV27iq4juKzSYPbUj2do2X2JX4EzSca1631EB2QJQUqGbDuERal7LCtOpxl6x3+nvo9NPZcmjkiFA==}
 
-  pino@10.1.0:
-    resolution: {integrity: sha512-0zZC2ygfdqvqK8zJIr1e+wT1T/L+LF6qvqvbzEQ6tiMAoTqEVK9a1K3YRu8HEUvGEvNqZyPJTtb2sNIoTkB83w==}
+  pino@10.3.1:
+    resolution: {integrity: sha512-r34yH/GlQpKZbU1BvFFqOjhISRo1MNx1tWYsYvmj6KIRHSPMT2+yHOEb1SG6NMvRoHRF0a07kCOox/9yakl1vg==}
     hasBin: true
 
   pino@9.14.0:
@@ -11735,6 +11734,9 @@ packages:
     resolution: {integrity: sha512-57frrGM/OCTLqLOAh0mhVA9VBMHd+9U7Zb2THMGdBUoZVOtGbJzjxsYGDJ3A9AYYCP4hn6y1TVbaOfzWtm5GFg==}
     engines: {node: '>= 12.13.0'}
 
+  real-require@1.0.0:
+    resolution: {integrity: sha512-P4nbQYQfePJxRSmY+v/KINxVucm4NF3p3s7pJveMTtom52FR4YGltUQLB8idDXwDDWW+eYrWDFbuzUnjoWHF7g==}
+
   recma-build-jsx@1.0.0:
     resolution: {integrity: sha512-8GtdyqaBcDfva+GUKDr3nev3VpKAhup1+RvkMvUxURHpW7QyIvk9F5wz7Vzo06CEMSilw6uArgRqhpiUcWp8ew==}
 
@@ -12120,8 +12122,8 @@ packages:
     resolution: {integrity: sha512-j7WyPdf0CJoutMzMoPLF/bVXHtKZIT9Rb4eGeEbWw8X2t5oirjPgpL+OpaENZrILYaXqYwnVH+qgUwVbl+pUJQ==}
     engines: {node: '>= 18'}
 
-  socks@2.8.7:
-    resolution: {integrity: sha512-HLpt+uLy/pxB+bum/9DzAgiKS8CX1EvbWxI4zlmgGCExImLdiad2iCwXT5Z4c9c3Eq8rP2318mPW2c+QbtjK8A==}
+  socks@2.8.9:
+    resolution: {integrity: sha512-LJhUYUvItdQ0LkJTmPeaEObWXAqFyfmP85x0tch/ez9cahmhlBBLbIqDFnvBnUJGagb0JbIQrkBs1wJ+yRYpEw==}
     engines: {node: '>= 10.0.0', npm: '>= 3.0.0'}
 
   sonic-boom@4.2.0:
@@ -12444,6 +12446,10 @@ packages:
 
   thread-stream@3.1.0:
     resolution: {integrity: sha512-OqyPZ9u96VohAyMfJykzmivOrY2wfMSf3C5TtFJVgN+Hm6aj+voFhlK+kZEIv2FBh1X6Xp3DlnCOfEQ3B2J86A==}
+
+  thread-stream@4.2.0:
+    resolution: {integrity: sha512-e2zZ96wSChazBsbENf/Pcm/4swHt2cEKQ92rhUjkL9GCKiTDJIaTBenjE/m9DXi0QBmTMDkFDdOomUy20A1tDQ==}
+    engines: {node: '>=20'}
 
   throttleit@2.1.0:
     resolution: {integrity: sha512-nt6AMGKW1p/70DF/hGBdJB57B8Tspmbp5gfJ8ilhLnt7kkr2ye7hzD6NVG8GGErk2HWF34igrL2CXmNIkzKqKw==}
@@ -13404,7 +13410,7 @@ snapshots:
       '@ast-grep/napi-win32-ia32-msvc': 0.45.3
       '@ast-grep/napi-win32-x64-msvc': 0.45.3
 
-  '@auth/core@0.41.3(nodemailer@9.1.1)':
+  '@auth/core@0.41.3(nodemailer@10.2.1)':
     dependencies:
       '@panva/hkdf': 1.2.1
       jose: 6.2.3
@@ -13412,7 +13418,7 @@ snapshots:
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
     optionalDependencies:
-      nodemailer: 9.1.1
+      nodemailer: 10.2.1
 
   '@aws-crypto/crc32@5.2.0':
     dependencies:
@@ -15961,7 +15967,7 @@ snapshots:
       cookie: 1.1.1
       esbuild: 0.28.2
       express: 5.2.1
-      next: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
+      next: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       path-to-regexp: 6.3.0
       urlpattern-polyfill: 10.1.0
       yaml: 2.9.1
@@ -15979,7 +15985,7 @@ snapshots:
       comment-json: 4.6.2
       enquirer: 2.4.1
       glob: 13.0.6
-      next: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
+      next: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       ts-tqdm: 0.8.6
       wrangler: 4.151.3(bufferutil@4.0.9)
       yargs: 18.2.0
@@ -17850,7 +17856,7 @@ snapshots:
 
   '@testing-library/dom@10.4.1':
     dependencies:
-      '@babel/code-frame': 7.29.0
+      '@babel/code-frame': 7.29.7
       '@babel/runtime': 7.29.2
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
@@ -18424,7 +18430,7 @@ snapshots:
 
   '@vue/compiler-sfc@3.5.22':
     dependencies:
-      '@babel/parser': 7.29.2
+      '@babel/parser': 7.29.11
       '@vue/compiler-core': 3.5.22
       '@vue/compiler-dom': 3.5.22
       '@vue/compiler-ssr': 3.5.22
@@ -18597,10 +18603,10 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  '@zone-eu/mailsplit@5.4.8':
+  '@zone-eu/mailsplit@5.4.16':
     dependencies:
       libbase64: 1.3.0
-      libmime: 5.3.7
+      libmime: 5.4.3
       libqp: 2.1.1
 
   abab@2.0.6:
@@ -19840,7 +19846,7 @@ snapshots:
 
   encodeurl@2.0.0: {}
 
-  encoding-japanese@2.2.0: {}
+  encoding-japanese@2.3.0: {}
 
   end-of-stream@1.4.5:
     dependencies:
@@ -21203,17 +21209,16 @@ snapshots:
 
   image-size@2.0.4: {}
 
-  imapflow@1.2.0:
+  imapflow@1.7.8:
     dependencies:
-      '@zone-eu/mailsplit': 5.4.8
-      encoding-japanese: 2.2.0
-      iconv-lite: 0.7.0
+      '@zone-eu/mailsplit': 5.4.16
+      encoding-japanese: 2.3.0
+      iconv-lite: 0.7.3
       libbase64: 1.3.0
-      libmime: 5.3.7
+      libmime: 5.4.3
       libqp: 2.1.1
-      nodemailer: 7.0.11
-      pino: 10.1.0
-      socks: 2.8.7
+      pino: 10.3.1
+      socks: 2.8.9
 
   immediate@3.0.6: {}
 
@@ -21962,10 +21967,10 @@ snapshots:
 
   libbase64@1.3.0: {}
 
-  libmime@5.3.7:
+  libmime@5.4.3:
     dependencies:
-      encoding-japanese: 2.2.0
-      iconv-lite: 0.6.3
+      encoding-japanese: 2.3.0
+      iconv-lite: 0.7.3
       libbase64: 1.3.0
       libqp: 2.1.1
 
@@ -22705,7 +22710,7 @@ snapshots:
   miniflare@5.20261019.1-beta(bufferutil@4.0.9):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
-      sharp: 0.35.5(@types/node@22.19.0)
+      sharp: 0.35.5(@types/node@24.10.13)
       undici: 7.29.1
       workerd: 1.20261019.1
       ws: 8.21.0(bufferutil@4.0.9)
@@ -22797,21 +22802,29 @@ snapshots:
 
   neo-async@2.6.2: {}
 
-  next-auth@5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@9.1.1)(react@19.1.7):
+  next-auth@5.0.0-beta.32(next@15.5.28(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(babel-plugin-macros@3.1.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@10.2.1)(react@19.1.7):
     dependencies:
-      '@auth/core': 0.41.3(nodemailer@9.1.1)
+      '@auth/core': 0.41.3(nodemailer@10.2.1)
       next: 15.5.28(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(babel-plugin-macros@3.1.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       react: 19.1.7
     optionalDependencies:
-      nodemailer: 9.1.1
+      nodemailer: 10.2.1
 
-  next-auth@5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@9.1.1)(react@19.1.7):
+  next-auth@5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@10.2.1)(react@19.1.7):
     dependencies:
-      '@auth/core': 0.41.3(nodemailer@9.1.1)
+      '@auth/core': 0.41.3(nodemailer@10.2.1)
+      next: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
+      react: 19.1.7
+    optionalDependencies:
+      nodemailer: 10.2.1
+
+  next-auth@5.0.0-beta.32(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(nodemailer@10.2.1)(react@19.1.7):
+    dependencies:
+      '@auth/core': 0.41.3(nodemailer@10.2.1)
       next: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@22.19.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7)
       react: 19.1.7
     optionalDependencies:
-      nodemailer: 9.1.1
+      nodemailer: 10.2.1
 
   next-themes@0.3.0(react-dom@19.1.7(react@19.1.7))(react@19.1.7):
     dependencies:
@@ -22824,6 +22837,32 @@ snapshots:
       react-dom: 19.1.7(react@19.1.7)
 
   next@15.5.28(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(babel-plugin-macros@3.1.0)(react-dom@19.1.7(react@19.1.7))(react@19.1.7):
+    dependencies:
+      '@next/env': 15.5.28
+      '@swc/helpers': 0.5.15
+      caniuse-lite: 1.0.30001753
+      postcss: 8.5.32
+      react: 19.1.7
+      react-dom: 19.1.7(react@19.1.7)
+      styled-jsx: 5.1.6(@babel/core@7.29.7)(babel-plugin-macros@3.1.0)(react@19.1.7)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 15.5.28
+      '@next/swc-darwin-x64': 15.5.28
+      '@next/swc-linux-arm64-gnu': 15.5.28
+      '@next/swc-linux-arm64-musl': 15.5.28
+      '@next/swc-linux-x64-gnu': 15.5.28
+      '@next/swc-linux-x64-musl': 15.5.28
+      '@next/swc-win32-arm64-msvc': 15.5.28
+      '@next/swc-win32-x64-msvc': 15.5.28
+      '@opentelemetry/api': 1.9.1
+      '@playwright/test': 1.56.1
+      sharp: 0.35.5(@types/node@20.19.24)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@types/node'
+      - babel-plugin-macros
+
+  next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(@types/node@20.19.24)(react-dom@19.1.7(react@19.1.7))(react@19.1.7):
     dependencies:
       '@next/env': 15.5.28
       '@swc/helpers': 0.5.15
@@ -22875,6 +22914,32 @@ snapshots:
       - '@types/node'
       - babel-plugin-macros
 
+  next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7):
+    dependencies:
+      '@next/env': 15.5.28
+      '@swc/helpers': 0.5.15
+      caniuse-lite: 1.0.30001753
+      postcss: 8.5.32
+      react: 19.1.7
+      react-dom: 19.1.7(react@19.1.7)
+      styled-jsx: 5.1.6(@babel/core@7.29.7)(babel-plugin-macros@3.1.0)(react@19.1.7)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 15.5.28
+      '@next/swc-darwin-x64': 15.5.28
+      '@next/swc-linux-arm64-gnu': 15.5.28
+      '@next/swc-linux-arm64-musl': 15.5.28
+      '@next/swc-linux-x64-gnu': 15.5.28
+      '@next/swc-linux-x64-musl': 15.5.28
+      '@next/swc-win32-arm64-msvc': 15.5.28
+      '@next/swc-win32-x64-msvc': 15.5.28
+      '@opentelemetry/api': 1.9.1
+      '@playwright/test': 1.56.1
+      sharp: 0.35.5(@types/node@24.10.13)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@types/node'
+      - babel-plugin-macros
+
   nice-grpc-common@2.0.2:
     dependencies:
       ts-error: 1.0.6
@@ -22912,9 +22977,7 @@ snapshots:
 
   node-releases@2.0.60: {}
 
-  nodemailer@7.0.11: {}
-
-  nodemailer@9.1.1: {}
+  nodemailer@10.2.1: {}
 
   normalize-package-data@2.5.0:
     dependencies:
@@ -23219,21 +23282,25 @@ snapshots:
     dependencies:
       split2: 4.2.0
 
+  pino-abstract-transport@3.0.0:
+    dependencies:
+      split2: 4.2.0
+
   pino-std-serializers@7.0.0: {}
 
-  pino@10.1.0:
+  pino@10.3.1:
     dependencies:
       '@pinojs/redact': 0.4.0
       atomic-sleep: 1.0.0
       on-exit-leak-free: 2.1.2
-      pino-abstract-transport: 2.0.0
+      pino-abstract-transport: 3.0.0
       pino-std-serializers: 7.0.0
       process-warning: 5.0.0
       quick-format-unescaped: 4.0.4
       real-require: 0.2.0
       safe-stable-stringify: 2.5.0
       sonic-boom: 4.2.0
-      thread-stream: 3.1.0
+      thread-stream: 4.2.0
 
   pino@9.14.0:
     dependencies:
@@ -23986,6 +24053,8 @@ snapshots:
 
   real-require@0.2.0: {}
 
+  real-require@1.0.0: {}
+
   recma-build-jsx@1.0.0:
     dependencies:
       '@types/estree': 1.0.9
@@ -24481,6 +24550,7 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
       '@types/node': 22.19.0
+    optional: true
 
   sharp@0.35.5(@types/node@24.10.13):
     dependencies:
@@ -24514,7 +24584,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
       '@types/node': 24.10.13
-    optional: true
 
   sharp@0.35.5(@types/node@25.9.1):
     dependencies:
@@ -24639,7 +24708,7 @@ snapshots:
 
   smol-toml@1.9.1: {}
 
-  socks@2.8.7:
+  socks@2.8.9:
     dependencies:
       ip-address: 10.7.5
       smart-buffer: 4.2.0
@@ -25038,6 +25107,10 @@ snapshots:
   thread-stream@3.1.0:
     dependencies:
       real-require: 0.2.0
+
+  thread-stream@4.2.0:
+    dependencies:
+      real-require: 1.0.0
 
   throttleit@2.1.0: {}
 
