@@ -34,7 +34,7 @@ const modal = new ModalClient();
 const app = await modal.apps.fromName("research-agent-sandbox", {
   createIfMissing: true,
 });
-const image = modal.images.fromRegistry("node:22-slim");
+const image = modal.images.fromRegistry("node:22.23.4-slim");
 const volume = await modal.volumes.fromName("research-agent-sandbox-code", {
   createIfMissing: true,
 });
