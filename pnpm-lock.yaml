@@ -88,8 +88,8 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2
       '@opennextjs/cloudflare':
-        specifier: ^1.20.12
-        version: 1.20.12(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(wrangler@4.151.3(bufferutil@4.0.9))
+        specifier: ^1.20.13
+        version: 1.20.13(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(wrangler@4.151.3(bufferutil@4.0.9))
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -4915,14 +4915,14 @@ packages:
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
 
-  '@opennextjs/aws@4.1.11':
-    resolution: {integrity: sha512-cew0cUgGZF/Kr/C+Z1qvmAdKj4Va5cRho+aB6Ci/5ILd+QDdrR2LVaC/6Qm12KVF37vSLDK7lPDd/KdvvCoNEw==}
+  '@opennextjs/aws@4.1.12':
+    resolution: {integrity: sha512-tZm1rBTRY6MVOOPCxvx0oZIg3b2Z5u0TzDm9D4Wy1cZpMp8Rjfex20gRQeEn0o6dsXpVQCE8q65TjsCFJA5Fpw==}
     hasBin: true
     peerDependencies:
       next: '>=15.5.28 <16 || >=16.4.1'
 
-  '@opennextjs/cloudflare@1.20.12':
-    resolution: {integrity: sha512-ZU1j7hMuOFaa0RHT/wrPXQKEEqzkkoc3fHaHy0Xrx4K0zZdSXGQbwbSHCnbjPRGXblCuWo+ur6UUkl0o9kVhrg==}
+  '@opennextjs/cloudflare@1.20.13':
+    resolution: {integrity: sha512-Rhcvsx/PlQzOslleCBttG+r2o16lOFazKbULxiN33CYexm8S1Fd00mn3tU2w76PIaqO9evzgVKInOpR/fTMc0Q==}
     hasBin: true
     peerDependencies:
       next: '>=15.5.28 <16 || >=16.4.1'
@@ -15935,7 +15935,7 @@ snapshots:
 
   '@nolyfill/is-core-module@1.0.39': {}
 
-  '@opennextjs/aws@4.1.11(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))':
+  '@opennextjs/aws@4.1.12(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))':
     dependencies:
       '@ast-grep/napi': 0.45.3
       '@aws-sdk/client-cloudfront': 3.984.0
@@ -15959,11 +15959,11 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@opennextjs/cloudflare@1.20.12(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(wrangler@4.151.3(bufferutil@4.0.9))':
+  '@opennextjs/cloudflare@1.20.13(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))(wrangler@4.151.3(bufferutil@4.0.9))':
     dependencies:
       '@ast-grep/napi': 0.45.3
       '@dotenvx/dotenvx': 2.38.1
-      '@opennextjs/aws': 4.1.11(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))
+      '@opennextjs/aws': 4.1.12(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.56.1)(react-dom@19.1.7(react@19.1.7))(react@19.1.7))
       ci-info: 4.4.0
       cloudflare: 4.5.0
       comment-json: 4.6.2
@@ -19887,7 +19887,7 @@ snapshots:
       has-property-descriptors: 1.0.2
       has-proto: 1.2.0
       has-symbols: 1.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       internal-slot: 1.1.0
       is-array-buffer: 3.0.5
       is-callable: 1.2.7
@@ -19956,11 +19956,11 @@ snapshots:
       es-errors: 1.3.0
       get-intrinsic: 1.3.0
       has-tostringtag: 1.0.2
-      hasown: 2.0.2
+      hasown: 2.0.4
 
   es-shim-unscopables@1.1.0:
     dependencies:
-      hasown: 2.0.2
+      hasown: 2.0.4
 
   es-to-primitive@1.3.0:
     dependencies:
@@ -19980,7 +19980,7 @@ snapshots:
   esast-util-from-js@2.0.1:
     dependencies:
       '@types/estree-jsx': 1.0.5
-      acorn: 8.16.0
+      acorn: 8.19.0
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.3
 
@@ -20805,7 +20805,7 @@ snapshots:
       call-bound: 1.0.4
       define-properties: 1.2.1
       functions-have-names: 1.2.3
-      hasown: 2.0.2
+      hasown: 2.0.4
       is-callable: 1.2.7
 
   functions-have-names@1.2.3: {}
@@ -20844,7 +20844,7 @@ snapshots:
       get-proto: 1.0.1
       gopd: 1.2.0
       has-symbols: 1.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       math-intrinsics: 1.1.0
 
   get-nonce@1.0.1: {}
@@ -21247,7 +21247,7 @@ snapshots:
   internal-slot@1.1.0:
     dependencies:
       es-errors: 1.3.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       side-channel: 1.1.0
 
   internmap@1.0.1: {}
@@ -21370,7 +21370,7 @@ snapshots:
       call-bound: 1.0.4
       gopd: 1.2.0
       has-tostringtag: 1.0.2
-      hasown: 2.0.2
+      hasown: 2.0.4
 
   is-set@2.0.3: {}
 
@@ -22724,7 +22724,7 @@ snapshots:
 
   mlly@1.8.0:
     dependencies:
-      acorn: 8.16.0
+      acorn: 8.19.0
       pathe: 2.0.3
       pkg-types: 1.3.1
       ufo: 1.6.1
@@ -24988,7 +24988,7 @@ snapshots:
   terser@5.36.0:
     dependencies:
       '@jridgewell/source-map': 0.3.11
-      acorn: 8.16.0
+      acorn: 8.19.0
       commander: 2.20.3
       source-map-support: 0.5.21
 

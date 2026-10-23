@@ -41,7 +41,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.1.4",
     "@changesets/cli": "^3.0.2",
-    "@opennextjs/cloudflare": "^1.20.12",
+    "@opennextjs/cloudflare": "^1.20.13",
     "husky": "^9.1.7",
     "turbo": "^2.9.14",
     "wrangler": "^4.151.3"
