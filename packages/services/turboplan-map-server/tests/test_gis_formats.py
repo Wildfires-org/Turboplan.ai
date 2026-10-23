@@ -144,6 +144,28 @@ class TestGISFormats:
         assert all(r['success'] for r in results)
         assert all(r['type'] == 'geojson' for r in results)
 
+    def test_coordinates_are_rounded_and_2d(self):
+        self.write_text('trail.geojson', json.dumps({
+            'type': 'FeatureCollection',
+            'features': [{
+                'type': 'Feature',
+                'geometry': {'type': 'LineString', 'coordinates': [
+                    [-120.123456789012, 38.987654321098, 512.3],
+                    [-120.2, 38.0000007, 498.0],
+                ]},
+                'properties': {'name': 'trail'},
+            }],
+        }))
+
+        results = self.process_source()
+
+        assert [r['success'] for r in results] == [True]
+        geometry = results[0]['data']['features'][0]['geometry']
+        assert geometry['coordinates'] == [
+            [-120.123457, 38.987654],
+            [-120.2, 38.000001],
+        ]
+
     def test_nested_shapefile_ignores_macos_and_hidden_entries(self):
         self.write_layer('a/b/parcels.shp', 'ESRI Shapefile', POLYGON_SCHEMA,
                          [(SQUARE, 'p')])
