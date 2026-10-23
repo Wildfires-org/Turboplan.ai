@@ -19,6 +19,9 @@ export default defineConfig({
       name: "TurboplanGanttTask",
       formats: ["es"],
       fileName: (format) => `index.${format === "es" ? "js" : format}`,
+      // Vite 5+ names the library CSS after the package; package.json
+      // exports ./dist/style.css.
+      cssFileName: "style",
     },
     rollupOptions: {
       // Externalize deps that shouldn't be bundled
