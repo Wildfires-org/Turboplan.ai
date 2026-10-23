@@ -23,14 +23,26 @@ _SENSITIVE_HEADERS = {"authorization", "cookie", "set-cookie", "x-api-key"}
 # Upload endpoints ingest GIS files from caller-supplied URLs — presigned URLs
 # carry signatures/keys in query params (e.g. X-Amz-Signature), so match the
 # sensitive word anywhere in the param name, like the JS scrubbers.
-_SENSITIVE_PARAM_RE = re.compile(
-    r"(^|[?&#])([^&#=]*(?:token|code|key|secret|signature|email)[^&#=]*)=[^&#\s]*",
-    re.IGNORECASE,
-)
+# The name is tested separately from the `name=` scan to keep matching linear.
+_PARAM_NAME_RE = re.compile(r"(?:^|[?&#\s])([^?&#=\s]*)=")
+_PARAM_VALUE_RE = re.compile(r"[^&#\s]*")
+_SENSITIVE_NAME_RE = re.compile(r"token|code|key|secret|signature|email", re.IGNORECASE)
 
 
 def _redact_sensitive_url(url):
-    return _SENSITIVE_PARAM_RE.sub(r"\g<1>\g<2>=[redacted]", url)
+    parts = []
+    copied_up_to = 0
+    # A non-sensitive value is still scanned, so a nested `?token=` is caught;
+    # pairs inside an already-redacted value are skipped.
+    for match in _PARAM_NAME_RE.finditer(url):
+        is_nested = match.start() < copied_up_to
+        if is_nested or not _SENSITIVE_NAME_RE.search(match.group(1)):
+            continue
+        parts.append(url[copied_up_to : match.end()])
+        parts.append("[redacted]")
+        copied_up_to = _PARAM_VALUE_RE.match(url, match.end()).end()
+    parts.append(url[copied_up_to:])
+    return "".join(parts)
 
 
 def _scrub_sentry_event(event, _hint):
