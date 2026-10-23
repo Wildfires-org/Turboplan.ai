@@ -24,10 +24,18 @@ type StorageConfig = {
 };
 
 export const createServer = (user: McpUserContext, storage: StorageConfig) => {
-  const server = new McpServer({
-    name: SERVER_NAME,
-    version: SERVER_VERSION,
-  });
+  const server = new McpServer(
+    {
+      name: SERVER_NAME,
+      version: SERVER_VERSION,
+    },
+    {
+      // Without a cap, one request's arguments can hold enough array elements
+      // and object keys to exhaust the Worker's memory during validation
+      // (GHSA-46jr-4wx8-v453). Real tool calls carry a few dozen at most.
+      maxToolInputElements: 10_000,
+    },
+  );
 
   server.registerTool(
     "ping",

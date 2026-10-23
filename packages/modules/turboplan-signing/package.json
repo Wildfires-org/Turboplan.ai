@@ -64,7 +64,7 @@
     "@types/pdfkit": "^0.17.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.7",
-    "next": "15.5.25",
+    "next": "15.5.28",
     "react": "19.1.7",
     "react-dom": "19.1.7",
     "rollup-plugin-preserve-use-client": "^3.0.1",

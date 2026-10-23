@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@sentry/cloudflare": "^10.70.0",
     "@wildfires-org/turboplan-api-client": "workspace:*",
     "@wildfires-org/turboplan-billing": "workspace:*",
@@ -33,6 +33,6 @@
     "esbuild": "^0.25.12",
     "tsx": "^4.19.1",
     "typescript": "^5.8.2",
-    "wrangler": "^4.94.0"
+    "wrangler": "^4.151.3"
   }
 }
