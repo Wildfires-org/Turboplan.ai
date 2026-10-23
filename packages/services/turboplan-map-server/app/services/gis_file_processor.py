@@ -108,7 +108,7 @@ class GISFileProcessorService:
         results = []
 
         try:
-            # Fiona 1.9 cannot restrict listlayers to one driver; GDAL_SKIP
+            # Fiona (1.10 too) cannot restrict listlayers to one driver; GDAL_SKIP
             # leaves only the allowed ones registered. Each layer is then
             # opened with `driver` alone.
             layers = fiona.listlayers(gis_file['path'])
