@@ -32,6 +32,7 @@ export { TurboplanOrganizationPage } from "./turboplan-organization";
 export { TurboplanProjectPage } from "./turboplan-project";
 export { TurboplanProjectChatPage } from "./turboplan-project-chat";
 export {
+  NEW_MILESTONE_TITLE,
   type TaskStatusLabel,
   TurboplanProjectTasksPage,
 } from "./turboplan-project-tasks";

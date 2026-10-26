@@ -1,6 +1,6 @@
 import { expect, type Page, type Response, test } from "@playwright/test";
 
-import { TurboplanProjectTasksPage } from "../../pages";
+import { NEW_MILESTONE_TITLE, TurboplanProjectTasksPage } from "../../pages";
 import {
   createTestMilestone,
   createTestProjectInOffice,
@@ -9,17 +9,23 @@ import {
 } from "../../utils";
 
 /**
- * Acting on a task in the Gantt view right after creating it, with no reload.
+ * Acting on a task or milestone in the Gantt view right after creating it,
+ * with no reload.
  *
- * "+ Add Task" puts the new task in the table at once under an optimistic
- * `temp-<uuid>` id. Regression: the client kept that id after the server
- * answered, so the next delete or update went to `/api/tasks/temp-…` and
- * failed while the table still showed the change. A deleted task came back
- * after a reload, and a status change or rename was lost.
+ * "+ Add Task" and "+ Add Milestone" put the new row in the table at once
+ * under an optimistic `temp-<uuid>` (or `temp-milestone-<uuid>`) id.
+ * Regressions:
+ * - The client kept that id after the server answered, so the next delete or
+ *   update went to `/api/tasks/temp-…` and failed while the table still
+ *   showed the change. A deleted task came back after a reload, and a status
+ *   change or rename was lost.
+ * - "+ Add Milestone" posted an empty body. The API refused it (400: title
+ *   required) and the whole view switched to "Error loading tasks".
  *
  * Runs as the citizen user (default auth state). Each test gets its own
- * project with one seeded milestone, so the tests stay independent when they
- * run in parallel.
+ * project with one seeded milestone (the "+ Add Milestone" row only shows
+ * once there is one), so the tests stay independent when they run in
+ * parallel.
  */
 
 const shortId = (): string => Math.random().toString(36).substring(2, 8);
@@ -38,18 +44,30 @@ const recordTempIdRequests = (page: Page): string[] => {
   return requests;
 };
 
-/** The mutation went to the server's id for the task, and succeeded. */
-const expectSucceededForTask = (response: Response, taskId: string) => {
+/** The mutation went to `path`, which names the server's id, and succeeded. */
+const expectSucceededAt = (response: Response, path: string) => {
   const method = response.request().method();
   const sent = `${method} ${new URL(response.url()).pathname}`;
-  expect(sent, "the client should call the API with the server's task id").toBe(
-    `${method} /api/tasks/${taskId}`,
+  expect(sent, "the client should call the API with the server's id").toBe(
+    `${method} ${path}`,
   );
   expect(response.ok(), `${sent} answered ${response.status()}`).toBe(true);
 };
 
-test.describe("Task actions right after creating the task", () => {
+const expectSucceededForTask = (response: Response, taskId: string) => {
+  expectSucceededAt(response, `/api/tasks/${taskId}`);
+};
+
+const expectSucceededForMilestone = (
+  response: Response,
+  milestoneId: string,
+) => {
+  expectSucceededAt(response, `/api/milestones/${milestoneId}`);
+};
+
+test.describe("Actions right after creating a task or milestone", () => {
   let workspace: WorkspaceInfo;
+  let projectId: string;
   let milestoneTitle: string;
   let tasksPage: TurboplanProjectTasksPage;
   let tempIdRequests: string[];
@@ -64,6 +82,7 @@ test.describe("Task actions right after creating the task", () => {
       officeId: workspace.officeId,
       createdBy: workspace.userId,
     });
+    projectId = project.id;
     milestoneTitle = `E2E Milestone ${shortId()}`;
     await createTestMilestone({
       projectId: project.id,
@@ -155,6 +174,75 @@ test.describe("Task actions right after creating the task", () => {
       "the new title should be kept after a reload",
     ).toBeVisible();
     await expect(tasksPage.taskTitle(title)).toHaveCount(0);
+    expect(tempIdRequests, "requests sent with a temp id").toEqual([]);
+  });
+
+  test("a new milestone can be renamed, given a task and deleted", async ({
+    page,
+  }) => {
+    const { response: created, optimisticTitle } =
+      await tasksPage.addMilestone();
+    expect(
+      created.ok(),
+      `POST /api/milestones/document/${projectId} answered ${created.status()}: ${await created.text()}`,
+    ).toBe(true);
+    const { milestone } = (await created.json()) as {
+      milestone: { id: string; title: string };
+    };
+    expect(milestone.title, "the milestone should be saved as shown").toBe(
+      NEW_MILESTONE_TITLE,
+    );
+
+    // Swapping in the real id re-keys (re-mounts) the row, so wait for it
+    // before using the row. Soft, so that a regression still goes on to
+    // report the request it sends with the temp id.
+    await expect
+      .configure({ soft: true })
+      .poll(() => optimisticTitle.evaluate((cell) => cell.isConnected), {
+        message: "the row should re-mount under the server's milestone id",
+      })
+      .toBe(false);
+    await expect(tasksPage.milestoneTitle(NEW_MILESTONE_TITLE)).toBeVisible();
+    await expect(tasksPage.loadError()).toHaveCount(0);
+
+    const newTitle = `Renamed milestone ${shortId()}`;
+    const renamed = await tasksPage.renameMilestone(
+      NEW_MILESTONE_TITLE,
+      newTitle,
+    );
+    expectSucceededForMilestone(renamed, milestone.id);
+    await expect(tasksPage.milestoneTitle(newTitle)).toBeVisible();
+
+    const taskTitle = `In new milestone ${shortId()}`;
+    const taskCreated = await tasksPage.createTaskInMilestone(
+      newTitle,
+      taskTitle,
+      "Created by the task-actions-after-create e2e spec",
+    );
+    expect(
+      taskCreated.request().postDataJSON()?.milestoneId,
+      "the new task should name the server's milestone id",
+    ).toBe(milestone.id);
+    expect(
+      taskCreated.ok(),
+      `POST /api/tasks/document/${projectId} answered ${taskCreated.status()}`,
+    ).toBe(true);
+    await expect(tasksPage.taskTitle(taskTitle)).toBeVisible();
+
+    const deleted = await tasksPage.deleteMilestone(newTitle);
+    expectSucceededForMilestone(deleted, milestone.id);
+    await expect(tasksPage.milestoneTitle(newTitle)).toHaveCount(0);
+    await expect(tasksPage.taskTitle(taskTitle)).toHaveCount(0);
+    await expect(tasksPage.loadError()).toHaveCount(0);
+
+    await page.reload();
+    await tasksPage.expectMilestone(milestoneTitle);
+    await expect(
+      tasksPage.milestoneTitle(newTitle),
+      "the deleted milestone should not come back after a reload",
+    ).toHaveCount(0);
+    await expect(tasksPage.milestoneTitle(NEW_MILESTONE_TITLE)).toHaveCount(0);
+    await expect(tasksPage.taskTitle(taskTitle)).toHaveCount(0);
     expect(tempIdRequests, "requests sent with a temp id").toEqual([]);
   });
 });
