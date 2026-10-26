@@ -375,18 +375,22 @@ export function useProjectTasksUI({
   const handleTaskStatusClick = useCallback(
     async (taskId: string, currentStatus: TaskStatus) => {
       // Cycle through statuses: not_started -> in_progress -> completed -> not_started
-      switch (currentStatus) {
-        case TaskStatus.NOT_STARTED:
-          await businessActions.markTaskAsInProgress(taskId);
-          break;
-        case TaskStatus.IN_PROGRESS:
-          await businessActions.markTaskAsCompleted(taskId);
-          break;
-        case TaskStatus.COMPLETED:
-          await businessActions.markTaskAsNotStarted(taskId);
-          break;
-        default:
-          await businessActions.markTaskAsNotStarted(taskId);
+      try {
+        switch (currentStatus) {
+          case TaskStatus.NOT_STARTED:
+            await businessActions.markTaskAsInProgress(taskId);
+            break;
+          case TaskStatus.IN_PROGRESS:
+            await businessActions.markTaskAsCompleted(taskId);
+            break;
+          case TaskStatus.COMPLETED:
+            await businessActions.markTaskAsNotStarted(taskId);
+            break;
+          default:
+            await businessActions.markTaskAsNotStarted(taskId);
+        }
+      } catch {
+        // Error handling is done in business logic layer
       }
     },
     [businessActions],
@@ -395,40 +399,64 @@ export function useProjectTasksUI({
   // Set a task to a specific status (used by the status dropdown)
   const handleTaskStatusChange = useCallback(
     async (taskId: string, status: TaskStatus) => {
-      await businessActions.updateTask(taskId, { status });
+      try {
+        await businessActions.updateTask(taskId, { status });
+      } catch {
+        // Error handling is done in business logic layer
+      }
     },
     [businessActions],
   );
 
   const handleRenameTask = useCallback(
     async (taskId: string, newTitle: string) => {
-      await businessActions.updateTask(taskId, { title: newTitle });
+      try {
+        await businessActions.updateTask(taskId, { title: newTitle });
+      } catch {
+        // Error handling is done in business logic layer
+      }
     },
     [businessActions],
   );
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
-      await businessActions.deleteTask(taskId);
+      try {
+        await businessActions.deleteTask(taskId);
+      } catch {
+        // Error handling is done in business logic layer
+      }
     },
     [businessActions],
   );
 
   // Milestone Handlers
   const handleCreateMilestone = useCallback(async () => {
-    await businessActions.createMilestone();
+    try {
+      await businessActions.createMilestone();
+    } catch {
+      // Error handling is done in business logic layer
+    }
   }, [businessActions]);
 
   const handleRenameMilestone = useCallback(
     async (milestoneId: string, newTitle: string) => {
-      await businessActions.updateMilestone(milestoneId, { title: newTitle });
+      try {
+        await businessActions.updateMilestone(milestoneId, { title: newTitle });
+      } catch {
+        // Error handling is done in business logic layer
+      }
     },
     [businessActions],
   );
 
   const handleDeleteMilestone = useCallback(
     async (milestoneId: string) => {
-      await businessActions.deleteMilestone(milestoneId);
+      try {
+        await businessActions.deleteMilestone(milestoneId);
+      } catch {
+        // Error handling is done in business logic layer
+      }
     },
     [businessActions],
   );
@@ -564,7 +592,11 @@ export function useProjectTasksUI({
   // Date Handlers
   const handleDateChange = useCallback(
     async (payload: DateChangedPayload, isMilestone: boolean) => {
-      await businessActions.updateItemDates(payload, isMilestone);
+      try {
+        await businessActions.updateItemDates(payload, isMilestone);
+      } catch {
+        // Error handling is done in business logic layer
+      }
     },
     [businessActions],
   );

@@ -70,7 +70,7 @@ export function createTaskOperations(config: TaskOperationsConfig) {
       updatedAt: new Date(),
     };
 
-    await executeOptimistic(
+    const createdTask = await executeOptimistic(
       // Optimistic update
       () => addTask(milestoneId, optimisticTask),
 
@@ -89,6 +89,9 @@ export function createTaskOperations(config: TaskOperationsConfig) {
 
       "createTask",
     );
+
+    // Swap the temp id for the real one, or later updates/deletes hit the API with it
+    updateTask(optimisticTask.id, createdTask);
   };
 
   const updateTaskById = async (taskId: string, updates: Partial<Task>) => {

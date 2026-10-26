@@ -55,6 +55,7 @@ export function useProjectTasks({
     // Optimistic actions
     addMilestone,
     updateMilestone: updateMilestoneInStore,
+    replaceMilestone,
     removeMilestone,
     addTask,
     updateTask: updateTaskInStore,
@@ -172,10 +173,17 @@ export function useProjectTasks({
     () => ({
       addMilestone,
       updateMilestone: updateMilestoneInStore,
+      replaceMilestone,
       removeMilestone,
       setError,
     }),
-    [addMilestone, updateMilestoneInStore, removeMilestone, setError],
+    [
+      addMilestone,
+      updateMilestoneInStore,
+      replaceMilestone,
+      removeMilestone,
+      setError,
+    ],
   );
 
   const milestoneOperations = useMemo(
