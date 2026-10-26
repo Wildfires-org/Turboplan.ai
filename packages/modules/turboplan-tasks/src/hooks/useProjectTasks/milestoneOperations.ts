@@ -79,8 +79,14 @@ export function createMilestoneOperations(config: MilestoneOperationsConfig) {
 
       // API operation
       async () => {
+        // Send the defaults the placeholder shows: the server requires a title,
+        // and the saved row should match what was displayed.
         const milestoneCreateData = {
           ...milestoneData,
+          title: optimisticMilestone.title,
+          status: optimisticMilestone.status,
+          startDate: optimisticMilestone.startDate,
+          dueDate: optimisticMilestone.dueDate,
           documentId: projectId,
         };
         return await taskService.createMilestone(milestoneCreateData);

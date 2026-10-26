@@ -7,6 +7,7 @@
 
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
+import { z } from "zod";
 import type { StoreApi } from "zustand";
 
 import { createErrorHandler } from "../src/hooks/useProjectTasks/errorHandler";
@@ -66,6 +67,18 @@ const taskRow = (id: string): Task => ({
 
 const stubService = (overrides: Partial<ITaskDataService>) =>
   overrides as ITaskDataService;
+
+/**
+ * The JSON body `apiService.createMilestone` posts for this data: it moves
+ * `documentId` into the URL and the API client stringifies the rest.
+ */
+const requestBody = ({
+  documentId,
+  ...payload
+}: Partial<Milestone>): Record<string, unknown> => {
+  assert.equal(documentId, PROJECT_ID);
+  return JSON.parse(JSON.stringify(payload));
+};
 
 // Wired like the hook: a failure lands in the store's error state.
 const executeOptimistic = createOptimisticExecutor(
@@ -163,6 +176,63 @@ describe("createMilestone", () => {
     );
     assert.deepEqual(expandedMilestones, { [SERVER_MILESTONE_ID]: true });
     assert.deepEqual(milestonesOpenStatus, { [SERVER_MILESTONE_ID]: true });
+  });
+
+  it("posts the placeholder's title, dates and status when given no data", async () => {
+    const sent: Partial<Milestone>[] = [];
+    const shown: MilestoneWithTasks[] = [];
+    const service = stubService({
+      createMilestone: async (milestoneData) => {
+        sent.push(milestoneData);
+        // The placeholder is what the user sees while the request is in flight
+        shown.push(...store.getState().milestones);
+        return milestoneRow(SERVER_MILESTONE_ID);
+      },
+    });
+
+    // What the "Add Milestone" row does
+    await milestoneOperations(service).createMilestone();
+
+    assert.equal(sent.length, 1);
+    assert.equal(shown.length, 1);
+    const [placeholder] = shown;
+    const body = requestBody(sent[0]);
+    assert.deepEqual(body, {
+      title: "New Milestone",
+      status: TaskStatus.NOT_STARTED,
+      startDate: placeholder.startDate.toISOString(),
+      dueDate: placeholder.dueDate.toISOString(),
+    });
+    assert.equal(placeholder.title, body.title);
+    assert.equal(placeholder.status, body.status);
+    // The server validates both with `z.string().datetime()`
+    assert.ok(z.string().datetime().safeParse(body.startDate).success);
+    assert.ok(z.string().datetime().safeParse(body.dueDate).success);
+    assert.equal(store.getState().error, null);
+  });
+
+  it("posts the caller's values over the defaults", async () => {
+    const sent: Partial<Milestone>[] = [];
+    const service = stubService({
+      createMilestone: async (milestoneData) => {
+        sent.push(milestoneData);
+        return milestoneRow(SERVER_MILESTONE_ID);
+      },
+    });
+
+    await milestoneOperations(service).createMilestone({
+      title: "Phase 1",
+      status: TaskStatus.IN_PROGRESS,
+      startDate: NOW,
+      dueDate: NOW,
+    });
+
+    assert.deepEqual(requestBody(sent[0]), {
+      title: "Phase 1",
+      status: TaskStatus.IN_PROGRESS,
+      startDate: NOW.toISOString(),
+      dueDate: NOW.toISOString(),
+    });
   });
 });
 

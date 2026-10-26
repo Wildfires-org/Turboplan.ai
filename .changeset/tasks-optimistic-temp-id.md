@@ -8,7 +8,10 @@ after creating it now works without a reload. The page kept the optimistic
 `temp-<uuid>` id, so the request failed with a 500 and a deleted task came back
 on reload. Failed task-page actions no longer surface as unhandled promise
 rejections, and a malformed task or milestone id in the API now gets the same
-403 as an unknown one instead of a 500.
+403 as an unknown one instead of a 500. "Add Milestone" on the tasks page now
+works: it sent an empty body, the API answered 400 for the missing title and the
+whole task view switched to an error. It now sends the title, dates and status
+the new row shows.
 
 Gantt: the package always builds in production mode. Under `NODE_ENV=test`
 (the E2E build) it emitted `jsxDEV` calls against the production React
