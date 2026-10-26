@@ -1,5 +1,6 @@
 /**
- * Authorization wiring for the tasks router.
+ * Authorization wiring for the tasks router (and the milestones router, which
+ * shares its row-id guards).
  *
  * These tests pin the route → (entity type, action, entity id) contract of the
  * guards, not the handlers: the RBAC middleware is replaced with a stub that
@@ -46,6 +47,24 @@ const UNKNOWN_USER_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
  */
 const LEGACY_TASK_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const CHAT_DOCUMENT_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+
+/** A milestone id that is a uuid but names no milestone. */
+const UNKNOWN_MILESTONE_ID = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+
+/**
+ * The shape of an optimistic client-side id that once reached the API by
+ * mistake. Not a uuid, so Postgres cannot even compare it to the id column.
+ */
+const TEMP_ID = `temp-${TASK_ID}`;
+
+/** Throws what Postgres raises for a non-uuid compared to a `uuid` column (22P02). */
+const assertUuidCast = (id: string) => {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  ) {
+    throw new Error(`invalid input syntax for type uuid: "${id}"`);
+  }
+};
 
 /** Role the stubbed RBAC layer grants the caller on PROJECT_ID. */
 let callerRole: MemberRoleType | null = MemberRole.EDITOR;
@@ -133,11 +152,15 @@ mock.module("@wildfires-org/turboplan-db/queries", {
   namedExports: {
     // Rows are resolved from a fixture instead of the database: TASK_ID and
     // LEGACY_TASK_ID (via its milestone) belong to PROJECT_ID, everything else
-    // is unknown.
-    getTaskProjectId: async (id: string) =>
-      id === TASK_ID || id === LEGACY_TASK_ID ? PROJECT_ID : null,
-    getMilestoneProjectId: async (id: string) =>
-      id === MILESTONE_ID ? PROJECT_ID : null,
+    // is unknown. A non-uuid throws, as the real query does.
+    getTaskProjectId: async (id: string) => {
+      assertUuidCast(id);
+      return id === TASK_ID || id === LEGACY_TASK_ID ? PROJECT_ID : null;
+    },
+    getMilestoneProjectId: async (id: string) => {
+      assertUuidCast(id);
+      return id === MILESTONE_ID ? PROJECT_ID : null;
+    },
     // Only referenced by the (unused, stubbed) repository's list queries.
     milestoneInProject: () => undefined,
     taskInProject: () => undefined,
@@ -165,6 +188,7 @@ mock.module("@wildfires-org/turboplan-timeline-records/server", {
     },
     computeChanges: () => [],
     taskFieldDefs: {},
+    milestoneFieldDefs: {},
   },
 });
 
@@ -225,15 +249,26 @@ mock.module("../src/server/service", {
 });
 
 const { default: tasksRouter } = await import("../src/server/tasks-router");
+const { default: milestonesRouter } = await import(
+  "../src/server/milestones-router"
+);
 
-/** Drive one request through the router with `callerRole` in effect. */
+/**
+ * Drive one request through a router with `callerRole` in effect. `path` is
+ * relative to the tasks router unless `base` names the milestones router.
+ */
 const request = async (
   method: string,
   path: string,
   {
     body,
     authenticated = true,
-  }: { body?: unknown; authenticated?: boolean } = {},
+    base = "/tasks",
+  }: {
+    body?: unknown;
+    authenticated?: boolean;
+    base?: "/tasks" | "/milestones";
+  } = {},
 ) => {
   const app = new Hono();
   app.use("*", async (c, next) => {
@@ -243,8 +278,9 @@ const request = async (
     await next();
   });
   app.route("/tasks", tasksRouter);
+  app.route("/milestones", milestonesRouter);
 
-  const res = await app.request(`/tasks${path}`, {
+  const res = await app.request(`${base}${path}`, {
     method,
     ...(body === undefined
       ? {}
@@ -526,4 +562,96 @@ describe("tasks router — legacy rows", () => {
     assert.equal(own.status, 200);
     assert.equal(foreign.status, 400);
   });
+});
+
+/**
+ * Task and milestone ids are `uuid` columns. A malformed one (an optimistic
+ * `temp-…` id, say) used to reach the lookup, fail the cast and surface as a
+ * 500. It has to be refused exactly like an id that names no row, before any
+ * query runs.
+ */
+describe("row-id routes — ids that are not uuids", () => {
+  type IdRoute = {
+    base: "/tasks" | "/milestones";
+    method: string;
+    path: (id: string) => string;
+    unknownId: string;
+    body?: unknown;
+  };
+
+  const taskRoute = (
+    method: string,
+    path: (id: string) => string,
+    body?: unknown,
+  ): IdRoute => ({
+    base: "/tasks",
+    method,
+    path,
+    unknownId: UNKNOWN_TASK_ID,
+    body,
+  });
+
+  const milestoneRoute = (
+    method: string,
+    path: (id: string) => string,
+    body?: unknown,
+  ): IdRoute => ({
+    base: "/milestones",
+    method,
+    path,
+    unknownId: UNKNOWN_MILESTONE_ID,
+    body,
+  });
+
+  const routes: IdRoute[] = [
+    taskRoute("GET", (id) => `/${id}`),
+    taskRoute("PUT", (id) => `/${id}`, { title: "Renamed" }),
+    taskRoute("DELETE", (id) => `/${id}`),
+    taskRoute("PATCH", (id) => `/${id}/complete`),
+    taskRoute("PATCH", (id) => `/${id}/not-started`),
+    taskRoute("PATCH", (id) => `/${id}/in-progress`),
+    taskRoute("PATCH", (id) => `/${id}/delayed`),
+    taskRoute("PATCH", (id) => `/${id}/move`, { milestoneId: MILESTONE_ID }),
+    {
+      base: "/tasks",
+      method: "GET",
+      path: (id) => `/milestone/${id}`,
+      unknownId: UNKNOWN_MILESTONE_ID,
+    },
+    milestoneRoute("GET", (id) => `/${id}`),
+    milestoneRoute("PUT", (id) => `/${id}`, { title: "Renamed" }),
+    milestoneRoute("DELETE", (id) => `/${id}`),
+    milestoneRoute("PATCH", (id) => `/${id}/complete`),
+    milestoneRoute("PATCH", (id) => `/${id}/in-progress`),
+    milestoneRoute("PATCH", (id) => `/${id}/delayed`),
+  ];
+
+  for (const route of routes) {
+    it(`${route.method} ${route.base}${route.path(":id")} answers a non-uuid id like an unknown one`, async () => {
+      // An owner holds every action, so a 403 can only come from the id.
+      callerRole = MemberRole.OWNER;
+      const options = { base: route.base, body: route.body };
+
+      const unknown = await request(
+        route.method,
+        route.path(route.unknownId),
+        options,
+      );
+      const malformed = await request(
+        route.method,
+        route.path(TEMP_ID),
+        options,
+      );
+
+      assert.equal(unknown.status, 403);
+      assert.equal(malformed.status, 403);
+      assert.deepEqual(malformed.body, unknown.body);
+      assert.deepEqual(
+        guardCalls.map((call) => call.entityId),
+        [null, null],
+      );
+      assert.equal(serviceWrites.length, 0);
+      assert.equal(timelineRecords.length, 0);
+    });
+  }
 });
