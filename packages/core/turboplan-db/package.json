@@ -66,15 +66,15 @@
     "@wildfires-org/turboplan-env": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
     "bcrypt-ts": "^5.0.2",
-    "drizzle-orm": "^0.45.2",
-    "postgres": "^3.4.4",
+    "drizzle-orm": "^0.45.4",
+    "postgres": "^3.4.9",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
     "drizzle-kit": "^0.31.9",
     "tsdown": "^0.15.9",
-    "tsx": "^4.19.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.3.3"
   }
 }

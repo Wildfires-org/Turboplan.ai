@@ -30,17 +30,17 @@
     "@wildfires-org/turboplan-document-extraction": "workspace:*",
     "@wildfires-org/turboplan-env": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.11.7",
-    "modal": "^0.6.2",
-    "posthog-node": "^5.24.1",
-    "zod": "^4.4.3"
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
+    "modal": "^0.11.1",
+    "posthog-node": "^5.57.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.79",
     "@types/node": "^24.10.13",
     "esbuild": "^0.25.11",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

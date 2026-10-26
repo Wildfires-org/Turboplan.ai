@@ -42,10 +42,10 @@
     "@wildfires-org/turboplan-api-client": "workspace:*",
     "@wildfires-org/turboplan-db": "workspace:*",
     "@wildfires-org/turboplan-env": "workspace:*",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.6.3",
-    "postgres": "^3.4.4",
-    "swr": "^2.2.5"
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
+    "postgres": "^3.4.9",
+    "swr": "^2.5.1"
   },
   "peerDependencies": {
     "next": ">=15.5.25",
@@ -53,10 +53,10 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
-    "@types/react": "^19.1.1",
+    "@types/react": "^19.3.0",
     "rollup-plugin-preserve-use-client": "^3.0.1",
     "tsdown": "^0.15.9",
-    "tsx": "^4.19.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.3.3"
   }
 }

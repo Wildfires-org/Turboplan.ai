@@ -33,8 +33,8 @@
     }
   },
   "dependencies": {
-    "@documenso/embed-react": "^0.6.1",
-    "@documenso/sdk-typescript": "^0.8.1",
+    "@documenso/embed-react": "^0.8.0",
+    "@documenso/sdk-typescript": "^0.9.1",
     "@wildfires-org/turboplan-api-client": "workspace:*",
     "@wildfires-org/turboplan-auth": "workspace:*",
     "@wildfires-org/turboplan-db": "workspace:*",
@@ -44,13 +44,13 @@
     "@wildfires-org/turboplan-timeline-records": "workspace:*",
     "@wildfires-org/turboplan-upload": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.23",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
     "lucide-react": "^0.446.0",
-    "pdfkit": "^0.18.0",
+    "pdfkit": "^0.20.2",
     "sonner": "^1.5.0",
-    "swr": "^2.2.5",
-    "zod": "^4.4.3"
+    "swr": "^2.5.1",
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "next": ">=15.0.0",
@@ -61,11 +61,11 @@
     "@biomejs/biome": "^2.1.4",
     "@types/node": "^20.10.5",
     "@types/pdfkit": "^0.17.3",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "next": "15.5.25",
-    "react": "19.1.7",
-    "react-dom": "19.1.7",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "rollup-plugin-preserve-use-client": "^3.0.1",
     "tsdown": "^0.15.9",
     "typescript": "^5.3.3"

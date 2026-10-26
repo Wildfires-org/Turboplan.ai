@@ -47,16 +47,16 @@
     "@react-email/render": "^1.0.4",
     "@wildfires-org/turboplan-db": "workspace:*",
     "@wildfires-org/turboplan-env": "workspace:*",
-    "hono": "^4.7.5",
+    "hono": "^4.13.13",
     "nodemailer": "^9.1.1",
-    "react": "19.1.7",
+    "react": "19.3.1",
     "resend": "^4.0.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
     "@types/nodemailer": "^8.0.2",
-    "@types/react": "^19.0.1",
+    "@types/react": "^19.3.0",
     "tsdown": "^0.15.9",
     "typescript": "^5.3.3"
   }
