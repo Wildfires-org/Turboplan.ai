@@ -25,6 +25,7 @@ import { LETTERHEAD_DEADLINE_MS } from "../../../src/documents/letterhead/analys
 import {
   LETTERHEAD_MAX_OLD_GENERATION_MB,
   LETTERHEAD_WORKER_TIMEOUT_MS,
+  resolveLetterheadMaxOldGenerationMb,
   runLetterheadInWorker,
 } from "../../../src/documents/run-extraction-in-worker";
 import { createWorkerGate } from "../../../src/documents/worker-gate";
@@ -46,14 +47,19 @@ describe("runLetterheadInWorker", () => {
     vi.useRealTimers();
   });
 
-  it("starts a letterhead task with its own 64 MB heap cap", () => {
+  it("caps the built worker at 64 MB, the tsx dev bootstrap at 256 MB", () => {
     expect(LETTERHEAD_MAX_OLD_GENERATION_MB).toBe(64);
+    expect(resolveLetterheadMaxOldGenerationMb(false)).toBe(64);
+    expect(resolveLetterheadMaxOldGenerationMb(true)).toBe(256);
+  });
 
+  it("starts a letterhead task with the cap of the bootstrap in use", () => {
     void runLetterheadInWorker({
       url: "https://files.example.com/letter.pdf",
       settings,
     });
 
+    // vitest runs this module from its .ts source: the dev bootstrap.
     expect(spawned.options).toEqual([
       {
         workerData: {
@@ -62,10 +68,21 @@ describe("runLetterheadInWorker", () => {
           settings,
         },
         resourceLimits: {
-          maxOldGenerationSizeMb: 64,
+          maxOldGenerationSizeMb: 256,
           maxYoungGenerationSizeMb: 48,
         },
       },
+    ]);
+  });
+
+  it("still honours an explicit heap cap", () => {
+    void runLetterheadInWorker(
+      { url: "https://files.example.com/letter.pdf", settings },
+      { maxOldGenerationSizeMb: 40 },
+    );
+
+    expect(spawned.options).toMatchObject([
+      { resourceLimits: { maxOldGenerationSizeMb: 40 } },
     ]);
   });
 

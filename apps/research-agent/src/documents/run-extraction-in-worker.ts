@@ -52,6 +52,14 @@ const DEFAULT_MAX_OLD_GENERATION_MB = 256;
  * `PDF_MAX_IMAGE_PIXELS` in letterhead/render-header.ts).
  */
 export const LETTERHEAD_MAX_OLD_GENERATION_MB = 64;
+/**
+ * The figures above are for the built bundle. The dev bootstrap (see
+ * `resolveWorkerPath`) loads the letterhead modules through tsx inside the
+ * worker, which needs more than 64 MB of heap: every analysis ran out of
+ * memory in ~300 ms (text extraction is unaffected). 128 MB was enough on a
+ * small letter; dev takes the extraction cap for headroom.
+ */
+const LETTERHEAD_DEV_MAX_OLD_GENERATION_MB = DEFAULT_MAX_OLD_GENERATION_MB;
 const MAX_YOUNG_GENERATION_MB = 48;
 /**
  * Letterhead analysis: download, a page render (~0.2–3 s) and one vision call
@@ -98,12 +106,22 @@ const isOutOfMemoryError = (err: unknown): boolean =>
  * extensionless relative imports. The extension of `import.meta.url` is what
  * tells built from dev apart.
  */
+const usesDevWorkerBootstrap = import.meta.url.endsWith(".ts");
+
 const resolveWorkerPath = (): URL => {
-  if (import.meta.url.endsWith(".ts")) {
+  if (usesDevWorkerBootstrap) {
     return new URL("./extraction-worker-dev.mjs", import.meta.url);
   }
   return new URL("../documents/extraction-worker.js", import.meta.url);
 };
+
+/** The letterhead worker's default heap cap for the bootstrap in use. */
+export const resolveLetterheadMaxOldGenerationMb = (
+  devBootstrap: boolean = usesDevWorkerBootstrap,
+): number =>
+  devBootstrap
+    ? LETTERHEAD_DEV_MAX_OLD_GENERATION_MB
+    : LETTERHEAD_MAX_OLD_GENERATION_MB;
 
 type WorkerFailure =
   | { kind: "timeout" }
@@ -224,7 +242,7 @@ export const runLetterheadInWorker = (
   input: LetterheadWorkerInput,
   {
     timeoutMs = LETTERHEAD_WORKER_TIMEOUT_MS,
-    maxOldGenerationSizeMb = LETTERHEAD_MAX_OLD_GENERATION_MB,
+    maxOldGenerationSizeMb = resolveLetterheadMaxOldGenerationMb(),
   }: RunExtractionOptions = {},
 ): Promise<LetterheadTaskResult> =>
   spawnWorkerTask<LetterheadTaskResult>({
