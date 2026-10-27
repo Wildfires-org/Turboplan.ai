@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { inflateRawSync } from "node:zlib";
 
@@ -9,6 +10,7 @@ import {
   gridLogoSize,
   layoutGridLetterhead,
   type PublicGridLetterhead,
+  toPublicGridLetterhead,
 } from "@wildfires-org/turboplan-workspace/types";
 
 import { estimateTextWidthEm } from "../lib/export/letterhead-layout";
@@ -1101,5 +1103,40 @@ describe("DOCX grid letterhead", () => {
     assert.ok(runWithText(table, "Tahoe National Forest"));
     // A line with nothing left is not drawn.
     assert.strictEqual(cellsOf(table)[0].match(/<w:p>/g)?.length, 1);
+  });
+
+  it("gives a reference's name a column Word sets it in on one line", async () => {
+    // A reference letter (fictional) as the research agent stored it: the
+    // name printed on one line in Helvetica-Bold 15 pt (`xlarge` on an
+    // 8.5 pt base) beside a right-aligned address whose box starts just
+    // after the name's.
+    const grid = toPublicGridLetterhead(
+      JSON.parse(
+        readFileSync(
+          new URL("./fixtures/western-trails-letterhead.json", import.meta.url),
+          "utf8",
+        ),
+      ).grid,
+    );
+    const table = firstTable(await render(grid, [png]));
+    const name = "WESTERN TRAILS CONSERVANCY";
+    const cell = cellsOf(table).find((candidate) =>
+      candidate.includes(`>${name}</w:t>`),
+    );
+    assert.ok(cell, "the name's cell");
+    const cellWidth = Number(
+      cell.match(/<w:tcW w:type="dxa" w:w="(\d+)"\/>/)?.[1],
+    );
+    const textWidth =
+      cellWidth - marginOf(cell, "left") - marginOf(cell, "right");
+    const halfPoints = Number(
+      runWithText(cell, name).match(/<w:sz w:val="(\d+)"\/>/)?.[1],
+    );
+    // Times New Roman Bold, which Word does not kern: 17.001 em, in twips.
+    const nameWidth = (17.001 * halfPoints * 20) / 2;
+    assert.ok(
+      textWidth >= nameWidth,
+      `the name's column (${textWidth} twips) holds it (${nameWidth} twips)`,
+    );
   });
 });

@@ -24,6 +24,7 @@ import {
   LETTERHEAD_COLOR_PATTERN,
   normalizeLetterheadColor,
 } from "./letterhead";
+import { cleanGridLineText } from "./letterhead-grid-text";
 
 // Only APIs present in both zod v3 and v4: the MCP Worker aliases "zod" to
 // "zod/v3", and this module loads there too.
@@ -234,24 +235,8 @@ type _GridSchemaMatchesGridLetterhead = AssertTrue<
   MutuallyAssignable<z.infer<typeof gridLetterheadSchema>, GridLetterhead>
 >;
 
-// Invisible or XML-invalid characters a PDF's text layer can carry: format
-// characters (bidi overrides, zero-width spaces and joiners, soft hyphens),
-// lone surrogates and the noncharacters U+FFFE / U+FFFF (either one makes a
-// DOCX's document.xml unreadable).
-const INVISIBLE_CHARS = /[\p{Cf}\p{Cs}\uFFFE\uFFFF]/gu;
-
-/**
- * A grid line's text as every renderer and prompt uses it: the text comes
- * from a reference PDF, so invisible and XML-invalid characters are dropped
- * and whitespace and control characters collapse to single spaces (a newline
- * would break a table cell, a DOCX run or a prompt section); "" for a line
- * with nothing left, which callers skip.
- */
-export const cleanGridLineText = (text: string): string =>
-  text
-    .replace(INVISIBLE_CHARS, "")
-    .replace(/[\s\p{Cc}]+/gu, " ")
-    .trim();
+// The text every renderer draws of a line (`letterhead-grid-text.ts`).
+export { cleanGridLineText };
 
 // Whether a grid has anything to draw: at least one line of text or a logo.
 export const isGridLetterheadConfigured = (grid: GridLetterhead): boolean =>

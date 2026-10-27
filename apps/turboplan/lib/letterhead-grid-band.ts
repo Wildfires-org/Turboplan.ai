@@ -57,8 +57,11 @@ const drawnLines = (lines: readonly GridLetterheadLine[]) =>
     return text ? [{ ...line, text }] : [];
   });
 
+// `fontSize` is the grid's base text size: the layout widens a column for a
+// line set at it that would not fit (see `layoutGridLetterhead`).
 export const layoutGridBand = (grid: {
   cells: readonly PublicGridLetterheadCell[];
+  fontSize?: number;
 }): GridBand => {
   const tracks: number[] = [];
   const cells: GridBandCell[] = [];

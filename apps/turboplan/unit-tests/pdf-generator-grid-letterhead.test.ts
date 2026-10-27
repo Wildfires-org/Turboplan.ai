@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { getDocument, OPS } from "pdfjs-dist/legacy/build/pdf.mjs";
 
@@ -10,6 +11,7 @@ import {
   GRID_BASE_FONT_RATIO,
   layoutGridLetterhead,
   type PublicGridLetterhead,
+  toPublicGridLetterhead,
 } from "@wildfires-org/turboplan-workspace/types";
 
 // A4 with the generator's 50pt margins.
@@ -99,6 +101,18 @@ const AGENCY: PublicGridLetterhead = {
 };
 
 const LONG_WORD = "Supercalifragilisticexpialidocious";
+
+// A reference letter (fictional) as the research agent stored it: its name
+// printed on one line in Helvetica-Bold 15 pt (`xlarge` on an 8.5 pt base)
+// beside a right-aligned address whose box starts just after the name's.
+const WESTERN_TRAILS: PublicGridLetterhead = toPublicGridLetterhead(
+  JSON.parse(
+    readFileSync(
+      new URL("./fixtures/western-trails-letterhead.json", import.meta.url),
+      "utf8",
+    ),
+  ).grid,
+);
 
 const AGENCY_LINES = [
   "United States",
@@ -423,6 +437,33 @@ describe("generatePdfFromMarkdown with a grid letterhead", () => {
     assertSize((await sizesFor(30 / A4_WIDTH)).normal, 13);
     // Without one, the default.
     assertSize((await sizesFor()).normal, 9.5);
+  });
+
+  it("keeps each line of a reference letterhead on one line, as printed", async () => {
+    const texts = letterheadOf(
+      (await render({ grid: WESTERN_TRAILS, logos: [PNG] })).texts,
+    );
+    assert.deepStrictEqual(
+      texts.map((entry) => entry.text),
+      WESTERN_TRAILS.cells.flatMap((cell) =>
+        cell.kind === "text" ? cell.lines.map((cellLine) => cellLine.text) : [],
+      ),
+    );
+    for (const segment of layoutGridLetterhead(WESTERN_TRAILS)) {
+      if (segment.kind === "gap" || segment.cell.kind !== "text") {
+        continue;
+      }
+      const left = MARGIN + segment.contentStart * CONTENT_WIDTH;
+      const right = left + segment.contentWidth * CONTENT_WIDTH;
+      for (const { text } of segment.cell.lines) {
+        const entry = textOf(texts, text);
+        assert.ok(entry.x >= left - TOLERANCE, `"${text}" starts in its box`);
+        assert.ok(
+          entry.x + entry.width <= right + TOLERANCE,
+          `"${text}" ends in its box`,
+        );
+      }
+    }
   });
 
   it("places a cell shorter than the row at its top, middle or bottom", async () => {

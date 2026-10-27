@@ -1,0 +1,63 @@
+{
+  "grid": {
+    "cells": [
+      {
+        "x": 0,
+        "key": "letterheads/project/e59b1051-b7cd-4780-be42-e59dc1e1223b/logo-0-cc210f1661ab1d4f.png",
+        "kind": "logo",
+        "width": 0.1298517688013272,
+        "height": 0.12985176880132718
+      },
+      {
+        "x": 0.1500204068735285,
+        "kind": "text",
+        "align": "left",
+        "lines": [
+          {
+            "bold": true,
+            "size": "xlarge",
+            "text": "WESTERN TRAILS CONSERVANCY"
+          },
+          {
+            "bold": false,
+            "size": "normal",
+            "text": "Habitat Restoration & Forest Planning"
+          }
+        ],
+        "width": 0.5017326329449272
+      },
+      {
+        "x": 0.6559526510177881,
+        "kind": "text",
+        "align": "right",
+        "lines": [
+          {
+            "bold": false,
+            "size": "normal",
+            "text": "Building 12, Suite 4"
+          },
+          {
+            "bold": false,
+            "size": "normal",
+            "text": "100 Main Street"
+          },
+          {
+            "bold": false,
+            "size": "normal",
+            "text": "Hamilton, MT 59840"
+          },
+          {
+            "bold": false,
+            "size": "normal",
+            "text": "(406) 555-0142 | info@westerntrails.example"
+          }
+        ],
+        "width": 0.3440473489822119,
+        "valign": "middle"
+      }
+    ],
+    "color": "#1f5c3b",
+    "fontSize": 0.013889
+  },
+  "hasLetterhead": true
+}

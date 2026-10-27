@@ -11,6 +11,7 @@ import type {
   PublicGridLetterhead,
   PublicGridLetterheadCell,
 } from "./letterhead-grid";
+import { cleanGridLineText, gridTextWidth } from "./letterhead-grid-text";
 
 // The cells the layout reads: a stored grid's (server) or a public grid's
 // (logo `index` instead of its storage key — the preview, DOCX and PDF
@@ -83,12 +84,19 @@ export const MAX_GRID_LOGO_HEIGHT = 0.18;
 // noise between two cells, not a column: it is not laid out at all.
 const GRID_SLIVER = 1e-4;
 
+// Room a line is given beyond its Times advance widths when its cell is
+// widened for it (and that a neighbour's line keeps): the DOCX rounds each
+// size to a half point (up to 3% larger from about 8 pt) and a browser
+// rounds the font size and the column widths.
+const GRID_FIT_SLACK = 0.03;
+
 /**
  * One slice of the letterhead's width, left to right: a cell, or empty space
  * between cells. `start` and `width` are fractions of the content width — a
- * text cell's box grown into the free space on its open side (see
- * `layoutGridLetterhead`); a cell's `contentStart` / `contentWidth` are its
- * box minus the gutters it shares with a neighbouring cell.
+ * text cell's box grown into the free space on its open side, and widened
+ * for a line that would not fit it (see `layoutGridLetterhead`); a cell's
+ * `contentStart` / `contentWidth` are its box minus the gutters it shares
+ * with a neighbouring cell.
  */
 export type GridSegment<C extends LayoutCell = GridLetterheadCell> =
   | {
@@ -102,6 +110,15 @@ export type GridSegment<C extends LayoutCell = GridLetterheadCell> =
   | { kind: "gap"; start: number; width: number };
 
 type CellSlice<C> = { cell: C; start: number; end: number };
+
+// A cell as laid out: its box and its content box (edges, fractions of the
+// content width).
+type PlacedCell<C> = CellSlice<C> & {
+  contentStart: number;
+  contentEnd: number;
+};
+
+type Side = "left" | "right";
 
 // How far a text cell may grow into the space between its edge and `to`
 // (`from` < `to`): all of it up to the letterhead's edge; towards another
@@ -155,6 +172,152 @@ const gutterInset = (
     ? Math.max(0, GRID_CELL_GUTTER - (right.start - left.end)) / 2
     : 0;
 
+// The width a cell's widest line takes, as a fraction of the content width:
+// its Times advance widths at the grid's base size × its line's scale, plus
+// GRID_FIT_SLACK. A logo has no lines.
+const neededWidth = (cell: LayoutCell, baseRatio: number): number =>
+  cell.kind === "text"
+    ? cell.lines.reduce(
+        (widest, line) =>
+          Math.max(
+            widest,
+            gridTextWidth(cleanGridLineText(line.text), line.bold) *
+              baseRatio *
+              GRID_LINE_SCALE[line.size] *
+              (1 + GRID_FIT_SLACK),
+          ),
+        0,
+      )
+    : 0;
+
+// Whether a cell's text is anchored on `side` of its content: it stays there
+// however that content's other side moves.
+const isAnchored = (cell: LayoutCell, side: Side): boolean =>
+  cell.kind === "text" && cell.align === side;
+
+// How far a cell's content can widen towards `side` without moving any text:
+// to a gutter short of the neighbour's text there — its content's edge, or,
+// when its text is anchored on its far side, where its widest line ends — or
+// all the way to the letterhead's edge.
+const roomBeside = <C extends LayoutCell>(
+  placed: PlacedCell<C>[],
+  needs: number[],
+  index: number,
+  side: Side,
+): number => {
+  const { contentStart, contentEnd } = placed[index];
+  if (side === "right") {
+    const next = placed[index + 1];
+    if (!next) {
+      return 1 - contentEnd;
+    }
+    const need = needs[index + 1];
+    const textStart =
+      isAnchored(next.cell, "right") && need > 0
+        ? Math.max(next.contentStart, next.contentEnd - need)
+        : next.contentStart;
+    return Math.max(0, textStart - GRID_CELL_GUTTER - contentEnd);
+  }
+  const previous = placed[index - 1];
+  if (!previous) {
+    return contentStart;
+  }
+  const need = needs[index - 1];
+  const textEnd =
+    isAnchored(previous.cell, "left") && need > 0
+      ? Math.min(previous.contentEnd, previous.contentStart + need)
+      : previous.contentEnd;
+  return Math.max(0, contentStart - GRID_CELL_GUTTER - textEnd);
+};
+
+// Widens a cell's content (and its box with it) by `amount` towards `side`;
+// the neighbour there gives up what then overlaps, its content a gutter away.
+const widen = <C extends LayoutCell>(
+  placed: PlacedCell<C>[],
+  index: number,
+  side: Side,
+  amount: number,
+): void => {
+  const slot = placed[index];
+  if (side === "right") {
+    slot.contentEnd += amount;
+    slot.end = Math.max(slot.end, slot.contentEnd);
+    const next = placed[index + 1];
+    if (next) {
+      next.contentStart = Math.max(
+        next.contentStart,
+        slot.contentEnd + GRID_CELL_GUTTER,
+      );
+      next.start = Math.max(next.start, slot.end);
+    }
+    return;
+  }
+  slot.contentStart -= amount;
+  slot.start = Math.min(slot.start, slot.contentStart);
+  const previous = placed[index - 1];
+  if (previous) {
+    previous.contentEnd = Math.min(
+      previous.contentEnd,
+      slot.contentStart - GRID_CELL_GUTTER,
+    );
+    previous.end = Math.min(previous.end, slot.start);
+  }
+};
+
+// Widens every text cell whose widest line does not fit its content on its
+// open side — left-aligned to the right, right-aligned to the left, centered
+// by the same amount on both — as far as the line needs and `roomBeside`
+// allows: free space beyond a gutter, or what a neighbour's text leaves
+// empty. A cell whose lines fit is left as it is.
+const widenToFit = <C extends LayoutCell>(
+  placed: PlacedCell<C>[],
+  baseRatio: number,
+): void => {
+  const needs = placed.map(({ cell }) => neededWidth(cell, baseRatio));
+  placed.forEach(({ cell, contentStart, contentEnd }, index) => {
+    const lack = needs[index] - (contentEnd - contentStart);
+    if (cell.kind !== "text" || lack <= 0) {
+      return;
+    }
+    const room = (side: Side) => roomBeside(placed, needs, index, side);
+    if (cell.align === "center") {
+      const amount = Math.min(lack / 2, room("left"), room("right"));
+      widen(placed, index, "left", amount);
+      widen(placed, index, "right", amount);
+      return;
+    }
+    const side = cell.align === "left" ? "right" : "left";
+    widen(placed, index, side, Math.min(lack, room(side)));
+  });
+};
+
+// Laid-out cells as segments that tile [0, 1]: each cell, and a gap wherever
+// the next cell does not start where the previous one ends.
+const toSegments = <C extends LayoutCell>(
+  placed: PlacedCell<C>[],
+): GridSegment<C>[] => {
+  const segments: GridSegment<C>[] = [];
+  let position = 0;
+  for (const { cell, start, end, contentStart, contentEnd } of placed) {
+    if (start > position) {
+      segments.push({ kind: "gap", start: position, width: start - position });
+    }
+    segments.push({
+      kind: "cell",
+      cell,
+      start,
+      width: end - start,
+      contentStart,
+      contentWidth: contentEnd - contentStart,
+    });
+    position = end;
+  }
+  if (position < 1) {
+    segments.push({ kind: "gap", start: position, width: 1 - position });
+  }
+  return segments;
+};
+
 /**
  * The grid as segments that tile [0, 1] without overlapping: cells in order of
  * `x`, each starting at its `x` and ending at its right edge, where the next
@@ -172,11 +335,20 @@ const gutterInset = (
  * type does not wrap in the renderer's wider one. Text that fits stays where
  * its alignment puts it; logos never grow; the gaps shrink to what is left.
  * A cell grows only where it has no gutter to keep, so the gutters are those
- * of the cells as stored. A table-based renderer (DOCX) gets one column per
- * segment; the others position each segment at its `start`.
+ * of the cells as stored.
+ *
+ * A text cell whose widest line still does not fit — measured in Times at
+ * the grid's base size (`gridBaseFontRatio(grid)`), with a little slack —
+ * then widens on its open side as far as the line needs: into the rest of a
+ * gap, and into the part of the neighbouring cell its text leaves empty when
+ * that text is anchored on the far side (a right-aligned address beside a
+ * left-aligned name); never into a logo or a neighbour's text, which stays a
+ * gutter away. A table-based renderer (DOCX) gets one column per segment;
+ * the others position each segment at its `start`.
  */
 export const layoutGridLetterhead = <C extends LayoutCell>(grid: {
   cells: readonly C[];
+  fontSize?: number;
 }): GridSegment<C>[] => {
   const cells = [...grid.cells].sort((a, b) => a.x - b.x);
   const slices: CellSlice<C>[] = [];
@@ -189,9 +361,7 @@ export const layoutGridLetterhead = <C extends LayoutCell>(grid: {
     }
   });
 
-  const segments: GridSegment<C>[] = [];
-  let position = 0;
-  slices.forEach((slice, index) => {
+  const placed = slices.map((slice, index): PlacedCell<C> => {
     const previous = slices[index - 1];
     const next = slices[index + 1];
     // Gutters from the stored boxes: a side with one to keep does not grow.
@@ -199,24 +369,16 @@ export const layoutGridLetterhead = <C extends LayoutCell>(grid: {
     const left = Math.min(gutterInset(previous, slice), storedWidth / 4);
     const right = Math.min(gutterInset(slice, next), storedWidth / 4);
     const { cell, start, end } = grownSlice(slice, previous, next);
-    if (start > position) {
-      segments.push({ kind: "gap", start: position, width: start - position });
-    }
-    const width = end - start;
-    segments.push({
-      kind: "cell",
+    return {
       cell,
       start,
-      width,
+      end,
       contentStart: start + left,
-      contentWidth: width - left - right,
-    });
-    position = end;
+      contentEnd: end - right,
+    };
   });
-  if (position < 1) {
-    segments.push({ kind: "gap", start: position, width: 1 - position });
-  }
-  return segments;
+  widenToFit(placed, gridBaseFontRatio(grid));
+  return toSegments(placed);
 };
 
 /**

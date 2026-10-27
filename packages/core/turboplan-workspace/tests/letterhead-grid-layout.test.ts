@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
@@ -367,9 +368,12 @@ describe("layoutGridLetterhead, text growing into free space", () => {
         (): GridLetterhead["cells"][number] => {
           const x = random() * 0.9;
           const width = 0.005 + random() * 0.4;
+          // A line wider than most cells widens them (see below).
+          const label =
+            random() < 0.5 ? "Agency" : "Habitat Restoration & Forest Planning";
           return random() < 0.3
             ? logo(x, width)
-            : text(x, width, "Agency", alignments[Math.floor(random() * 3)]);
+            : text(x, width, label, alignments[Math.floor(random() * 3)]);
         },
       );
       const segments = layoutGridLetterhead(grid(cells));
@@ -391,6 +395,213 @@ describe("layoutGridLetterhead, text growing into free space", () => {
       }
       near(position, 1);
     }
+  });
+});
+
+describe("layoutGridLetterhead, a line wider than its column", () => {
+  // A reference letter (fictional) as the research agent stored it: a logo,
+  // the name — printed on one line in Helvetica-Bold 15 pt, `xlarge` on its
+  // 8.5 pt base — over a tagline, and a right-aligned address whose box
+  // starts 0.004 after the name's.
+  const WESTERN_TRAILS: GridLetterhead = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/western-trails-letterhead.json", import.meta.url),
+      "utf8",
+    ),
+  ).grid;
+  // Advance widths (em) in Times — Adobe's AFM, the same as Times New
+  // Roman's — of the name in bold and of the address's longest line.
+  const NAME_EM = 17.001;
+  const ADDRESS_EM = 18.229;
+  // "Agency" in Times-Bold, at the default base size.
+  const AGENCY_WIDTH = 3.166 * GRID_BASE_FONT_RATIO;
+
+  type CellSegment = Extract<GridSegment, { kind: "cell" }>;
+  const cellsOf = (segments: GridSegment[]) =>
+    segments.filter(
+      (segment): segment is CellSegment => segment.kind === "cell",
+    );
+  const contentEnd = (segment: CellSegment) =>
+    segment.contentStart + segment.contentWidth;
+  // Every assertion carries its message: a failing `assert.ok` without one
+  // makes Node re-read this (transpiled) file and hang.
+  const near = (actual: number, expected: number, what: string) =>
+    assert.ok(
+      Math.abs(actual - expected) < 1e-9,
+      `${what}: ${actual} ≠ ${expected}`,
+    );
+  const atLeast = (actual: number, expected: number, what: string) =>
+    assert.ok(actual >= expected - 1e-12, `${what}: ${actual} < ${expected}`);
+  const atMost = (actual: number, expected: number, what: string) =>
+    assert.ok(actual <= expected + 1e-12, `${what}: ${actual} > ${expected}`);
+  // A line of zeros (0.5 em in either weight) at least `width` of the
+  // content width wide at the default base size, and its exact width.
+  const zeros = (width: number) =>
+    "0".repeat(Math.ceil(width / (0.5 * GRID_BASE_FONT_RATIO)));
+  const widthOfZeros = (line: string) =>
+    line.length * 0.5 * GRID_BASE_FONT_RATIO;
+  const withLine = (
+    cell: GridLetterheadTextCell,
+    line: string,
+    bold = false,
+  ): GridLetterheadTextCell => ({
+    ...cell,
+    lines: [{ text: line, bold, size: "normal" }],
+  });
+
+  it("gives the name the room the address's text leaves, so it fits on one line as printed", () => {
+    const base = gridBaseFontRatio(WESTERN_TRAILS);
+    const segments = layoutGridLetterhead(WESTERN_TRAILS);
+    const [mark, name, address] = cellsOf(segments);
+    assert.equal(mark.cell.kind, "logo");
+    assert.equal(name.cell.kind, "text");
+    assert.equal(address.cell.kind, "text");
+
+    atLeast(
+      name.contentWidth,
+      NAME_EM * base * GRID_LINE_SCALE.xlarge,
+      "the name's column",
+    );
+    // Left-aligned: its text stays where it was printed.
+    near(name.contentStart, name.cell.x, "the name's start");
+    // The address keeps its right edge and its longest line, a gutter away.
+    near(contentEnd(address), 1, "the address's right edge");
+    atLeast(address.contentWidth, ADDRESS_EM * base, "the address's column");
+    atLeast(
+      address.contentStart - contentEnd(name),
+      GRID_CELL_GUTTER,
+      "the gutter",
+    );
+    // The logo does not move.
+    near(mark.start, 0, "the logo's start");
+    near(mark.width, mark.cell.width, "the logo's width");
+    near(
+      segments.reduce((sum, { width }) => sum + width, 0),
+      1,
+      "the segments' total",
+    );
+  });
+
+  it("leaves the stored layout alone when the name fits, set large", () => {
+    const [mark, nameCell, addressCell] = WESTERN_TRAILS.cells;
+    assert.ok(nameCell.kind === "text" && addressCell.kind === "text");
+    const large: GridLetterhead = {
+      ...WESTERN_TRAILS,
+      cells: [
+        mark,
+        {
+          ...nameCell,
+          lines: nameCell.lines.map((line) => ({ ...line, size: "large" })),
+        },
+        addressCell,
+      ],
+    };
+    const [, name, address] = cellsOf(layoutGridLetterhead(large));
+
+    // Closer than a gutter: each gives up half of what is missing.
+    const missing =
+      (GRID_CELL_GUTTER - (addressCell.x - nameCell.x - nameCell.width)) / 2;
+    near(name.start, nameCell.x, "the name's start");
+    near(name.width, nameCell.width, "the name's width");
+    near(name.contentWidth, nameCell.width - missing, "the name's column");
+    near(address.start, addressCell.x, "the address's start");
+    near(
+      address.contentStart,
+      addressCell.x + missing,
+      "the address's column start",
+    );
+  });
+
+  it("takes the idle part of a gap beside a cell that does not grow towards it", () => {
+    const line = zeros(0.6);
+    const [name, mark] = cellsOf(
+      layoutGridLetterhead(grid([text(0, 0.3, line), logo(0.9, 0.1)])),
+    );
+    // Half of the gap beyond a gutter would end it at 0.5925.
+    atLeast(name.contentWidth, widthOfZeros(line), "the column");
+    atMost(contentEnd(name), 0.9 - GRID_CELL_GUTTER, "the column's end");
+    near(mark.start, 0.9, "the logo's start");
+  });
+
+  it("widens a right-aligned cell into the empty right side of a left-aligned one", () => {
+    const line = zeros(0.6);
+    const [name, address] = cellsOf(
+      layoutGridLetterhead(
+        grid([text(0, 0.5), withLine(right(0.5, 0.5), line)]),
+      ),
+    );
+    atLeast(address.contentWidth, widthOfZeros(line), "the address's column");
+    near(contentEnd(address), 1, "the address's right edge");
+    // The name keeps its start and its text, a gutter away.
+    near(name.contentStart, 0, "the name's start");
+    atLeast(name.contentWidth, AGENCY_WIDTH, "the name's column");
+    atLeast(
+      address.contentStart - contentEnd(name),
+      GRID_CELL_GUTTER,
+      "the gutter",
+    );
+  });
+
+  it("widens a centered cell by the same amount on both sides, its centre kept", () => {
+    const line = zeros(0.6);
+    const [first, middle, last] = cellsOf(
+      layoutGridLetterhead(
+        grid([
+          text(0, 0.3),
+          withLine(center(0.3, 0.4), line, true),
+          right(0.7, 0.3),
+        ]),
+      ),
+    );
+    atLeast(middle.contentWidth, widthOfZeros(line), "the middle column");
+    near(
+      middle.contentStart + middle.contentWidth / 2,
+      0.5,
+      "the middle column's centre",
+    );
+    atLeast(first.contentWidth, AGENCY_WIDTH, "the first column");
+    atLeast(last.contentWidth, AGENCY_WIDTH, "the last column");
+    near(contentEnd(last), 1, "the last column's right edge");
+    atLeast(
+      middle.contentStart - contentEnd(first),
+      GRID_CELL_GUTTER,
+      "the left gutter",
+    );
+    atLeast(
+      last.contentStart - contentEnd(middle),
+      GRID_CELL_GUTTER,
+      "the right gutter",
+    );
+  });
+
+  it("takes nothing a neighbour's text needs or is anchored to", () => {
+    const long = text(0, 0.3, zeros(0.6));
+    // A left-aligned neighbour's text starts at its edge, and a logo never
+    // gives way: the long line keeps its stored box (and wraps).
+    for (const neighbour of [text(0.3, 0.7), logo(0.3, 0.2)]) {
+      const [first] = cellsOf(layoutGridLetterhead(grid([long, neighbour])));
+      near(first.start, 0, `beside a ${neighbour.kind}, the start`);
+      near(first.width, 0.3, `beside a ${neighbour.kind}, the width`);
+      near(
+        first.contentWidth,
+        0.3 - GRID_CELL_GUTTER / 2,
+        `beside a ${neighbour.kind}, the column`,
+      );
+    }
+
+    // A right-aligned neighbour gives only what its own line leaves.
+    const line = zeros(0.65);
+    const [first, second] = cellsOf(
+      layoutGridLetterhead(grid([long, withLine(right(0.3, 0.7), line)])),
+    );
+    atLeast(first.contentWidth, 0.3, "the long line's column");
+    atMost(
+      contentEnd(first),
+      1 - widthOfZeros(line) - GRID_CELL_GUTTER,
+      "the long line's column end",
+    );
+    atLeast(second.contentWidth, widthOfZeros(line), "the neighbour's column");
+    near(contentEnd(second), 1, "the neighbour's right edge");
   });
 });
 

@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
   GRID_CELL_GUTTER,
+  GRID_LINE_SCALE,
+  gridBaseFontRatio,
   layoutGridLetterhead,
   type PublicGridLetterheadCell,
+  toPublicGridLetterhead,
 } from "@wildfires-org/turboplan-workspace/types";
 
 import { layoutGridBand } from "../lib/letterhead-grid-band";
@@ -202,5 +206,37 @@ describe("layoutGridBand", () => {
     close(tracksOf(columns)[0], (0.1 - GRID_CELL_GUTTER / 2) * 100);
     assert.equal(logoCell.width, "100%");
     close(logoCell.aspectRatio, 2);
+  });
+
+  it("gives a reference's name a column as wide as its line, so it stays on one line", () => {
+    // A reference letter (fictional) as the research agent stored it: the
+    // name printed on one line in Helvetica-Bold 15 pt (`xlarge` on an
+    // 8.5 pt base) beside a right-aligned address whose box starts just
+    // after the name's.
+    const grid = toPublicGridLetterhead(
+      JSON.parse(
+        readFileSync(
+          new URL("./fixtures/western-trails-letterhead.json", import.meta.url),
+          "utf8",
+        ),
+      ).grid,
+    );
+    const { columns, cells } = layoutGridBand(grid);
+    const tracks = tracksOf(columns);
+    const [name, address] = cells.filter((cell) => cell.kind === "text");
+
+    // The name set in Times New Roman Bold (17.001 em) at the band's base
+    // size × `xlarge`, as a percentage of the band's width; the address's
+    // longest line in Times New Roman (18.229 em).
+    const base = gridBaseFontRatio(grid) * 100;
+    const nameWidth = 17.001 * base * GRID_LINE_SCALE.xlarge;
+    assert.ok(
+      tracks[name.column - 1] >= nameWidth,
+      `the name's column (${tracks[name.column - 1]}%) holds it (${nameWidth}%)`,
+    );
+    assert.ok(
+      tracks[address.column - 1] >= 18.229 * base,
+      `the address's column (${tracks[address.column - 1]}%) holds its lines`,
+    );
   });
 });
