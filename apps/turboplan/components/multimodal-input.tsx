@@ -23,6 +23,7 @@ import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
 import { Button, Textarea } from "@wildfires-org/turboplan-utils";
 
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
+import { isChatBusy } from "@/lib/chat-status";
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from "./icons";
 import { PreviewAttachment } from "./preview-attachment";
 import { SuggestedActions } from "./suggested-actions";
@@ -226,7 +227,7 @@ function PureMultimodalInput({
           ) {
             event.preventDefault();
 
-            if (status !== "ready") {
+            if (isChatBusy(status)) {
               toast.error("Please wait for the model to finish its response!");
             } else {
               submitForm();
@@ -280,7 +281,7 @@ function PureAttachmentsButton({
         event.preventDefault();
         fileInputRef.current?.click();
       }}
-      disabled={status !== "ready"}
+      disabled={isChatBusy(status)}
       variant="ghost"
     >
       <PaperclipIcon size={14} />

@@ -1,4 +1,5 @@
 export { DOC_MIME, DOCX_MIME, PDF_MIME } from "./document-mime";
+export { getGenericExtractionError, getResaveHint } from "./errors";
 export type { ExtractionResult } from "./extract-text";
 export {
   extractDocumentText,

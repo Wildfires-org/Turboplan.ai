@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 
-import { createToken } from "@wildfires-org/turboplan-api-client";
+import { createToken } from "@wildfires-org/turboplan-api-client/server";
 import { verifySessionCookie } from "@wildfires-org/turboplan-auth/hono";
 import { getAuthCookieName } from "@wildfires-org/turboplan-env";
 

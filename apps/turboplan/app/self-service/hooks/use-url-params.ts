@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { parseLandingUploadKeys } from "@/lib/landing-uploads";
 import { parseSignupAttribution } from "@/lib/signup-attribution";
 import type { AuthUser } from "@/lib/types/auth";
 import { checkEmailMismatch } from "./email-helpers";
@@ -24,6 +25,8 @@ export function useUrlParams({ isAuthenticated, user }: UseUrlParamsParams) {
   const urlOfficeId = searchParams.get("officeId") || "";
   // PostHog anonymous id + campaign params handed off by the landing page.
   const attribution = parseSignupAttribution(searchParams);
+  // Documents attached to the landing-page prompt (storage keys).
+  const landingUploadKeys = parseLandingUploadKeys(searchParams);
 
   // Check if there's an email mismatch for authenticated users
   const hasEmailMismatch = checkEmailMismatch(
@@ -51,6 +54,7 @@ export function useUrlParams({ isAuthenticated, user }: UseUrlParamsParams) {
     urlOrganizationId,
     urlOfficeId,
     attribution,
+    landingUploadKeys,
     hasEmailMismatch,
   };
 }

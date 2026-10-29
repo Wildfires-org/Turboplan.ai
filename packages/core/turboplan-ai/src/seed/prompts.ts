@@ -32,6 +32,7 @@ const {
   commentAutoResponderPrompt,
   emptyStateSuggestionsTemplate,
   fullModePrompt,
+  projectNextStepSuggestionsTemplate,
   researchAgentForwardMessagesTemplate,
   researchAgentNoResultsContextTemplate,
   researchAgentSavedContextTemplate,
@@ -51,8 +52,10 @@ const {
   toolDescCreateDocumentTasks,
   toolDescGetContents,
   toolDescGenerateQuickResponses,
+  toolDescReadOrganizationDocuments,
   toolDescReadProjectDocuments,
   toolDescRequestSuggestions,
+  toolDescSaveOrganizationMemory,
   toolDescUpdateDocument,
   toolDescUpdateProjectContext,
   toolDescUpdateProjectFields,
@@ -178,6 +181,13 @@ const PROMPT_SEEDS: PromptSeed[] = [
     category: C.Tools,
   },
   {
+    name: "tool-desc-read-organization-documents",
+    title: "Tool Description: Read Organization Documents",
+    description: "Description for readOrganizationDocuments tool",
+    content: toolDescReadOrganizationDocuments,
+    category: C.Tools,
+  },
+  {
     name: "tool-desc-update-project-context",
     title: "Tool Description: Update Project Context",
     description: "Description for updateProjectContext tool",
@@ -200,11 +210,26 @@ const PROMPT_SEEDS: PromptSeed[] = [
     category: C.Tools,
   },
   {
+    name: "tool-desc-save-organization-memory",
+    title: "Tool Description: Save Organization Memory",
+    description: "Description for saveOrganizationMemory tool",
+    content: toolDescSaveOrganizationMemory,
+    category: C.Tools,
+  },
+  {
     name: "empty-state-suggestions",
     title: "Empty State Suggestions Prompt",
     description:
       "Generates personalized suggestion pills for empty project states. Uses {{section}}, {{projectName}}, {{projectDescription}} variables.",
     content: emptyStateSuggestionsTemplate,
+    category: C.ProjectChat,
+  },
+  {
+    name: "project-next-step-suggestions",
+    title: "Project Next-Step Suggestions Prompt",
+    description:
+      "Generates the framework-aware next-step chips under the project chat input after research. Uses {{projectName}}, {{projectDescription}}, {{projectFields}}, {{projectContext}}, {{projectDocuments}}, {{projectMilestones}}, {{projectActivity}} variables.",
+    content: projectNextStepSuggestionsTemplate,
     category: C.ProjectChat,
   },
   {
@@ -257,7 +282,7 @@ const PROMPT_SEEDS: PromptSeed[] = [
     name: "research-agent-start-prompt",
     title: "Research Agent Start Prompt",
     description:
-      "Prompt sent to research agent to start analysis. Uses {{projectName}}, {{projectDescription}}, {{projectFields}}, {{projectContext}}, {{projectDocuments}}, {{recentConversation}} variables.",
+      "Prompt sent to research agent to start analysis. Uses {{projectName}}, {{projectDescription}}, {{projectFields}}, {{projectContext}}, {{projectDocuments}}, {{recentConversation}}, {{organizationContext}} variables.",
     content: researchAgentStartPromptTemplate,
     category: C.ResearchAgent,
   },

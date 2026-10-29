@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { getProfileByUserId } from "@wildfires-org/turboplan-db/queries";
 import { Button, Input, Label } from "@wildfires-org/turboplan-utils";
 
@@ -15,6 +17,10 @@ import {
   ProfilePageFrame,
 } from "./components/profile-page-frame";
 import { ProfileTabs } from "./components/profile-tabs";
+
+export const metadata: Metadata = {
+  title: "Profile",
+};
 
 type ProfileFieldProps = {
   id: string;

@@ -7,6 +7,16 @@ describe("redactUrl", () => {
     );
     expect(redactUrl("/projects?page=2")).toBe("/projects?page=2");
   });
+
+  it("redacts invite tokens in the path and invite callbacks", () => {
+    expect(redactUrl("https://app.example.test/invite/abc123?x=1")).toBe(
+      "https://app.example.test/invite/[redacted]?x=1",
+    );
+    expect(redactUrl("/login?callbackUrl=%2Finvite%2Fabc123")).toBe(
+      "/login?callbackUrl=[redacted]",
+    );
+    expect(redactUrl("/docs/invite-members")).toBe("/docs/invite-members");
+  });
 });
 
 describe("stripTelemetryHeaders (via sanitize module sibling)", () => {

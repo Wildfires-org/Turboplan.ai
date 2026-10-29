@@ -5,7 +5,10 @@
 
 import { captureRunEvent } from "../infra/analytics";
 import { logger } from "../infra/logger";
-import type { TargetApiClient } from "../infra/target-api-client";
+import type {
+  ProgressRunOutcome,
+  TargetApiClient,
+} from "../infra/target-api-client";
 import type { MemoryService } from "../memory";
 import type { AgentRunner } from "../runners/types";
 import { createRunEngine } from "./run-engine";
@@ -21,11 +24,24 @@ import {
   type ResumeRunManagerResult,
   type RunEngine,
   type RunRecordContext,
+  type RunStatus,
   type RunStatusResponse,
 } from "./types";
 import { buildResumePrompt } from "./utils/build-resume-prompt";
 import { parseRunStatus } from "./utils/parse-run-status";
-import { parseStoredResult } from "./utils/parse-stored-result";
+import {
+  parseStoredResult,
+  serializeRunResult,
+} from "./utils/parse-stored-result";
+
+// The target has no timeout status, so anything that did not complete or get
+// cancelled is reported as failed (matching the "Something went wrong" message).
+const toProgressRunOutcome = (status: RunStatus): ProgressRunOutcome => {
+  if (status === "completed" || status === "cancelled") {
+    return status;
+  }
+  return "failed";
+};
 
 export class RunManager {
   constructor(
@@ -120,6 +136,7 @@ export class RunManager {
       webhookSecret,
       runId: finalState.runId,
       message,
+      status: toProgressRunOutcome(finalState.status),
     });
   }
 
@@ -142,7 +159,7 @@ export class RunManager {
     // Overwrite resultJson only if memory extraction stripped content from the raw result.
     if (cleanResult !== finalState.result) {
       await this.repository.updateStatus(runId, finalState.status, {
-        resultJson: JSON.stringify(cleanResult),
+        resultJson: serializeRunResult(cleanResult, finalState.stats),
       });
     }
   }
@@ -196,6 +213,7 @@ export class RunManager {
       projectId: options.projectId,
       webhookSecret: options.webhookSecret,
       targetApiUrl: options.targetApiUrl,
+      skill: options.skill,
     });
 
     captureRunEvent("research_run_started", {

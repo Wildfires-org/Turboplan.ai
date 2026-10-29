@@ -81,7 +81,7 @@ export class MailService {
    *   inviterName: "Jane Doe",
    *   entityName: "Q1 Planning",
    *   entityType: "project",
-   *   entityUrl: "https://app.your-domain.com/organizations/acme/offices/hq/projects/q1-planning",
+   *   entityUrl: "https://app.your-domain.com/acme/hq/q1-planning",
    * });
    * ```
    */
@@ -339,7 +339,7 @@ export class MailService {
    * await mailService.sendPaymentFailedEmail({
    *   to: "owner@example.com",
    *   orgName: "Acme Planning",
-   *   billingUrl: "https://app.your-domain.com/organizations/acme/settings/billing",
+   *   billingUrl: "https://app.your-domain.com/acme/billing",
    *   recipientEmail: "owner@example.com",
    * });
    * ```

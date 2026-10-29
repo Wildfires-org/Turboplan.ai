@@ -3,10 +3,43 @@
 import { useCallback, useState } from "react";
 
 import { useFileUpload } from "@wildfires-org/turboplan-upload/client";
+import {
+  GIS_MAX_FILE_SIZE,
+  GIS_UPLOAD_CONTENT_TYPES,
+  resolveProjectFileContentType,
+} from "@wildfires-org/turboplan-upload/types";
 import { toast } from "@wildfires-org/turboplan-utils";
 
 import type { GeospatialLayer } from "../types";
 import { processGeospatialFileFromUrl } from "../utils/geospatial-api-client";
+import { hasMapFeatures } from "../utils/layer-utils";
+
+// Browsers often report no type (or a generic one) for GIS files, and the
+// upload allow list refuses those: re-wrap with the type the extension maps to.
+const withResolvedContentType = (file: File): File => {
+  const contentType = resolveProjectFileContentType(file);
+  if (!contentType || contentType === file.type) {
+    return file;
+  }
+  return new File([file], file.name, {
+    type: contentType,
+    lastModified: file.lastModified,
+  });
+};
+
+// The map service drops layers with nothing to draw, so a file can come back
+// with no layers at all, or with only the reasons its layers were rejected.
+const getNoFeaturesMessage = (
+  fileName: string,
+  layers: GeospatialLayer[],
+): string => {
+  const reasons = layers
+    .map((layer) => layer.error)
+    .filter((reason): reason is string => Boolean(reason));
+  return reasons.length > 0
+    ? reasons.join(" ")
+    : `No map features found in "${fileName}"`;
+};
 
 interface UseMapFileUploadResult {
   isUploading: boolean;
@@ -23,19 +56,15 @@ export function useMapFileUpload(): UseMapFileUploadResult {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Use the new upload hook with 200MB limit for large geospatial files
+  // The map service refuses downloads over GIS_MAX_FILE_SIZE, so cap there.
   const {
     upload,
     isUploading,
     reset: resetUploadState,
   } = useFileUpload({
-    maxSize: 200 * 1024 * 1024, // 200MB - geospatial files can be large
-    allowedTypes: [
-      "application/zip",
-      "application/x-zip-compressed",
-      "application/json",
-      "application/geo+json",
-    ],
+    maxSize: GIS_MAX_FILE_SIZE,
+    // Plain JSON stays accepted: the map service detects GeoJSON by content.
+    allowedTypes: [...GIS_UPLOAD_CONTENT_TYPES, "application/json"],
     onProgress: (percent) => {
       // Map upload progress to 0-60% range (60% allocated for upload)
       setUploadProgress(Math.round(percent * 0.6));
@@ -52,7 +81,7 @@ export function useMapFileUpload(): UseMapFileUploadResult {
 
       try {
         // Upload to blob storage (0-60% progress)
-        const uploadResult = await upload(file);
+        const uploadResult = await upload(withResolvedContentType(file));
 
         // Process the uploaded file (60-90% progress)
         setUploadProgress(60);
@@ -67,6 +96,15 @@ export function useMapFileUpload(): UseMapFileUploadResult {
 
         // Complete
         setUploadProgress(100);
+
+        // Callers stop at a file without features; this is its only message.
+        if (!processedLayers.some(hasMapFeatures)) {
+          toast({
+            type: "error",
+            description: getNoFeaturesMessage(file.name, processedLayers),
+          });
+          return processedLayers;
+        }
 
         toast({
           type: "success",

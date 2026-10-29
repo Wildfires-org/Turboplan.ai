@@ -4,12 +4,15 @@
  * All persistent state (status, result, error, logs) lives in the database.
  */
 
+import type { AgentSkill } from "./types";
+
 export type RunRecord = {
   runId: string;
   prompt: string;
   projectId?: string;
   webhookSecret: string;
   targetApiUrl?: string;
+  skill?: AgentSkill;
   abortController: AbortController;
   logBuffer: string[];
   completed: boolean;
@@ -24,6 +27,7 @@ export type RunEngineStore = {
     webhookSecret: string;
     projectId?: string;
     targetApiUrl?: string;
+    skill?: AgentSkill;
   }): RunRecord;
   get(runId: string): RunRecord | null;
   remove(runId: string): void;
@@ -45,6 +49,7 @@ export function createRunEngineStore(
     webhookSecret: string;
     projectId?: string;
     targetApiUrl?: string;
+    skill?: AgentSkill;
   }): RunRecord => {
     const run: RunRecord = {
       runId: input.runId,
@@ -52,6 +57,7 @@ export function createRunEngineStore(
       projectId: input.projectId,
       webhookSecret: input.webhookSecret,
       targetApiUrl: input.targetApiUrl,
+      skill: input.skill,
       abortController: new AbortController(),
       logBuffer: [],
       completed: false,

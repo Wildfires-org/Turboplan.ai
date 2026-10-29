@@ -1,26 +1,17 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import { toast } from "@wildfires-org/turboplan-utils";
 
 import { LayerSelector, SimpleMap } from "../components";
-import { AddLayerDialog } from "../components/map-content-manager/add-layer-dialog";
 import { parseMapContent } from "../components/map-content-parser";
 import { MapLoader } from "../components/map-loader";
 import { MAP_TYPES } from "../constants";
-import { useLayerUpload } from "../hooks/use-layer-upload";
 import { useMapState } from "../hooks/use-map-state";
 import { useSingleLayerManagement } from "../hooks/use-single-layer-management";
-import type {
-  Artifact,
-  GeospatialLayer,
-  MapArtifactMetadata,
-  MapType,
-  ServerResponse,
-} from "../types";
+import type { Artifact, MapArtifactMetadata, ServerResponse } from "../types";
 import { processGeospatialFileFromUrl } from "../utils/geospatial-api-client";
-import { getLayerKey } from "../utils/layer-utils";
 
 export const mapArtifact: Artifact<"map", MapArtifactMetadata> = {
   kind: "map",
@@ -47,35 +38,9 @@ export const mapArtifact: Artifact<"map", MapArtifactMetadata> = {
   content: ({ content, metadata, setMetadata, projectId }) => {
     const loadingRef = useRef(false);
     const processedContentRef = useRef<string | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [previewLayers, setPreviewLayers] = useState<GeospatialLayer[]>([]);
-    const [previewSelectedLayerId, setPreviewSelectedLayerId] = useState<
-      string | null
-    >(null);
-    const [previewMapType, setPreviewMapType] = useState<string>(
-      MAP_TYPES.OPENSTREETMAP,
-    );
-    const [isSaving, setIsSaving] = useState(false);
 
     // Parse content to check status
     const parsedContent = parseMapContent(content);
-
-    // Layer upload hook for database persistence
-    const { uploadLayer } = useLayerUpload({
-      onSuccess: () => {
-        toast({
-          type: "success",
-          description: "Layers saved to project successfully",
-        });
-        setIsModalOpen(false);
-      },
-      onError: (error) => {
-        toast({
-          type: "error",
-          description: error,
-        });
-      },
-    });
 
     // Parse content and load data if needed
     useEffect(() => {
@@ -113,17 +78,13 @@ export const mapArtifact: Artifact<"map", MapArtifactMetadata> = {
         )
           .then((layers) => {
             loadingRef.current = false;
+            // View only: in project chats the chat input already saved these
+            // layers to the project map when the file was attached.
             setMetadata((prev) => ({
               ...prev,
               layers,
               isLoading: false,
             }));
-
-            // Auto-open modal for layer configuration if we have a projectId
-            if (projectId && layers.length > 0) {
-              setPreviewLayers(layers);
-              setIsModalOpen(true);
-            }
           })
           .catch((error) => {
             const errorMessage = `Failed to load map data: ${
@@ -174,58 +135,6 @@ export const mapArtifact: Artifact<"map", MapArtifactMetadata> = {
     const validLayers = layers.filter((layer) => !layer.error);
     const errorLayers = layers.filter((layer) => layer.error);
 
-    // Modal handlers
-    const handleModalClose = () => {
-      setIsModalOpen(false);
-      setPreviewLayers([]);
-      setPreviewSelectedLayerId(null);
-    };
-
-    const handlePreviewMapTypeChange = (mapType: MapType) => {
-      setPreviewMapType(typeof mapType === "string" ? mapType : mapType.id);
-    };
-
-    const handleSaveToProject = async (
-      projectLayerId: string,
-      unitLayerId: string | null,
-      unitIdKey?: string,
-    ) => {
-      if (!projectId) {
-        toast({
-          type: "error",
-          description: "No project ID available. Cannot save layers.",
-        });
-        return;
-      }
-
-      setIsSaving(true);
-
-      try {
-        const projectLayer = previewLayers.find(
-          (l) => getLayerKey(l) === projectLayerId,
-        );
-        const unitLayer = unitLayerId
-          ? (previewLayers.find((l) => getLayerKey(l) === unitLayerId) ?? null)
-          : null;
-
-        if (!projectLayer) {
-          throw new Error("Project layer not found");
-        }
-
-        await uploadLayer(
-          projectLayer,
-          unitLayer,
-          projectLayerId,
-          projectId,
-          unitIdKey,
-        );
-      } catch (error) {
-        console.error("Error saving layers:", error);
-      } finally {
-        setIsSaving(false);
-      }
-    };
-
     if (metadata?.isLoading) {
       return <MapLoader message="Loading map data..." />;
     }
@@ -261,8 +170,8 @@ export const mapArtifact: Artifact<"map", MapArtifactMetadata> = {
                 </p>
               )}
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                Attach a ZIP file containing geospatial data in your next
-                message to create a map.
+                Attach a GIS file (ZIP, KMZ, KML, GeoJSON or GeoPackage) in your
+                next message to create a map.
               </p>
               {!projectId && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-4">
@@ -331,21 +240,6 @@ export const mapArtifact: Artifact<"map", MapArtifactMetadata> = {
               )}
             </div>
           </div>
-        )}
-
-        {/* Add Layer Modal - Auto-opens when layers are processed */}
-        {projectId && (
-          <AddLayerDialog
-            isModalOpen={isModalOpen}
-            handleModalClose={handleModalClose}
-            validPreviewLayers={previewLayers.filter((l) => !l.error && l.data)}
-            previewSelectedLayerId={previewSelectedLayerId}
-            setPreviewSelectedLayerId={setPreviewSelectedLayerId}
-            mapType={previewMapType}
-            handlePreviewMapTypeChange={handlePreviewMapTypeChange}
-            isSaving={isSaving}
-            handleSaveToProject={handleSaveToProject}
-          />
         )}
       </div>
     );

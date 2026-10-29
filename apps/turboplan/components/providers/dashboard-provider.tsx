@@ -4,6 +4,7 @@ import { createContext, type ReactNode, useContext, useEffect } from "react";
 
 import { posthog } from "posthog-js";
 
+import type { ActionType } from "@wildfires-org/turboplan-rbac";
 import type {
   Office,
   Organization,
@@ -21,7 +22,18 @@ interface DashboardContext {
   /** Resolved project cover URL, so loading states can paint the real
    * header without refetching it. */
   projectCoverImageUrl: string | null;
+  /** Government orgs are readable by non-members; member-only tabs and
+   * actions hide for them. */
+  isOrgMember: boolean;
+  /** RBAC actions the user has on the office (set by the office layout);
+   * empty elsewhere, so office management actions stay hidden by default. */
+  officeActions: ActionType[];
+  /** RBAC actions the user has on the organization (set by the org layout);
+   * empty elsewhere, so org management actions stay hidden by default. */
+  organizationActions: ActionType[];
 }
+
+const NO_ACTIONS: ActionType[] = [];
 
 // ============================================================================
 // Context Creation
@@ -39,6 +51,9 @@ interface DashboardProviderProps {
   office?: Office | null;
   project?: Project | null;
   projectCoverImageUrl?: string | null;
+  isOrgMember?: boolean;
+  officeActions?: ActionType[];
+  organizationActions?: ActionType[];
 }
 
 export function DashboardProvider({
@@ -47,6 +62,9 @@ export function DashboardProvider({
   office = null,
   project = null,
   projectCoverImageUrl = null,
+  isOrgMember = true,
+  officeActions = NO_ACTIONS,
+  organizationActions = NO_ACTIONS,
 }: DashboardProviderProps) {
   useEffect(() => {
     // Group analytics: scope subsequent events to the active workspace
@@ -87,6 +105,9 @@ export function DashboardProvider({
     office,
     project,
     projectCoverImageUrl,
+    isOrgMember,
+    officeActions,
+    organizationActions,
   };
 
   return (

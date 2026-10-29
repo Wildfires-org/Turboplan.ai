@@ -50,6 +50,9 @@ import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./utils";
 type DocumentCardWithActionsProps = {
   document: ProjectDocument;
   readOnly: boolean;
+  showExtractionStatus: boolean;
+  /** When this client first saw the document pending */
+  pendingSince?: number;
   isDeleting: string | null;
   canModify: boolean;
   onPreview: (doc: ProjectDocument) => void;
@@ -60,6 +63,8 @@ type DocumentCardWithActionsProps = {
 const DocumentCardWithActions = ({
   document,
   readOnly,
+  showExtractionStatus,
+  pendingSince,
   isDeleting,
   canModify,
   onPreview,
@@ -68,6 +73,8 @@ const DocumentCardWithActions = ({
 }: DocumentCardWithActionsProps) => (
   <DocumentCardEditable
     document={document}
+    showExtractionStatus={showExtractionStatus}
+    pendingSince={pendingSince}
     onClick={() => onPreview(document)}
     actions={
       <DropdownMenu>
@@ -166,21 +173,28 @@ const groupDocumentsByFolder = (
 type DocumentCardsGridProps = {
   documents: ProjectDocument[];
   readOnly: boolean;
+  showExtractionStatus: boolean;
+  pendingSince: ReadonlyMap<string, number>;
   isDeleting: string | null;
   canModifyDocument: (doc: ProjectDocument) => boolean;
   onPreview: (doc: ProjectDocument) => void;
   onDelete: (id: string) => void;
   onRename: (doc: ProjectDocument) => void;
+  /** Classes for each card grid (e.g. one column in a narrow panel) */
+  listClassName?: string;
 };
 
 const DocumentCardsGrid = ({
   documents,
   readOnly,
+  showExtractionStatus,
+  pendingSince,
   isDeleting,
   canModifyDocument,
   onPreview,
   onDelete,
   onRename,
+  listClassName,
 }: DocumentCardsGridProps) => {
   const { folders, ungrouped } = useMemo(
     () => groupDocumentsByFolder(documents),
@@ -190,12 +204,14 @@ const DocumentCardsGrid = ({
 
   if (!hasFolders) {
     return (
-      <DocumentsList variant="section">
+      <DocumentsList variant="section" className={listClassName}>
         {documents.map((document) => (
           <DocumentCardWithActions
             key={document.id}
             document={document}
             readOnly={readOnly}
+            showExtractionStatus={showExtractionStatus}
+            pendingSince={pendingSince.get(document.id)}
             isDeleting={isDeleting}
             canModify={canModifyDocument(document)}
             onPreview={onPreview}
@@ -211,26 +227,32 @@ const DocumentCardsGrid = ({
     <div className="flex flex-col gap-4">
       {folders.map((folder) => (
         <div key={folder.name}>
-          <div className="flex items-center gap-2 mb-2">
-            <FolderOpen className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">
-              {folder.name}
-            </span>
-            {folder.description && (
-              <span className="text-xs text-muted-foreground">
-                · {folder.description}
-              </span>
-            )}
-            <span className="text-xs text-muted-foreground">
-              ({folder.docs.length})
-            </span>
+          {/* Name + count on one line, description below it: three inline
+              spans squeezed into separate columns on phones. */}
+          <div className="mb-2 flex items-start gap-2">
+            <FolderOpen className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {folder.name}{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({folder.docs.length})
+                </span>
+              </p>
+              {folder.description && (
+                <p className="text-xs text-muted-foreground">
+                  {folder.description}
+                </p>
+              )}
+            </div>
           </div>
-          <DocumentsList variant="section">
+          <DocumentsList variant="section" className={listClassName}>
             {folder.docs.map((document) => (
               <DocumentCardWithActions
                 key={document.id}
                 document={document}
                 readOnly={readOnly}
+                showExtractionStatus={showExtractionStatus}
+                pendingSince={pendingSince.get(document.id)}
                 isDeleting={isDeleting}
                 canModify={canModifyDocument(document)}
                 onPreview={onPreview}
@@ -253,12 +275,14 @@ const DocumentCardsGrid = ({
               </span>
             </div>
           )}
-          <DocumentsList variant="section">
+          <DocumentsList variant="section" className={listClassName}>
             {ungrouped.map((document) => (
               <DocumentCardWithActions
                 key={document.id}
                 document={document}
                 readOnly={readOnly}
+                showExtractionStatus={showExtractionStatus}
+                pendingSince={pendingSince.get(document.id)}
                 isDeleting={isDeleting}
                 canModify={canModifyDocument(document)}
                 onPreview={onPreview}
@@ -293,6 +317,10 @@ export interface DocumentsSectionUIProps {
   isResearchPhaseCompleted?: boolean;
   /** Callback when a suggestion pill is clicked */
   onSuggestionClick?: (content: string) => void;
+  /** Show each document's text extraction status */
+  showExtractionStatus?: boolean;
+  /** One card per row at every width (narrow containers such as side panels) */
+  singleColumn?: boolean;
 }
 
 /**
@@ -312,6 +340,8 @@ export function DocumentsSectionUI({
   variant = "default",
   isResearchPhaseCompleted,
   onSuggestionClick,
+  showExtractionStatus = false,
+  singleColumn = false,
 }: DocumentsSectionUIProps) {
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [renameDoc, setRenameDoc] = useState<ProjectDocument | null>(null);
@@ -339,9 +369,12 @@ export function DocumentsSectionUI({
     renameDocument,
     isDeleting,
     isRenaming,
+    pendingSince,
   } = useProjectDocuments({
     projectId,
     source,
+    // Pick up text extraction results while a card shows "Extracting text"
+    pollPendingExtraction: showExtractionStatus,
   });
 
   // Check if user has UPDATE permission (Editor+) on the project
@@ -441,7 +474,7 @@ export function DocumentsSectionUI({
     <>
       <div
         className={cn(
-          "flex flex-col pb-1.5",
+          "flex flex-col",
           {
             "h-full": variant === "page",
           },
@@ -452,7 +485,7 @@ export function DocumentsSectionUI({
         <div
           {...(dropzoneEnabled && documents.length > 0 ? getRootProps() : {})}
           className={cn(
-            "group relative z-[2] mb-[-6px] overflow-hidden rounded-xl border border-white/90 bg-white/60 p-4 dark:border-white/10 dark:bg-slate-900/40",
+            "group relative z-[2] overflow-hidden rounded-xl border border-white/90 bg-white/60 p-4 dark:border-white/10 dark:bg-slate-900/40",
             isDragActive && "border-brand-700 bg-brand-50",
             isUploading && "pointer-events-none opacity-60",
           )}
@@ -467,7 +500,10 @@ export function DocumentsSectionUI({
             <div
               role="status"
               aria-label="Loading documents"
-              className="grid grid-cols-1 gap-4 md:grid-cols-2"
+              className={cn(
+                "grid grid-cols-1 gap-4",
+                !singleColumn && "md:grid-cols-2",
+              )}
             >
               {[0, 1].map((index) => (
                 <div
@@ -526,11 +562,14 @@ export function DocumentsSectionUI({
             <DocumentCardsGrid
               documents={documents}
               readOnly={readOnly}
+              showExtractionStatus={showExtractionStatus}
+              pendingSince={pendingSince}
               isDeleting={isDeleting}
               canModifyDocument={canModifyDocument}
               onPreview={setPreviewDoc}
               onDelete={setDeleteFileId}
               onRename={setRenameDoc}
+              listClassName={singleColumn ? "md:grid-cols-1" : undefined}
             />
           )}
 
@@ -556,18 +595,16 @@ export function DocumentsSectionUI({
           )}
         </div>
 
-        {/* Upload area at bottom with dashed border */}
+        {/* Upload strip below the list: its own dashed box, so on phones it
+            doesn't read as a frame broken off the content above. */}
         {dropzoneEnabled && (
           <div
             {...getRootProps()}
             className={cn(
-              "relative z-[1] flex items-center justify-center rounded-b-xl border border-t-0 border-dashed border-brand-800/25 pb-4 pt-4 transition-colors",
+              "relative z-[1] mt-2 flex items-center justify-center rounded-xl border border-dashed border-brand-800/25 py-4 transition-colors",
               isDragActive
                 ? "border-brand-700 bg-brand-50"
                 : "hover:border-brand-800/45 hover:bg-white/40",
-              {
-                "flex-1": variant === "page",
-              },
               isUploading && "pointer-events-none opacity-60",
             )}
           >
@@ -593,9 +630,11 @@ export function DocumentsSectionUI({
                     }}
                     className="rounded px-0.5 font-medium text-brand-800 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700"
                   >
-                    browse
+                    <span className="sm:hidden">Browse files</span>
+                    <span className="max-sm:hidden">browse</span>
                   </button>
-                  <span className="text-muted-foreground">
+                  {/* Touch screens have nothing to drag files from. */}
+                  <span className="text-muted-foreground max-sm:hidden">
                     or drag your files here
                   </span>
                 </>
@@ -661,6 +700,7 @@ export function DocumentsSectionUI({
           filename={previewDoc.originalFilename}
           url={previewDoc.url}
           mimeType={previewDoc.mimeType}
+          projectDocumentId={previewDoc.id}
           open={!!previewDoc}
           onOpenChange={(open) => {
             if (!open) setPreviewDoc(null);

@@ -25,6 +25,7 @@ import {
   requirePermission,
 } from "@wildfires-org/turboplan-rbac/hono";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 import { generateUniqueProjectSlug } from "../projects/queries";
 import { getSubmissionReviewScope } from "../projects/submission-policy";
@@ -60,7 +61,7 @@ const getProjectEmailContext = async (projectId: string) => {
   }
 
   const env = getApiEnv();
-  const projectUrl = `${env.TURBOPLAN_URL}/organizations/${row.organizationSlug}/offices/${row.officeSlug}/projects/${row.projectSlug}`;
+  const projectUrl = `${env.TURBOPLAN_URL}${appPaths.project(row.organizationSlug, row.officeSlug, row.projectSlug)}`;
 
   return {
     projectUrl,

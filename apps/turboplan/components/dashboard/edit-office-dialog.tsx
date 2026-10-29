@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Edit, Loader2 } from "lucide-react";
+import { Edit, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
@@ -28,8 +28,13 @@ import {
 } from "@wildfires-org/turboplan-workspace/types";
 
 import { toast } from "@/components/toast";
+import type { LetterheadImportValues } from "@/lib/letterhead-import";
 import { AppUrls } from "@/lib/nav/urls";
-import { DocumentBrandingFields } from "./document-branding-fields";
+import {
+  DocumentBrandingFields,
+  toDocumentProfileErrors,
+  toDocumentProfileFormValues,
+} from "./document-branding-fields";
 
 const apiClient = new ApiClient();
 
@@ -61,6 +66,11 @@ export function EditOfficeDialog({
       documentFooterText: office.documentFooterText || "",
       documentFooterNote: office.documentFooterNote || "",
       documentFooterLogoUrl: office.documentFooterLogoUrl || "",
+      documentLetterheadLayout: office.documentLetterheadLayout ?? "split",
+      documentLetterheadLines: office.documentLetterheadLines || "",
+      documentLetterheadContact: office.documentLetterheadContact || "",
+      documentLetterheadColor: office.documentLetterheadColor || "",
+      documentProfile: toDocumentProfileFormValues(office.documentProfile),
     },
   });
 
@@ -71,6 +81,28 @@ export function EditOfficeDialog({
     setValue,
     formState: { errors },
   } = form;
+
+  // Fields read by "Import from document"; saved with the rest of the form.
+  const handleLetterheadImport = ({
+    layout,
+    lines,
+    contact,
+    color,
+    logoUrl,
+  }: LetterheadImportValues) => {
+    const options = { shouldDirty: true };
+    setValue("documentLetterheadLayout", layout, options);
+    setValue("documentLetterheadColor", color, options);
+    if (lines !== undefined) {
+      setValue("documentLetterheadLines", lines, options);
+    }
+    if (contact !== undefined) {
+      setValue("documentLetterheadContact", contact, options);
+    }
+    if (logoUrl) {
+      setValue("documentLogoUrl", logoUrl, options);
+    }
+  };
 
   const onSubmit = handleSubmit(async (data) => {
     setIsLoading(true);
@@ -112,22 +144,53 @@ export function EditOfficeDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-h-[90vh] max-w-[480px] overflow-y-auto p-6 sm:p-7">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2">
-            <Edit aria-hidden className="size-5 text-brand-800" />
-            Edit Office
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            Update office details. Changes will be visible across your
-            workspace.
-          </AlertDialogDescription>
+      <AlertDialogContent className="max-h-[90vh] max-w-[640px] overflow-y-auto p-6 sm:p-7">
+        <AlertDialogHeader className="flex-row items-start justify-between gap-3 space-y-0 text-left">
+          <div className="flex min-w-0 flex-col gap-2">
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Edit aria-hidden className="size-5 text-brand-800" />
+              Edit Office
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Update office details. Changes will be visible across your
+              workspace.
+            </AlertDialogDescription>
+          </div>
+          {/* Cancel sits under a long form; on phones this is the way out. */}
+          <button
+            type="button"
+            aria-label="Close"
+            className="glass press flex size-8 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="size-4" />
+          </button>
         </AlertDialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4">
           <DocumentBrandingFields
             textField={register("documentFooterText")}
             noteField={register("documentFooterNote")}
+            letterheadLinesField={register("documentLetterheadLines")}
+            letterheadContactField={register("documentLetterheadContact")}
+            registerProfileField={(key) => register(`documentProfile.${key}`)}
+            profileErrors={toDocumentProfileErrors(errors.documentProfile)}
+            letterheadLayout={watch("documentLetterheadLayout") || "split"}
+            letterheadLines={watch("documentLetterheadLines") ?? ""}
+            letterheadContact={watch("documentLetterheadContact") ?? ""}
+            documentLogoUrl={watch("documentLogoUrl") ?? ""}
+            letterheadColor={watch("documentLetterheadColor") ?? ""}
+            onLetterheadLayoutChange={(layout) =>
+              setValue("documentLetterheadLayout", layout, {
+                shouldDirty: true,
+              })
+            }
+            onLetterheadColorChange={(color) =>
+              setValue("documentLetterheadColor", color, { shouldDirty: true })
+            }
+            onLetterheadImport={handleLetterheadImport}
+            organizationId={office.organizationId}
+            officeId={office.id}
             onDocumentLogoChange={(url) =>
               setValue("documentLogoUrl", url ?? "")
             }
@@ -138,6 +201,8 @@ export function EditOfficeDialog({
             initialFooterLogoUrl={office.documentFooterLogoUrl}
             textError={errors.documentFooterText?.message}
             noteError={errors.documentFooterNote?.message}
+            letterheadLinesError={errors.documentLetterheadLines?.message}
+            letterheadContactError={errors.documentLetterheadContact?.message}
             disabled={isLoading}
           />
 

@@ -154,37 +154,54 @@ import type { Suggestion } from "@wildfires-org/turboplan-utils";
 
 export type SuggestionItem = Suggestion;
 
+/**
+ * Framework-neutral fallback chips, shown until project-specific next-step
+ * suggestions have been generated. `{projectName}` is substituted at render.
+ */
 export const DEFAULT_SUGGESTION_TEMPLATES = [
   {
-    label: "Draft Scoping Letter",
-    contentTemplate: "Draft a scoping letter for {projectName}",
-    emoji: "📝",
+    label: "Summarize Next Steps",
+    contentTemplate:
+      "Summarize the next steps for {projectName} based on its review framework and current stage",
+    emoji: "🧭",
   },
   {
-    label: "Write Proposed Actions",
-    contentTemplate: "Write the proposed actions for {projectName}",
-    emoji: "📋",
-  },
-  {
-    label: "Purpose & Need Statement",
-    contentTemplate: "Write a purpose and need statement for {projectName}",
-    emoji: "📄",
-  },
-  {
-    label: "Draft Decision Memo",
-    contentTemplate: "Draft a decision memo for {projectName}",
-    emoji: "⚖️",
+    label: "Draft Outreach Letter",
+    contentTemplate: "Draft a stakeholder outreach letter for {projectName}",
+    emoji: "✉️",
   },
   {
     label: "Create Project Schedule",
     contentTemplate: "Create a project schedule and timeline for {projectName}",
     emoji: "📅",
   },
+  {
+    label: "Permit Checklist",
+    contentTemplate:
+      "Create a checklist of the permits, approvals and consultations {projectName} needs",
+    emoji: "✅",
+  },
+  {
+    label: "Project Summary",
+    contentTemplate: "Write a one-page project summary for {projectName}",
+    emoji: "📄",
+  },
 ] as const;
 
 export type SuggestionsMessageData = {
   suggestions: SuggestionItem[];
 };
+
+/**
+ * One line of the newline-delimited JSON stream returned by the suggestions
+ * regenerate endpoint. `chip` arrives once per accepted chip, in order;
+ * `done` follows only after the full set has been stored; `error` ends a
+ * failed run and leaves the stored set untouched.
+ */
+export type SuggestionStreamEvent =
+  | { type: "chip"; chip: SuggestionItem }
+  | { type: "done"; suggestions: SuggestionItem[] }
+  | { type: "error"; error: string };
 
 export type ResearchAgentMessageData =
   | ProgressMessageData

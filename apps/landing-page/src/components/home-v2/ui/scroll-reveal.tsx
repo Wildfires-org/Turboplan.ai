@@ -1,27 +1,24 @@
-"use client";
+import type { CSSProperties, ReactNode } from "react";
 
-import type { ReactNode } from "react";
-
-import { motion, useReducedMotion } from "framer-motion";
-
-import { EASE_OUT } from "./motion";
+import { cn } from "@/lib/utils";
 
 interface ScrollRevealProps {
   children: ReactNode;
+  /** Stagger, in the seconds the old timed reveal used; each 0.1 starts the
+   * reveal 20px later in the scroll. */
   delay?: number;
   direction?: "up" | "down" | "left" | "right" | "none";
   distance?: number;
-  duration?: number;
   className?: string;
-  once?: boolean;
 }
 
 type Direction = NonNullable<ScrollRevealProps["direction"]>;
 
 const DEFAULT_DISTANCE = 24;
 
-// Full transform strings rather than framer's `x`/`y` shorthands — the
-// shorthands run on the main thread and drop frames under load.
+// Scroll distance per second of `delay`.
+const STAGGER_PX_PER_SECOND = 200;
+
 const getOffsetTransform = (direction: Direction, distance: number) => {
   switch (direction) {
     case "up":
@@ -33,48 +30,33 @@ const getOffsetTransform = (direction: Direction, distance: number) => {
     case "right":
       return `translateX(${-distance}px)`;
     default:
-      return null;
+      return "none";
   }
 };
 
-const getRestTransform = (direction: Direction) =>
-  direction === "left" || direction === "right"
-    ? "translateX(0px)"
-    : "translateY(0px)";
-
-export function ScrollReveal({
+/**
+ * Fades content in as it scrolls into view, with a CSS scroll-driven animation
+ * (`.scroll-reveal` in globals.css). The content is in the server HTML at full
+ * opacity: browsers without view timelines, and reduced-motion users, simply
+ * see it, and nothing waits for JavaScript. The framer-motion `whileInView`
+ * version held every section at opacity 0 until hydration, which made a
+ * below-the-fold card the page's largest contentful paint.
+ */
+export const ScrollReveal = ({
   children,
   delay = 0,
   direction = "up",
   distance = DEFAULT_DISTANCE,
-  duration = 0.45,
   className,
-  once = true,
-}: ScrollRevealProps) {
-  const prefersReducedMotion = useReducedMotion();
-
-  // Reduced motion keeps the fade but drops the positional offset.
-  const offset = prefersReducedMotion
-    ? null
-    : getOffsetTransform(direction, Math.abs(distance));
+}: ScrollRevealProps) => {
+  const style = {
+    "--reveal-from": getOffsetTransform(direction, Math.abs(distance)),
+    "--reveal-start": `${Math.round(delay * STAGGER_PX_PER_SECOND)}px`,
+  } as CSSProperties;
 
   return (
-    <motion.div
-      initial={offset ? { opacity: 0, transform: offset } : { opacity: 0 }}
-      whileInView={
-        offset
-          ? { opacity: 1, transform: getRestTransform(direction) }
-          : { opacity: 1 }
-      }
-      viewport={{ once, margin: "-60px" }}
-      transition={{
-        duration,
-        delay,
-        ease: EASE_OUT,
-      }}
-      className={className}
-    >
+    <div className={cn("scroll-reveal", className)} style={style}>
       {children}
-    </motion.div>
+    </div>
   );
-}
+};

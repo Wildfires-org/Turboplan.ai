@@ -16,6 +16,9 @@ export * from "./server/offices/validation";
 // ============================================================================
 // Organizations
 // ============================================================================
+export * from "./server/organizations/context";
+export * from "./server/organizations/context-builder";
+export * from "./server/organizations/memories";
 export * from "./server/organizations/organization_users_queries";
 export * from "./server/organizations/personal-workspace";
 export * from "./server/organizations/queries";

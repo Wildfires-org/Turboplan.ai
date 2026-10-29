@@ -5,7 +5,15 @@ import type { ReactNode } from "react";
 import { useParams, usePathname } from "next/navigation";
 import type { User } from "next-auth";
 
-import type { Project } from "@wildfires-org/turboplan-workspace/types";
+import {
+  isDocumentsPackageEnabled,
+  isMapPackageEnabled,
+  isProjectContextPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
+import type {
+  Organization,
+  Project,
+} from "@wildfires-org/turboplan-workspace/types";
 
 import { ProjectChatRouteLoading } from "@/components/chat/project-chat-route-loading";
 import { CommentsPage } from "@/components/dashboard/comments/comments-page";
@@ -53,7 +61,7 @@ type ProjectRoute =
 interface SubviewBodyProps {
   route: ProjectRoute;
   project: Project | null;
-  organizationId: string | null;
+  organization: Organization | null;
   projectUrl: string;
   user: User | null;
 }
@@ -163,7 +171,7 @@ export function ProjectRouteLoading() {
     <SubviewBody
       route={route}
       project={project}
-      organizationId={organization?.id ?? null}
+      organization={organization}
       projectUrl={projectUrl}
       user={user}
     />
@@ -204,7 +212,7 @@ export function ProjectRouteLoading() {
 const SubviewBody = ({
   route,
   project,
-  organizationId,
+  organization,
   projectUrl,
   user,
 }: SubviewBodyProps) => {
@@ -237,16 +245,30 @@ const SubviewBody = ({
           <ProjectDocumentsPageSection projectId={project.id} userId={userId} />
         );
       case "context":
-        return (
-          <ProjectContextPageSection projectId={project.id} userId={userId} />
-        );
+        if (organization) {
+          return (
+            <ProjectContextPageSection
+              projectId={project.id}
+              userId={userId}
+              organization={{
+                id: organization.id,
+                name: organization.name,
+                slug: organization.slug,
+              }}
+              isDocumentsEnabled={isDocumentsPackageEnabled()}
+              isMapEnabled={isMapPackageEnabled()}
+              isOrganizationContextEnabled={isProjectContextPackageEnabled()}
+            />
+          );
+        }
+        break;
       case "members":
-        if (organizationId) {
+        if (organization) {
           return (
             <ProjectMembersSection
               user={user}
               project={project}
-              organizationId={organizationId}
+              organizationId={organization.id}
               backHref={projectUrl}
             />
           );

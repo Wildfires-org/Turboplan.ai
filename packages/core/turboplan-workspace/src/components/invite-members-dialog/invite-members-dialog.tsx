@@ -48,16 +48,14 @@ export function InviteMembersDialog({
   seatBillingActive = false,
 }: InviteMembersDialogProps) {
   const {
+    addInvitees,
     currentRole,
     excludedEmails,
-    handleAssign,
     handleRemove,
     handleRoleChange,
     pendingInvitees,
     resetInvitations,
-    selectedUsers,
     setCurrentRole,
-    setSelectedUsers,
   } = useMemberInvitation({ existingEmails });
 
   const handleOpenChange = useCallback(
@@ -84,12 +82,13 @@ export function InviteMembersDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-[620px] p-6 sm:p-7">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <DialogTitle className="text-xl font-semibold">
+        <DialogHeader className="pr-8 text-left">
+          {/* Title stays on one line; a long entity name wraps below it. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <DialogTitle className="whitespace-nowrap text-xl font-semibold">
               Invite Members
             </DialogTitle>
-            <span className="inline-flex h-6 items-center rounded-full bg-brand-50 px-2.5 text-xs font-medium text-brand-900 ring-1 ring-inset ring-brand-800/15">
+            <span className="inline-flex min-h-6 max-w-full items-center truncate rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-900 ring-1 ring-inset ring-brand-800/15">
               {entityName}
             </span>
           </div>
@@ -105,12 +104,10 @@ export function InviteMembersDialog({
               Add Members
             </span>
             <MemberAssignRow
-              selectedUsers={selectedUsers}
-              onSelectedUsersChange={setSelectedUsers}
+              onAdd={addInvitees}
               searchScope={searchScope}
               currentRole={currentRole}
               onRoleChange={setCurrentRole}
-              onAssign={handleAssign}
               disabled={isSubmitting}
               excludeEmails={excludedEmails}
             />

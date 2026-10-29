@@ -1,0 +1,4 @@
+# Workers Static Assets headers (OpenNext copies public/ into .open-next/assets).
+# Build output under /_next/static/ is content-hashed, so it never changes.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

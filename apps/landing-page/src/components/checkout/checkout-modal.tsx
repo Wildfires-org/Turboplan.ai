@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { CheckoutView } from "@wildfires-org/turboplan-billing/client";
 import { CATALOG } from "@wildfires-org/turboplan-billing/types";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 
 import {
   MODAL_CLOSE_BUTTON_CLASS,
@@ -17,6 +18,9 @@ interface CheckoutModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+// Extra seats bill only while billing enforcement is on; mirrors `CheckoutView`.
+const IS_SEAT_BILLING_ENABLED = isBillingEnforcementEnabled();
 
 export function CheckoutModal({ isOpen, onOpenChange }: CheckoutModalProps) {
   return (
@@ -48,7 +52,9 @@ export function CheckoutModal({ isOpen, onOpenChange }: CheckoutModalProps) {
           <p className="mt-2 font-inter text-[15px] leading-[22px] text-egray-700">
             {CATALOG.billing.trial_days > 0
               ? `You won't be charged until your ${CATALOG.billing.trial_days}-day free trial ends.`
-              : "A flat workspace price — seats beyond the included count bill separately."}
+              : IS_SEAT_BILLING_ENABLED
+                ? "A flat workspace price — seats beyond the included count bill separately."
+                : "A flat monthly workspace price."}
           </p>
         </header>
 

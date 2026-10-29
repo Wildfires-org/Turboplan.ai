@@ -1,19 +1,17 @@
-// Allowed MIME types for document uploads
-export const ALLOWED_MIME_TYPES = {
-  "application/pdf": [".pdf"],
-  "application/msword": [".doc"],
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
-    ".docx",
-  ],
-} as const;
+import {
+  PROJECT_DOCUMENT_ACCEPT,
+  PROJECT_DOCUMENT_MAX_FILE_SIZE,
+  PROJECT_DOCUMENT_MIME_TYPES,
+} from "@wildfires-org/turboplan-upload/types";
+
+// Allowed MIME types for document uploads (shared with the server check)
+export const ALLOWED_MIME_TYPES = PROJECT_DOCUMENT_MIME_TYPES;
 
 // Maximum file size: 50MB
-export const MAX_FILE_SIZE = 50 * 1024 * 1024;
+export const MAX_FILE_SIZE = PROJECT_DOCUMENT_MAX_FILE_SIZE;
 
 // Accept string for HTML file inputs
-export const ACCEPT_STRING = Object.entries(ALLOWED_MIME_TYPES)
-  .flatMap(([mime, exts]) => [mime, ...exts])
-  .join(",");
+export const ACCEPT_STRING = PROJECT_DOCUMENT_ACCEPT;
 
 /**
  * Format date to readable string with time

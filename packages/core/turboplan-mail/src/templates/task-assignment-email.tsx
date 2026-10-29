@@ -1,12 +1,12 @@
-import { Section, Text } from "@react-email/components";
-
 import { BaseLayout } from "./base-layout";
 import {
-  BrandCard,
   CtaButton,
-  Disclaimer,
+  DetailItem,
+  DetailsBox,
+  DetailTitle,
+  EmailHeading,
   FallbackUrl,
-  GreetingPill,
+  Paragraph,
 } from "./email-card";
 
 export interface TaskAssignmentEmailProps {
@@ -42,46 +42,34 @@ export function TaskAssignmentEmail({
   taskDescription,
   taskUrl,
 }: TaskAssignmentEmailProps) {
-  const greeting = assigneeName ? `Hello, ${assigneeName}!` : "Hello!";
-
   return (
     <BaseLayout
       preview={`${assignerName} assigned you to "${taskTitle}" in ${projectName}`}
       label="Task Assignment"
+      footer={`This notification was sent to ${assigneeEmail} because you are a member of the ${projectName} project.`}
     >
-      <BrandCard>
-        <GreetingPill>{greeting}</GreetingPill>
+      <EmailHeading>
+        {assigneeName
+          ? `${assigneeName}, you have a new task`
+          : "You have a new task"}
+      </EmailHeading>
 
-        <Text style={assignmentText}>
-          <strong>{assignerName}</strong>
-          <span style={assignmentTextLight}>
-            {" "}
-            has assigned you to a task in the{" "}
-          </span>
-          <strong>{projectName}</strong>
-          <span style={assignmentTextLight}> project.</span>
-        </Text>
+      <Paragraph>
+        <strong style={strong}>{assignerName}</strong> has assigned you to a
+        task in the <strong style={strong}>{projectName}</strong> project.
+      </Paragraph>
 
-        {/* Task Details Box */}
-        <Section style={taskDetailsBox}>
-          <Text style={taskTitleStyle}>&#9745; {taskTitle}</Text>
-          {milestoneTitle && (
-            <Text style={taskDetailItem}>
-              &#9632; Milestone: {milestoneTitle}
-            </Text>
-          )}
-          {taskDescription && (
-            <Text style={taskDescriptionStyle}>{taskDescription}</Text>
-          )}
-        </Section>
+      <DetailsBox>
+        <DetailTitle>{taskTitle}</DetailTitle>
+        {milestoneTitle && (
+          <DetailItem label="Milestone">{milestoneTitle}</DetailItem>
+        )}
+        {taskDescription && (
+          <DetailItem label="Description">{taskDescription}</DetailItem>
+        )}
+      </DetailsBox>
 
-        <CtaButton href={taskUrl} label="View Task" />
-      </BrandCard>
-
-      <Disclaimer>
-        This notification was sent to {assigneeEmail} because you are a member
-        of the {projectName} project.
-      </Disclaimer>
+      <CtaButton href={taskUrl} label="View Task" />
 
       <FallbackUrl url={taskUrl} />
     </BaseLayout>
@@ -89,46 +77,6 @@ export function TaskAssignmentEmail({
 }
 
 // Styles
-const assignmentText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "#ffffff",
-  textAlign: "center" as const,
-  margin: "0 0 24px",
-};
-
-const assignmentTextLight = {
-  color: "rgba(255, 255, 255, 0.8)",
-};
-
-const taskDetailsBox = {
-  backgroundColor: "rgba(255, 255, 255, 0.15)",
-  borderRadius: "8px",
-  padding: "16px",
-  margin: "0 0 36px",
-  textAlign: "left" as const,
-};
-
-const taskTitleStyle = {
-  fontSize: "16px",
-  fontWeight: "600" as const,
-  lineHeight: "24px",
-  color: "#ffffff",
-  margin: "0 0 6px",
-};
-
-const taskDetailItem = {
-  fontSize: "13px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.9)",
-  margin: "0 0 4px",
-};
-
-const taskDescriptionStyle = {
-  fontSize: "13px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.8)",
-  margin: "8px 0 0",
-  borderTop: "1px solid rgba(255, 255, 255, 0.2)",
-  paddingTop: "8px",
+const strong = {
+  color: "#111827",
 };

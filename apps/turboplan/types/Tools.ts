@@ -6,6 +6,7 @@ export const Tools = {
   webSearch: "webSearch",
   getContents: "getContents",
   researchNotes: "researchNotes",
+  saveOrganizationMemory: "saveOrganizationMemory",
 } as const;
 
 export type Tools = (typeof Tools)[keyof typeof Tools];

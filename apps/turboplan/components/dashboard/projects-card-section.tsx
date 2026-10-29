@@ -20,7 +20,7 @@ import type { User } from "next-auth";
 
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
 import { OwnershipStatus } from "@wildfires-org/turboplan-db/types";
-import { EntityType } from "@wildfires-org/turboplan-rbac";
+import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import {
   calculateProgress,
   DropdownMenu,
@@ -46,6 +46,7 @@ import { PrivacyBadge } from "@/components/dashboard/privacy-badge";
 import { ProgressBar } from "@/components/dashboard/progress-bar";
 import { ProjectCardSkeleton } from "@/components/dashboard/project-card-skeleton";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { useOptionalDashboard } from "@/components/providers/dashboard-provider";
 import { toast } from "@/components/toast";
 import { useFilteredPaginatedList } from "@/hooks/use-filtered-paginated-list";
 import { useProjects } from "@/hooks/use-projects";
@@ -153,6 +154,9 @@ export function ProjectsCardSection({
 
   const router = useRouter();
   const pathname = usePathname();
+  const canCreateProject = (
+    useOptionalDashboard()?.officeActions ?? []
+  ).includes(Action.CREATE);
 
   const handleCreateDialogClose = (open: boolean) => {
     setCreateDialogOpen(open);
@@ -467,16 +471,23 @@ export function ProjectsCardSection({
           icon={FolderOpen}
           entityLabel="projects"
           hasSearchTerm={!!debouncedSearchTerm}
+          emptyDescription={
+            canCreateProject
+              ? undefined
+              : "Projects in this office will appear here."
+          }
           createAction={
-            <CreateProjectButton
-              organizationSlug={organizationSlug}
-              officeSlug={officeSlug}
-              onSuccess={refreshProjects}
-              variant="brand"
-            >
-              <Plus aria-hidden />
-              Create First Project
-            </CreateProjectButton>
+            canCreateProject && (
+              <CreateProjectButton
+                organizationSlug={organizationSlug}
+                officeSlug={officeSlug}
+                onSuccess={refreshProjects}
+                variant="brand"
+              >
+                <Plus aria-hidden />
+                Create First Project
+              </CreateProjectButton>
+            )
           }
         />
       )}
@@ -553,7 +564,7 @@ export function ProjectsCardSection({
       <AddProjectDialog
         organizationSlug={organizationSlug}
         officeSlug={officeSlug}
-        open={createDialogOpen}
+        open={createDialogOpen && canCreateProject}
         onOpenChange={handleCreateDialogClose}
         onSuccess={() => {
           refreshProjects();

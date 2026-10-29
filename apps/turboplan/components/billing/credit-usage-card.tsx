@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
   cn,
+  GLASS_CARD_CLASS,
   Skeleton,
 } from "@wildfires-org/turboplan-utils";
 
@@ -63,7 +64,7 @@ export function CreditUsageCard({ organizationId }: CreditUsageCardProps) {
   );
 
   if (isLoading) {
-    return <Skeleton className="h-40 w-full" />;
+    return <Skeleton className={cn(GLASS_CARD_CLASS, "h-40 w-full")} />;
   }
 
   if (error || !usage) {
@@ -78,7 +79,7 @@ export function CreditUsageCard({ organizationId }: CreditUsageCardProps) {
   const overage = overageNote(usage.plan);
 
   return (
-    <Card>
+    <Card className={GLASS_CARD_CLASS}>
       <CardHeader>
         <CardTitle className="text-base">Credit usage</CardTitle>
         <CardDescription>
@@ -102,7 +103,7 @@ export function CreditUsageCard({ organizationId }: CreditUsageCardProps) {
           aria-valuenow={percentUsed}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="h-2 w-full overflow-hidden rounded-full bg-muted"
+          className="glass-inset h-2 w-full overflow-hidden rounded-full"
         >
           <div
             className={cn(

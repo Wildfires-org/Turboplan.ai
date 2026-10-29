@@ -74,6 +74,36 @@ export function createGeoJsonStyle(
   };
 }
 
+// Points are drawn as circle markers in the layer colour. Leaflet's default
+// marker is an image resolved relative to the page URL, which 404s here.
+const POINT_MARKER_RADIUS = 6;
+
+export const createPointStyle = (color: string): L.CircleMarkerOptions => ({
+  radius: POINT_MARKER_RADIUS,
+  color,
+  fillColor: color,
+  weight: 2,
+  opacity: 1,
+  fillOpacity: 0.8,
+});
+
+/**
+ * GeoJSON applies `style` to every feature after `pointToLayer`, and a
+ * GeometryCollection's style reaches each of its members, points included.
+ * Each point marker therefore turns any style it gets into the point style,
+ * or it would take the polygon fill (or none: hollow rings on unit layers).
+ * The colour comes from that style: react-leaflet re-applies `style` when the
+ * layer colour changes but never re-runs `pointToLayer`.
+ */
+export const createPointToLayer =
+  (color: string) => (_feature: GeoJSON.Feature, latlng: L.LatLng) => {
+    const marker = L.circleMarker(latlng, createPointStyle(color));
+    const applyStyle = marker.setStyle.bind(marker);
+    marker.setStyle = (style: L.PathOptions) =>
+      applyStyle({ ...style, ...createPointStyle(style.color ?? color) });
+    return marker;
+  };
+
 // Feature properties come from user-uploaded GeoJSON/shapefiles, and Leaflet
 // renders string popup/tooltip content as HTML. Build DOM nodes and set only
 // textContent so property keys and values can never inject markup or script.
@@ -163,6 +193,7 @@ export function MapLayers({
             key={`${getLayerKey(layer)}-${labelPropertyKey || "default"}`}
             data={layer.data!}
             style={createGeoJsonStyle(layer, color)}
+            pointToLayer={createPointToLayer(color)}
             onEachFeature={createOnEachFeature(layer, labelPropertyKey)}
           />
         );

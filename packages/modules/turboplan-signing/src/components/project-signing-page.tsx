@@ -10,7 +10,13 @@ import {
   FileText,
 } from "lucide-react";
 
-import { Badge, Button, Skeleton } from "@wildfires-org/turboplan-utils";
+import {
+  Badge,
+  Button,
+  cn,
+  GLASS_CARD_CLASS,
+  Skeleton,
+} from "@wildfires-org/turboplan-utils";
 
 import { useSigningRequests } from "../hooks/use-signing-requests";
 import {
@@ -131,7 +137,7 @@ export const ProjectSigningPage = ({
       <h2 className="text-lg font-semibold">Signing Requests</h2>
 
       {isLoading ? (
-        <div className="rounded-lg border">
+        <div className={cn(GLASS_CARD_CLASS, "overflow-x-auto")}>
           <div className="flex flex-col gap-4 p-4">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4">
@@ -146,15 +152,20 @@ export const ProjectSigningPage = ({
           </div>
         </div>
       ) : signingRequests.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border py-16">
-          <FileText className="size-10 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">
-            No signing requests yet
-          </p>
+        <div
+          className={cn(
+            GLASS_CARD_CLASS,
+            "flex flex-col items-center justify-center px-6 py-14 text-center",
+          )}
+        >
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-brandAlt-100 text-brand-800">
+            <FileText aria-hidden className="size-5" />
+          </span>
+          <p className="mt-3 text-sm text-gray-550">No signing requests yet</p>
         </div>
       ) : (
-        <div className="rounded-lg border">
-          <table className="w-full">
+        <div className={cn(GLASS_CARD_CLASS, "overflow-x-auto")}>
+          <table className="w-full min-w-[720px]">
             <thead>
               <tr className="border-b text-left text-sm text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Document</th>

@@ -30,6 +30,7 @@ import {
 } from "@wildfires-org/turboplan-utils";
 
 import { toast } from "@/components/toast";
+import { cn } from "@/lib/utils";
 
 interface TimelineEntryProps {
   entry: TimelineDisplayEntry;
@@ -68,16 +69,21 @@ export function TimelineEntry({
     }
   };
 
+  // A title-only card centers it against the action buttons instead of
+  // leaving it pinned to the top edge.
+  const isTitleOnly = !entry.description && entry.documents.length === 0;
+
   return (
     <div className="flex flex-col gap-1">
       {/* Row 1: Circle + meta info */}
       <div className="flex items-center gap-4">
         <div className="size-6 shrink-0 rounded-full border-[5px] border-white bg-brand-800 shadow-[0_2px_6px_-2px_rgba(15,23,42,0.3)]" />
-        <div className="flex flex-wrap items-center gap-3">
+        {/* No dot separator: the author avatar already separates the two,
+            and a dot would dangle at the line end when narrow cards wrap. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-xs leading-4 text-gray-550">
             {entry.dateRange}
           </span>
-          <span aria-hidden className="size-0.5 rounded-full bg-gray-550" />
           <div className="flex items-center gap-2">
             <div className="flex items-center py-0.5">
               {entry.authorAvatarUrl ? (
@@ -113,13 +119,18 @@ export function TimelineEntry({
         <div className="flex min-w-0 flex-1 flex-col pb-6 pt-2">
           <div
             data-testid="timeline-entry"
-            className="rounded-2xl border border-white/90 bg-white/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-slate-900/60"
+            className="relative rounded-2xl border border-white/90 bg-white/80 p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-slate-900/60"
           >
-            <div className="flex items-start gap-4">
+            <div
+              className={cn(
+                "flex gap-4",
+                isTitleOnly ? "items-center" : "items-start",
+              )}
+            >
               {/* Content */}
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex flex-col gap-1">
-                  <p className="break-words text-sm font-medium leading-5 text-gray-900">
+                  <p className="break-words text-sm font-medium leading-5 text-gray-900 max-sm:pr-16">
                     {entry.title}
                   </p>
                   {entry.description && (
@@ -161,8 +172,9 @@ export function TimelineEntry({
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="flex shrink-0 items-center gap-2">
+              {/* Actions — pinned to the corner on phones so the description
+                  gets the card's full width. */}
+              <div className="flex shrink-0 items-center gap-2 max-sm:absolute max-sm:right-3 max-sm:top-3 max-sm:gap-1">
                 {!readOnly && onToggleVisibility && (
                   <button
                     type="button"

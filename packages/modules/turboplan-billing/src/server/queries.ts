@@ -19,7 +19,12 @@ import {
   user,
 } from "@wildfires-org/turboplan-db";
 import { type DbInstance, db } from "@wildfires-org/turboplan-db/db-client";
-import { isBillingPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
+import {
+  isBillingEnforcementEnabled,
+  isBillingPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
+
+import { holdsLiveSubscription } from "../types";
 
 /**
  * A deduped billable-seat member: one row per user, carrying the user's HIGHEST
@@ -380,16 +385,73 @@ export const getBillableSeatUserIds = async (
 /**
  * Counts billable seats for an organization: distinct non-viewer members
  * across the org/office/project hierarchy. Always returns at least 1
- * (checkout relies on a quantity >= 1). This is the Stripe-facing count — it
- * only reflects ACCEPTED memberships, since a pending invite is not yet a
- * seat anyone should be charged for. For the seat-cap ENTITLEMENT check, see
- * {@link countReservedBillableSeats}, which also reserves pending invites.
+ * (checkout relies on a quantity >= 1). It only reflects ACCEPTED
+ * memberships, since a pending invite is not yet a seat anyone should be
+ * charged for. Stripe-facing paths read it through
+ * {@link countChargeableSeats}, which honours the enforcement flag. For the
+ * seat-cap ENTITLEMENT check, see {@link countReservedBillableSeats}, which
+ * also reserves pending invites.
  */
 export const countBillableSeats = async (
   organizationId: string,
 ): Promise<number> => {
   const userIds = await getBillableSeatUserIds(organizationId);
   return Math.max(1, userIds.length);
+};
+
+/**
+ * The seat count Stripe bills for — the single input every Stripe-facing seat
+ * path (checkout, change-plan, live seat sync, both reconcilers) feeds into
+ * `extraSeats()`. Equals {@link countBillableSeats} while billing enforcement
+ * is on.
+ *
+ * With enforcement off (`IS_BILLING_ENFORCEMENT_ENABLED=false`, or the billing
+ * package off) seats are never billed: this returns 0 without touching the
+ * DB, so `extraSeats()` is 0 for every plan whatever its included count.
+ * Checkout then adds no extra-seat line item, and change-plan, sync and
+ * reconcile delete an existing one. The `seats` mirror is written as
+ * included + derived extras, never from this count, so it settles at the
+ * plan's included seats; credits do not read it then (see
+ * {@link resolveCreditSeatCount}). Turning enforcement back on restores the
+ * real count and the next sync or reconcile re-adds the item.
+ */
+export const countChargeableSeats = async (
+  organizationId: string,
+): Promise<number> => {
+  if (!isBillingEnforcementEnabled()) {
+    return 0;
+  }
+  return countBillableSeats(organizationId);
+};
+
+/**
+ * The seat count the per-seat CREDIT grant derives from — callers feed it to
+ * `extraSeats()` and then `creditAllowance()`. Normally the `seats` mirror.
+ *
+ * While billing enforcement is off, {@link countChargeableSeats} holds a live
+ * Stripe subscription's mirror at the plan's included seats, yet the credit
+ * grant must still cover every Owner/Editor as if their seats were billed. For
+ * those subscriptions this counts real members instead: one extra query per
+ * call, and only when enforcement is off. Rows without a live Stripe
+ * subscription (Starter, grandfather comps, ended subscriptions) are never
+ * seat-synced, so their mirror already matches what enforcement-on would give
+ * and is returned without a query.
+ */
+export const resolveCreditSeatCount = async (
+  subscription:
+    | Pick<
+        Subscription,
+        "organizationId" | "seats" | "stripeSubscriptionId" | "status"
+      >
+    | undefined,
+): Promise<number> => {
+  if (!subscription) {
+    return 0;
+  }
+  if (isBillingEnforcementEnabled() || !holdsLiveSubscription(subscription)) {
+    return subscription.seats;
+  }
+  return countBillableSeats(subscription.organizationId);
 };
 
 /**

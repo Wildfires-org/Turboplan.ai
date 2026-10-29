@@ -1,3 +1,4 @@
+export * from "./app-paths";
 export * from "./components";
 export * from "./constants";
 export * from "./email";

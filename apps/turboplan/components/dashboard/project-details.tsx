@@ -71,6 +71,8 @@ interface ProjectDetailsProps {
    * project progress bar inside the header card).
    */
   progressSlot?: React.ReactNode;
+  /** Phones skip the description (project sub-views; the overview has it). */
+  hideDescriptionOnMobile?: boolean;
   /**
    * When provided (and the viewer has UPDATE permission), adds an "Edit cover"
    * item to the `⋮` menu that invokes this callback.
@@ -99,6 +101,7 @@ export function ProjectDetails({
   avatar,
   extraActions,
   progressSlot,
+  hideDescriptionOnMobile = false,
   onEditCover,
   isPersonalWorkspace = false,
   className,
@@ -289,7 +292,13 @@ export function ProjectDetails({
               </h1>
             </div>
             {project.description && (
-              <p className={cn(PAGE_LEAD_CLASS, "mt-1.5 max-w-[720px]")}>
+              <p
+                className={cn(
+                  PAGE_LEAD_CLASS,
+                  "mt-1.5 max-w-[720px] max-sm:line-clamp-3",
+                  hideDescriptionOnMobile && "max-sm:hidden",
+                )}
+              >
                 {project.description}
               </p>
             )}

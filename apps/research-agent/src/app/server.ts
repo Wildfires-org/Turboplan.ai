@@ -5,6 +5,8 @@ import { serve } from "@hono/node-server";
 import { getResearchAgentEnv } from "@wildfires-org/turboplan-env";
 
 import { createDocumentExtraction } from "../documents/create-document-extraction";
+import { createDocumentSummarizer } from "../documents/summarize-document";
+import { createFastModelClient } from "../infra/fast-model-client";
 import { logger } from "../infra/logger";
 import { getModalResources } from "../infra/modal-setup";
 import {
@@ -32,10 +34,14 @@ async function main(): Promise<void> {
     "server",
   );
 
-  const memoryService = initMemoryService(
-    getFastModelId(env),
-    getFastModelClientOptions(env),
-  );
+  // One fast-model client, shared by memory keyword extraction and document
+  // summaries. Null when CLAUDE_FAST_MODEL is unset.
+  const fastModelId = getFastModelId(env);
+  const fastModelClient = fastModelId
+    ? createFastModelClient(fastModelId, getFastModelClientOptions(env))
+    : null;
+
+  const memoryService = initMemoryService(fastModelClient);
   logger.log("Memory mechanism enabled", "success");
 
   const modalResources = env.AGENT_LOCAL ? null : await getModalResources();
@@ -51,7 +57,16 @@ async function main(): Promise<void> {
     targetApiClient,
   );
 
-  const documentExtraction = createDocumentExtraction();
+  const summarizeDocument = createDocumentSummarizer(fastModelClient);
+  logger.log(
+    summarizeDocument
+      ? `Organization document summaries enabled (${fastModelId})`
+      : "Organization document summaries disabled (CLAUDE_FAST_MODEL unset)",
+    summarizeDocument ? "success" : "warning",
+  );
+  const documentExtraction = createDocumentExtraction({
+    summarize: summarizeDocument,
+  });
 
   registerGracefulShutdown(runManager, documentExtraction);
 

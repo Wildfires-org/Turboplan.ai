@@ -4,11 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { Loader2 } from "lucide-react";
 
-import {
-  EntityType,
-  MemberRole,
-  type MemberRoleType,
-} from "@wildfires-org/turboplan-rbac";
+import { EntityType } from "@wildfires-org/turboplan-rbac";
 import {
   Button,
   Dialog,
@@ -17,16 +13,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  generateDisplayName,
   Label,
 } from "@wildfires-org/turboplan-utils";
 import {
-  isInviteUser,
   MemberAssignRow,
-  type PendingInvitee,
   PendingInviteeRow,
   type SelectedUserValue,
   UserSelector,
+  useMemberInvitation,
 } from "@wildfires-org/turboplan-workspace/client";
 
 // ============================================================================
@@ -64,13 +58,6 @@ export function ApproveProposalDialog({
   // Owner selection state
   const [ownerSelection, setOwnerSelection] = useState<SelectedUserValue[]>([]);
 
-  // Member invitation state
-  const [pendingInvitees, setPendingInvitees] = useState<PendingInvitee[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<SelectedUserValue[]>([]);
-  const [currentRole, setCurrentRole] = useState<MemberRoleType>(
-    MemberRole.VIEWER,
-  );
-
   const ownerEmail = useMemo(() => {
     if (ownerSelection.length === 0) {
       return undefined;
@@ -78,16 +65,22 @@ export function ApproveProposalDialog({
     return ownerSelection[0].email;
   }, [ownerSelection]);
 
-  const excludedEmailsForMembers = useMemo(() => {
-    const emails = new Set<string>();
-    if (ownerEmail) {
-      emails.add(ownerEmail.toLowerCase());
-    }
-    for (const invitee of pendingInvitees) {
-      emails.add(invitee.email.toLowerCase());
-    }
-    return emails;
-  }, [ownerEmail, pendingInvitees]);
+  // The owner can't also be added as a member.
+  const ownerEmails = useMemo(
+    () => new Set(ownerEmail ? [ownerEmail.toLowerCase()] : []),
+    [ownerEmail],
+  );
+
+  const {
+    addInvitees,
+    currentRole,
+    excludedEmails: excludedEmailsForMembers,
+    handleRemove,
+    handleRoleChange,
+    pendingInvitees,
+    resetInvitations,
+    setCurrentRole,
+  } = useMemberInvitation({ existingEmails: ownerEmails });
 
   const excludedEmailsForOwner = useMemo(() => {
     const emails = new Set<string>();
@@ -101,10 +94,8 @@ export function ApproveProposalDialog({
 
   const resetState = useCallback(() => {
     setOwnerSelection([]);
-    setPendingInvitees([]);
-    setSelectedUsers([]);
-    setCurrentRole(MemberRole.VIEWER);
-  }, []);
+    resetInvitations();
+  }, [resetInvitations]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -115,51 +106,6 @@ export function ApproveProposalDialog({
     },
     [onOpenChange, resetState],
   );
-
-  const handleAssign = useCallback(() => {
-    if (selectedUsers.length === 0) {
-      return;
-    }
-
-    const newInvitees: PendingInvitee[] = selectedUsers
-      .filter((user) => {
-        const email = user.email;
-        return !pendingInvitees.some((p) => p.email === email);
-      })
-      .map((user) => {
-        if (isInviteUser(user)) {
-          return {
-            id: `invite-${user.email}`,
-            email: user.email,
-            displayName: user.email,
-            avatarUrl: null,
-            role: currentRole,
-            isInvite: true,
-          };
-        }
-        return {
-          id: user.id,
-          email: user.email,
-          displayName: generateDisplayName(user, user.email),
-          avatarUrl: user.avatarUrl,
-          role: currentRole,
-          isInvite: false,
-        };
-      });
-
-    setPendingInvitees((prev) => [...prev, ...newInvitees]);
-    setSelectedUsers([]);
-  }, [selectedUsers, currentRole, pendingInvitees]);
-
-  const handleRoleChange = useCallback((id: string, role: MemberRoleType) => {
-    setPendingInvitees((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, role } : p)),
-    );
-  }, []);
-
-  const handleRemove = useCallback((id: string) => {
-    setPendingInvitees((prev) => prev.filter((p) => p.id !== id));
-  }, []);
 
   const handleApprove = useCallback(async () => {
     await onApprove({
@@ -213,12 +159,10 @@ export function ApproveProposalDialog({
               Add Members
             </Label>
             <MemberAssignRow
-              selectedUsers={selectedUsers}
-              onSelectedUsersChange={setSelectedUsers}
+              onAdd={addInvitees}
               searchScope={searchScope}
               currentRole={currentRole}
               onRoleChange={setCurrentRole}
-              onAssign={handleAssign}
               disabled={isLoading}
               excludeEmails={excludedEmailsForMembers}
             />

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { request as apiRequest, expect, test } from "@playwright/test";
 import { eq } from "drizzle-orm";
 
-import { createToken } from "@wildfires-org/turboplan-api-client";
+import { createToken } from "@wildfires-org/turboplan-api-client/server";
 import { createTestDB } from "@wildfires-org/turboplan-db/db-client";
 import {
   chat,
@@ -15,7 +15,9 @@ import {
   researchAgentChat,
   researchAgentMessage,
 } from "@wildfires-org/turboplan-db/schemas";
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
 
+import { WORKSPACE_URL_PATTERN } from "../../config/patterns";
 import { TurboplanSetupPage } from "../../pages";
 import { createTestUserWithMagicLink } from "../../utils/test-auth";
 
@@ -167,8 +169,13 @@ test.describe("Research Agent Documents", () => {
 
       // 5. Authenticate and open the seeded chat in the app.
       await page.goto(magicLinkUrl);
-      await page.waitForURL(/\/(setup|organizations)\//, { timeout: 15000 });
-      if (page.url().includes("/setup")) {
+      await page.waitForURL(
+        (url) =>
+          url.pathname.startsWith("/setup/") ||
+          WORKSPACE_URL_PATTERN.test(url.href),
+        { timeout: 15000 },
+      );
+      if (new URL(page.url()).pathname.startsWith("/setup/")) {
         const setupPage = new TurboplanSetupPage(page);
         await setupPage.completeWizard({ createWorkspace: false });
       }
@@ -189,7 +196,7 @@ test.describe("Research Agent Documents", () => {
       });
 
       await page.goto(
-        `${TURBOPLAN_URL}/organizations/${orgRecord.slug}/offices/${officeRecord.slug}/projects/${projectRecord.slug}/chats/${chatRecord.id}`,
+        `${TURBOPLAN_URL}${appPaths.project(orgRecord.slug, officeRecord.slug, projectRecord.slug)}/chats/${chatRecord.id}`,
       );
 
       await messagesResponsePromise;

@@ -153,16 +153,19 @@ export function Pricing() {
                 Custom
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-y-2 text-body-sm font-medium text-egray-700">
-              {enterprise.bullets.map((bullet, i) => (
-                <span key={bullet} className="inline-flex items-center">
-                  <span>{bullet}</span>
-                  {i < enterprise.bullets.length - 1 && (
-                    <span className="px-3 text-brand-800">·</span>
-                  )}
-                </span>
+            {/* Each bullet leads with its own dot, so a wrapped row never
+                ends on a dangling separator. */}
+            <ul className="flex flex-col gap-2 text-body-sm font-medium text-egray-700 sm:flex-row sm:flex-wrap sm:gap-x-5">
+              {enterprise.bullets.map((bullet) => (
+                <li key={bullet} className="inline-flex items-center gap-2">
+                  <span
+                    aria-hidden
+                    className="size-1 shrink-0 rounded-full bg-brand-700"
+                  />
+                  {bullet}
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
           <button

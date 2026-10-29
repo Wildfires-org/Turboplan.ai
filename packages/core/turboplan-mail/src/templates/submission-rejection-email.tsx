@@ -2,11 +2,12 @@ import { Text } from "@react-email/components";
 
 import { BaseLayout } from "./base-layout";
 import {
-  BrandCard,
   CtaButton,
-  Disclaimer,
+  DetailsBox,
+  DetailTitle,
+  EmailHeading,
   FallbackUrl,
-  GreetingPill,
+  Paragraph,
 } from "./email-card";
 
 export interface SubmissionRejectionEmailProps {
@@ -35,48 +36,28 @@ export function SubmissionRejectionEmail({
   return (
     <BaseLayout
       preview={`Your citizen submission "${projectName}" has been reviewed by ${organizationName}`}
-      label="Citizen Submission Update"
+      label="Not approved"
+      tone="danger"
+      footer={`This email was sent to ${citizenEmail}. If you weren't expecting it, you can safely ignore it.`}
     >
-      <BrandCard>
-        <GreetingPill>Hello</GreetingPill>
+      <EmailHeading>Your submission was reviewed</EmailHeading>
 
-        {/* Rejected Badge */}
-        <table
-          role="presentation"
-          cellPadding="0"
-          cellSpacing="0"
-          style={badgeTable}
-        >
-          <tr>
-            <td align="center">
-              <span style={rejectedBadge}>Rejected</span>
-            </td>
-          </tr>
-        </table>
+      <Paragraph>
+        Your citizen submission <strong style={strong}>{projectName}</strong>{" "}
+        has been reviewed by <strong style={strong}>{organizationName}</strong>.
+        After careful consideration, it was not approved at this time.
+      </Paragraph>
 
-        <Text style={bodyText}>
-          Your citizen submission "<strong>{projectName}</strong>" has been
-          reviewed by the <strong>{organizationName}</strong>. After careful
-          consideration, the submission was not approved at this time.
-        </Text>
+      <DetailsBox>
+        <DetailTitle>Reason for decision</DetailTitle>
+        <Text style={reasonText}>{rejectionReason}</Text>
+      </DetailsBox>
 
-        <Text style={bodyText}>
-          <strong>Reason for decision:</strong>
-          <br />
-          {rejectionReason}
-        </Text>
+      <Paragraph>
+        You can review the feedback and additional details in your submission.
+      </Paragraph>
 
-        <Text style={bodyTextLight}>
-          You can review the feedback and additional details in your submission.
-        </Text>
-
-        <CtaButton href={submissionUrl} label="Review Submission" />
-      </BrandCard>
-
-      <Disclaimer>
-        This email was sent to {citizenEmail}. If you weren't expecting this
-        email, you can safely ignore it.
-      </Disclaimer>
+      <CtaButton href={submissionUrl} label="Review Submission" />
 
       <FallbackUrl url={submissionUrl} />
     </BaseLayout>
@@ -84,34 +65,14 @@ export function SubmissionRejectionEmail({
 }
 
 // Styles
-const badgeTable = {
-  width: "100%",
-  margin: "0 0 24px",
+const strong = {
+  color: "#111827",
 };
 
-const rejectedBadge = {
-  display: "inline-block",
-  backgroundColor: "#fef2f2",
-  border: "1px solid #fee2e2",
-  borderRadius: "9999px",
-  padding: "4px 16px",
+const reasonText = {
   fontSize: "14px",
-  fontWeight: "600" as const,
-  color: "#ff2828",
-};
-
-const bodyText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "#ffffff",
-  textAlign: "center" as const,
-  margin: "0 0 16px",
-};
-
-const bodyTextLight = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.8)",
-  textAlign: "center" as const,
-  margin: "0 0 36px",
+  lineHeight: "22px",
+  color: "#374151",
+  margin: "6px 0 0",
+  whiteSpace: "pre-line" as const,
 };

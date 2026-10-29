@@ -6,7 +6,7 @@ import type { UIMessage } from "ai";
 
 import { Button, Textarea } from "@wildfires-org/turboplan-utils";
 
-import { deleteTrailingMessages } from "@/app/(dashboard)/organizations/[orgSlug]/offices/[officeSlug]/projects/[projectSlug]/chat/actions";
+import { deleteTrailingMessages } from "@/app/(dashboard)/[orgSlug]/[officeSlug]/[projectSlug]/chat/actions";
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
 
 const getMessageText = (message: UIMessage): string => {

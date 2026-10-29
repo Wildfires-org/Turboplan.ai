@@ -39,10 +39,11 @@ export const getCachedUserProfile = cache((userId: string) =>
 // ============================================================================
 
 // Offices
-export { getValidatedOfficeBySlug } from "./offices";
+export { getOfficeAllowedActions, getValidatedOfficeBySlug } from "./offices";
 // Organizations
 export {
   canReadOrganizationAsMember,
+  getOrganizationAllowedActions,
   getValidatedOrganizationBySlug,
   type SlugValidationResult,
 } from "./organizations";

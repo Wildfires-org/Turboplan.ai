@@ -4,6 +4,11 @@
  * This allows easy adjustments to URL patterns in one place.
  */
 
+// Own entry, not the package root: the root is a `'use client'` module that
+// server components cannot call into, and `/server` reads env. `app-paths` is
+// framework free, so both server and client modules can use AppUrls.
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
 // ============================================================================
 // Static Routes
 // ============================================================================
@@ -23,34 +28,42 @@ export const AppUrls = {
 
   /**
    * Get the URL for an organization page
-   * @example AppUrls.organization("my-org") → "/organizations/my-org"
+   * @example AppUrls.organization("my-org") → "/my-org"
    */
   organization(orgSlug: string): string {
-    return `/organizations/${orgSlug}`;
+    return appPaths.organization(orgSlug);
   },
 
   /**
    * Get the URL for an organization members page
-   * @example AppUrls.organizationMembers("my-org") → "/organizations/my-org/members"
+   * @example AppUrls.organizationMembers("my-org") → "/my-org/members"
    */
   organizationMembers(orgSlug: string): string {
-    return `/organizations/${orgSlug}/members`;
+    return `${this.organization(orgSlug)}/members`;
   },
 
   /**
    * Get the URL for the organization signing (my pending signatures) page
-   * @example AppUrls.organizationSigning("my-org") → "/organizations/my-org/my-signatures"
+   * @example AppUrls.organizationSigning("my-org") → "/my-org/my-signatures"
    */
   organizationSigning(orgSlug: string): string {
-    return `/organizations/${orgSlug}/my-signatures`;
+    return `${this.organization(orgSlug)}/my-signatures`;
   },
 
   /**
    * Get the URL for the organization billing page
-   * @example AppUrls.organizationBilling("my-org") → "/organizations/my-org/billing"
+   * @example AppUrls.organizationBilling("my-org") → "/my-org/billing"
    */
   organizationBilling(orgSlug: string): string {
-    return `/organizations/${orgSlug}/billing`;
+    return `${this.organization(orgSlug)}/billing`;
+  },
+
+  /**
+   * Get the URL for the organization context (AI prompt + documents) page
+   * @example AppUrls.organizationContext("my-org") → "/my-org/context"
+   */
+  organizationContext(orgSlug: string): string {
+    return `${this.organization(orgSlug)}/context`;
   },
 
   // ============================================================================
@@ -59,15 +72,15 @@ export const AppUrls = {
 
   /**
    * Get the URL for an office page
-   * @example AppUrls.office("my-org", "my-office") → "/organizations/my-org/offices/my-office"
+   * @example AppUrls.office("my-org", "my-office") → "/my-org/my-office"
    */
   office(orgSlug: string, officeSlug: string): string {
-    return `/organizations/${orgSlug}/offices/${officeSlug}`;
+    return appPaths.office(orgSlug, officeSlug);
   },
 
   /**
    * Get the URL for an office members page
-   * @example AppUrls.officeMembers("my-org", "my-office") → "/organizations/my-org/offices/my-office/members"
+   * @example AppUrls.officeMembers("my-org", "my-office") → "/my-org/my-office/members"
    */
   officeMembers(orgSlug: string, officeSlug: string): string {
     return `${this.office(orgSlug, officeSlug)}/members`;
@@ -75,7 +88,7 @@ export const AppUrls = {
 
   /**
    * Get the URL for an office citizen submissions page
-   * @example AppUrls.officeCitizenSubmissions("my-org", "my-office") → "/organizations/my-org/offices/my-office/citizen-submissions"
+   * @example AppUrls.officeCitizenSubmissions("my-org", "my-office") → "/my-org/my-office/citizen-submissions"
    */
   officeCitizenSubmissions(orgSlug: string, officeSlug: string): string {
     return `${this.office(orgSlug, officeSlug)}/citizen-submissions`;
@@ -83,7 +96,7 @@ export const AppUrls = {
 
   /**
    * Get the URL for an office "my submissions" page (citizen view)
-   * @example AppUrls.officeMySubmissions("my-org", "my-office") → "/organizations/my-org/offices/my-office/my-submissions"
+   * @example AppUrls.officeMySubmissions("my-org", "my-office") → "/my-org/my-office/my-submissions"
    */
   officeMySubmissions(orgSlug: string, officeSlug: string): string {
     return `${this.office(orgSlug, officeSlug)}/my-submissions`;
@@ -109,7 +122,7 @@ export const AppUrls = {
 
   /**
    * Get the URL for a template detail page
-   * @example AppUrls.template("my-org", "my-office", "my-template") → "/organizations/my-org/offices/my-office/templates/my-template"
+   * @example AppUrls.template("my-org", "my-office", "my-template") → "/my-org/my-office/templates/my-template"
    */
   template(orgSlug: string, officeSlug: string, templateSlug: string): string {
     return `${this.officeProjectTemplates(orgSlug, officeSlug)}/${templateSlug}`;
@@ -121,10 +134,10 @@ export const AppUrls = {
 
   /**
    * Get the URL for a project page
-   * @example AppUrls.project("my-org", "my-office", "my-project") → "/organizations/my-org/offices/my-office/projects/my-project"
+   * @example AppUrls.project("my-org", "my-office", "my-project") → "/my-org/my-office/my-project"
    */
   project(orgSlug: string, officeSlug: string, projectSlug: string): string {
-    return `${this.office(orgSlug, officeSlug)}/projects/${projectSlug}`;
+    return appPaths.project(orgSlug, officeSlug, projectSlug);
   },
 
   /**

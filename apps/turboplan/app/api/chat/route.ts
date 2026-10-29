@@ -1,4 +1,5 @@
 import {
+  consumeStream,
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
@@ -22,13 +23,17 @@ import {
   resolveBillingOrgForUser,
 } from "@wildfires-org/turboplan-billing/server";
 import { extractOpenRouterCost } from "@wildfires-org/turboplan-billing/types";
-import { isUniqueViolation } from "@wildfires-org/turboplan-db/db-client";
+import {
+  isUniqueViolation,
+  registerBackgroundTask,
+} from "@wildfires-org/turboplan-db/db-client";
 import {
   deleteChatById,
   getChatById,
   getChatsByProjectId,
   saveChat,
   saveMessages,
+  upsertAssistantMessage,
 } from "@wildfires-org/turboplan-db/queries";
 import {
   isResearchAgentPackageEnabled,
@@ -39,14 +44,33 @@ import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 
 import { auth } from "@/app/(auth)/auth";
 import { triggerResearchAgent } from "@/app/self-service/helpers";
+import {
+  buildDroppedFilesNote,
+  buildGisAttachmentNote,
+  isGisAttachment,
+} from "@/lib/ai/attachment-notes";
 import { buildSystemPromptArgs } from "@/lib/ai/build-system-prompt-args";
+import {
+  createChatTimer,
+  createStepTimer,
+  getErrorName,
+} from "@/lib/ai/chat-timing";
 import { generateTitleFromUserMessage } from "@/lib/ai/generate-title";
+import { hasToolCallAfterText } from "@/lib/ai/has-tool-call-after-text";
+import { createReferenceCache } from "@/lib/ai/reference-documents";
+import {
+  type ChatMessageWithAttachments,
+  type LegacyAttachment,
+  withoutExternalFiles,
+} from "@/lib/ai/storage-files";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { generateQuickResponses } from "@/lib/ai/tools/generate-quick-responses";
 import { getContents } from "@/lib/ai/tools/get-contents";
+import { readOrganizationDocuments } from "@/lib/ai/tools/read-organization-documents";
 import { readProjectDocuments } from "@/lib/ai/tools/read-project-documents";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { researchNotes } from "@/lib/ai/tools/research-notes";
+import { saveOrganizationMemory } from "@/lib/ai/tools/save-organization-memory";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { updateProjectContext } from "@/lib/ai/tools/update-project-context";
 import { updateProjectFields } from "@/lib/ai/tools/update-project-fields";
@@ -58,18 +82,6 @@ import { generateUUID, getMostRecentUserMessage } from "@/lib/utils";
 // https://vercel.com/docs/functions/configuring-functions/duration
 // this sets max duration for the chat route in seconds, it only works for Vercel PRO - see the link for more details
 export const maxDuration = 300;
-
-// v4-era attachments arrive on the legacy `experimental_attachments` field,
-// which is not part of the v6 UIMessage type.
-type LegacyAttachment = {
-  url: string;
-  name?: string;
-  contentType?: string;
-};
-
-type MessageWithAttachments = UIMessage & {
-  experimental_attachments?: LegacyAttachment[];
-};
 
 const GENERIC_STREAM_ERROR_MESSAGE = "Oops, an error occurred!";
 
@@ -118,6 +130,8 @@ const createTools = async ({
   session,
   writer,
   projectId,
+  organizationId,
+  memoryOrganization,
   chatId,
   userMessage,
   activeTools,
@@ -129,6 +143,10 @@ const createTools = async ({
   session: Session;
   writer: UIMessageStreamWriter;
   projectId?: string;
+  /** Organization whose context block was injected (binds its reader tool) */
+  organizationId?: string;
+  /** Organization the user may UPDATE (binds saveOrganizationMemory) */
+  memoryOrganization?: { id: string; name: string };
   chatId?: string;
   userMessage?: UIMessage;
   activeTools: string[];
@@ -137,6 +155,10 @@ const createTools = async ({
   projectContext?: string;
   proactiveFieldCreation?: boolean;
 }) => {
+  // getContents fills it; createDocument reads references from it by URL so
+  // the model never has to retype a reference document into its input.
+  const referenceCache = createReferenceCache();
+
   // Always-on tools
   const [
     quickResponsesTool,
@@ -146,7 +168,7 @@ const createTools = async ({
   ] = await Promise.all([
     generateQuickResponses({ mode, billing }),
     webSearch(),
-    getContents(),
+    getContents({ referenceCache }),
     researchNotes(),
   ]);
 
@@ -168,6 +190,7 @@ const createTools = async ({
           chatId,
           userMessage,
           projectContext,
+          referenceCache,
         }),
         updateDocument({ session, writer }),
         requestSuggestions({ session, writer, billing }),
@@ -185,6 +208,35 @@ const createTools = async ({
   if (activeTools.includes("readProjectDocuments") && projectId && userId) {
     tools.readProjectDocuments = await readProjectDocuments({
       projectId,
+      userId,
+    });
+  }
+
+  // Conditional organization-documents reader — only when the organization
+  // block was injected (activeTools reflects that). Bound to the organization
+  // resolved server-side; the tool re-checks READ at execution time.
+  if (
+    activeTools.includes("readOrganizationDocuments") &&
+    organizationId &&
+    userId
+  ) {
+    tools.readOrganizationDocuments = await readOrganizationDocuments({
+      organizationId,
+      userId,
+    });
+  }
+
+  // Conditional organization-memory writer — only when the user may UPDATE
+  // the project's organization (activeTools reflects that). Bound to the
+  // organization resolved server-side; the tool re-checks UPDATE at execution.
+  if (
+    activeTools.includes("saveOrganizationMemory") &&
+    memoryOrganization &&
+    userId
+  ) {
+    tools.saveOrganizationMemory = await saveOrganizationMemory({
+      organizationId: memoryOrganization.id,
+      organizationName: memoryOrganization.name,
       userId,
     });
   }
@@ -212,13 +264,19 @@ export async function POST(request: Request) {
   try {
     const {
       id,
-      messages,
+      messages: requestMessages,
       projectId,
     }: {
       id: string;
       messages: Array<UIMessage>;
       projectId?: string;
     } = await request.json();
+
+    // The client sends the whole history, so any message can carry a file
+    // URL. Only files in our own storage are kept: an external URL would be
+    // saved, shown in the chat and handed to the model (which may download it
+    // from this server).
+    const messages = requestMessages.map(withoutExternalFiles);
 
     const session = await auth();
 
@@ -237,6 +295,10 @@ export async function POST(request: Request) {
     }
 
     const requestStartedAt = Date.now();
+    const logTiming = createChatTimer({
+      chatId: id,
+      startedAt: requestStartedAt,
+    });
 
     const chat = await getChatById({ id });
 
@@ -381,8 +443,8 @@ export async function POST(request: Request) {
           role: "user",
           parts: userMessage.parts,
           attachments:
-            (userMessage as MessageWithAttachments).experimental_attachments ??
-            [],
+            (userMessage as ChatMessageWithAttachments)
+              .experimental_attachments ?? [],
           createdAt: new Date(),
         },
       ],
@@ -406,10 +468,12 @@ export async function POST(request: Request) {
     // Strip tasks context when user lacks project access
     if (!hasProjectAccess) {
       promptArgs.projectTasksContext = undefined;
+      promptArgs.officeDocumentContext = undefined;
     }
 
     const projectContext =
       [
+        promptArgs.organizationContextData,
         promptArgs.projectContextData,
         promptArgs.projectFieldsContext,
         promptArgs.savedResearchContext,
@@ -423,7 +487,20 @@ export async function POST(request: Request) {
     // Only images and PDFs can be sent to the model — Anthropic rejects other
     // file types (e.g. docx) with a 400. Unsupported file parts are dropped
     // from `parts` (which convertToModelMessages actually consumes) and
-    // replaced with a text note; ZIP files get a geospatial hint instead.
+    // replaced with a text note; GIS files get a geospatial hint instead. In
+    // project chats the client has already mirrored Word files into project
+    // documents and GIS files into the project map, and the notes say so.
+    const attachmentNoteContext = {
+      isProjectChat: Boolean(chatProjectId) && hasProjectAccess,
+      canReadProjectDocuments: promptArgs.activeTools.includes(
+        "readProjectDocuments",
+      ),
+      // createDocument is off in the research phase, and only offers the map
+      // kind when the map package is enabled.
+      canCreateMap:
+        promptArgs.activeTools.includes("createDocument") &&
+        promptArgs.enabledFeatures.map,
+    };
     const isModelReadableType = (contentType?: string) =>
       Boolean(
         contentType?.startsWith("image/") || contentType === "application/pdf",
@@ -442,13 +519,7 @@ export async function POST(request: Request) {
 
     const aiSupportedMessages = messages.map((message) => {
       const messageAttachments: LegacyAttachment[] =
-        (message as MessageWithAttachments).experimental_attachments ?? [];
-
-      const zipTypes = [
-        "application/zip",
-        "application/x-zip-compressed",
-        "application/octet-stream",
-      ];
+        (message as ChatMessageWithAttachments).experimental_attachments ?? [];
 
       const supportedAttachments = messageAttachments.filter((att) =>
         isModelReadableType(att.contentType),
@@ -464,28 +535,32 @@ export async function POST(request: Request) {
         ("filename" in part ? part.filename : undefined) ||
         safeDecodeURIComponent(part.url.split("/").pop() || "") ||
         "unnamed file";
-      const isZipPart = (part: (typeof fileParts)[number]) =>
-        zipTypes.includes(part.mediaType || "") ||
-        filePartName(part).toLowerCase().endsWith(".zip");
+      // GIS files (ZIP/KMZ, GeoJSON, KML — stored as text/plain — and
+      // GeoPackage) are never sent to the model.
+      const isGisPart = (part: (typeof fileParts)[number]) =>
+        isGisAttachment({
+          name: filePartName(part),
+          mediaType: part.mediaType,
+        });
 
-      const zipParts = fileParts.filter(isZipPart);
+      const gisParts = fileParts.filter(isGisPart);
       const droppedParts = fileParts.filter(
-        (part) => !isModelReadableType(part.mediaType) && !isZipPart(part),
+        (part) => !isModelReadableType(part.mediaType) && !isGisPart(part),
       );
 
-      const noteLines: string[] = [];
-      if (zipParts.length > 0) {
-        const zipFileNames = zipParts.map(filePartName).join(", ");
-        noteLines.push(
-          `[System: User has uploaded ZIP file(s): ${zipFileNames} - these contain geospatial data ready for map visualization]`,
-        );
-      }
-      if (droppedParts.length > 0) {
-        const droppedNames = droppedParts.map(filePartName).join(", ");
-        noteLines.push(
-          `[System: User attached document(s) the model cannot read directly: ${droppedNames}]`,
-        );
-      }
+      const noteLines = [
+        buildGisAttachmentNote(
+          gisParts.map(filePartName),
+          attachmentNoteContext,
+        ),
+        buildDroppedFilesNote(
+          droppedParts.map((part) => ({
+            name: filePartName(part),
+            mediaType: part.mediaType,
+          })),
+          attachmentNoteContext,
+        ),
+      ].filter((line): line is string => Boolean(line));
 
       let updatedParts = message.parts?.filter(
         (part) =>
@@ -519,6 +594,29 @@ export async function POST(request: Request) {
       };
     });
 
+    // Persists the assistant reply. Called on every step finish (checkpoint) and
+    // once more in onFinish with the complete message; the SDK awaits both in
+    // stream order, so a later write never races an earlier one.
+    const persistAssistantMessage = async (responseMessage: UIMessage) => {
+      const cleanedParts = responseMessage.parts.filter((part) => {
+        if (part.type === "text") {
+          return part.text.trim().length > 0;
+        }
+        return true;
+      });
+
+      await upsertAssistantMessage({
+        message: {
+          id: responseMessage.id,
+          chatId: id,
+          role: responseMessage.role,
+          parts: cleanedParts,
+          attachments: [],
+          createdAt: new Date(),
+        },
+      });
+    };
+
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         // Notify user if they lack project access (tasks context will be excluded)
@@ -539,6 +637,8 @@ export async function POST(request: Request) {
             session,
             writer,
             projectId: chatProjectId,
+            organizationId: promptArgs.organizationId,
+            memoryOrganization: promptArgs.memoryOrganization,
             chatId: id,
             userMessage,
             activeTools: promptArgs.activeTools,
@@ -553,6 +653,15 @@ export async function POST(request: Request) {
           systemPrompt(promptArgs),
           convertToModelMessages(aiSupportedMessages),
         ]);
+        const modelId = typeof model === "string" ? model : model.modelId;
+
+        logTiming("context-ready", {
+          systemChars: system.length,
+          projectContextChars: projectContext?.length ?? 0,
+          messageCount: modelMessages.length,
+          model: modelId,
+          activeTools: promptArgs.activeTools.length,
+        });
 
         // Single multi-step stream (matches the v4 flow and upstream Vercel
         // chatbot): the model researches as needed, synthesizes a text answer,
@@ -565,6 +674,7 @@ export async function POST(request: Request) {
         // it survives a mid-run failure (completed steps stay accumulated).
         let accumulatedCostUsd = 0;
         let accumulatedTokens = 0;
+        let finishedSteps = 0;
         let meteredChatRun = false;
         const meterChatRun = async () => {
           if (meteredChatRun || !billingOrgId) {
@@ -582,23 +692,34 @@ export async function POST(request: Request) {
             source: "chat",
             usage: { totalTokens: accumulatedTokens },
             costUsd: accumulatedCostUsd > 0 ? accumulatedCostUsd : undefined,
-            model: typeof model === "string" ? model : model.modelId,
+            model: modelId,
             metadata: { chatId: id, projectId: chatProjectId ?? null },
           });
         };
 
+        const stepTimer = createStepTimer(logTiming);
         const result = streamText({
           model,
           system,
           messages: modelMessages,
           tools,
           activeTools: promptArgs.activeTools as Array<keyof typeof tools>,
-          stopWhen: stepCountIs(10),
+          // Quick responses end the answer, so stop once they are generated
+          // instead of making one more (wasted) model call. Only stop if the
+          // answer text already exists: thinking models sometimes draft the
+          // answer in reasoning and call the chips before writing any text.
+          stopWhen: [
+            stepCountIs(10),
+            hasToolCallAfterText("generateQuickResponses"),
+          ],
           experimental_transform: smoothStream({ chunking: "word" }),
+          onChunk: stepTimer.onChunk,
           onStepFinish: (step) => {
             accumulatedCostUsd +=
               extractOpenRouterCost(step.providerMetadata) ?? 0;
             accumulatedTokens += step.usage?.totalTokens ?? 0;
+            finishedSteps += 1;
+            stepTimer.onStepFinish(step);
           },
         });
 
@@ -614,11 +735,16 @@ export async function POST(request: Request) {
         // Guarantee quick-response suggestions after every answer. The model
         // usually calls generateQuickResponses itself; this is a fallback for
         // when it doesn't, so the user always gets suggested replies.
+        // The run counts as finished once the model's text and steps resolve;
+        // a failed quick-response fallback after that does not turn it into
+        // an error.
+        let responseStatus: "success" | "error" = "error";
         try {
           const [finalText, steps] = await Promise.all([
             result.text,
             result.steps,
           ]);
+          responseStatus = "success";
 
           // Meter the accumulated run (awaited: cheap DB write; Vercel cannot
           // reap it before it lands).
@@ -679,6 +805,11 @@ export async function POST(request: Request) {
             total_tokens: accumulatedTokens,
           });
         }
+        logTiming("run-finished", {
+          status: responseStatus,
+          steps: finishedSteps,
+          totalTokens: accumulatedTokens,
+        });
 
         // We suppressed the stream's own finish chunk (sendFinish:false) so we
         // could append the quick responses above; emit it now so the client
@@ -687,44 +818,68 @@ export async function POST(request: Request) {
       },
       generateId: generateUUID,
       originalMessages: messages,
-      onFinish: async ({ responseMessage }) => {
-        if (session.user?.id) {
-          try {
-            const cleanedParts = responseMessage.parts
-              ? responseMessage.parts.filter(
-                  (part: { type: string; text?: string }) => {
-                    if (part.type === "text") {
-                      return part.text && part.text.trim().length > 0;
-                    }
-                    return true;
-                  },
-                )
-              : [];
+      // Checkpoint after every step so a Worker killed mid-run (client gone
+      // and the ~30s waitUntil window exceeded) keeps the completed steps.
+      // A step only finishes once its tool calls have returned, so a long
+      // createDocument appears here only after it completes.
+      onStepFinish: async ({ responseMessage }) => {
+        const hasContent = responseMessage.parts.some(
+          (part) => part.type !== "step-start",
+        );
+        if (!hasContent) {
+          return;
+        }
 
-            await saveMessages({
-              messages: [
-                {
-                  id: responseMessage.id,
-                  chatId: id,
-                  role: responseMessage.role,
-                  parts: cleanedParts,
-                  attachments: [],
-                  createdAt: new Date(),
-                },
-              ],
-            });
-          } catch (error) {
-            console.error("Failed to save chat:", error);
-          }
+        try {
+          await persistAssistantMessage(responseMessage);
+        } catch (error) {
+          console.error(
+            "[Chat] Failed to checkpoint assistant message:",
+            error,
+          );
+        }
+      },
+      onFinish: async ({ responseMessage }) => {
+        try {
+          await persistAssistantMessage(responseMessage);
+        } catch (error) {
+          console.error("Failed to save chat:", error);
         }
       },
       onError: (error) => {
         console.error("[Chat] Stream error:", error);
+        logTiming("stream-error", { errorName: getErrorName(error) });
         return mapStreamErrorToUserMessage(error);
       },
     });
 
-    return createUIMessageStreamResponse({ stream });
+    // The tee'd server-side copy keeps the run going if the browser stops
+    // reading (disconnect or Stop): cancelling the client branch of a tee does
+    // not cancel the source, so onFinish still fires with the full message.
+    // Registering the drain keeps the Worker and its DB connection alive until
+    // that save lands — within Cloudflare's ~30s post-disconnect waitUntil cap.
+    return createUIMessageStreamResponse({
+      stream,
+      consumeSseStream: ({ stream: serverCopy }) => {
+        // consumeStream never rejects — read errors only reach onError — so
+        // record the failure and log one outcome once the drain settles.
+        let drainErrorName: string | undefined;
+        registerBackgroundTask(
+          consumeStream({
+            stream: serverCopy,
+            onError: (error) => {
+              drainErrorName = getErrorName(error);
+            },
+          }).then(() => {
+            if (drainErrorName) {
+              logTiming("server-drain-failed", { errorName: drainErrorName });
+              return;
+            }
+            logTiming("server-drain-finished");
+          }),
+        );
+      },
+    });
   } catch (error) {
     // Duplicate request for the same chat — return 409 so the frontend
     // silently ignores it (see onError in project-chat.tsx)

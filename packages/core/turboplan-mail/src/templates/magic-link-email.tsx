@@ -1,15 +1,7 @@
-import { Text } from "@react-email/components";
-
 import { getAppName } from "@wildfires-org/turboplan-env";
 
 import { BaseLayout, preventAutoLink } from "./base-layout";
-import {
-  BrandCard,
-  CtaButton,
-  Disclaimer,
-  FallbackUrl,
-  GreetingPill,
-} from "./email-card";
+import { CtaButton, EmailHeading, FallbackUrl, Paragraph } from "./email-card";
 
 export type MagicLinkType = "verification" | "login";
 
@@ -25,18 +17,18 @@ const getContent = (appName: string) =>
     verification: {
       preview: `Verify your email to get started with ${appName}`,
       label: "Verify Email",
-      greeting: "Welcome!",
-      body: `Thanks for signing up for ${appName}! Click the button below to verify your email address and get started.`,
+      heading: `Welcome to ${appName}`,
+      body: "Thanks for signing up! Confirm your email address to finish setting up your account.",
       buttonText: "Verify Email",
-      expiry: "This link will expire in 15 minutes.",
+      expiry: "This link expires in 15 minutes.",
     },
     login: {
       preview: `Sign in to ${appName}`,
       label: "Sign In",
-      greeting: "Welcome back!",
-      body: "You requested a sign-in link. Click the button below to sign in to your account.",
+      heading: "Welcome back",
+      body: "You requested a sign-in link. Use the button below to sign in to your account.",
       buttonText: "Sign In",
-      expiry: "This link will expire in 15 minutes.",
+      expiry: "This link expires in 15 minutes.",
     },
   }) as const;
 
@@ -49,39 +41,18 @@ export function MagicLinkEmail({ magicLinkUrl, type }: MagicLinkEmailProps) {
   const content = getContent(safeAppName)[type];
 
   return (
-    <BaseLayout preview={content.preview} label={content.label}>
-      <BrandCard>
-        <GreetingPill>{content.greeting}</GreetingPill>
+    <BaseLayout
+      preview={content.preview}
+      label={content.label}
+      footer="If you didn't request this email, you can safely ignore it."
+    >
+      <EmailHeading>{content.heading}</EmailHeading>
+      <Paragraph>{content.body}</Paragraph>
 
-        <Text style={bodyText}>{content.body}</Text>
-
-        <Text style={expiryText}>{content.expiry}</Text>
-
-        <CtaButton href={magicLinkUrl} label={content.buttonText} />
-      </BrandCard>
-
-      <Disclaimer>
-        If you didn't request this email, you can safely ignore it.
-      </Disclaimer>
+      <CtaButton href={magicLinkUrl} label={content.buttonText} />
+      <Paragraph muted>{content.expiry}</Paragraph>
 
       <FallbackUrl url={magicLinkUrl} />
     </BaseLayout>
   );
 }
-
-// Styles
-const bodyText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.8)",
-  textAlign: "center" as const,
-  margin: "0 0 12px",
-};
-
-const expiryText = {
-  fontSize: "12px",
-  color: "rgba(255, 255, 255, 0.7)",
-  textAlign: "center" as const,
-  lineHeight: "16px",
-  margin: "0 0 12px",
-};

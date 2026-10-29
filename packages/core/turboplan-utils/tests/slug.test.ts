@@ -1,7 +1,13 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 
-import { generateSlug, generateUniqueSlug, isValidSlug } from "../src/slug";
+import {
+  generateSlug,
+  generateUniqueSlug,
+  isReservedSlug,
+  isValidSlug,
+  RESERVED_SLUGS,
+} from "../src/slug";
 
 describe("generateSlug", () => {
   it("should convert a title to lowercase slug", () => {
@@ -33,6 +39,15 @@ describe("generateSlug", () => {
     assert.strictEqual(generateSlug(longTitle).length, 40);
   });
 
+  it("should not end in a hyphen when the cut lands between words", () => {
+    // 40th character is the space before "Administration".
+    const slug = generateSlug(
+      "Pipeline and Hazardous Materials Safety Administration",
+    );
+    assert.strictEqual(slug, "pipeline-and-hazardous-materials-safety");
+    assert.ok(isValidSlug(slug));
+  });
+
   it("should return empty string for empty input", () => {
     assert.strictEqual(generateSlug(""), "");
   });
@@ -53,6 +68,12 @@ describe("generateSlug", () => {
 });
 
 describe("generateUniqueSlug", () => {
+  it("should not leave a double hyphen when the base is cut between words", () => {
+    // 32nd character is the space before "Safety".
+    const slug = generateUniqueSlug("Pipeline and Hazardous Material Safety");
+    assert.match(slug, /^pipeline-and-hazardous-material-[a-z0-9]{6}$/);
+  });
+
   it("should append a 6-character suffix", () => {
     const slug = generateUniqueSlug("Hello World");
     assert.match(slug, /^hello-world-[a-z0-9]{6}$/);
@@ -130,5 +151,40 @@ describe("isValidSlug", () => {
   it("should return true for slugs exactly 40 characters", () => {
     const slug40 = "a".repeat(40);
     assert.strictEqual(isValidSlug(slug40), true);
+  });
+});
+
+describe("isReservedSlug", () => {
+  it("reserves root route names for organizations", () => {
+    assert.strictEqual(isReservedSlug("organization", "login"), true);
+    assert.strictEqual(isReservedSlug("organization", "organizations"), true);
+  });
+
+  it("reserves org-level pages for offices", () => {
+    assert.strictEqual(isReservedSlug("office", "members"), true);
+    assert.strictEqual(isReservedSlug("office", "billing"), true);
+  });
+
+  it("reserves office-level pages for projects", () => {
+    assert.strictEqual(isReservedSlug("project", "templates"), true);
+    assert.strictEqual(isReservedSlug("project", "my-submissions"), true);
+  });
+
+  it("only reserves a name at the level it collides", () => {
+    assert.strictEqual(isReservedSlug("organization", "members"), false);
+    assert.strictEqual(isReservedSlug("project", "billing"), false);
+  });
+
+  it("does not reserve names that merely share a prefix", () => {
+    assert.strictEqual(isReservedSlug("organization", "login-co"), false);
+    assert.strictEqual(isReservedSlug("office", "members-hq"), false);
+  });
+
+  it("keeps every reserved slug in valid slug format", () => {
+    for (const slugs of Object.values(RESERVED_SLUGS)) {
+      for (const slug of slugs) {
+        assert.strictEqual(isValidSlug(slug), true, slug);
+      }
+    }
   });
 });

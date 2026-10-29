@@ -19,6 +19,8 @@ interface SubmitFormData {
   officeId?: string;
   /** Landing-page handoff attribution; only meaningful on the signup path. */
   attribution?: SignupAttribution;
+  /** Storage keys of documents attached to the landing-page prompt. */
+  landingUploadKeys?: string[];
 }
 
 interface SubmissionOptions {
@@ -48,6 +50,7 @@ export function useSubmission() {
       organizationId,
       officeId,
       attribution,
+      landingUploadKeys,
     } = data;
     const { onEmailExists } = options;
 
@@ -59,6 +62,7 @@ export function useSubmission() {
           projectTitle,
           projectDescription,
           attribution,
+          landingUploadKeys,
         });
 
         // If email exists, redirect was initiated
@@ -78,6 +82,7 @@ export function useSubmission() {
             organizationId: organizationId || undefined,
             officeId: officeId || undefined,
             attribution,
+            landingUploadKeys,
           });
 
         if (result.status === "success") {
@@ -133,6 +138,7 @@ export function useSubmission() {
             projectDescription: projectDescription || undefined,
             existingOrgId: organizationId || undefined,
             existingOfficeId: officeId || undefined,
+            landingUploadKeys,
           });
 
         if (result.status === "success") {

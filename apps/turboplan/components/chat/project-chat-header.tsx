@@ -12,6 +12,7 @@ import {
 import type { ResearchAgentStatus } from "@wildfires-org/turboplan-research-agent-integration/types";
 import { Button } from "@wildfires-org/turboplan-utils";
 
+import { ProjectContextSheet } from "@/components/project-context/project-context-sheet";
 import { HEADER_ACTION_BUTTON_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 import { CHAT_HEADER_CLASS } from "./chat-classes";
@@ -84,6 +85,8 @@ export function ProjectChatHeader({
               </Button>
             </>
           )}
+        {/* Last, so it stays put when the research controls hide. */}
+        <ProjectContextSheet />
       </div>
     </div>
   );

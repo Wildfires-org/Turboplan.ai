@@ -13,6 +13,7 @@ import {
   SEGMENT_INACTIVE_CLASS,
   SEGMENTED_TRACK_CLASS,
 } from "@/lib/glass";
+import { isActiveLink } from "@/lib/nav/activeLink";
 import { cn } from "@/lib/utils";
 
 type Tab = {
@@ -38,7 +39,7 @@ export function TabNav({
   const pathname = usePathname();
 
   const activeHref = tabs
-    .filter((t) => pathname.startsWith(t.href))
+    .filter((t) => isActiveLink(pathname, t.href))
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (

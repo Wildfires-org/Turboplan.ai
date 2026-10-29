@@ -15,6 +15,76 @@
       "when": 1790351519495,
       "tag": "0001_project_document_extraction",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790758478524,
+      "tag": "0002_requeue_legacy_doc_extraction",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790971349614,
+      "tag": "0003_trim_trailing_hyphen_slugs",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791000393151,
+      "tag": "0004_drop_seeded_hyphen_office_duplicates",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791206885575,
+      "tag": "0005_serious_hammerhead",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791283515262,
+      "tag": "0006_organization_memory",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791445862814,
+      "tag": "0007_document_letterhead",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791447357857,
+      "tag": "0008_document_letterhead_library",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791450769179,
+      "tag": "0009_document_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791453156251,
+      "tag": "0010_letterhead_banner_color",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791551055863,
+      "tag": "0011_letterhead_description",
+      "breakpoints": true
     }
   ]
 }

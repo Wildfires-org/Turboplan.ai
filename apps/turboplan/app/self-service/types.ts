@@ -1,6 +1,17 @@
 import { z } from "zod";
 
+import { MAX_LANDING_UPLOADS } from "@wildfires-org/turboplan-upload/types";
+
 import { signupAttributionSchema } from "@/lib/signup-attribution";
+
+/**
+ * Staging keys from `POST /api/public/uploads/presign`. Only the shape is
+ * checked here; each key is strictly validated when it is claimed, and a bad
+ * one is skipped rather than failing the signup.
+ */
+export const landingUploadKeysSchema = z
+  .array(z.string())
+  .max(MAX_LANDING_UPLOADS);
 
 export const selfServiceSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -15,6 +26,7 @@ export const selfServiceSchema = z.object({
    * than failing the signup.
    */
   attribution: signupAttributionSchema.optional(),
+  landingUploadKeys: landingUploadKeysSchema.optional(),
 });
 
 export type SelfServiceInput = z.infer<typeof selfServiceSchema>;
@@ -59,4 +71,6 @@ export interface CreateProjectInput {
   projectDescription?: string;
   existingOrgId?: string;
   existingOfficeId?: string;
+  /** See {@link landingUploadKeysSchema} */
+  landingUploadKeys?: string[];
 }

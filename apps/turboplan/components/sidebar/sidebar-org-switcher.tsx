@@ -62,13 +62,13 @@ export function SidebarOrgSwitcher() {
       // Same shell as the trigger below: avatar box, name line, chevron slot.
       <div
         aria-hidden
-        className="flex h-11 w-full items-center gap-3 overflow-hidden rounded-lg border border-brandAlt-200 bg-white p-2 group-data-[collapsible=icon]:justify-center"
+        className="flex h-11 w-full items-center gap-3 overflow-hidden rounded-lg border border-slate-200 bg-white p-2 group-data-[collapsible=icon]:justify-center"
       >
         <span className={cn(SKELETON_BAR_CLASS, "size-7 shrink-0 rounded")} />
         <span className="flex min-w-0 flex-1 items-center group-data-[collapsible=icon]:hidden">
           <span className={cn(SKELETON_BAR_CLASS, "h-3 w-28")} />
         </span>
-        <ChevronsUpDown className="ml-auto size-5 shrink-0 text-brand-800/30 group-data-[collapsible=icon]:hidden" />
+        <ChevronsUpDown className="ml-auto size-5 shrink-0 text-slate-300 group-data-[collapsible=icon]:hidden" />
       </div>
     );
   }
@@ -79,8 +79,8 @@ export function SidebarOrgSwitcher() {
         <button
           type="button"
           className={cn(
-            "flex h-11 w-full items-center gap-3 overflow-hidden rounded-lg border border-brandAlt-200 bg-white p-2",
-            "transition-colors duration-200 hover:bg-brandAlt-100",
+            "flex h-11 w-full items-center gap-3 overflow-hidden rounded-lg border border-slate-200 bg-white p-2",
+            "transition-colors duration-200 hover:bg-slate-900/[0.03]",
             "group-data-[collapsible=icon]:justify-center",
           )}
         >
@@ -89,9 +89,10 @@ export function SidebarOrgSwitcher() {
               name={currentOrg.name}
               logoUrl={currentOrg.logoUrl}
               className="size-7 shrink-0 rounded border border-white shadow-sm"
+              fallbackClassName="bg-slate-100 text-slate-600"
             />
           ) : (
-            <Building2 className="size-7 shrink-0 rounded bg-brand-800 p-1.5 text-white" />
+            <Building2 className="size-7 shrink-0 rounded bg-slate-100 p-1.5 text-slate-600" />
           )}
           <span
             className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium text-gray-900 group-data-[collapsible=icon]:hidden"
@@ -99,14 +100,14 @@ export function SidebarOrgSwitcher() {
           >
             {displayName ?? "Select workspace"}
           </span>
-          <ChevronsUpDown className="ml-auto size-5 shrink-0 text-brand-800 group-data-[collapsible=icon]:hidden" />
+          <ChevronsUpDown className="ml-auto size-5 shrink-0 text-slate-400 group-data-[collapsible=icon]:hidden" />
         </button>
       </PopoverTrigger>
       <PopoverContent
         side="bottom"
         align="start"
         sideOffset={4}
-        className="w-[276px] py-2 pl-2 pr-0"
+        className="w-[284px] p-1.5"
       >
         <SidebarOrgOfficeSearch
           organizations={dropdownOrgs}

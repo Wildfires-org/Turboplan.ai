@@ -9,6 +9,15 @@ import {
 } from "@wildfires-org/turboplan-feature-flags";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
+import {
+  getProjectDocumentProfile,
+  listProjectLetterheadCandidates,
+} from "@wildfires-org/turboplan-workspace/server";
+import {
+  type DocumentLetterhead,
+  documentProfileToFacts,
+  type LetterheadCandidate,
+} from "@wildfires-org/turboplan-workspace/types";
 
 /**
  * Whether the user may write to the project (UPDATE permission). Fails closed:
@@ -39,6 +48,42 @@ const canUserUpdateProject = async (
   }
 };
 
+/**
+ * Whether the user has `action` on the organization (READ includes READ
+ * inherited upward from project membership). Fails closed: any error means no
+ * organization context is shared and no organization write tool is offered.
+ */
+const canUserAccessOrganization = async (
+  userId: string,
+  organizationId: string,
+  action: typeof Action.READ | typeof Action.UPDATE,
+): Promise<boolean> => {
+  try {
+    const rbac = getRBACService();
+    const result = await rbac.checkPermission(
+      userId,
+      organizationId,
+      EntityType.ORGANIZATION,
+      action,
+    );
+    return result.allowed;
+  } catch (error) {
+    console.error(
+      `[SystemPromptContext] Failed to check organization ${action} permission:`,
+      error,
+    );
+    return false;
+  }
+};
+
+/**
+ * Whether createDocument, updateDocument and requestSuggestions are offered:
+ * only after the research phase. An omitted mode is full mode.
+ */
+const hasDocumentToolsForMode = (mode?: ChatMode): boolean =>
+  (isTasksPackageEnabled() || isMapPackageEnabled()) &&
+  mode !== ChatMode.Research;
+
 type SystemPromptContext = {
   /** Defaults to ChatMode.Full when omitted. Only set to ChatMode.Research during active research phase. */
   mode?: ChatMode;
@@ -49,6 +94,17 @@ type SystemPromptContext = {
    */
   isBroughtProject?: boolean;
   projectName: string;
+  /** Budgeted block from the project's organization (prompt + document facts) */
+  organizationContextData?: string;
+  /** Organization the block came from; binds readOrganizationDocuments */
+  organizationId?: string;
+  /** Organization documents whose full text readOrganizationDocuments can return */
+  readableOrganizationDocumentIds?: string[];
+  /**
+   * The project's organization when the user may UPDATE it, set whether or not
+   * its context block is empty; binds saveOrganizationMemory
+   */
+  memoryOrganization?: { id: string; name: string };
   researchAgentStatus?: string;
   projectTasksContext?: string;
   savedResearchContext?: string;
@@ -56,6 +112,7 @@ type SystemPromptContext = {
   projectDocumentsContext?: string;
   projectContextData?: string;
   projectFieldsContext?: string;
+  officeDocumentContext?: string;
 };
 
 /**
@@ -75,19 +132,24 @@ export const buildSystemPromptArgs = async ({
   chatId?: string;
   userId?: string;
 } = {}) => {
-  const context = await fetchSystemPromptContext({ projectId, chatId });
-
-  const isResearchPhase = context.mode === ChatMode.Research;
+  const context = await fetchSystemPromptContext({ projectId, chatId, userId });
 
   // Document tools are only available after the research phase is complete
-  const hasDocumentTools =
-    (isTasksPackageEnabled() || isMapPackageEnabled()) && !isResearchPhase;
+  const hasDocumentTools = hasDocumentToolsForMode(context.mode);
 
   // Reading uploaded project documents works in BOTH research and full mode —
   // it only needs a project (to scope/secure the query) and the documents
   // package enabled.
   const hasReadProjectDocumentsTool =
     !!projectId && isDocumentsPackageEnabled();
+
+  // Reading organization documents needs the organization block in the prompt
+  // (it carries the ids, and was only added after an organization READ check)
+  // and at least one document with extracted text. Works in both modes.
+  const hasReadOrganizationDocumentsTool =
+    !!context.organizationContextData &&
+    !!context.organizationId &&
+    (context.readableOrganizationDocumentIds?.length ?? 0) > 0;
 
   // Project write tools require UPDATE permission on the project. They work in
   // BOTH research and full mode (not research-phase-gated).
@@ -97,6 +159,11 @@ export const buildSystemPromptArgs = async ({
   const hasUpdateProjectFieldsTool =
     hasProjectUpdateAccess && isFieldsPackageEnabled();
 
+  // Saving organization memories needs organization UPDATE, checked (behind
+  // the project-context flag) while the context was fetched. Like
+  // updateProjectContext it works in both research and full mode.
+  const hasSaveOrganizationMemoryTool = !!context.memoryOrganization;
+
   return {
     ...context,
     activeTools: [
@@ -104,8 +171,12 @@ export const buildSystemPromptArgs = async ({
         ? ["createDocument", "updateDocument", "requestSuggestions"]
         : []),
       ...(hasReadProjectDocumentsTool ? ["readProjectDocuments"] : []),
+      ...(hasReadOrganizationDocumentsTool
+        ? ["readOrganizationDocuments"]
+        : []),
       ...(hasUpdateProjectContextTool ? ["updateProjectContext"] : []),
       ...(hasUpdateProjectFieldsTool ? ["updateProjectFields"] : []),
+      ...(hasSaveOrganizationMemoryTool ? ["saveOrganizationMemory"] : []),
       "generateQuickResponses",
       "webSearch",
       "getContents",
@@ -126,9 +197,11 @@ export const buildSystemPromptArgs = async ({
 const fetchSystemPromptContext = async ({
   projectId,
   chatId,
+  userId,
 }: {
   projectId?: string;
   chatId?: string;
+  userId?: string;
 } = {}): Promise<SystemPromptContext> => {
   if (!projectId) {
     return { projectName: "" };
@@ -275,6 +348,24 @@ const fetchSystemPromptContext = async ({
     );
   }
 
+  // The office's document details and letterhead: the document generator fills
+  // them in itself, so the chat must not list them as missing placeholders.
+  fetchers.push(
+    (async () => {
+      try {
+        context.officeDocumentContext = await buildOfficeDocumentContext(
+          projectId,
+          hasDocumentToolsForMode(context.mode),
+        );
+      } catch (error) {
+        console.error(
+          "[SystemPromptContext] Failed to fetch office document details:",
+          error,
+        );
+      }
+    })(),
+  );
+
   if (isProjectContextPackageEnabled()) {
     fetchers.push(
       (async () => {
@@ -287,6 +378,89 @@ const fetchSystemPromptContext = async ({
         } catch (error) {
           console.error(
             "[SystemPromptContext] Failed to fetch project context:",
+            error,
+          );
+        }
+      })(),
+    );
+  }
+
+  // Organization context (standing prompt + document key facts) is shared
+  // only with users who may READ the organization. No user → nothing.
+  if (isProjectContextPackageEnabled() && userId) {
+    fetchers.push(
+      (async () => {
+        try {
+          const {
+            getOrganizationContextForProject,
+            ORG_CONTEXT_CHAT_BUDGET,
+            ORG_CONTEXT_CHAT_MEMORIES_MAX_CHARS,
+            ORGANIZATION_PROMPT_MAX_CHARS,
+          } = await import("@wildfires-org/turboplan-workspace/server");
+          const organizationContext = await getOrganizationContextForProject(
+            projectId,
+            {
+              budgetChars: ORG_CONTEXT_CHAT_BUDGET,
+              promptMaxChars: ORGANIZATION_PROMPT_MAX_CHARS,
+              memoriesMaxChars: ORG_CONTEXT_CHAT_MEMORIES_MAX_CHARS,
+              readToolName: "readOrganizationDocuments",
+            },
+          );
+          if (!organizationContext) {
+            return;
+          }
+          const canRead = await canUserAccessOrganization(
+            userId,
+            organizationContext.organizationId,
+            Action.READ,
+          );
+          if (!canRead) {
+            return;
+          }
+          context.organizationContextData = organizationContext.block;
+          context.organizationId = organizationContext.organizationId;
+          context.readableOrganizationDocumentIds =
+            organizationContext.readableDocumentIds;
+        } catch (error) {
+          console.error(
+            "[SystemPromptContext] Failed to fetch organization context:",
+            error,
+          );
+        }
+      })(),
+    );
+
+    // The organization saveOrganizationMemory writes to. Resolved on its own
+    // (the block above is null when the organization has nothing to share
+    // yet, which is exactly when a first note gets saved) and in parallel
+    // with it, so it adds no latency.
+    fetchers.push(
+      (async () => {
+        try {
+          const { getOrganizationIdForProject } = await import(
+            "@wildfires-org/turboplan-db/queries"
+          );
+          const { getOrganizationById } = await import(
+            "@wildfires-org/turboplan-workspace/server"
+          );
+          const organizationId = await getOrganizationIdForProject(projectId);
+          if (!organizationId) {
+            return;
+          }
+          const [organization, canUpdate] = await Promise.all([
+            getOrganizationById(organizationId),
+            canUserAccessOrganization(userId, organizationId, Action.UPDATE),
+          ]);
+          if (!organization || !canUpdate) {
+            return;
+          }
+          context.memoryOrganization = {
+            id: organization.id,
+            name: organization.name,
+          };
+        } catch (error) {
+          console.error(
+            "[SystemPromptContext] Failed to resolve the organization for memories:",
             error,
           );
         }
@@ -315,4 +489,77 @@ const fetchSystemPromptContext = async ({
 
   await Promise.all(fetchers);
   return context;
+};
+
+// Admin-written letterhead text goes into the system prompt as data: collapsed
+// to one line so it cannot open a new section or pose as an instruction.
+const toPromptLine = (text: string) => text.replace(/\s+/g, " ").trim();
+
+const toQuotedPromptValue = (text: string) =>
+  `"${toPromptLine(text).replace(/"/g, "'")}"`;
+
+const describeLibraryLetterhead = ({
+  id,
+  name,
+  description,
+  firstLine,
+}: LetterheadCandidate) => {
+  const whenToUse = toPromptLine(description)
+    ? toQuotedPromptValue(description)
+    : "no description";
+  return `- \`${id}\` — ${toQuotedPromptValue(name)}: ${whenToUse} (first line: ${toPromptLine(firstLine)})`;
+};
+
+const buildAvailableLetterheadsSection = (
+  defaultLetterhead: DocumentLetterhead | null,
+  library: LetterheadCandidate[],
+) => {
+  const defaultOption = defaultLetterhead
+    ? `office/organization default (first line: ${toPromptLine(defaultLetterhead.nameLines[0] ?? "(banner image)")})`
+    : "no default letterhead configured — the generator writes the author's letterhead";
+  return [
+    "# AVAILABLE LETTERHEADS",
+    "Pass one id below as createDocument's `letterheadId`: the letterhead of the document's AUTHOR/sender (the same party as in your LETTERHEAD LAYOUT note), never its recipient. Pick a library letterhead only when its name, description or first line identifies that SAME organization — never one that is merely the same kind of organization (another consulting firm, another agency). If the author is a party none of them names, pass `none`. Pass `default` when the office itself is the author or you cannot tell who is.",
+    `- \`default\` — ${defaultOption}`,
+    ...library.map(describeLibraryLetterhead),
+    "- `none` — no stored letterhead belongs to the author; the generator writes the author's letterhead from the reference.",
+  ].join("\n");
+};
+
+const buildOfficeDocumentContext = async (
+  projectId: string,
+  hasCreateDocumentTool: boolean,
+): Promise<string | undefined> => {
+  const [profile, { defaultLetterhead: letterhead, library }] =
+    await Promise.all([
+      getProjectDocumentProfile(projectId),
+      listProjectLetterheadCandidates(projectId),
+    ]);
+  const facts = documentProfileToFacts(profile);
+  if (letterhead && letterhead.nameLines.length > 0) {
+    facts.unshift(`Letterhead: ${letterhead.nameLines.join(" / ")}`);
+  }
+  if (letterhead && letterhead.contactLines.length > 0) {
+    facts.push(
+      `Office address and contact: ${letterhead.contactLines.join(", ")}`,
+    );
+  }
+  const sections: string[] = [];
+  if (facts.length > 0) {
+    sections.push(
+      [
+        "# OFFICE DOCUMENT DETAILS",
+        "Confirmed by the office. The document generator receives these and fills them into every document automatically (the letterhead is added by the app). Never list them as missing placeholders or ask the user for them.",
+        ...facts.map((fact) => `- ${fact}`),
+      ].join("\n"),
+    );
+  }
+  // Only orgs with library letterheads get a choice, and only when
+  // createDocument (which takes the `letterheadId`) is offered: without the
+  // tool, as in research mode, the model writes the ids into its reply.
+  // Without a choice the context is exactly the office details above.
+  if (hasCreateDocumentTool && library.length > 0) {
+    sections.push(buildAvailableLetterheadsSection(letterhead, library));
+  }
+  return sections.length > 0 ? sections.join("\n\n") : undefined;
 };

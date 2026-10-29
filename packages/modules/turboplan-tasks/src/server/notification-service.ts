@@ -16,6 +16,7 @@ import {
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 interface UserWithProfile {
   id: string;
@@ -246,7 +247,7 @@ class TaskNotificationService {
     const baseUrl = env.TURBOPLAN_URL;
 
     if (projectData) {
-      return `${baseUrl}/organizations/${projectData.orgSlug}/offices/${projectData.officeSlug}/projects/${projectData.projectSlug}/tasks`;
+      return `${baseUrl}${appPaths.project(projectData.orgSlug, projectData.officeSlug, projectData.projectSlug)}/tasks`;
     }
 
     return baseUrl;

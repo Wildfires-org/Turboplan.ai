@@ -1,4 +1,5 @@
 import { getCommonEnv } from "@wildfires-org/turboplan-env";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 // Public catalog pages are served by the landing page app at
 // /catalog/<org-slug>/<office-slug>/<project-slug>. Returns null when
@@ -12,9 +13,9 @@ const getCatalogBaseUrl = (): string | null => {
 };
 
 // Authenticated dashboard pages are served by the main app at
-// /organizations/<org-slug>/offices/<office-slug>/projects/<project-slug>
-// (mirrors AppUrls in apps/turboplan/lib/nav/urls.ts). Unlike the catalog,
-// these work for non-public entities — they just require login.
+// /<org-slug>/<office-slug>/<project-slug> (built by the shared `appPaths`,
+// the same helper behind AppUrls in apps/turboplan/lib/nav/urls.ts). Unlike
+// the catalog, these work for non-public entities — they just require login.
 const getDashboardBaseUrl = (): string | null => {
   const { TURBOPLAN_URL } = getCommonEnv();
   if (!TURBOPLAN_URL) {
@@ -66,7 +67,7 @@ export const getOrganizationDashboardUrl = (orgSlug: string): string | null => {
   if (!base) {
     return null;
   }
-  return `${base}/organizations/${seg(orgSlug)}`;
+  return `${base}${appPaths.organization(seg(orgSlug))}`;
 };
 
 export const getOfficeDashboardUrl = (
@@ -77,7 +78,7 @@ export const getOfficeDashboardUrl = (
   if (!base) {
     return null;
   }
-  return `${base}/organizations/${seg(orgSlug)}/offices/${seg(officeSlug)}`;
+  return `${base}${appPaths.office(seg(orgSlug), seg(officeSlug))}`;
 };
 
 export const getProjectDashboardUrl = (
@@ -89,5 +90,5 @@ export const getProjectDashboardUrl = (
   if (!base) {
     return null;
   }
-  return `${base}/organizations/${seg(orgSlug)}/offices/${seg(officeSlug)}/projects/${seg(projectSlug)}`;
+  return `${base}${appPaths.project(seg(orgSlug), seg(officeSlug), seg(projectSlug))}`;
 };

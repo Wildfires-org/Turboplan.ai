@@ -39,7 +39,7 @@ export function buildRuntimeContext(params: RuntimeContextParams): string {
       `You MUST accomplish the user's task using the \`${params.skill}\` skill.`,
     );
     lines.push(
-      `Invoke it via Skill("${params.skill}") with the full user prompt as the argument. The skill defines the workflow — follow it to completion.`,
+      `If the skill's instructions are already in your system prompt (the sandbox preloads them), follow them directly — do NOT call the Skill tool. Otherwise invoke it via Skill("${params.skill}") with the full user prompt as the argument. The skill defines the workflow — follow it to completion.`,
     );
   }
 

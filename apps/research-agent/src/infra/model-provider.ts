@@ -34,6 +34,7 @@ type FastModelEnv = ProviderKeys & {
  * and the direct-Anthropic path keeps using them unchanged.
  */
 const OPENROUTER_MODEL_SLUGS: Record<string, string> = {
+  "claude-opus-5-5": "anthropic/claude-opus-5.5",
   "claude-sonnet-4-6": "anthropic/claude-sonnet-4.6",
   "claude-sonnet-4-5-20250929": "anthropic/claude-sonnet-4.5",
   "claude-haiku-4-5-20251001": "anthropic/claude-haiku-4.5",

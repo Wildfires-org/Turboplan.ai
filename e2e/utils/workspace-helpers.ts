@@ -1,4 +1,11 @@
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
+import {
+  assignOrganizationOwner,
+  createOffice,
+  createOfficeUser,
+  createOrganization,
+  OrganizationType,
+} from "@wildfires-org/turboplan-workspace/server";
 
 import {
   getCitizenCredentials,
@@ -85,4 +92,54 @@ export const getCitizenWorkspace = async (): Promise<WorkspaceInfo> => {
     officeId: citizenOffice.id,
     userId: citizenUser.id,
   };
+};
+
+export type TestOrganization = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
+/**
+ * Create a fresh BUSINESS organization owned by `ownerId`, so a spec can change
+ * its members without leaking into the shared citizen/gov workspaces.
+ */
+export const createTestOrganization = async (params: {
+  ownerId: string;
+  name: string;
+}): Promise<TestOrganization> => {
+  const org = await createOrganization({
+    name: params.name,
+    description: "Organization for E2E testing",
+    type: OrganizationType.BUSINESS,
+    createdBy: params.ownerId,
+  });
+
+  await assignOrganizationOwner(params.ownerId, org.id);
+
+  return { id: org.id, slug: org.slug, name: org.name };
+};
+
+/**
+ * Put `userId` in an organization's tree WITHOUT making them an organization
+ * member: a viewer of a new office there (created by `ownerId`). Such a user is
+ * reachable by the organization's fuzzy user search but is not in its member
+ * list.
+ */
+export const addOrganizationOfficeViewer = async (params: {
+  organizationId: string;
+  ownerId: string;
+  userId: string;
+}): Promise<void> => {
+  const office = await createOffice({
+    name: `E2E Office ${Date.now()}`,
+    organizationId: params.organizationId,
+    createdBy: params.ownerId,
+  });
+
+  await createOfficeUser({
+    officeId: office.id,
+    userId: params.userId,
+    role: "viewer",
+  });
 };

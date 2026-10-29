@@ -1,26 +1,5 @@
-import { Heading, Img, Section, Text } from "@react-email/components";
-
-import { getAppName } from "@wildfires-org/turboplan-env";
-
-import { BaseLayout, preventAutoLink } from "./base-layout";
-import {
-  badge,
-  badgeTable,
-  bodyText,
-  bodyTextLight,
-  card,
-  ctaButtonTd,
-  ctaLink,
-  ctaTable,
-  disclaimer,
-  fallbackLabel,
-  fallbackUrl,
-  fallbackUrlBox,
-  mascotImage,
-  signatureText,
-  title,
-} from "./billing-email-styles";
-import { getBeaverUrl } from "./email-images";
+import { BaseLayout } from "./base-layout";
+import { CtaButton, EmailHeading, FallbackUrl, Paragraph } from "./email-card";
 
 export interface UsageAlertEmailProps {
   /** Name of the organization whose credit pool is filling up */
@@ -58,7 +37,6 @@ export function UsageAlertEmail({
   billingUrl,
   recipientEmail,
 }: UsageAlertEmailProps) {
-  const appName = getAppName();
   const atLimit = percentage >= 100;
 
   const consequence = hardStop
@@ -72,81 +50,31 @@ export function UsageAlertEmail({
   return (
     <BaseLayout
       preview={`${orgName} has used ${percentage}% of its monthly credits`}
-      label="Usage Alert"
+      label={`${percentage}% of monthly credits`}
+      tone="warning"
+      footer={`This email was sent to ${recipientEmail} because you are an owner of ${orgName}. You get at most one email per threshold each billing period.`}
     >
-      <Heading style={title}>
-        {atLimit ? "Credits Used Up" : "Credit Usage Alert"}
-      </Heading>
+      <EmailHeading>
+        {atLimit ? "You've used all your credits" : "Credit usage alert"}
+      </EmailHeading>
 
-      <Section style={card}>
-        <Img
-          src={getBeaverUrl()}
-          width="120"
-          height="120"
-          alt="Beaver mascot"
-          style={mascotImage}
-        />
+      <Paragraph>
+        <strong style={strong}>{orgName}</strong> has used{" "}
+        <strong style={strong}>{formatCredits(creditsUsed)}</strong> of its{" "}
+        <strong style={strong}>{formatCredits(allowance)}</strong> monthly
+        credits.
+      </Paragraph>
 
-        <table
-          role="presentation"
-          cellPadding="0"
-          cellSpacing="0"
-          style={badgeTable}
-        >
-          <tr>
-            <td align="center">
-              <span style={badge}>{percentage}% of monthly credits</span>
-            </td>
-          </tr>
-        </table>
+      <Paragraph>{consequence}</Paragraph>
 
-        <Text style={bodyText}>
-          <strong>{orgName}</strong> has used{" "}
-          <strong>{formatCredits(creditsUsed)}</strong> of its{" "}
-          <strong>{formatCredits(allowance)}</strong> monthly credits.
-        </Text>
+      <CtaButton href={billingUrl} label="View usage & plans" />
 
-        <Text style={bodyTextLight}>{consequence}</Text>
-
-        <table
-          role="presentation"
-          cellPadding="0"
-          cellSpacing="0"
-          style={ctaTable}
-        >
-          <tr>
-            <td align="center" style={ctaButtonTd}>
-              <a href={billingUrl} style={ctaLink} className="cta-link">
-                <span
-                  style={{ color: "#ffffff", textDecoration: "none" }}
-                  className="cta-link"
-                >
-                  View usage &amp; plans
-                </span>
-              </a>
-            </td>
-          </tr>
-        </table>
-
-        <Text style={signatureText}>
-          Best regards,
-          <br />
-          The {preventAutoLink(appName)} Team
-        </Text>
-      </Section>
-
-      <Text style={disclaimer}>
-        This email was sent to {recipientEmail} because you are an owner of{" "}
-        {orgName}. You get at most one email per threshold each billing period.
-      </Text>
-
-      <Text style={fallbackLabel}>
-        If you're having trouble with the button, copy and paste this URL into
-        your browser:
-      </Text>
-      <Section style={fallbackUrlBox}>
-        <Text style={fallbackUrl}>{billingUrl}</Text>
-      </Section>
+      <FallbackUrl url={billingUrl} />
     </BaseLayout>
   );
 }
+
+// Styles
+const strong = {
+  color: "#111827",
+};

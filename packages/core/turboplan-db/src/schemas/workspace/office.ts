@@ -2,6 +2,7 @@ import { type InferSelectModel, sql } from "drizzle-orm";
 import {
   index,
   json,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -14,7 +15,7 @@ import {
 import { MAX_SLUG_LENGTH } from "../../constants";
 import { generatedImages } from "../core/generated-images";
 import { user } from "../core/user";
-import { organization } from "./organization";
+import { type DocumentProfile, organization } from "./organization";
 
 export enum OfficeStatus {
   ACTIVE = "active",
@@ -47,6 +48,15 @@ export const office = pgTable(
     documentFooterText: text("document_footer_text"),
     documentFooterNote: text("document_footer_note"),
     documentFooterLogoUrl: text("document_footer_logo_url"),
+    documentLetterheadLayout: varchar("document_letterhead_layout", {
+      enum: ["columns", "split", "centered", "banner"],
+    }),
+    documentLetterheadLines: text("document_letterhead_lines"),
+    documentLetterheadContact: text("document_letterhead_contact"),
+    documentLetterheadColor: varchar("document_letterhead_color", {
+      length: 7,
+    }),
+    documentProfile: jsonb("document_profile").$type<DocumentProfile>(),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => user.id),

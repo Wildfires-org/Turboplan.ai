@@ -15,6 +15,10 @@ import {
   useMapFileUpload,
 } from "../../client";
 import { GeospatialLayer, MapType } from "../../types";
+import {
+  formatSkippedLayersMessage,
+  hasMapFeatures,
+} from "../../utils/layer-utils";
 import { MapDragDropUpload } from "../map-drag-drop-upload";
 import { SimpleMap } from "../simple-map";
 import { AddLayerDialog } from "./add-layer-dialog";
@@ -106,16 +110,8 @@ export function MapContentManager({
         // Use the hook to upload and process the file
         const processedLayers = await uploadFile(file);
 
-        // Check if there are valid layers
-        const hasValidLayers = processedLayers.some(
-          (layer) => !layer.error && layer.data,
-        );
-
-        if (!hasValidLayers) {
-          toast({
-            type: "error",
-            description: "No valid layers found in the uploaded file",
-          });
+        // uploadFile has already said why nothing can be shown.
+        if (!processedLayers.some(hasMapFeatures)) {
           return;
         }
 
@@ -123,9 +119,7 @@ export function MapContentManager({
         setPreviewLayers(processedLayers);
 
         // Auto-select the first valid layer for preview
-        const firstValidLayer = processedLayers.find(
-          (layer) => !layer.error && layer.data,
-        );
+        const firstValidLayer = processedLayers.find(hasMapFeatures);
         if (firstValidLayer) {
           setPreviewSelectedLayerId(getLayerKey(firstValidLayer));
         }
@@ -186,11 +180,19 @@ export function MapContentManager({
         );
 
         const totalLayersSaved = result?.layers?.length || 0;
+        const skippedLayers = result?.skippedLayers ?? [];
 
-        toast({
-          type: "success",
-          description: `${totalLayersSaved} layer${totalLayersSaved > 1 ? "s" : ""} saved to project successfully`,
-        });
+        if (totalLayersSaved === 0 && skippedLayers.length > 0) {
+          toast({
+            type: "error",
+            description: formatSkippedLayersMessage(skippedLayers),
+          });
+        } else {
+          toast({
+            type: "success",
+            description: `${totalLayersSaved} layer${totalLayersSaved > 1 ? "s" : ""} saved to project successfully`,
+          });
+        }
 
         // Close modal and reset preview state
         setIsModalOpen(false);

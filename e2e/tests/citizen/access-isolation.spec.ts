@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import { createToken } from "@wildfires-org/turboplan-api-client";
+import { createToken } from "@wildfires-org/turboplan-api-client/server";
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
 
+import { PROJECT_URL_PATTERN } from "../../config/patterns";
 import { getCitizenCredentials } from "../../config/test-credentials";
 import {
   CITIZEN_GOV_PROJECT,
@@ -92,6 +93,86 @@ test.describe("Access Isolation", () => {
     await govContext.close();
   });
 
+  test("only office members get office management actions", async ({
+    page,
+    browser,
+  }) => {
+    // Government offices are readable by any signed-in user; a citizen is
+    // not a member, so the banner must not offer actions the API rejects.
+    const citizenDashboard = new TurboplanDashboardPage(page);
+    await citizenDashboard.gotoOffice(govOrgSlug, govOfficeSlug);
+    await citizenDashboard.expectOfficeHeading(GOV_WORKSPACE.OFFICE_NAME);
+
+    // Counted over all of <main>, so neither the banner nor the copy in the
+    // compact scroll header may render them.
+    const citizenMain = citizenDashboard.getMain();
+    await expect(
+      citizenMain.getByRole("button", { name: "Manage Office" }),
+    ).toHaveCount(0);
+    await expect(
+      citizenMain.getByRole("button", { name: /^New Project$/ }),
+    ).toHaveCount(0);
+
+    const govContext = await browser.newContext({
+      storageState: "./storage/auth/gov.json",
+    });
+    const govPage = await govContext.newPage();
+    const govDashboard = new TurboplanDashboardPage(govPage);
+    await govDashboard.gotoOffice(govOrgSlug, govOfficeSlug);
+    await govDashboard.expectOfficeHeading(GOV_WORKSPACE.OFFICE_NAME);
+
+    // Scoped to the full banner: a member also gets a second, hidden copy of
+    // these buttons in the compact scroll header.
+    const govBannerActions = govDashboard.getBannerActions();
+    await expect(
+      govBannerActions.getByRole("button", { name: "Manage Office" }),
+    ).toBeVisible();
+    await expect(
+      govBannerActions.getByRole("button", { name: /^New Project$/ }),
+    ).toBeVisible();
+
+    await govContext.close();
+  });
+
+  test("only organization managers get organization management actions", async ({
+    page,
+    browser,
+  }) => {
+    // Read access to a government organization (any signed-in user, or a
+    // role on one of its offices or projects) must not surface the actions
+    // that need UPDATE / CREATE on the organization itself.
+    const citizenDashboard = new TurboplanDashboardPage(page);
+    await citizenDashboard.gotoOrganization(govOrgSlug);
+    const citizenMain = citizenDashboard.getMain();
+    await expect(
+      citizenMain.getByRole("heading", { level: 1 }).first(),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      citizenMain.getByRole("button", { name: "Manage Organization" }),
+    ).toHaveCount(0);
+    await expect(
+      citizenMain.getByRole("button", { name: /^New Office$/ }),
+    ).toHaveCount(0);
+
+    const govContext = await browser.newContext({
+      storageState: "./storage/auth/gov.json",
+    });
+    const govPage = await govContext.newPage();
+    const govDashboard = new TurboplanDashboardPage(govPage);
+    await govDashboard.gotoOrganization(govOrgSlug);
+    const govMain = govDashboard.getMain();
+    // The sticky compact banner repeats the actions; check the full banner.
+    const govBannerActions = govMain.getByTestId("entity-banner-actions");
+    await expect(
+      govBannerActions.getByRole("button", { name: "Manage Organization" }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      govBannerActions.getByRole("button", { name: /^New Office$/ }),
+    ).toBeVisible();
+
+    await govContext.close();
+  });
+
   test("citizen draft project is not returned in the public projects API", async ({
     request,
   }) => {
@@ -141,7 +222,7 @@ test.describe("Access Isolation", () => {
 
     if (await projectLink.isVisible()) {
       await projectLink.click();
-      await page.waitForURL(/\/projects\//, { timeout: 10000 });
+      await page.waitForURL(PROJECT_URL_PATTERN, { timeout: 10000 });
 
       await project.expectNoVisibilityControls();
     }

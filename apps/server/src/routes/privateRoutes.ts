@@ -23,6 +23,10 @@ import {
   configureWorkspaceAnalytics,
   invitationsRouter,
   officesRouter,
+  organizationContextRouter,
+  organizationDocumentsRouter,
+  organizationLetterheadsRouter,
+  organizationMemoriesRouter,
   organizationSigningConfigRouter,
   organizationsRouter,
   projectDocumentsRouter,
@@ -35,6 +39,7 @@ import { featurePackageError } from "../utils/feature-package-error.js";
 import { authRouter } from "./auth.js";
 import { documentExportRouter } from "./document-export.js";
 import { enhanceProjectPromptRouter } from "./enhance-project-prompt.js";
+import { letterheadExtractRouter } from "./letterhead-extract.js";
 import { patRouter } from "./pat-routes.js";
 import { validateProjectPromptRouter } from "./validate-project-prompt.js";
 
@@ -82,6 +87,8 @@ export async function registerPrivateRoutes(router: Hono) {
 
   // Workspace resources
   router.route("/api/organizations", organizationsRouter);
+  // Organization letterhead library (/:organizationId/letterheads)
+  router.route("/api/organizations", organizationLetterheadsRouter);
   router.route("/api/offices", officesRouter);
   router.route("/api/projects", projectsRouter);
   router.route("/api/project-documents", projectDocumentsRouter);
@@ -89,6 +96,8 @@ export async function registerPrivateRoutes(router: Hono) {
 
   // Document export (PDF render from markdown — always available, content-only)
   router.route("/api/documents", documentExportRouter);
+  // AI letterhead import (vision read of an uploaded letterhead image)
+  router.route("/api/documents", letterheadExtractRouter);
 
   // User search (for user selector component)
   router.route("/api/users", usersRouter);
@@ -163,6 +172,12 @@ export async function registerPrivateRoutes(router: Hono) {
 
   // Conditionally add project context router if feature is enabled
   if (isProjectContextPackageEnabled()) {
+    // Organization context: standing AI prompt, memories + reference
+    // documents (from workspace package, no dynamic import needed)
+    router.route("/api/organizations", organizationContextRouter);
+    router.route("/api/organization-documents", organizationDocumentsRouter);
+    router.route("/api/organization-memories", organizationMemoriesRouter);
+
     try {
       const { contextRouter } = await import(
         "@wildfires-org/turboplan-project-context/server"

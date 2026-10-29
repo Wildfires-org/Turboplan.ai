@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 import { motion } from "framer-motion";
 import { ArrowUpRight, Menu, X } from "lucide-react";
@@ -11,6 +11,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@wildfires-org/turboplan-auth/client";
 import { OmniSearch } from "@wildfires-org/turboplan-search/client";
 
+import { useSessionLoaded } from "@/components/providers/client-session-provider";
 import { useSearch } from "@/hooks/use-search";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import useBreakpoint from "@/hooks/useBreakpoint";
@@ -85,9 +86,9 @@ export function Navbar() {
   const { captureEvent } = useAnalytics();
 
   const session = useSession();
+  const isSessionLoaded = useSessionLoaded();
   const isAuthenticated = !!session?.user;
 
-  const [search, setSearch] = useSearch();
   const isLargeScreen = useBreakpoint("lg");
   const isHeroSearchVisible = useSearchVisibilityStore(
     (state) => state.isHeroSearchVisible,
@@ -223,15 +224,9 @@ export function Navbar() {
                 transition={{ duration: 0.2, ease: EASE_OUT }}
                 className="mx-4 max-w-screen-lg flex-1"
               >
-                <OmniSearch.Root
-                  variant="compact"
-                  value={search}
-                  onValueChange={setSearch}
-                >
-                  <OmniSearch.Input placeholder="Search agencies, offices and projects..." />
-                  <OmniSearch.Overlay className="top-[80px]" />
-                  <OmniSearch.Content />
-                </OmniSearch.Root>
+                <Suspense>
+                  <HeaderSearch />
+                </Suspense>
               </motion.div>
             ) : (
               <div className="flex items-center gap-8">
@@ -257,10 +252,14 @@ export function Navbar() {
             {isAuthenticated && session ? (
               <UserAvatarDropdown session={session} />
             ) : (
+              // Hidden (but holding its width) until the session request
+              // settles, so a signed-in visitor never sees "Sign In" flash.
               <Link
                 href={routing.signIn()}
                 onClick={handleSignInClick}
-                className={linkClasses}
+                className={cn(linkClasses, !isSessionLoaded && "invisible")}
+                aria-hidden={!isSessionLoaded}
+                tabIndex={isSessionLoaded ? undefined : -1}
               >
                 Sign In
               </Link>
@@ -392,5 +391,20 @@ const CreateProjectButton = ({ onClick }: CreateProjectButtonProps) => {
       Create Project
       <ArrowUpRight className="size-4" />
     </button>
+  );
+};
+
+// Reads the `q` search param, so it needs its own Suspense boundary: on a
+// statically prerendered page (/docs) an unwrapped search-param read would
+// opt the whole page out of server rendering.
+const HeaderSearch = () => {
+  const [search, setSearch] = useSearch();
+
+  return (
+    <OmniSearch.Root variant="compact" value={search} onValueChange={setSearch}>
+      <OmniSearch.Input placeholder="Search agencies, offices and projects..." />
+      <OmniSearch.Overlay className="top-[80px]" />
+      <OmniSearch.Content />
+    </OmniSearch.Root>
   );
 };

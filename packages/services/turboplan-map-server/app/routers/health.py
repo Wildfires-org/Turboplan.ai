@@ -11,7 +11,7 @@ async def health_check():
     return HealthResponse(
         status="OK",
         message="GIS Fiona Server running",
-        supportedFormats=[".shp", ".gdb"],
+        supportedFormats=[".shp", ".gdb", ".gpkg", ".geojson", ".json", ".kml", ".kmz"],
         processor="Fiona (Python 3.12)",
         runtime="Serverless Functions",
         timestamp=datetime.utcnow().isoformat() + "Z",

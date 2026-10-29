@@ -1,92 +1,104 @@
 "use client";
 
-import { useState } from "react";
-
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
-
 import {
   DocumentsSectionUI,
   useProjectDocuments,
 } from "@wildfires-org/turboplan-documents/client";
-import {
-  ContextFormDialog,
-  ProjectContextList,
-  useProjectContext,
-} from "@wildfires-org/turboplan-project-context/client";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 import { StartResearchButton } from "@wildfires-org/turboplan-research-agent-integration/client";
-import { Button } from "@wildfires-org/turboplan-utils";
 
+import {
+  ContextTabList,
+  ContextTabPanels,
+} from "@/components/project-context/context-tabs";
+import { ProjectContextDropzone } from "@/components/project-context/project-context-dropzone";
+import { ProjectDocumentsSection } from "@/components/project-context/project-documents-section";
+import { ProjectGisLayersPanel } from "@/components/project-context/project-gis-layers-panel";
+import { ProjectNotesSection } from "@/components/project-context/project-notes-section";
+import { useContextTabs } from "@/hooks/use-context-tabs";
 import { PANEL_CLASS, PANEL_TITLE_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
 interface ProjectContextPageSectionProps {
   projectId: string;
   userId: string;
+  /** The project's organization */
+  organization: { id: string; name: string; slug: string };
+  /** Documents module enabled (resolved on the server) */
+  isDocumentsEnabled: boolean;
+  /** Map module enabled (resolved on the server) */
+  isMapEnabled: boolean;
+  /** Organization context (prompt, memory, documents) enabled, on the server */
+  isOrganizationContextEnabled: boolean;
 }
 
 export function ProjectContextPageSection({
   projectId,
   userId,
+  organization,
+  isDocumentsEnabled,
+  isMapEnabled,
+  isOrganizationContextEnabled,
 }: ProjectContextPageSectionProps) {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const { addEntry, isMutating } = useProjectContext({ projectId });
+  const tabsState = useContextTabs({
+    userId,
+    organizationId: organization.id,
+    isOrganizationContextEnabled,
+  });
   const { hasPermission: canEdit } = useEntityPermission({
     userId,
     entityType: EntityType.PROJECT,
     entityId: projectId,
     action: Action.UPDATE,
   });
+  const { hasPermission: canDelete } = useEntityPermission({
+    userId,
+    entityType: EntityType.PROJECT,
+    entityId: projectId,
+    action: Action.DELETE,
+  });
   const { documents: researchedDocuments } = useProjectDocuments({
     projectId,
     source: "research",
   });
+  const canDropFiles = canEdit && (isDocumentsEnabled || isMapEnabled);
 
-  const handleAddContext = async (data: {
-    label: string;
-    content: string;
-    url?: string;
-  }) => {
-    try {
-      await addEntry(data);
-      toast.success("Context entry added successfully");
-      setIsAddDialogOpen(false);
-    } catch {
-      toast.error("Failed to add context entry");
-    }
-  };
-
-  return (
+  const projectContent = (
     <>
       <section className={cn(PANEL_CLASS, "space-y-4")}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className={PANEL_TITLE_CLASS}>Project Context</h3>
             <p className="text-[13px] leading-5 text-gray-550">
-              Key information and references for this project.
+              Everything the assistant should know about this project.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <StartResearchButton
-              projectId={projectId}
-              canEdit={canEdit}
-              appearance="glass"
-            />
-            <Button
-              variant="brand"
-              size="sm"
-              onClick={() => setIsAddDialogOpen(true)}
-            >
-              <Plus aria-hidden />
-              Add context
-            </Button>
-          </div>
+          <StartResearchButton
+            projectId={projectId}
+            canEdit={canEdit}
+            appearance="glass"
+          />
         </div>
 
-        <ProjectContextList projectId={projectId} readOnly={false} />
+        {canDropFiles && (
+          <ProjectContextDropzone
+            projectId={projectId}
+            acceptsDocuments={isDocumentsEnabled}
+            acceptsGisLayers={isMapEnabled}
+          />
+        )}
       </section>
+
+      {isDocumentsEnabled && (
+        <ProjectDocumentsSection projectId={projectId} userId={userId} />
+      )}
+
+      {isMapEnabled && (
+        <ProjectGisLayersPanel projectId={projectId} canDelete={canDelete} />
+      )}
+
+      <ProjectNotesSection projectId={projectId} canEdit={canEdit} />
 
       {researchedDocuments.length > 0 && (
         <section className={cn(PANEL_CLASS, "space-y-4")}>
@@ -104,16 +116,18 @@ export function ProjectContextPageSection({
           />
         </section>
       )}
+    </>
+  );
 
-      <ContextFormDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        onSubmit={handleAddContext}
-        isSubmitting={isMutating}
-        title="Add Context"
-        description="Add a context entry to capture project information."
-        submitLabel="Add Context"
-        submittingLabel="Adding..."
+  return (
+    <>
+      <ContextTabList state={tabsState} />
+      <ContextTabPanels
+        state={tabsState}
+        userId={userId}
+        organization={organization}
+        projectContent={projectContent}
+        className="space-y-6"
       />
     </>
   );

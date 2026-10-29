@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
 
-import { generatePAT } from "@wildfires-org/turboplan-api-client";
+import { generatePAT } from "@wildfires-org/turboplan-api-client/server";
 import {
   createPersonalAccessToken,
   listPATsByUser,

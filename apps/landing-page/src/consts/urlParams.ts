@@ -1,3 +1,5 @@
+import { LANDING_UPLOADS_PARAM } from "@wildfires-org/turboplan-upload/types";
+
 export const PROJECT_TITLE_PARAM = "projectTitle";
 export const PROJECT_DESCRIPTION_PARAM = "projectDescription";
 export const ORGANIZATION_NAME_PARAM = "organizationName";
@@ -21,5 +23,6 @@ export const clearUrlParams = () => {
   url.searchParams.delete(USER_ROLE_PARAM);
   url.searchParams.delete(CONTEXT_RESOURCES_PARAM);
   url.searchParams.delete(EMAIL_PARAM);
+  url.searchParams.delete(LANDING_UPLOADS_PARAM);
   window.history.replaceState(null, "", url.toString());
 };

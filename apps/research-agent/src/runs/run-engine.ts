@@ -13,6 +13,7 @@ import type {
 import { createRunEngineStore, type RunRecord } from "./run-engine-store";
 import {
   type AgentRunState,
+  type AgentSkill,
   type CancelResult,
   type ResumeResult,
   type RunEngine,
@@ -20,6 +21,7 @@ import {
   type RunStatus,
   type RuntimeMessageResult,
 } from "./types";
+import { serializeRunResult } from "./utils/parse-stored-result";
 import { toRunRecordContext } from "./utils/to-run-context";
 
 export function createRunEngine(
@@ -75,6 +77,7 @@ export function createRunEngine(
     projectId: run.projectId,
     webhookSecret: run.webhookSecret,
     targetApiUrl: run.targetApiUrl,
+    skill: run.skill,
     onProgress: (message: { role: string; content: string }) => {
       const insert = callbacks
         .onProgress(runId, message.role, message.content)
@@ -111,23 +114,31 @@ export function createRunEngine(
 
       if (result.ok) {
         await callbacks.onStatusChange(runId, "completed", {
-          resultJson: result.data ? JSON.stringify(result.data) : undefined,
+          resultJson: result.data
+            ? serializeRunResult(result.data, result.stats)
+            : undefined,
         });
         store.addLog(runId, "Run completed successfully");
         finalState = {
           runId,
           status: "completed",
           result: result.data,
+          stats: result.stats,
         };
       } else {
         await callbacks.onStatusChange(runId, "failed", {
-          errorJson: JSON.stringify(result.error),
+          errorJson: JSON.stringify(
+            result.stats
+              ? { ...result.error, stats: result.stats }
+              : result.error,
+          ),
         });
         store.addLog(runId, `Run failed: ${result.error.msg}`);
         finalState = {
           runId,
           status: "failed",
           error: result.error,
+          stats: result.stats,
         };
       }
     } catch (err) {
@@ -228,6 +239,7 @@ export function createRunEngine(
       webhookSecret: string;
       projectId?: string;
       targetApiUrl?: string;
+      skill?: AgentSkill;
     },
   ): { runId: string; status: RunStatus } => {
     store.create({
@@ -236,6 +248,7 @@ export function createRunEngine(
       projectId: options.projectId,
       webhookSecret: options.webhookSecret,
       targetApiUrl: options.targetApiUrl,
+      skill: options.skill,
     });
 
     store.addLog(options.runId, "Run created");

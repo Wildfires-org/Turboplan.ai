@@ -9,6 +9,7 @@ import {
   type PaidPlanKey,
 } from "@wildfires-org/turboplan-billing/types";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 
 import {
   CATALOG_H1_CLASS,
@@ -35,6 +36,9 @@ export const metadata: Metadata = {
 const isBillingEnabled =
   process.env.NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED === "true" ||
   process.env.NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED === "1";
+
+// Extra seats bill only while billing enforcement is on; mirrors `CheckoutView`.
+const IS_SEAT_BILLING_ENABLED = isBillingEnforcementEnabled();
 
 export default async function CheckoutPage({
   searchParams,
@@ -89,7 +93,9 @@ export default async function CheckoutPage({
             <p className={cn(SECTION_LEAD_CLASS, "max-w-[640px]")}>
               {hasTrial
                 ? `You will not be charged until your ${CATALOG.billing.trial_days}-day free trial ends.`
-                : "A flat workspace price — seats beyond the included count bill separately."}
+                : IS_SEAT_BILLING_ENABLED
+                  ? "A flat workspace price — seats beyond the included count bill separately."
+                  : "A flat monthly workspace price."}
             </p>
           </header>
 

@@ -9,6 +9,7 @@ import {
   Check,
   FileText,
   PanelRightClose,
+  X,
 } from "lucide-react";
 
 import { Button, cn } from "@wildfires-org/turboplan-utils";
@@ -19,6 +20,7 @@ import type {
   ResearchAgentStatus,
 } from "../../types";
 import { useElapsedTime } from "../hooks/use-elapsed-time";
+import { getActiveStep } from "../utils";
 import { AvatarThinking } from "./avatar-thinking";
 
 type ResearchPanelHeaderProps = {
@@ -48,7 +50,7 @@ export function ResearchPanelHeader({
 
   const currentStep = isCompleted
     ? "Project Bootstrapped Successfully"
-    : status?.currentStep || "Processing...";
+    : getActiveStep(status, progressMessages) || "Processing...";
 
   return (
     <div>
@@ -56,9 +58,13 @@ export function ResearchPanelHeader({
         <Button
           variant="glass"
           onClick={onClose}
+          aria-label="Close research panel"
           className="h-9 gap-2 px-4 text-[14px]"
         >
-          <PanelRightClose aria-hidden />
+          {/* Phones show the panel full screen, where a panel icon doesn't
+              read as "close". */}
+          <X aria-hidden className="sm:hidden" />
+          <PanelRightClose aria-hidden className="max-sm:hidden" />
           Research
         </Button>
 

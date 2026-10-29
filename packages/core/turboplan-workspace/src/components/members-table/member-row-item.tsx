@@ -45,7 +45,7 @@ export function MemberRowItem({
   onRevokeInvitation,
 }: MemberRowItemProps) {
   return (
-    <div className="flex items-center gap-4 border-t border-slate-900/[0.06] px-6 py-3 first:border-t-0 dark:border-white/10">
+    <div className="flex items-center gap-3 border-t border-slate-900/[0.06] px-4 py-3 first:border-t-0 sm:gap-4 sm:px-6 dark:border-white/10">
       <div className="flex-1 min-w-0 flex items-center gap-3">
         <Avatar className="size-8 rounded-lg">
           {row.type === "invitation" ? (
@@ -74,6 +74,10 @@ export function MemberRowItem({
                 You
               </span>
             )}
+            {/* The Status column is hidden on phones; its icon moves here. */}
+            <span className="shrink-0 sm:hidden">
+              <StatusIcon status={row.status} />
+            </span>
           </div>
           <p className="truncate text-xs leading-4 text-gray-550">
             {row.type === "invitation" ? "pending invitation" : row.email}
@@ -82,7 +86,7 @@ export function MemberRowItem({
       </div>
 
       {config.showSubEntityColumn && (
-        <div className="w-[200px] flex gap-1.5 flex-wrap">
+        <div className="hidden w-[200px] flex-wrap gap-1.5 md:flex">
           {row.subEntities.map((entity) => (
             <span
               key={entity.id}
@@ -94,7 +98,7 @@ export function MemberRowItem({
         </div>
       )}
 
-      <div className="w-[120px]">
+      <div className="w-[104px] sm:w-[120px]">
         {config.canManageMembers && row.isDirect && !row.isCurrentUser ? (
           <Select
             value={row.role}
@@ -134,11 +138,11 @@ export function MemberRowItem({
         )}
       </div>
 
-      <div className="w-[100px]">
+      <div className="hidden w-[100px] sm:block">
         <StatusIcon status={row.status} />
       </div>
 
-      <div className="w-[60px] flex justify-end">
+      <div className="flex w-7 justify-end sm:w-[60px]">
         {config.canManageMembers &&
           (row.type === "invitation" ||
             (row.isDirect && !row.isCurrentUser)) && (

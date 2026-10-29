@@ -59,8 +59,9 @@ export function MembersTableFilters({
   onPageSizeChange,
 }: MembersTableFiltersProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 pb-4 sm:gap-4">
-      <div className="flex flex-wrap items-center gap-2">
+    // Phones scroll the chips in one row instead of stacking three.
+    <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-4 pt-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-between sm:gap-4 sm:overflow-visible sm:px-0 sm:pt-0 [&::-webkit-scrollbar]:hidden">
+      <div className="flex shrink-0 items-center gap-2 sm:flex-wrap">
         <Select
           value={roleFilter}
           onValueChange={(v) => onRoleFilterChange(v as RoleFilterValue)}
@@ -137,7 +138,9 @@ export function MembersTableFilters({
         value={String(pageSize)}
         onValueChange={(v) => onPageSizeChange(Number(v))}
       >
-        <SelectTrigger className={cn(CHIP_TRIGGER_CLASS, "min-w-0 gap-2 pr-2")}>
+        <SelectTrigger
+          className={cn(CHIP_TRIGGER_CLASS, "min-w-0 shrink-0 gap-2 pr-2")}
+        >
           <Eye className="size-4 text-gray-550" aria-hidden="true" />
           <SelectValue />
         </SelectTrigger>

@@ -1,8 +1,10 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
 /**
  * Page Object Model for the organization billing settings page
- * (`/organizations/{slug}/billing`).
+ * (`/{slug}/billing`).
  *
  * Wraps the interactions the billing e2e suite needs: reading the trial/plan
  * state, cancelling and resuming the plan, and managing paid-seat rows.
@@ -13,7 +15,7 @@ export class TurboplanBillingPage {
   // ── Navigation ────────────────────────────────────────────────────
 
   async goto(orgSlug: string): Promise<void> {
-    await this.page.goto(`/organizations/${orgSlug}/billing`);
+    await this.page.goto(`${appPaths.organization(orgSlug)}/billing`);
     // The plan card renders once the subscription request resolves. Generous
     // timeout to absorb the first-hit route compile under `next dev`.
     await this.paidUsersHeading().waitFor({ state: "visible", timeout: 30000 });

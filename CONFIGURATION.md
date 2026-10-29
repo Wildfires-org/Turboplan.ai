@@ -225,7 +225,7 @@ reads `IS_<MODULE>_PACKAGE_ENABLED`, the browser bundle reads
 | Fields | `IS_FIELDS_PACKAGE_ENABLED` | No | Custom project fields | — |
 | Documents | `IS_DOCUMENTS_PACKAGE_ENABLED` | No | PDF/Word upload per project | Working `R2_*` credentials, or every upload returns 500 |
 | Timeline records | `IS_TIMELINE_RECORDS_PACKAGE_ENABLED` | No | Project activity log | — |
-| Billing | `IS_BILLING_PACKAGE_ENABLED` | No | Stripe plans, checkout, seat reconciliation, `/setup/plan` | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (API server throws at startup without them). Optional: `RECONCILE_SECRET`, `LANDING_URL` |
+| Billing | `IS_BILLING_PACKAGE_ENABLED` | No | Stripe plans, checkout (the app and the landing page's `/checkout`, which the pricing buttons open), seat reconciliation, `/setup/plan` | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (API server throws at startup without them). Optional: `RECONCILE_SECRET`, `LANDING_URL` |
 | Signing | `IS_SIGNING_PACKAGE_ENABLED` | No | Documenso signature requests | `DOCUMENSO_API_URL`, `DOCUMENSO_API_KEY`, `DOCUMENSO_WEBHOOK_SECRET` (API server throws at startup without them) plus a running Documenso |
 
 Prices for the billing module are **not** environment variables. They resolve at
@@ -233,6 +233,21 @@ runtime from catalog lookup keys in
 `packages/modules/turboplan-billing/catalog/pricing.yaml`; create the matching
 Stripe objects with
 `pnpm --filter @wildfires-org/turboplan-billing sync:stripe -- --apply`.
+
+`IS_BILLING_ENFORCEMENT_ENABLED` (and `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`)
+switches off billing *limits* — the credit hard-stop, the active-project cap and
+the seat cap — and seat billing: no extra-seat item is added to Stripe, seat
+sync and reconciliation remove existing ones, the invite-time seat notice is
+hidden, the checkout price previews (the app's and the landing page's
+`/checkout`) show the flat workspace price without a seat breakdown, and
+onboarding skips the `/setup/plan` step. Plans, pricing, checkout, the base
+subscription and credit metering keep working.
+Unlike the module flags it defaults to **on**: only an explicit `false` or `0`
+in either name disables it, and it has no effect unless billing itself is
+enabled. The API server reads `IS_BILLING_ENFORCEMENT_ENABLED`; the web app and
+landing page read `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`, inlined at build
+time, so keep all three in agreement. CI sets every one from the
+`FF_IS_BILLING_ENFORCEMENT_ENABLED` repo variable, falling back to `true`.
 
 ## Deployment
 
@@ -269,6 +284,56 @@ its id to the deploy script as `HYPERDRIVE_ID`; the script substitutes it for th
 Workers prefer the Hyperdrive connection string over `POSTGRES_URL` and fall back
 to the raw secret when the binding is absent (local dev, or a deploy run without
 `HYPERDRIVE_ID`), so `POSTGRES_URL` stays required either way.
+
+### R2 bucket
+
+Browsers upload straight to R2 through presigned `PUT` URLs, both from the web
+app and, without an account, from the landing-page prompt. Two bucket settings
+are needed for that:
+
+- **CORS.** The bucket must allow `PUT` with the `Content-Type` header from the
+  web app origin and every landing-page origin (custom domain and
+  `workers.dev`). Without it every upload fails in the browser as a CORS error.
+  The type is signed into the URL, so the `PUT` must send exactly the type it
+  was presigned for. Set the rule once in the dashboard, or with
+  `wrangler r2 bucket cors set <bucket> --file cors.json`. That command
+  replaces the bucket's whole CORS configuration, so include any rules already
+  there:
+
+  ```json
+  {
+    "rules": [
+      {
+        "allowed": {
+          "origins": ["https://app.example.com", "https://example.com"],
+          "methods": ["PUT"],
+          "headers": ["content-type"]
+        },
+        "maxAgeSeconds": 3600
+      }
+    ]
+  }
+  ```
+
+- **Lifecycle.** Landing-page attachments are staged under `landing-uploads/`
+  and moved out when a signup claims them. A rule named
+  `expire-landing-uploads` deletes whatever is left after 2 days.
+  `scripts/deploy-api.sh` adds it to `R2_BUCKET_NAME` as its last step when no
+  rule of that name exists. If a rule of that name exists but is disabled or
+  has another prefix or expiry, the script warns and leaves it alone. It also
+  only warns when it cannot read the rules or add the rule, for example
+  because the API token lacks R2 permission. In that case add the rule by hand:
+  `wrangler r2 bucket lifecycle add <bucket> expire-landing-uploads landing-uploads/ --expire-days 2 --force`.
+  No R2 jurisdiction is supported: the app talks to the default S3 endpoint.
+
+The anonymous presign endpoint (`/api/public/uploads/*`) is rate limited per IP
+by the `PUBLIC_UPLOAD_RATE_LIMITER` binding in `apps/server/wrangler.jsonc`
+(10 per minute). Off Workers, or if the binding errors, it falls back to a
+per-process in-memory limit with the same numbers. Rate-limit namespace ids
+are account-wide, so each environment gets its own and previews or staging
+never spend production's budget: `scripts/deploy-api.sh` swaps the committed
+local id `1010` for `1011` (production), `1012` (staging) or `1013` (all
+previews). The MCP server uses `1001`-`1003`.
 
 ### GitHub Actions secrets
 

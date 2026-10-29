@@ -11,6 +11,21 @@ export const isEnvValueTruthy = (value: string | undefined): boolean => {
   return value.toLowerCase() === "true";
 };
 
+/**
+ * True only for an explicit "false" or "0". Unset or any other value is not
+ * falsy — use for flags that default to ON and are turned off deliberately.
+ */
+export const isEnvValueExplicitlyFalse = (
+  value: string | undefined,
+): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "false" || normalized === "0";
+};
+
 const isServerSide = () => typeof window === "undefined";
 
 export type ReleaseInfo = {

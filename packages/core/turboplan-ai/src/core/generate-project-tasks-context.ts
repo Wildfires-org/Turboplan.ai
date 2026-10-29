@@ -113,15 +113,17 @@ ${milestoneSummaries}
 
 ## RULES FOR TASK MANAGEMENT IN THIS PROJECT:
 
+These rules apply ONLY to TASK documents (kind: 'tasks' — milestones and tasks). They never apply to text documents (letters, proposals, reports, notices): a request for a new text document always uses createDocument, even when its topic relates to existing work.
+
 1. **Before Creating New Tasks:**
    - Check if similar milestones or tasks already exist
    - Consider if the user's request relates to existing work
    - Ask clarifying questions if you're unsure whether to add to existing tasks or create new ones
 
-2. **When User Requests Are Related to Existing Work:**
-   - UPDATE existing task documents instead of creating new ones
+2. **When Task Requests Are Related to Existing Tasks:**
+   - UPDATE existing task documents instead of creating new task documents
    - Add tasks to existing relevant milestones
-   - Use updateDocument tool with the existing document ID (shown above), NOT createDocument
+   - Use updateDocument tool with the existing task document ID (shown above), NOT createDocument
    - Avoid creating duplicate milestones with overlapping purposes
 
 3. **🔴 CRITICAL: Using the Correct Document ID:**
@@ -131,11 +133,11 @@ ${milestoneSummaries}
    - NEVER use "tasks" or any other string as the ID - always use the exact UUID shown above
    - If tasks span multiple documents, update the document containing the relevant milestone
 
-4. **When to Create New vs Update Existing:**
-   - Related topics (e.g., "stork protection" and "tree protection" are both environmental) → UPDATE existing
-   - Completely unrelated topics → May create new, but ASK first
+4. **When to Create a New vs Update an Existing Task Document:**
+   - Related task topics (e.g., "stork protection" and "tree protection" tasks are both environmental) → UPDATE the existing task document
+   - Completely unrelated task topics → May create a new task document, but ASK first
    - User explicitly says "new" or "separate" → CREATE new
-   - User says "also", "add", "include" → UPDATE existing
+   - User says "also", "add", "include" about tasks → UPDATE the existing task document
 
 5. **Task Ordering:**
    - Existing tasks use orders 0, 1, 2, etc.

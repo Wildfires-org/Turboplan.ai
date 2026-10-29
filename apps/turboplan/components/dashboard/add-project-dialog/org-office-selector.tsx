@@ -85,7 +85,7 @@ export function OrgOfficeSelector({
           side="bottom"
           align="start"
           sideOffset={4}
-          className="w-[var(--radix-popover-trigger-width)] py-2 pl-2 pr-0"
+          className="w-[var(--radix-popover-trigger-width)] p-1.5"
         >
           <SidebarOrgOfficeSearch
             organizations={organizations}

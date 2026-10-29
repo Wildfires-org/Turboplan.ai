@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import type { UIMessage } from "ai";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
@@ -26,8 +26,14 @@ import {
   useArtifactSelector,
 } from "@/hooks/use-artifact";
 import { useChatCompat } from "@/hooks/use-chat-compat";
+import { documentLetterheadKey } from "@/hooks/use-document-letterhead";
+import { letterheadLogoKey } from "@/hooks/use-letterhead-logo";
 import { getSidebarChatsKey } from "@/hooks/use-sidebar-chats";
 import { getChatHistoryPaginationKey } from "@/lib/chat-history";
+import {
+  INITIAL_ATTACHMENTS_PARAM,
+  parseInitialAttachments,
+} from "@/lib/initial-attachments";
 import { AppUrls } from "@/lib/nav/urls";
 import { generateUUID } from "@/lib/utils";
 import { Artifact, type ArtifactKind, artifactDefinitions } from "../artifact";
@@ -41,13 +47,21 @@ type ProjectChatProps = {
   initialMessages: Array<UIMessage>;
   isReadonly: boolean;
   projectId?: string;
+  /** Map module enabled (resolved on the server) */
+  isMapEnabled?: boolean;
   onChatCreated?: (chatId: string) => void;
+  /** Fires once when the first message of a new chat is sent, before the reply streams. */
+  onFirstMessageSubmitted?: () => void;
   isInitialChat?: boolean;
   isInputDisabled?: boolean;
   disabledPlaceholder?: string;
   isResearchPhaseCompleted?: boolean;
   projectName?: string;
   researchSuggestions?: Array<{ label: string; content: string }>;
+  /** Next-step suggestions are being generated: show a loading row, not the fallback chips. */
+  isSuggestionsLoading?: boolean;
+  /** More suggestions are on their way: the chips row shows a trailing placeholder. */
+  isSuggestionsStreaming?: boolean;
 };
 
 export type ProjectChatRef = {
@@ -61,17 +75,22 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       initialMessages,
       isReadonly,
       projectId,
+      isMapEnabled,
       onChatCreated,
+      onFirstMessageSubmitted,
       isInputDisabled,
       disabledPlaceholder,
       isResearchPhaseCompleted,
       projectName,
       researchSuggestions,
+      isSuggestionsLoading = false,
+      isSuggestionsStreaming = false,
     },
     ref,
   ) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const { orgSlug } = useParams<{ orgSlug?: string }>();
     const { mutate } = useSWRConfig();
     const sidebarChatsKey = getSidebarChatsKey(projectId ?? null);
 
@@ -92,10 +111,34 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       };
     }, [id, setArtifact, setMetadata]);
 
+    // The document the current run is streaming: set by its "id" delta, cleared
+    // when the run finishes it (or stops/fails before that).
+    const streamingDocumentIdRef = useRef<string | null>(null);
+
+    // The server stores the chosen letterhead before the document exists, so
+    // the preview's fetch on the "id" delta cached the default. Refetch both
+    // keys (as the letterhead picker does) once the document is saved.
+    const revalidateDocumentLetterhead = useCallback(
+      (documentId: string) => {
+        if (!projectId) {
+          return;
+        }
+        void Promise.all([
+          mutate(documentLetterheadKey(projectId, documentId)),
+          mutate(letterheadLogoKey(projectId, documentId)),
+        ]);
+      },
+      [projectId, mutate],
+    );
+
     const handleArtifactDelta = useCallback(
       (delta: ArtifactStreamDelta) => {
         if (!isMountedRef.current) {
           return;
+        }
+
+        if (delta.type === "id") {
+          streamingDocumentIdRef.current = delta.content as string;
         }
 
         const artifactDefinition = artifactDefinitions.find(
@@ -176,8 +219,14 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
               return draftArtifact;
           }
         });
+
+        // Outside the updater above, which must stay free of side effects.
+        if (delta.type === "finish" && streamingDocumentIdRef.current) {
+          revalidateDocumentLetterhead(streamingDocumentIdRef.current);
+          streamingDocumentIdRef.current = null;
+        }
       },
-      [artifact.kind, setArtifact, setMetadata],
+      [artifact.kind, setArtifact, setMetadata, revalidateDocumentLetterhead],
     );
 
     const {
@@ -214,6 +263,13 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         if (!isMountedRef.current) {
           return;
         }
+        // Such a run may already have stored its letterhead choice and saved a
+        // draft, so refresh the letterhead as "finish" would have.
+        const documentId = streamingDocumentIdRef.current;
+        if (documentId) {
+          streamingDocumentIdRef.current = null;
+          revalidateDocumentLetterhead(documentId);
+        }
         setArtifact((currentArtifact) =>
           currentArtifact.status === "streaming"
             ? { ...currentArtifact, status: "idle" }
@@ -228,9 +284,6 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         // The chat route returns 402 CREDITS_EXHAUSTED before opening a
         // stream; the SDK surfaces the JSON body as the error message.
         if (error.message.includes("CREDITS_EXHAUSTED")) {
-          const orgSlug = window.location.pathname.match(
-            /\/organizations\/([^/]+)/,
-          )?.[1];
           toast.error("Monthly credits used up", {
             description:
               "This organization has used its monthly AI credits. Upgrade the plan to keep going.",
@@ -324,7 +377,28 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       }
     }, [status, notifyChatCreated]);
 
-    // Auto-send initial message from URL parameter
+    // Fire onFirstMessageSubmitted exactly once, as soon as the first message is
+    // sent (the server kicks off work for it before the reply starts streaming)
+    const hasNotifiedFirstMessage = useRef(false);
+    const notifyFirstMessageSubmitted = useCallback(() => {
+      if (
+        !hasNotifiedFirstMessage.current &&
+        initialMessages.length === 0 &&
+        onFirstMessageSubmitted
+      ) {
+        hasNotifiedFirstMessage.current = true;
+        onFirstMessageSubmitted();
+      }
+    }, [initialMessages.length, onFirstMessageSubmitted]);
+
+    useEffect(() => {
+      if (status === "submitted" || status === "streaming") {
+        notifyFirstMessageSubmitted();
+      }
+    }, [status, notifyFirstMessageSubmitted]);
+
+    // Auto-send initial message from URL parameter, with any attachments that
+    // ride along with it (e.g. documents uploaded on the landing page)
     // Empty deps array is intentional - this should only run on mount when URL param is present
     // Ref guard prevents React StrictMode double-mount from calling append() twice
     const hasAutoSent = useRef(false);
@@ -336,12 +410,15 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
       const initialMessageContent = searchParams.get("initialMessageContent");
       const prefillContent = searchParams.get("prefillContent");
 
-      if (!initialMessageContent && !prefillContent) return;
+      if (!initialMessageContent && !prefillContent) {
+        return;
+      }
 
       // Use replaceState instead of router.replace to avoid Next.js navigation
       // that would conflict with the URL swap when streaming starts
       const currentParams = new URLSearchParams(searchParams.toString());
       currentParams.delete("initialMessageContent");
+      currentParams.delete(INITIAL_ATTACHMENTS_PARAM);
       currentParams.delete("prefillContent");
       const cleanUrl = currentParams.toString()
         ? `${pathname}?${currentParams.toString()}`
@@ -350,10 +427,18 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
 
       if (initialMessageContent && initialMessages.length === 0) {
         hasAutoSent.current = true;
-        append({
-          role: "user",
-          content: initialMessageContent,
-        });
+        const attachments = parseInitialAttachments(
+          searchParams.get(INITIAL_ATTACHMENTS_PARAM),
+        );
+        append(
+          {
+            role: "user",
+            content: initialMessageContent,
+          },
+          attachments.length > 0
+            ? { experimental_attachments: attachments }
+            : undefined,
+        );
       } else if (prefillContent) {
         setInput(prefillContent);
       }
@@ -376,12 +461,13 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
             projectId={projectId}
           />
 
-          <form className={CHAT_FORM_CLASS}>
+          <form className={CHAT_FORM_CLASS} data-testid="project-chat-composer">
             {!isReadonly && (
               <div className={CHAT_COMPOSER_SHELL_CLASS}>
                 <ProjectMultimodalInput
                   chatId={id}
                   projectId={projectId}
+                  isMapEnabled={isMapEnabled}
                   input={input}
                   setInput={setInput}
                   handleSubmit={handleSubmit}
@@ -394,15 +480,18 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
                   append={append}
                   isInputDisabled={isInputDisabled}
                   disabledPlaceholder={disabledPlaceholder}
+                  autoFocus={!isArtifactVisible}
                 />
               </div>
             )}
 
             {isResearchPhaseCompleted &&
               !isReadonly &&
-              suggestions.length > 0 && (
+              (isSuggestionsLoading || suggestions.length > 0) && (
                 <SuggestionPills
                   suggestions={suggestions}
+                  isLoading={isSuggestionsLoading}
+                  isStreaming={isSuggestionsStreaming}
                   onSuggestionClick={handleSuggestionClick}
                 />
               )}
@@ -424,6 +513,9 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
           reload={reload}
           isReadonly={isReadonly}
           projectId={projectId}
+          isMapEnabled={isMapEnabled}
+          isInputDisabled={isInputDisabled}
+          disabledPlaceholder={disabledPlaceholder}
         />
       </>
     );

@@ -8,6 +8,7 @@ import type { Browser } from "@playwright/test";
 
 import {
   createMagicLinkUser,
+  createProfile,
   createVerificationToken,
   getUserByEmail,
   markEmailAsVerified,
@@ -116,6 +117,25 @@ export async function createUnverifiedTestUser(
     verificationUrl,
   };
 }
+
+/**
+ * Create a verified user whose profile has a first and last name, so the app
+ * shows them by display name ("First Last") rather than by email. For users a
+ * spec only searches for or references; nobody signs in as them.
+ */
+export const createNamedTestUser = async (params: {
+  email: string;
+  firstName: string;
+  lastName: string;
+}): Promise<TestUser> => {
+  const { user } = await createTestUserWithMagicLink(params.email);
+  await createProfile({
+    userId: user.id,
+    firstName: params.firstName,
+    lastName: params.lastName,
+  });
+  return user;
+};
 
 /**
  * Opens a browser context with no cookies. `browser.newContext()` inherits the

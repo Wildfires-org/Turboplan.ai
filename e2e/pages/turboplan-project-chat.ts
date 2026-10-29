@@ -1,7 +1,9 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
+
 /**
- * Page Object for a project chat (`.../projects/[projectSlug]/chats/[chatId]`)
+ * Page Object for a project chat (`/[org]/[office]/[project]/chats/[chatId]`)
  * and the project sidebar links used to leave and re-enter it.
  */
 export class TurboplanProjectChatPage {
@@ -16,15 +18,23 @@ export class TurboplanProjectChatPage {
   }): Promise<void> {
     const { orgSlug, officeSlug, projectSlug, chatId } = params;
     await this.page.goto(
-      `/organizations/${orgSlug}/offices/${officeSlug}/projects/${projectSlug}/chats/${chatId}`,
+      `${appPaths.project(orgSlug, officeSlug, projectSlug)}/chats/${chatId}`,
       { waitUntil: "domcontentloaded" },
     );
     await this.expectComposerReady();
   }
 
+  /**
+   * The main chat composer. Scoped to it because the artifact panel, when
+   * open, has an input with the same placeholder and buttons.
+   */
+  getComposerForm(): Locator {
+    return this.page.getByTestId("project-chat-composer");
+  }
+
   /** The chat message textarea */
   getComposer(): Locator {
-    return this.page.getByPlaceholder("Send a message...");
+    return this.getComposerForm().getByPlaceholder("Send a message...");
   }
 
   /** Assert the composer is editable (page loaded and no reply streaming) */
@@ -35,7 +45,9 @@ export class TurboplanProjectChatPage {
   /** Type a message and send it with the send button */
   async sendMessage(text: string): Promise<void> {
     await this.getComposer().fill(text);
-    await this.page.getByRole("button", { name: "Send message" }).click();
+    await this.getComposerForm()
+      .getByRole("button", { name: "Send message" })
+      .click();
   }
 
   /** A rendered user message containing `text` */
@@ -66,6 +78,11 @@ export class TurboplanProjectChatPage {
     await this.page.waitForURL(/\/members$/, { timeout: 15000 });
   }
 
+  /** A chat's link in the project sidebar chat list */
+  getSidebarChatLink(chatTitle: string): Locator {
+    return this.page.getByRole("link", { name: chatTitle, exact: true });
+  }
+
   /** Re-open a chat from the project sidebar chat list, expanding it if collapsed */
   async openChatViaSidebar(chatTitle: string): Promise<void> {
     const chatToggle = this.page.getByRole("button", {
@@ -76,10 +93,7 @@ export class TurboplanProjectChatPage {
       await chatToggle.click();
     }
 
-    const chatLink = this.page.getByRole("link", {
-      name: chatTitle,
-      exact: true,
-    });
+    const chatLink = this.getSidebarChatLink(chatTitle);
     // The sidebar chat list loads via SWR; wait out its "Loading..." row.
     await expect(chatLink).toBeVisible({ timeout: 15000 });
     await chatLink.click();

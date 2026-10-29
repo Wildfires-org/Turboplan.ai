@@ -100,28 +100,15 @@ export function ProjectsSection({
           title="Your project list is empty"
           description="Start a new project to track environmental assessments, manage documents, and collaborate with your team."
           actionButton={
-            <button
-              type="button"
+            // The catalog pages have no prompt of their own: the home hero's
+            // ?tryIt scrolls to and focuses it.
+            <Link
+              href={routing.home({ tryIt: "true" })}
               className={PRIMARY_BUTTON_CLASS}
-              onClick={() => {
-                const container = document.getElementById(
-                  "project-prompt-input",
-                );
-                if (!container) {
-                  return;
-                }
-                const input = container.querySelector<
-                  HTMLInputElement | HTMLTextAreaElement
-                >("input, textarea");
-                if (input) {
-                  input.focus({ preventScroll: true });
-                  input.scrollIntoView({ behavior: "smooth", block: "center" });
-                }
-              }}
             >
               <PlusIcon className="size-4" />
               Create Project
-            </button>
+            </Link>
           }
         />
       </ProjectsSectionShell>

@@ -1,7 +1,26 @@
-import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
+"use client";
 
-import { cx } from "class-variance-authority";
-import { Loader2, Sparkles } from "lucide-react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  Suspense,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  AlertCircle,
+  ArrowRight,
+  ChevronDown,
+  FileText,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { posthog } from "posthog-js";
 import useSWR from "swr";
@@ -13,9 +32,28 @@ import {
 } from "@wildfires-org/turboplan-ai/client";
 import { useSession } from "@wildfires-org/turboplan-auth/client";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
+import { LANDING_UPLOADS_PARAM } from "@wildfires-org/turboplan-upload/types";
 import { BrandGradientIcon } from "@wildfires-org/turboplan-utils";
 
-import DialogBase from "@/components/dialogs/dialog-base/dialog-base";
+import {
+  GLASS_INPUT_CLASS,
+  MODAL_CLOSE_BUTTON_CLASS,
+  MODAL_SURFACE_CLASS,
+  PRIMARY_BUTTON_CLASS,
+} from "@/components/catalog/catalog-layout";
+import LabeledInput from "@/components/shared/labeled-input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   CONTEXT_RESOURCES_PARAM,
   EMAIL_PARAM,
@@ -25,29 +63,21 @@ import {
   PROJECT_DESCRIPTION_PARAM,
   PROJECT_TITLE_PARAM,
 } from "@/consts/urlParams";
+import type { AttachedDocument } from "@/hooks/use-prompt-attachments";
 import { getAttributionParams } from "@/lib/attribution";
-import { brand } from "@/lib/brand";
-import { fetcher } from "@/lib/utils";
+import { cn, fetcher } from "@/lib/utils";
 import { events } from "@/types/analytics";
 import { routing } from "@/utils/routing";
 import { validateEmail } from "@/utils/validate-email";
-import Arrow from "../icons/arrow";
-import Cross from "../icons/cross";
-import ExclamationMarkIcon from "../icons/exclamation-mark";
-import LabeledInput from "../shared/labeled-input";
-import LabeledTextarea from "../shared/labeled-textarea";
-import { inputErrorMessage } from "../shared/styles";
-import { Button } from "../ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
 
+// Anonymous visitors already typed their prompt and the project name is
+// generated, so the default view asks only for an email: a read-only summary
+// of the project, the email field and the button. Name and prompt editing sit
+// behind "Edit details", which opens by itself when a check blocks the submit.
+//
 // Agency/office are not editable fields. They are resolved in the background
-// from the template props (initialOrganizationName / initialOfficeName) and
-// passed as hidden params (by ID only); empty when no template.
+// from the proposed names (initialOrganizationName / initialOfficeName) and
+// passed as hidden params (by ID only); empty when none match.
 
 interface Organization {
   id: string;
@@ -78,25 +108,63 @@ type FormErrors = {
   projectPrompt: boolean;
 };
 
-export const SignupModal = ({
-  initialProjectTitle,
-  initialOrganizationName,
-  initialOfficeName,
-  isOpen,
-  onOpenChange,
-  projectDescription,
-}: {
+// "checking": the submit waits on the prompt check; "redirecting": the
+// browser is leaving for the app.
+type SubmitStatus = "idle" | "checking" | "redirecting";
+
+const NO_DOCUMENTS: AttachedDocument[] = [];
+
+const FIELD_ERROR_CLASS =
+  "outline-solid outline-2 outline-red-60 focus-visible:outline-red-60";
+
+type SignupModalProps = {
   initialProjectTitle?: string;
   initialOrganizationName?: string;
   initialOfficeName?: string;
+  /** Generated names are still on their way; the summary says so. */
+  isProjectTitlePending?: boolean;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   projectDescription?: string;
-}) => {
+  /** Documents already uploaded from the hero; they come along as params. */
+  attachedDocuments?: AttachedDocument[];
+};
+
+// The modal reads search params (prefilled email, attribution), so it carries
+// its own Suspense boundary: rendered unwrapped on a statically prerendered
+// page it would opt the whole page out of server rendering. It starts closed,
+// so nothing visible waits on the boundary.
+export const SignupModal = (props: SignupModalProps) => {
+  return (
+    <Suspense>
+      <SignupModalContent {...props} />
+    </Suspense>
+  );
+};
+
+const SignupModalContent = ({
+  initialProjectTitle,
+  initialOrganizationName,
+  initialOfficeName,
+  isProjectTitlePending = false,
+  isOpen,
+  onOpenChange,
+  projectDescription,
+  attachedDocuments = NO_DOCUMENTS,
+}: SignupModalProps) => {
   const searchParams = useSearchParams();
   const ENV = getLandingPageEnv();
   const session = useSession();
   const isLoggedIn = !!session?.user;
+
+  const fieldId = useId();
+  const emailId = `${fieldId}-email`;
+  const emailErrorId = `${fieldId}-email-error`;
+  const titleId = `${fieldId}-title`;
+  const titleErrorId = `${fieldId}-title-error`;
+  const promptId = `${fieldId}-prompt`;
+  const promptErrorId = `${fieldId}-prompt-error`;
+  const detailsId = `${fieldId}-details`;
 
   const [data, setData] = useState<FormData>({
     email: searchParams.get(EMAIL_PARAM) || "",
@@ -113,12 +181,28 @@ export const SignupModal = ({
   const [isError, setIsError] = useState<FormErrors | null>(null);
   // Cross-origin hand-off to the app takes several seconds (SSR auth + bundle).
   // Keep the modal locked with a visible status until the browser leaves.
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
+  const isSubmitting = submitStatus !== "idle";
+  const isRedirecting = submitStatus === "redirecting";
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  // A project name the user typed is theirs: a late generated one never
+  // replaces it.
+  const [hasEditedTitle, setHasEditedTitle] = useState(false);
+  // Bumped when a blocked submit needs the prompt field in front of the user.
+  const [promptFocusRequest, setPromptFocusRequest] = useState(0);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  // Bumped on close, so a submit still waiting on the prompt check stops.
+  const submitAttemptRef = useRef(0);
+  // The proposed names last copied into the form (see the effect below).
+  const appliedProposalRef = useRef<string | null>(null);
 
   const [projectPrompt, setProjectPrompt] = useState(projectDescription || "");
+  // The details the prompt check looks for may well be in the attached
+  // documents, so it does not gate the submission when there are any.
+  const hasAttachedDocuments = attachedDocuments.length > 0;
   const {
     validate: validatePrompt,
-    isValidating: isValidatingPrompt,
     validation: promptValidation,
     reset: resetPromptValidation,
   } = useValidateProjectPrompt({ isPublic: true });
@@ -173,21 +257,26 @@ export const SignupModal = ({
     }
   }, [offices, data.officeName, selectedOfficeId]);
 
+  // A close resets what the next open must not inherit.
   useEffect(() => {
     if (!isOpen) {
       setIsError(null);
-      setIsRedirecting(false);
+      setSubmitStatus("idle");
+      setIsDetailsOpen(false);
+      setHasEditedTitle(false);
       resetPromptValidation();
+      submitAttemptRef.current += 1;
+      appliedProposalRef.current = null;
     }
   }, [isOpen, resetPromptValidation]);
 
   // If the user navigates Back from the app, the browser may restore this page
-  // from the bfcache with isRedirecting still true — which would leave the
-  // modal permanently locked. pageshow with persisted=true is that restore.
+  // from the bfcache with the redirect status still set — which would leave
+  // the modal permanently locked. pageshow with persisted=true is that restore.
   useEffect(() => {
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        setIsRedirecting(false);
+        setSubmitStatus("idle");
       }
     };
     window.addEventListener("pageshow", handlePageShow);
@@ -196,29 +285,55 @@ export const SignupModal = ({
     };
   }, []);
 
-  // Auto-validate when modal opens with projectDescription populated
+  // Auto-validate when modal opens with projectDescription populated. The
+  // result shows only in the details, which a blocked submit opens.
   useEffect(() => {
     if (isOpen && projectDescription) {
       setProjectPrompt(projectDescription);
-      validatePrompt(projectDescription);
+      if (!hasAttachedDocuments) {
+        validatePrompt(projectDescription);
+      }
     }
-  }, [isOpen, projectDescription, validatePrompt]);
+  }, [isOpen, projectDescription, hasAttachedDocuments, validatePrompt]);
 
-  // The modal stays mounted inside SearchInput across open/close cycles, so a
-  // submission target matched for an earlier prompt would otherwise survive into
-  // the next one and auto-submit that project to the wrong agency. Every new set
-  // of props starts from a clean slate; the effects above then re-derive the
-  // target from the current props only.
+  // The proposed names arrive twice per open: the prompt-based fallback at
+  // once, then the generated ones seconds later. Each new set replaces the
+  // last, and the submission target is re-derived from it (the modal stays
+  // mounted across opens, so a target matched for an earlier prompt must not
+  // survive into the next one). A name the user typed stays, and nothing
+  // changes under a submit in flight: names that arrive during the prompt
+  // check apply once it settles, and never once the browser is leaving.
   useEffect(() => {
-    setData((p) => ({
-      ...p,
-      projectTitle: initialProjectTitle || "",
+    if (!isOpen || isSubmitting) {
+      return;
+    }
+    const proposal = JSON.stringify([
+      initialProjectTitle,
+      initialOrganizationName,
+      initialOfficeName,
+    ]);
+    if (appliedProposalRef.current === proposal) {
+      return;
+    }
+    appliedProposalRef.current = proposal;
+    setData((prev) => ({
+      ...prev,
+      projectTitle: hasEditedTitle
+        ? prev.projectTitle
+        : initialProjectTitle || "",
       organizationName: initialOrganizationName || "",
       officeName: initialOfficeName || "",
     }));
     setSelectedOrgId(null);
     setSelectedOfficeId(null);
-  }, [initialProjectTitle, initialOrganizationName, initialOfficeName]);
+  }, [
+    isOpen,
+    isSubmitting,
+    hasEditedTitle,
+    initialProjectTitle,
+    initialOrganizationName,
+    initialOfficeName,
+  ]);
 
   // Match the organization name to a known government agency. Kept separate
   // from the reset above so an SWR revalidation of the org list re-runs only
@@ -238,35 +353,80 @@ export const SignupModal = ({
     }
   }, [data.organizationName, governmentOrganizations, selectedOrgId]);
 
-  const onSubmit = async () => {
-    setIsError(null);
-    const { projectTitle } = data;
+  // A blocked submit opened the details: put the prompt (and the message
+  // under it) in view.
+  useEffect(() => {
+    if (promptFocusRequest > 0) {
+      promptRef.current?.focus();
+    }
+  }, [promptFocusRequest]);
 
-    // For logged-in users, we don't need email validation
-    const errors: FormErrors = {
-      email: !isLoggedIn && !validateEmail(effectiveEmail),
-      projectTitle: !projectTitle,
-      projectPrompt: !projectPrompt.trim(),
-    };
+  const openDetails = () => {
+    setIsDetailsOpen(true);
+  };
 
-    setIsError(errors);
+  const handleToggleDetails = () => {
+    if (isDetailsOpen) {
+      setIsDetailsOpen(false);
+      return;
+    }
+    openDetails();
+  };
 
-    if (Object.values(errors).some((error) => error)) {
+  const handleOpenChange = (open: boolean) => {
+    if (isRedirecting) {
+      return;
+    }
+    onOpenChange(open);
+  };
+
+  const handleSubmit = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    if (isSubmitting || isEnhancing) {
       return;
     }
 
-    // Validate prompt with AI before submitting
-    const validation =
-      promptValidation ?? (await validatePrompt(projectPrompt));
-    if (validation && !validation.valid) {
+    const projectTitle = data.projectTitle.trim();
+    const prompt = projectPrompt.trim();
+
+    // For logged-in users, we don't need email validation
+    const errors: FormErrors = {
+      email: !isLoggedIn && !validateEmail(effectiveEmail.trim()),
+      projectTitle: !projectTitle,
+      projectPrompt: !prompt,
+    };
+    setIsError(errors);
+
+    if (errors.projectTitle || errors.projectPrompt) {
+      openDetails();
+    }
+    if (Object.values(errors).some(Boolean)) {
       return;
+    }
+
+    const attempt = submitAttemptRef.current;
+    setSubmitStatus("checking");
+
+    // Validate prompt with AI before submitting
+    if (!hasAttachedDocuments) {
+      const validation = promptValidation ?? (await validatePrompt(prompt));
+      if (attempt !== submitAttemptRef.current) {
+        // Closed while the check ran.
+        return;
+      }
+      if (validation && !validation.valid) {
+        setSubmitStatus("idle");
+        openDetails();
+        setPromptFocusRequest((count) => count + 1);
+        return;
+      }
     }
 
     const params = new URLSearchParams();
     // Only include email for non-logged-in users. The account role is detected
     // automatically from the email domain server-side, so it is not sent here.
     if (!isLoggedIn) {
-      params.append(EMAIL_PARAM, effectiveEmail);
+      params.append(EMAIL_PARAM, effectiveEmail.trim());
     }
     // Pass IDs for the chosen government org/office so the personal-org draft is
     // submitted to that agency for review. Omitting them keeps the project a
@@ -278,11 +438,12 @@ export const SignupModal = ({
       params.append(OFFICE_ID_PARAM, selectedOfficeId);
     }
     params.append(PROJECT_TITLE_PARAM, projectTitle);
-    if (projectPrompt.trim()) {
-      params.append(PROJECT_DESCRIPTION_PARAM, projectPrompt.trim());
-    }
+    params.append(PROJECT_DESCRIPTION_PARAM, prompt);
     searchParams.getAll(CONTEXT_RESOURCES_PARAM).forEach((resource) => {
       params.append(CONTEXT_RESOURCES_PARAM, resource);
+    });
+    attachedDocuments.forEach((attached) => {
+      params.append(LANDING_UPLOADS_PARAM, attached.key);
     });
 
     // Forward the PostHog distinct id so the app can alias this browser's
@@ -310,33 +471,17 @@ export const SignupModal = ({
         transport: "sendBeacon",
       });
     }
-    setIsRedirecting(true);
+    setSubmitStatus("redirecting");
     // Cross-origin target — a full navigation, not a Next.js route change.
     window.location.assign(href);
   };
 
-  const isBusy = isValidatingPrompt || isEnhancing || isRedirecting;
-  const busyLabel = isRedirecting
-    ? "Taking you to your new project…"
-    : isValidatingPrompt
-      ? "Checking your project prompt…"
-      : null;
-
-  // Enter submits from the plain text inputs. The autocomplete fields handle
-  // Enter themselves (selecting an option) and the prompt textarea keeps Enter
-  // as a newline, so this is wired per-input rather than via a form wrapper.
+  // A held Enter key from the hero prompt must not submit the email field
+  // the moment the modal opens and focuses it.
   const handleFieldKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter" || event.nativeEvent.isComposing) {
-      return;
+    if (event.key === "Enter" && event.repeat) {
+      event.preventDefault();
     }
-
-    event.preventDefault();
-
-    if (isBusy) {
-      return;
-    }
-
-    onSubmit();
   };
 
   const handleEnhancePrompt = async () => {
@@ -355,198 +500,342 @@ export const SignupModal = ({
     }
   };
 
+  const isPromptInvalid = promptValidation !== null && !promptValidation.valid;
+  const isTitlePending = isProjectTitlePending && !hasEditedTitle;
+
+  const busyLabel =
+    submitStatus === "checking"
+      ? "Checking your project details…"
+      : isRedirecting
+        ? "Creating your project…"
+        : "";
+
   return (
-    <DialogBase
-      className="w-[calc(100%-24px)] md:w-[448px] rounded-lg bg-neutral-light border-[0.75px] border-neutral-grey"
-      separator={false}
-      triggerSlot={null}
-      headerSlot={null}
-      isOpen={isOpen}
-      onOpenChange={(open) => {
-        if (isRedirecting) {
-          return;
-        }
-        onOpenChange(open);
-      }}
-    >
-      <Cross
-        className="absolute right-7 top-7 cursor-pointer"
-        onClick={(e) => {
-          if (!isRedirecting) {
-            onOpenChange(false);
-          }
-          e?.stopPropagation();
-        }}
-      />
-      <div className="w-full flex flex-col p-6 gap-2 items-center">
-        <h2 className="text-neutral-black text-lg text-center pb-2">
-          {isLoggedIn ? (
-            <>Create a new project</>
-          ) : (
-            <>
-              Sign up for <span className="text-green-60">{brand.name}</span>
-            </>
-          )}
-        </h2>
-        <div className="flex flex-col w-full gap-4">
-          {/* Email - only show for non-logged-in users */}
-          {!isLoggedIn && (
-            <div className="w-full">
-              <LabeledInput
-                label="Email address"
-                placeholder="john@company.com"
-                className="bg-white"
-                value={data.email}
-                hasError={isError?.email}
-                autoFocus
-                onChange={(e) =>
-                  setData((prev) => ({ ...prev, email: e.target.value }))
-                }
-                onKeyDown={handleFieldKeyDown}
-              />
-              {isError?.email && (
-                <p
-                  className={cx(
-                    "mt-1 flex gap-1 text-destructive font-medium text-sm",
-                    inputErrorMessage,
-                  )}
-                >
-                  Please provide valid email address
-                  <ExclamationMarkIcon size={16} />
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Project name */}
-          <div className="w-full">
-            <LabeledInput
-              label="Project name"
-              placeholder="Forest Road 43 repair, Tahoe NF"
-              className="bg-white"
-              value={data.projectTitle}
-              hasError={isError?.projectTitle}
-              onChange={(e) =>
-                setData((prev) => ({ ...prev, projectTitle: e.target.value }))
-              }
-              onKeyDown={handleFieldKeyDown}
-            />
-            {isError?.projectTitle && (
-              <p
-                className={cx(
-                  "mt-1 flex gap-1 text-destructive font-medium text-sm",
-                  inputErrorMessage,
-                )}
-              >
-                Please provide Project name
-                <ExclamationMarkIcon size={16} />
-              </p>
-            )}
-          </div>
-
-          {/* Project prompt */}
-          <div className="w-full">
-            <div className="relative">
-              <LabeledTextarea
-                label="Project prompt"
-                placeholder="Describe your project goals, location, conditions, and desired outcomes..."
-                className="bg-white min-h-[220px] max-h-[45vh] field-sizing-content"
-                value={projectPrompt}
-                hasError={
-                  (promptValidation !== null && !promptValidation.valid) ||
-                  isError?.projectPrompt
-                }
-                onChange={(e) => {
-                  setProjectPrompt(e.target.value);
-                  resetPromptValidation();
-                }}
-              />
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className={cx(
-                        "absolute bottom-2 right-2 rounded-md border border-gray-100 bg-white p-1.5 transition-colors hover:bg-gray-50",
-                        promptValidation &&
-                          !promptValidation.valid &&
-                          "animate-scale-pulse",
-                      )}
-                      onClick={handleEnhancePrompt}
-                      hidden={!projectPrompt.trim()}
-                      disabled={isEnhancing || isRedirecting}
-                    >
-                      {isEnhancing ? (
-                        <Loader2 className="size-5 animate-spin text-gray-400" />
-                      ) : (
-                        <BrandGradientIcon icon={Sparkles} className="size-5" />
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    Enhance prompt with AI
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            {promptValidation && !promptValidation.valid && (
-              <p
-                className={cx(
-                  "mt-1 flex gap-1 font-medium text-sm text-destructive",
-                  inputErrorMessage,
-                )}
-              >
-                {promptValidation.feedback ||
-                  formatMissingDetails(promptValidation.missing)}
-              </p>
-            )}
-            {isError?.projectPrompt && (
-              <p
-                className={cx(
-                  "mt-1 flex gap-1 text-destructive font-medium text-sm",
-                  inputErrorMessage,
-                )}
-              >
-                Please provide a project prompt
-                <ExclamationMarkIcon size={16} />
-              </p>
-            )}
-          </div>
-        </div>
-
-        <Button
-          onClick={onSubmit}
-          disabled={isBusy}
-          className="flex justify-center items-center pl-5 pr-3 w-min py-2 mt-2 gap-2 rounded-lg bg-green-60 text-white text-base leading-5 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {(isValidatingPrompt || isRedirecting) && (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          )}
-          <span className="whitespace-nowrap">
-            {isRedirecting ? "Creating project" : "Create project"}
-          </span>
-          <Arrow size={18} color="currentColor" />
-        </Button>
-        {busyLabel && (
-          <p
-            className="text-sm text-neutral-grey3 text-center"
-            aria-live="polite"
-          >
-            {busyLabel}
-          </p>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent
+        // The email field focuses itself; Radix would pick the close button.
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        className={cn(
+          MODAL_SURFACE_CLASS,
+          "flex max-h-[90dvh] w-[calc(100%-24px)] flex-col gap-0 overflow-hidden p-0 outline-hidden sm:w-[440px]",
         )}
-      </div>
-      {!isLoggedIn && (
-        <>
-          <hr className="w-full" />
-          <div className="flex flex-row align-center justify-center py-[10px] text-sm items-center gap-1">
-            <span className="text-neutral-grey3 text-center">
-              Already have an account?
-            </span>
-            <a href={routing.signIn()}>Sign in</a>
+      >
+        <button
+          type="button"
+          aria-label="Close"
+          className={cn(
+            MODAL_CLOSE_BUTTON_CLASS,
+            "disabled:pointer-events-none disabled:opacity-50",
+          )}
+          disabled={isRedirecting}
+          onClick={(event) => {
+            handleOpenChange(false);
+            event.stopPropagation();
+          }}
+        >
+          <X className="size-4" aria-hidden />
+        </button>
+
+        <form
+          noValidate
+          aria-busy={isSubmitting}
+          onSubmit={handleSubmit}
+          className="flex min-h-0 flex-col overflow-y-auto"
+        >
+          <div className="flex flex-col gap-5 px-5 pt-6 pb-6 sm:px-7 sm:pt-7">
+            <header className="pr-10">
+              <DialogTitle className="font-heading text-[24px] font-normal leading-[1.2] tracking-[-0.02em] text-egray-900 sm:text-[26px]">
+                {isLoggedIn ? "Create a new project" : "Create your project"}
+              </DialogTitle>
+              <DialogDescription className="mt-1.5 font-inter text-[15px] leading-[22px] text-egray-700">
+                {isLoggedIn
+                  ? "We'll create it in your workspace and open it."
+                  : "We'll email you a link to open it."}
+              </DialogDescription>
+            </header>
+
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-inter text-[13px] font-medium leading-5 text-egray-600">
+                  Your project
+                </p>
+                <button
+                  type="button"
+                  aria-expanded={isDetailsOpen}
+                  aria-controls={detailsId}
+                  onClick={handleToggleDetails}
+                  disabled={isRedirecting}
+                  className="-mr-1.5 inline-flex h-8 items-center gap-1 rounded-lg px-1.5 font-inter text-[13px] font-medium text-brand-800 hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-brand-700 disabled:opacity-50"
+                >
+                  {isDetailsOpen ? "Hide details" : "Edit details"}
+                  <ChevronDown
+                    aria-hidden
+                    className={cn(
+                      "size-4 transition-transform duration-200 motion-reduce:transition-none",
+                      isDetailsOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+              </div>
+
+              <div id={detailsId} className="mt-2">
+                {isDetailsOpen ? (
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <LabeledInput
+                        id={titleId}
+                        label="Project name"
+                        placeholder="Forest Road 43 repair, Tahoe NF"
+                        className={cn(
+                          GLASS_INPUT_CLASS,
+                          isError?.projectTitle && FIELD_ERROR_CLASS,
+                        )}
+                        value={data.projectTitle}
+                        hasError={isError?.projectTitle}
+                        aria-invalid={isError?.projectTitle || undefined}
+                        aria-describedby={
+                          isError?.projectTitle ? titleErrorId : undefined
+                        }
+                        disabled={isRedirecting}
+                        onChange={(event) => {
+                          const projectTitle = event.target.value;
+                          setHasEditedTitle(true);
+                          setData((prev) => ({ ...prev, projectTitle }));
+                        }}
+                        onKeyDown={handleFieldKeyDown}
+                      />
+                      {isError?.projectTitle && (
+                        <FieldError id={titleErrorId}>
+                          Enter a project name.
+                        </FieldError>
+                      )}
+                    </div>
+
+                    <div>
+                      {/* The label sits above the textarea, not floating over
+                          it: a long prompt scrolls inside the textarea and
+                          would otherwise run under the label. */}
+                      <div
+                        className={cn(
+                          "glass-inset relative rounded-xl px-3 pt-2 pb-11 focus-within:outline-solid focus-within:outline-2 focus-within:outline-brand-700/40",
+                          (isPromptInvalid || isError?.projectPrompt) &&
+                            "outline-solid outline-2 outline-red-60 focus-within:outline-red-60",
+                        )}
+                      >
+                        <label
+                          htmlFor={promptId}
+                          className="label block text-neutral-black"
+                        >
+                          Project prompt
+                        </label>
+                        <textarea
+                          ref={promptRef}
+                          id={promptId}
+                          rows={4}
+                          placeholder="Describe your project goals, location, conditions, and desired outcomes..."
+                          className="block max-h-[40dvh] min-h-24 w-full resize-none bg-transparent font-inter text-base text-egray-900 outline-hidden field-sizing-content placeholder:text-egray-600 disabled:opacity-60"
+                          value={projectPrompt}
+                          aria-invalid={
+                            isPromptInvalid ||
+                            isError?.projectPrompt ||
+                            undefined
+                          }
+                          aria-describedby={
+                            isPromptInvalid || isError?.projectPrompt
+                              ? promptErrorId
+                              : undefined
+                          }
+                          disabled={isRedirecting}
+                          onChange={(event) => {
+                            setProjectPrompt(event.target.value);
+                            resetPromptValidation();
+                          }}
+                        />
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Enhance prompt with AI"
+                                className={cn(
+                                  "glass press absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-lg hover:bg-white/80 focus-visible:outline-2 focus-visible:outline-brand-700 disabled:opacity-50",
+                                  isPromptInvalid && "animate-scale-pulse",
+                                )}
+                                onClick={handleEnhancePrompt}
+                                hidden={!projectPrompt.trim()}
+                                disabled={isEnhancing || isSubmitting}
+                              >
+                                {isEnhancing ? (
+                                  <Loader2
+                                    aria-hidden
+                                    className="size-4 animate-spin text-egray-500"
+                                  />
+                                ) : (
+                                  <BrandGradientIcon
+                                    icon={Sparkles}
+                                    className="size-4"
+                                  />
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              Enhance prompt with AI
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      {isPromptInvalid ? (
+                        <FieldError id={promptErrorId} role="alert">
+                          {promptValidation?.feedback ||
+                            formatMissingDetails(promptValidation?.missing)}
+                        </FieldError>
+                      ) : (
+                        isError?.projectPrompt && (
+                          <FieldError id={promptErrorId}>
+                            Describe your project.
+                          </FieldError>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="glass rounded-2xl px-4 py-3">
+                    {isTitlePending ? (
+                      <p className="flex items-center gap-1.5 font-inter text-[14px] leading-5 text-egray-600">
+                        <Loader2
+                          aria-hidden
+                          className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+                        />
+                        Naming your project…
+                      </p>
+                    ) : (
+                      data.projectTitle.trim() && (
+                        <p className="truncate font-inter text-[15px] font-medium leading-[22px] text-egray-900">
+                          {data.projectTitle}
+                        </p>
+                      )
+                    )}
+                    <p className="mt-0.5 line-clamp-2 break-words font-inter text-[14px] leading-5 text-egray-700">
+                      {projectPrompt}
+                    </p>
+                  </div>
+                )}
+
+                {hasAttachedDocuments && (
+                  <ul
+                    aria-label="Attached documents"
+                    className="mt-2 flex flex-wrap gap-1.5"
+                  >
+                    {attachedDocuments.map((attached) => (
+                      <li
+                        key={attached.key}
+                        title={attached.name}
+                        className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full border border-white/85 bg-white/70 py-1 pr-2.5 pl-2 font-inter text-[13px] leading-5 text-egray-700"
+                      >
+                        <FileText
+                          aria-hidden
+                          className="size-3.5 shrink-0 text-brand-800"
+                        />
+                        <span className="truncate">{attached.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {!isLoggedIn && (
+              <div>
+                <LabeledInput
+                  id={emailId}
+                  label="Email address"
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder="you@example.com"
+                  className={cn(
+                    GLASS_INPUT_CLASS,
+                    isError?.email && FIELD_ERROR_CLASS,
+                  )}
+                  value={data.email}
+                  hasError={isError?.email}
+                  aria-invalid={isError?.email || undefined}
+                  aria-describedby={isError?.email ? emailErrorId : undefined}
+                  disabled={isRedirecting}
+                  autoFocus
+                  onChange={(event) => {
+                    const email = event.target.value;
+                    setData((prev) => ({ ...prev, email }));
+                  }}
+                  onKeyDown={handleFieldKeyDown}
+                />
+                {isError?.email && (
+                  <FieldError id={emailErrorId}>
+                    Enter a valid email address.
+                  </FieldError>
+                )}
+              </div>
+            )}
+
+            <div>
+              <button
+                type="submit"
+                disabled={isSubmitting || isEnhancing}
+                className={cn(
+                  PRIMARY_BUTTON_CLASS,
+                  "h-11 w-full text-[15px] disabled:pointer-events-none disabled:opacity-60",
+                )}
+              >
+                {isSubmitting && (
+                  <Loader2
+                    aria-hidden
+                    className="size-4 animate-spin motion-reduce:animate-none"
+                  />
+                )}
+                {busyLabel || "Create project"}
+                {!isSubmitting && <ArrowRight aria-hidden className="size-4" />}
+              </button>
+              <p aria-live="polite" className="sr-only">
+                {busyLabel}
+              </p>
+            </div>
           </div>
-        </>
-      )}
-    </DialogBase>
+
+          {!isLoggedIn && (
+            <p className="border-t border-white px-5 py-3 text-center font-inter text-[14px] leading-5 text-egray-700">
+              Already have an account?{" "}
+              <a
+                href={routing.signIn()}
+                className="font-medium text-brand-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-brand-700"
+              >
+                Sign in
+              </a>
+            </p>
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+interface FieldErrorProps {
+  id: string;
+  role?: "alert";
+  children: ReactNode;
+}
+
+const FieldError = ({ id, role, children }: FieldErrorProps) => {
+  return (
+    <p
+      id={id}
+      role={role}
+      className="mt-1.5 flex items-start gap-1.5 font-inter text-[13px] leading-5 text-error-700"
+    >
+      <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <span>{children}</span>
+    </p>
   );
 };

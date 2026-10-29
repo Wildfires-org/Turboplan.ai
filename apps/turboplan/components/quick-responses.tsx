@@ -11,6 +11,7 @@ import {
 
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
 import type { QuickResponse } from "@/lib/ai/tools/generate-quick-responses";
+import { isChatBusy } from "@/lib/chat-status";
 import { cn } from "@/lib/utils";
 
 interface QuickResponsesProps {
@@ -31,7 +32,7 @@ function PureQuickResponses({
 
   // Auto-paste highlighted response after 500ms (only for last message)
   useEffect(() => {
-    if (!isLastMessage || status !== "ready") return;
+    if (!isLastMessage || isChatBusy(status)) return;
 
     const highlightedResponse = quickResponses.find((r) => r.isHighlighted);
     if (!highlightedResponse) return;
@@ -53,13 +54,13 @@ function PureQuickResponses({
   }, [quickResponses, isLastMessage, status, setInput]);
 
   const handleClick = (message: string) => {
-    if (status && status !== "ready") return;
+    if (isChatBusy(status)) return;
 
     // Paste message into input field for user to review/edit before sending
     setInput(message);
   };
 
-  const isDisabled = status && status !== "ready";
+  const isDisabled = isChatBusy(status);
 
   // Only show for last message
   if (!isLastMessage) return null;

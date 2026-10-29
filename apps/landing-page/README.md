@@ -29,6 +29,7 @@ See `.env.example` for the full annotated list.
 | `NEXT_PUBLIC_SERVER_URL` | API server URL (e.g. `http://localhost:3001`) |
 | `NEXT_PUBLIC_LINKEDIN_URL` | LinkedIn company link in the footer |
 | `NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED` | Toggles the pricing/checkout view |
+| `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED` | Optional, defaults on. `false` drops the extra-seat price from checkout (seats are not billed) |
 | `AUTH_SECRET` | Must match the web app's secret — enables session awareness |
 | `AUTH_COOKIE_DOMAIN` | Optional cookie domain for cross-app session sharing |
 

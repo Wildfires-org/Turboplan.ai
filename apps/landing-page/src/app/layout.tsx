@@ -1,24 +1,16 @@
 import { Suspense } from "react";
 
-import * as dotenv from "dotenv";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import localFont from "next/font/local";
-import { cookies } from "next/headers";
+import { Geist, Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
-import { SessionProvider } from "@wildfires-org/turboplan-auth/client";
-import { getSession } from "@wildfires-org/turboplan-auth/session";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
-import {
-  UI_SCALE_COOKIE_NAME,
-  uiScaleStyleFromCookie,
-} from "@wildfires-org/turboplan-utils/server";
 
 import LayoutWrapper from "@/app/layoutWrapper";
 import { Navbar } from "@/components/home-v2/navbar";
 import { SiteFooter } from "@/components/home-v2/site-footer";
+import { ClientSessionProvider } from "@/components/providers/client-session-provider";
 import { GoogleAnalytics } from "@/components/providers/google-analytics";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { UiScaleSync } from "@/components/providers/ui-scale-sync";
@@ -32,57 +24,13 @@ import { brand } from "@/lib/brand";
 import { resolveMetadataBase } from "@/lib/metadata-base";
 import { cn } from "@/lib/utils";
 import "../globals.css";
-dotenv.config();
 
-const geist = localFont({
-  src: [
-    {
-      path: "../../public/fonts/Geist-Thin.woff2",
-      style: "normal",
-      weight: "100",
-    },
-    {
-      path: "../../public/fonts/Geist-ExtraLight.woff2",
-      style: "normal",
-      weight: "200",
-    },
-    {
-      path: "../../public/fonts/Geist-Light.woff2",
-      style: "normal",
-      weight: "300",
-    },
-    {
-      path: "../../public/fonts/Geist-Regular.woff2",
-      style: "normal",
-      weight: "400",
-    },
-    {
-      path: "../../public/fonts/Geist-Medium.woff2",
-      style: "normal",
-      weight: "500",
-    },
-    {
-      path: "../../public/fonts/Geist-SemiBold.woff2",
-      style: "normal",
-      weight: "600",
-    },
-    {
-      path: "../../public/fonts/Geist-Bold.woff2",
-      style: "normal",
-      weight: "700",
-    },
-    {
-      path: "../../public/fonts/Geist-ExtraBold.woff2",
-      style: "normal",
-      weight: "800",
-    },
-    {
-      path: "../../public/fonts/Geist-Black.woff2",
-      style: "normal",
-      weight: "900",
-    },
-  ],
+// One variable file per family (latin only). The nine static Geist weights
+// this replaced were all preloaded, 375 KB that held up first paint on phones.
+const geist = Geist({
+  subsets: ["latin"],
   variable: "--font-geist",
+  display: "swap",
 });
 
 const inter = Inter({
@@ -106,6 +54,10 @@ export const metadata: Metadata = {
   metadataBase: resolveMetadataBase(getLandingPageEnv().LANDING_URL),
   title: `${APP_TITLE} | ${APP_TAGLINE}`,
   description: APP_DESCRIPTION,
+  // public/favicon.ico holds 16, 32 and 48px images.
+  icons: {
+    icon: [{ url: "/favicon.ico", sizes: "16x16 32x32 48x48" }],
+  },
   openGraph: {
     title: APP_TAGLINE,
     description: APP_DESCRIPTION,
@@ -126,63 +78,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-/**
- * Minimal loading fallback shown during static generation.
- * Does NOT render children since they may depend on NuqsAdapter context.
- * Content appears immediately after hydration.
- */
-function LayoutFallback() {
-  return (
-    <div className="min-h-screen flex flex-col justify-between">
-      <main className="relative flex w-full justify-center">
-        <div className="flex w-screen 2xl:max-w-3xl px-5 lg:px-10 xl:px-[100px] 3xl:max-w-3xl justify-center flex-col">
-          {/* Loading placeholder - content renders after hydration */}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-/**
- * Honours the interface scale the user picked in the app (Profile →
- * Appearance), shared through a cookie scoped to the parent domain. Read-only
- * here: the landing page offers no control of its own.
- *
- * The try/catch mirrors `getSession`: during static prerender (the /docs
- * pages) there is no request, `cookies()` throws, and the page is generated at
- * the default scale - `UiScaleSync` then applies the cookie after hydration.
- */
-const readUiScaleStyle = async () => {
-  let rawScale: string | undefined;
-  try {
-    rawScale = (await cookies()).get(UI_SCALE_COOKIE_NAME)?.value;
-  } catch {
-    // Only the `cookies()` call is guarded, so a bug in the parsing below still
-    // surfaces instead of silently rendering the default scale.
-    return undefined;
-  }
-  return uiScaleStyleFromCookie(rawScale);
-};
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Get session server-side to pass to client components
-  const session = await getSession();
-  const uiScaleStyle = await readUiScaleStyle();
+  // No cookies or session here: reading either makes every marketing page
+  // dynamic and uncacheable. The session loads client-side
+  // (ClientSessionProvider) and UiScaleSync applies the app's UI-scale cookie
+  // after hydration.
   // Signup hands off to the app origin via a full navigation; warm up DNS/TLS
   // so that cross-origin jump starts faster.
   const appOrigin = new URL(getLandingPageEnv().TURBOPLAN_URL).origin;
 
   return (
-    <html
-      lang="en"
-      className="scroll-smooth"
-      style={uiScaleStyle as React.CSSProperties}
-      suppressHydrationWarning
-    >
+    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <meta name="theme-color" content="#f4f9f7" />
       <link rel="preconnect" href={appOrigin} />
       <body
@@ -201,28 +111,39 @@ export default async function RootLayout({
             theme.enabled=false disables next-themes entirely: this app has no
             dark-mode design system (global Navbar/SiteFooter/home are light-only),
             so we never render the ThemeProvider and the `dark` class is never
-            applied — not even from OS-level prefers-color-scheme. */}
+            applied — not even from OS-level prefers-color-scheme.
+            No Suspense around the page: a boundary here flushes a 200 before
+            the page runs, so its notFound() can no longer send a 404. A
+            component that reads search params wraps itself instead (the
+            build fails on a statically prerendered page that doesn't). */}
         <RootProvider theme={{ enabled: false }}>
-          <Suspense fallback={<LayoutFallback />}>
-            <NuqsAdapter>
-              <SessionProvider session={session}>
-                <AnalyticsContextProvider>
-                  <GlobalProvider>
-                    <div className="min-h-screen flex flex-col justify-between">
-                      <Navbar />
-                      <main className="relative flex w-full flex-1 justify-center">
-                        <LayoutWrapper>{children}</LayoutWrapper>
-                      </main>
-                      <SiteFooter />
-                    </div>
-                  </GlobalProvider>
-                  <Suspense>
-                    <InitializeAnalyticsContext />
-                  </Suspense>
-                </AnalyticsContextProvider>
-              </SessionProvider>
-            </NuqsAdapter>
-          </Suspense>
+          <NuqsAdapter>
+            <ClientSessionProvider>
+              <AnalyticsContextProvider>
+                <GlobalProvider>
+                  <div className="min-h-screen flex flex-col justify-between">
+                    <a
+                      href="#main-content"
+                      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:font-inter focus:text-[14px] focus:text-egray-900 focus:shadow-lg"
+                    >
+                      Skip to content
+                    </a>
+                    <Navbar />
+                    <main
+                      id="main-content"
+                      className="relative flex w-full flex-1 justify-center"
+                    >
+                      <LayoutWrapper>{children}</LayoutWrapper>
+                    </main>
+                    <SiteFooter />
+                  </div>
+                </GlobalProvider>
+                <Suspense>
+                  <InitializeAnalyticsContext />
+                </Suspense>
+              </AnalyticsContextProvider>
+            </ClientSessionProvider>
+          </NuqsAdapter>
         </RootProvider>
         <Toaster />
         {/* Suspense boundary required: GoogleAnalytics reads useSearchParams

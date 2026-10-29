@@ -1,0 +1,1 @@
+ALTER TABLE "document_letterhead" ADD COLUMN "description" text DEFAULT '' NOT NULL;

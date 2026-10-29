@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { MobileSidebarTrigger } from "@/components/sidebar/mobile-sidebar-trigger";
 import { SKELETON_BAR_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 import {
@@ -29,18 +30,24 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   return (
     <header className={DASHBOARD_HEADER_CLASS}>
+      <MobileSidebarTrigger />
       {/* Breadcrumbs */}
       <nav
         aria-label="Breadcrumb"
         className="flex min-w-0 items-center gap-2 overflow-hidden text-sm"
       >
+        {/* Phones show only the current crumb; the sidebar sheet covers the
+            org/office switching the earlier crumbs offer. */}
         {breadcrumbs.map((breadcrumb, index) => (
           <div
             key={index}
-            className="flex min-w-0 shrink-0 items-center gap-3 last:shrink"
+            className={cn(
+              "flex min-w-0 shrink-0 items-center gap-3 last:shrink",
+              index < breadcrumbs.length - 1 && "max-sm:hidden",
+            )}
           >
             {index > 0 && (
-              <span aria-hidden className="text-slate-300">
+              <span aria-hidden className="text-slate-300 max-sm:hidden">
                 /
               </span>
             )}
@@ -82,10 +89,19 @@ export function DashboardHeader({
 export function DashboardHeaderSkeleton({ crumbs = 2 }: { crumbs?: number }) {
   return (
     <header className={DASHBOARD_HEADER_CLASS}>
+      <MobileSidebarTrigger />
       <div aria-hidden className="flex h-5 items-center gap-3">
         {Array.from({ length: crumbs }, (_, index) => (
-          <div key={index} className="flex items-center gap-3">
-            {index > 0 && <span className="text-sm text-slate-300">/</span>}
+          <div
+            key={index}
+            className={cn(
+              "flex items-center gap-3",
+              index < crumbs - 1 && "max-sm:hidden",
+            )}
+          >
+            {index > 0 && (
+              <span className="text-sm text-slate-300 max-sm:hidden">/</span>
+            )}
             <span className={cn(SKELETON_BAR_CLASS, "h-3.5 w-28")} />
           </div>
         ))}

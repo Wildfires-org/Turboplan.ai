@@ -6,8 +6,8 @@ Authenticated API client and utilities for communicating with the TurboPlan Hono
 
 | Path | Contents |
 | --- | --- |
-| `.` | `ApiClient`, SWR fetchers, JWT utilities, PAT utilities, `publicFetcher` |
-| `/server` | `optionalAuthMiddleware` (Hono) and the `AuthContext` type |
+| `.` | `ApiClient`, SWR fetchers, `publicFetcher` (safe for client bundles) |
+| `/server` | JWT and PAT utilities, `optionalAuthMiddleware` (Hono) and the `AuthContext` type (server only) |
 
 ## SWR Fetchers (preferred)
 
@@ -41,13 +41,15 @@ const { data, error, code, status } = await client.get<Project[]>("/api/projects
 
 Use it only when the SWR fetchers don't fit.
 
-## JWT Utilities
+## JWT Utilities (`/server`)
 
 `createToken()`, `createUploadToken()`, `verifyToken()`, `extractTokenFromHeader()` — signing and verification of the short-lived JWTs used between the Next.js app and the Hono server (via `jose`).
 
-## Personal Access Tokens
+## Personal Access Tokens (`/server`)
 
 `generatePAT()`, `hashPAT()`, `isPATToken()` — `tc_pat_`-prefixed tokens used by the MCP server. Only the hash is stored in the database.
+
+Both live off the root entry on purpose: `pat` imports `node:crypto` and `jwt` imports `jose`, and a client component importing a fetcher from `.` would otherwise ship a crypto polyfill.
 
 ## Hono Middleware
 

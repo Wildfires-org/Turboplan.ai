@@ -9,6 +9,11 @@ import {
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 
+import {
+  isReadAllRequest,
+  resolveDocumentFilenames,
+} from "./resolve-document-filenames";
+
 /**
  * Reads the text of a project's uploaded documents.
  *
@@ -41,6 +46,18 @@ const MAX_DOCUMENTS_PER_CALL = 10;
  * pre-cap DB lookup bounded.
  */
 const MAX_REQUESTED_DOCUMENT_IDS = 100;
+
+/** Upper bound on requested filenames per call. */
+const MAX_REQUESTED_FILENAMES = 20;
+
+/**
+ * How many filenames (newest first) to list when a requested name misses, so
+ * the model can spot a rename without another call.
+ */
+const MAX_AVAILABLE_FILENAMES = 20;
+
+const FILENAME_NOT_FOUND_MESSAGE =
+  "No project document has this filename. A file attached moments ago may still be registering, or the document may have been renamed; availableFilenames lists the newest current names.";
 
 /**
  * Mirrors `MAX_EXTRACTED_CHARS` in
@@ -84,8 +101,15 @@ export const readProjectDocuments = async ({
         .array(z.string().uuid())
         .max(MAX_REQUESTED_DOCUMENT_IDS)
         .optional(),
+      filenames: z
+        .array(z.string().min(1).max(255))
+        .max(MAX_REQUESTED_FILENAMES)
+        .optional()
+        .describe(
+          "Original filenames of project documents, e.g. a file just attached in the chat. Matched case-insensitively; the newest upload with that name is read, else the newest other project document (such as a research document) with it. Can be combined with documentIds.",
+        ),
     }),
-    execute: async ({ documentIds }) => {
+    execute: async ({ documentIds, filenames }) => {
       // Re-assert READ permission at execution time — activeTools gating is a
       // convenience, this is the authoritative check before reading.
       const rbac = getRBACService();
@@ -99,17 +123,45 @@ export const readProjectDocuments = async ({
         return { error: "Access denied." };
       }
 
+      const skipped: SkippedEntry[] = [];
+      let availableFilenames: string[] | undefined;
+
+      // Resolve filenames to ids of this project's documents: the user's
+      // uploads first, then research documents (see resolveDocumentFilenames).
+      const idsFromFilenames: string[] = [];
+      if (filenames && filenames.length > 0) {
+        const listed = await getProjectDocumentsByProjectId(projectId);
+        const resolved = resolveDocumentFilenames(filenames, listed);
+        idsFromFilenames.push(...resolved.ids);
+        for (const filename of resolved.missingFilenames) {
+          skipped.push({
+            filename,
+            reason: "not-found",
+            message: FILENAME_NOT_FOUND_MESSAGE,
+          });
+        }
+        if (resolved.missingFilenames.length > 0) {
+          // Newest first across all sources, the order of the listing.
+          availableFilenames = [
+            ...new Set(listed.map((record) => record.originalFilename)),
+          ].slice(0, MAX_AVAILABLE_FILENAMES);
+        }
+      }
+
       // Dedupe — a repeated id must not consume extra document slots or
       // duplicate the document in the output.
-      const requestedIds = [...new Set(documentIds ?? [])];
+      const requestedIds = [
+        ...new Set([...(documentIds ?? []), ...idsFromFilenames]),
+      ];
 
-      const skipped: SkippedEntry[] = [];
       let orderedRecords: Awaited<
         ReturnType<typeof getProjectDocumentExtractionByIds>
       > = [];
       let totalDocuments = 0;
 
-      if (requestedIds.length > 0) {
+      if (!isReadAllRequest({ documentIds, filenames })) {
+        // Only the named documents are read. When every name missed this
+        // reads nothing: a miss is reported, never widened to all documents.
         const records = await getProjectDocumentExtractionByIds(requestedIds);
 
         // SECURITY: only keep documents that belong to THIS project. Any id
@@ -246,6 +298,7 @@ export const readProjectDocuments = async ({
         documents,
         skipped,
         totalDocuments,
+        ...(availableFilenames ? { availableFilenames } : {}),
       };
     },
   });

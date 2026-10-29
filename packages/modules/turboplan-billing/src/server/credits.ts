@@ -6,7 +6,10 @@ import {
   type Subscription,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
-import { isBillingPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
+import {
+  isBillingEnforcementEnabled,
+  isBillingPackageEnabled,
+} from "@wildfires-org/turboplan-feature-flags";
 
 import {
   CATALOG,
@@ -17,7 +20,10 @@ import {
   planHasOverage,
 } from "../types";
 import { planFromSubscriptionRow } from "./entitlements";
-import { getSubscriptionByOrganizationId } from "./queries";
+import {
+  getSubscriptionByOrganizationId,
+  resolveCreditSeatCount,
+} from "./queries";
 
 export {
   resolveBillingOrgForProject,
@@ -129,9 +135,12 @@ const getOrgCreditContext = async (
 ): Promise<OrgCreditContext> => {
   const subscription = await getSubscriptionByOrganizationId(organizationId);
   const plan = planFromSubscriptionRow(subscription ?? null);
-  // The seats mirror stores provisioned seats (included + extra), so the
-  // extra-seat credit grant derives directly from it.
-  const extraSeatCount = extraSeats(subscription?.seats ?? 0, plan);
+  // Provisioned seats (included + extra): normally the seats mirror, real
+  // members while enforcement is off so the per-seat grant is kept.
+  const extraSeatCount = extraSeats(
+    await resolveCreditSeatCount(subscription),
+    plan,
+  );
   return {
     plan,
     allowance: creditAllowance(plan, extraSeatCount),
@@ -189,7 +198,8 @@ export const shouldBlockUsage = (
  * Gate a metered AI call. Throws CreditsExhaustedError (402) when the org's
  * plan hard-stops at its allowance and the pool is used up. Plans with
  * metered overage never block — usage beyond the allowance bills per credit.
- * No-op when the billing package is disabled.
+ * No-op when billing enforcement is disabled (billing package off, or
+ * `IS_BILLING_ENFORCEMENT_ENABLED=false`).
  *
  * `amount` reserves headroom for a known flat-cost call (e.g. research agent,
  * image generation) so it can't land the org meaningfully past a hard stop in
@@ -200,7 +210,7 @@ export const assertCreditsAvailable = async (
   organizationId: string,
   amount = 0,
 ): Promise<void> => {
-  if (!isBillingPackageEnabled()) {
+  if (!isBillingEnforcementEnabled()) {
     return;
   }
 

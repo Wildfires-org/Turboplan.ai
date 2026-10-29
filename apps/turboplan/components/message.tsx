@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type { UIMessage } from "ai";
 import { motion } from "framer-motion";
+import { AlertCircle } from "lucide-react";
 
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
 import {
@@ -19,6 +20,8 @@ import {
 
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
 import { useStreamingDots } from "@/hooks/use-streaming-dots";
+import { getToolErrorMessage, isToolPartInterrupted } from "@/lib/chat-status";
+import { orderMessageParts } from "@/lib/order-message-parts";
 import { cn } from "@/lib/utils";
 import { ToolInvocationState } from "@/types/ToolInvocationState";
 import { Tools } from "@/types/Tools";
@@ -27,6 +30,7 @@ import {
   USER_BUBBLE_SHELL_CLASS,
 } from "./chat/chat-classes";
 import { ThinkingDots } from "./chat/thinking-dots";
+import { DocumentPreparing } from "./document";
 import { PencilEditIcon, SparklesIcon } from "./icons";
 import { Markdown } from "./markdown";
 import { MessageEditor } from "./message-editor";
@@ -173,7 +177,7 @@ const PurePreviewMessage = ({
               );
             })()}
 
-            {message.parts?.map((part, index) => {
+            {orderMessageParts(message.parts ?? []).map(({ part, index }) => {
               const { type } = part;
               const key = `message-${message.id}-part-${index}`;
 
@@ -265,8 +269,14 @@ const PurePreviewMessage = ({
                   | Record<string, unknown>
                   | undefined;
 
+                // A failed tool, or one the broken stream left hanging, would
+                // otherwise render nothing or a spinner that never resolves.
+                const hasToolFailed =
+                  state === "output-error" ||
+                  isToolPartInterrupted(state, isLoading);
+
                 if (RESEARCH_TOOLS.has(toolName)) {
-                  if (state === "output-error") {
+                  if (hasToolFailed) {
                     return null;
                   }
                   return (
@@ -278,6 +288,32 @@ const PurePreviewMessage = ({
                       args={toolInput}
                       result={
                         state === "output-available" ? toolOutput : undefined
+                      }
+                    />
+                  );
+                }
+
+                if (hasToolFailed) {
+                  // Quick replies are an extra; the answer itself is intact.
+                  if (toolName === Tools.generateQuickResponses) {
+                    return null;
+                  }
+                  return <ToolErrorRow key={toolCallId} toolName={toolName} />;
+                }
+
+                // Writing createDocument's input can take a while before the
+                // document starts streaming; show that it is underway.
+                if (
+                  toolName === Tools.createDocument &&
+                  state === "input-streaming"
+                ) {
+                  return (
+                    <DocumentPreparing
+                      key={toolCallId}
+                      title={
+                        typeof toolInput?.title === "string"
+                          ? toolInput.title
+                          : undefined
                       }
                     />
                   );
@@ -361,6 +397,18 @@ export const ThinkingMessage = () => {
     </motion.div>
   );
 };
+
+/** Inline notice for a tool call that failed or was cut off mid-stream. */
+const ToolErrorRow = ({ toolName }: { toolName: string }) => (
+  <div
+    data-testid="message-tool-error"
+    role="status"
+    className="glass flex w-fit flex-row items-center gap-2 rounded-xl px-3 py-2 text-[14px] text-gray-550"
+  >
+    <AlertCircle aria-hidden className="size-4 shrink-0 text-error-700" />
+    <span>{getToolErrorMessage(toolName)}</span>
+  </div>
+);
 
 /** Assistant mark: small round glass chip with the brand sparkle. */
 const AssistantAvatar = () => (

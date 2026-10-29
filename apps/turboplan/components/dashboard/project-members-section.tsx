@@ -78,7 +78,12 @@ export function ProjectMembersSection({
         backHref={backHref}
         actions={
           <>
-            <label className={cn(SEARCH_FIELD_CLASS, "sm:w-[280px]")}>
+            <label
+              className={cn(
+                SEARCH_FIELD_CLASS,
+                "min-w-0 flex-1 sm:w-[280px] sm:flex-none",
+              )}
+            >
               <Search aria-hidden className="size-4 shrink-0 text-gray-550" />
               <input
                 type="text"
@@ -97,7 +102,8 @@ export function ProjectMembersSection({
                 onClick={openInviteForm}
               >
                 <UserPlus aria-hidden />
-                Invite Members
+                <span className="sm:hidden">Invite</span>
+                <span className="max-sm:hidden">Invite Members</span>
               </Button>
             )}
           </>

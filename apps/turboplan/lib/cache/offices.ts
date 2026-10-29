@@ -10,13 +10,18 @@ import {
   OrganizationType,
   PUBLICLY_LISTED_ORG_TYPES,
 } from "@wildfires-org/turboplan-db/types";
-import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
+import {
+  Action,
+  type ActionType,
+  EntityType,
+} from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import {
   getOfficeBySlug,
   getOrganizationBySlug,
 } from "@wildfires-org/turboplan-workspace/server";
 
+import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
 import {
   getCachedOrganizationBySlug,
@@ -60,6 +65,13 @@ export const getValidatedOfficeBySlug = cache(
       >;
     }>
   > => {
+    // Malformed or reserved slugs (`/wp-admin.php`, `/organizations`) can't
+    // name an entity: skip the DB. Layouts 404 on them; this covers the
+    // pages' generateMetadata, which runs alongside the layouts.
+    if (!isRoutableSlugPath({ orgSlug, officeSlug })) {
+      return { data: null };
+    }
+
     // Single query to resolve organization (current or historical)
     const { entity: organization, foundViaHistory: orgRedirect } =
       await getCachedOrganizationBySlug(orgSlug);
@@ -104,5 +116,23 @@ export const getValidatedOfficeBySlug = cache(
         : undefined;
 
     return { data: { organization, office }, redirectTo };
+  },
+);
+
+/**
+ * Actions the user may perform on an office (RBAC), resolved in one pass.
+ *
+ * Government offices are readable by any authenticated user, so the office
+ * page uses this to hide management actions (edit office, new project,
+ * invite members) from viewers the API would reject.
+ */
+export const getOfficeAllowedActions = cache(
+  async (userId: string, officeId: string): Promise<ActionType[]> => {
+    const { actions } = await getRBACService().getAllowedActions(
+      userId,
+      officeId,
+      EntityType.OFFICE,
+    );
+    return actions;
   },
 );

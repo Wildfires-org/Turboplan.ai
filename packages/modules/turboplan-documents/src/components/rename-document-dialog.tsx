@@ -22,8 +22,11 @@ import type { ProjectDocument } from "../types";
 const MAX_FILENAME_LENGTH = 255;
 
 type RenameDocumentDialogProps = {
-  /** The document being renamed. Render the dialog only when non-null. */
-  document: ProjectDocument;
+  /**
+   * The document being renamed (a project or organization document). Render
+   * the dialog only when non-null.
+   */
+  document: Pick<ProjectDocument, "id" | "originalFilename">;
   isRenaming: boolean;
   onOpenChange: (open: boolean) => void;
   /** Parent closes the dialog on success; on failure it leaves it open and toasts. */

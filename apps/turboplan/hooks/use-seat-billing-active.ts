@@ -16,9 +16,10 @@ interface SeatBillingResponse {
  * Backed by `GET /api/billing/seat-billing-active`, which resolves the owning
  * org from any entity server-side — so callers that only hold an entity id
  * (e.g. a project view without the org id) still get an accurate answer.
- * Returns false when billing is disabled, the org has no active/trialing
- * subscription, or `enabled` is false (pass the add-form's open state to skip
- * the request while closed).
+ * Returns false when billing is disabled, billing enforcement is off (seats are
+ * never billed then), the org has no active/trialing paid subscription, or
+ * `enabled` is false (pass the add-form's open state to skip the request while
+ * closed).
  */
 export function useSeatBillingActive(
   entityType: EntityTypeType,

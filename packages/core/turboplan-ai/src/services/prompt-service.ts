@@ -16,6 +16,7 @@ import {
   commentAutoResponderPrompt,
   emptyStateSuggestionsTemplate,
   fullModePrompt,
+  projectNextStepSuggestionsTemplate,
   researchAgentForwardMessagesTemplate,
   researchAgentNoResultsContextTemplate,
   researchAgentSavedContextTemplate,
@@ -35,9 +36,11 @@ import {
   toolDescCreateDocumentTasks,
   toolDescGenerateQuickResponses,
   toolDescGetContents,
+  toolDescReadOrganizationDocuments,
   toolDescReadProjectDocuments,
   toolDescRequestSuggestions,
   toolDescResearchNotes,
+  toolDescSaveOrganizationMemory,
   toolDescUpdateDocument,
   toolDescUpdateProjectContext,
   toolDescUpdateProjectFields,
@@ -76,10 +79,12 @@ const HARDCODED_PROMPTS = {
   "tool-desc-web-search": toolDescWebSearch,
   "tool-desc-get-contents": toolDescGetContents,
   "tool-desc-read-project-documents": toolDescReadProjectDocuments,
+  "tool-desc-read-organization-documents": toolDescReadOrganizationDocuments,
   "tool-desc-update-project-context": toolDescUpdateProjectContext,
   "tool-desc-update-project-fields": toolDescUpdateProjectFields,
   "tool-desc-update-project-fields-proactive":
     toolDescUpdateProjectFieldsProactive,
+  "tool-desc-save-organization-memory": toolDescSaveOrganizationMemory,
   "tool-desc-research-notes": toolDescResearchNotes,
   // Artifact creation prompts
   code: codePrompt,
@@ -87,6 +92,7 @@ const HARDCODED_PROMPTS = {
   "text-document": textDocumentPrompt,
   // UI / suggestions
   "empty-state-suggestions": emptyStateSuggestionsTemplate,
+  "project-next-step-suggestions": projectNextStepSuggestionsTemplate,
   // Document update templates
   "update-document-text": updateDocumentTextTemplate,
   "update-document-code": updateDocumentCodeTemplate,

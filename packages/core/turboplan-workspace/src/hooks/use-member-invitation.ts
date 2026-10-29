@@ -44,7 +44,6 @@ export function useMemberInvitation({
   existingEmails,
 }: UseMemberInvitationOptions = {}) {
   const [pendingInvitees, setPendingInvitees] = useState<PendingInvitee[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<SelectedUserValue[]>([]);
   const [currentRole, setCurrentRole] = useState<MemberRoleType>(
     MemberRole.VIEWER,
   );
@@ -57,21 +56,23 @@ export function useMemberInvitation({
     return emails;
   }, [existingEmails, pendingInvitees]);
 
-  const handleAssign = useCallback(() => {
-    if (selectedUsers.length === 0) return;
+  // Picks go straight into the pending list with the current default role —
+  // there is no separate "Assign" step.
+  const addInvitees = useCallback(
+    (users: SelectedUserValue[]) => {
+      setPendingInvitees((prev) => {
+        const pendingEmails = new Set(
+          prev.map((invitee) => invitee.email.toLowerCase()),
+        );
+        const newInvitees = users
+          .filter((user) => !pendingEmails.has(user.email.toLowerCase()))
+          .map((user) => toPendingInvitee(user, currentRole));
 
-    setPendingInvitees((prev) => {
-      const existingEmails = new Set(
-        prev.map((invitee) => invitee.email.toLowerCase()),
-      );
-      const newInvitees = selectedUsers
-        .filter((user) => !existingEmails.has(user.email.toLowerCase()))
-        .map((user) => toPendingInvitee(user, currentRole));
-
-      return [...prev, ...newInvitees];
-    });
-    setSelectedUsers([]);
-  }, [currentRole, selectedUsers]);
+        return [...prev, ...newInvitees];
+      });
+    },
+    [currentRole],
+  );
 
   const handleRoleChange = useCallback((id: string, role: MemberRoleType) => {
     setPendingInvitees((prev) =>
@@ -87,20 +88,17 @@ export function useMemberInvitation({
 
   const resetInvitations = useCallback(() => {
     setPendingInvitees([]);
-    setSelectedUsers([]);
     setCurrentRole(MemberRole.VIEWER);
   }, []);
 
   return {
+    addInvitees,
     currentRole,
     excludedEmails,
-    handleAssign,
     handleRemove,
     handleRoleChange,
     pendingInvitees,
     resetInvitations,
-    selectedUsers,
     setCurrentRole,
-    setSelectedUsers,
   };
 }

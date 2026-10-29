@@ -24,6 +24,7 @@ import {
   type ResearchAgentStatus,
 } from "../../../types";
 import { useElapsedTime } from "../../hooks/use-elapsed-time";
+import { getActiveStep } from "../../utils";
 import { AvatarThinking } from "../avatar-thinking";
 import { StartResearchButton } from "../start-research-button";
 
@@ -36,6 +37,8 @@ type EmptyStateProps = {
   projectId?: string;
   /** Whether the current user can trigger research (UPDATE permission). */
   canEdit?: boolean;
+  /** A run is being started server-side but has no record yet. */
+  isStartPending?: boolean;
 };
 
 const MOCK_FIELDS = [
@@ -156,7 +159,10 @@ function AgentRunningState({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const isActive = status?.hasActiveRun ?? false;
-  const currentStep = status?.currentStep || "Processing...";
+  // No run record yet: the run is still being started server-side.
+  const currentStep =
+    getActiveStep(status, progressMessages) ||
+    (status?.runId ? "Processing..." : "Starting research…");
 
   const elapsedTime = useElapsedTime(
     status?.createdAt,
@@ -251,8 +257,9 @@ export function EmptyState({
   progressMessages = [],
   projectId,
   canEdit,
+  isStartPending,
 }: EmptyStateProps) {
-  if (isAgentRunning) {
+  if (isAgentRunning || isStartPending) {
     return (
       <AgentRunningState status={status} progressMessages={progressMessages} />
     );

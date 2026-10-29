@@ -34,6 +34,7 @@ import {
 } from "@wildfires-org/turboplan-upload/server";
 import { generateUniqueSlug } from "@wildfires-org/turboplan-utils/server";
 
+import { normalizeDocumentProfile } from "../../document-profile";
 import type { MemberWithInheritance, PendingInvitation } from "../../types";
 import { ROLE_LEVEL } from "../constants";
 import { sendMemberAddedNotification } from "../invitations/email";
@@ -334,7 +335,13 @@ officesRouter.put(
         );
       }
 
-      const updateData = validationResult.data;
+      const updateData = {
+        ...validationResult.data,
+        documentProfile:
+          validationResult.data.documentProfile === undefined
+            ? undefined
+            : normalizeDocumentProfile(validationResult.data.documentProfile),
+      };
 
       // Logo fields may only point into our bucket at the caller's own
       // uploads — otherwise the replaced-logo cleanup below could be aimed at

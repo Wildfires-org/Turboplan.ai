@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 
+import { WORKSPACE_URL_PATTERN } from "../config/patterns";
+
 /**
  * Page Object Model for the Invitation acceptance page.
  * Provides methods for interacting with the invitation flow.
@@ -103,7 +105,7 @@ export class TurboplanInvitePage {
   async getEntityName(): Promise<string> {
     // The entity name is shown in the card
     const entityNameElement = this.page
-      .locator(".bg-card")
+      .getByTestId("invitation-details")
       .locator("p.font-medium")
       .first();
     return (await entityNameElement.textContent()) || "";
@@ -115,7 +117,7 @@ export class TurboplanInvitePage {
   async getInviterName(): Promise<string> {
     // The inviter name is shown in the card
     const inviterElement = this.page
-      .locator(".bg-card")
+      .getByTestId("invitation-details")
       .locator("p.font-medium")
       .nth(1);
     return (await inviterElement.textContent()) || "";
@@ -127,7 +129,7 @@ export class TurboplanInvitePage {
   async getRole(): Promise<string> {
     // The role is shown at the bottom of the card
     const roleElement = this.page
-      .locator(".bg-card")
+      .getByTestId("invitation-details")
       .locator("span.capitalize")
       .first();
     return (await roleElement.textContent()) || "";
@@ -169,7 +171,10 @@ export class TurboplanInvitePage {
    * @param expectedUrlPattern - URL pattern to wait for after acceptance
    */
   async waitForAcceptanceRedirect(
-    expectedUrlPattern: RegExp = /\/(setup|organizations|$)/,
+    // Home, setup, or any workspace page.
+    expectedUrlPattern: RegExp = new RegExp(
+      `^https?://[^/]+/(?:setup(?:[/?#].*)?)?$|${WORKSPACE_URL_PATTERN.source}`,
+    ),
   ): Promise<void> {
     // Wait for redirect away from the invite page
     await this.page.waitForURL((url) => !url.pathname.startsWith("/invite"), {

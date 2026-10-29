@@ -6,11 +6,17 @@ type RequestInput = {
   body: unknown;
 };
 
+/** How a run ended, as reported to the target with the final progress message. */
+export type ProgressRunOutcome = "completed" | "failed" | "cancelled";
+
 type ProgressInput = {
   targetApiUrl: string;
   webhookSecret: string;
   runId: string;
   message: string;
+  // Final message only: lets the target finish the run immediately instead of
+  // waiting for its own status reconcile. Targets that predate it ignore it.
+  status?: ProgressRunOutcome;
 };
 
 export type TargetApiClient = {
@@ -56,7 +62,12 @@ export const createTargetApiClient = (): TargetApiClient => {
     await request({
       url,
       webhookSecret: input.webhookSecret,
-      body: { runId: input.runId, message: input.message },
+      // JSON.stringify drops an undefined status, so ordinary progress is unchanged.
+      body: {
+        runId: input.runId,
+        message: input.message,
+        status: input.status,
+      },
     });
   };
 

@@ -14,6 +14,7 @@ interface FormData {
   organizationId?: string;
   officeId?: string;
   attribution?: SignupAttribution;
+  landingUploadKeys?: string[];
 }
 
 export function useFormSubmit({
@@ -31,6 +32,7 @@ export function useFormSubmit({
       organizationId,
       officeId,
       attribution,
+      landingUploadKeys,
     } = formData;
 
     setIsSubmitting(true);
@@ -43,6 +45,7 @@ export function useFormSubmit({
         organizationId,
         officeId,
         attribution,
+        landingUploadKeys,
       },
       isAuthenticated,
       {

@@ -1,12 +1,15 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { PATHNAME_HEADER } from "@wildfires-org/turboplan-utils/server";
+import {
+  PATHNAME_HEADER,
+  SEARCH_HEADER,
+} from "@wildfires-org/turboplan-utils/server";
 
 /**
  * Handles redirect when an entity is accessed via a historical slug.
  * Preserves the full path by extracting the suffix after the old base path
- * and appending it to the new redirect URL.
+ * and appending it, plus the query string, to the new redirect URL.
  *
  * @param redirectTo - The new base URL to redirect to (from validation result)
  * @param oldBasePath - The old base path to extract suffix from
@@ -23,5 +26,8 @@ export async function handleSlugRedirect(
   const pathSuffix = currentPath.startsWith(oldBasePath)
     ? currentPath.slice(oldBasePath.length)
     : "";
-  redirect(redirectTo + pathSuffix);
+  // Old links (e.g. legacy `/organizations/…?view=gantt` emails) carry state
+  // in the query; keep it across the slug hop.
+  const search = headersList.get(SEARCH_HEADER) || "";
+  redirect(redirectTo + pathSuffix + search);
 }

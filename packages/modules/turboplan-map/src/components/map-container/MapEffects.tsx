@@ -28,6 +28,7 @@ export function TileLayerChanger({ mapType }: { mapType: string }) {
     });
 
     tileLayer.addTo(map);
+    map.getContainer().style.background = currentMapType.background;
   }, [map, mapType]);
 
   return null;

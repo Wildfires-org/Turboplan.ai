@@ -15,6 +15,9 @@ export interface Suggestion {
 interface SuggestionPillsProps {
   suggestions: Suggestion[];
   isLoading?: boolean;
+  /** More suggestions are on their way: a placeholder pill trails the row and
+   * pills added meanwhile fade in. */
+  isStreaming?: boolean;
   disabled?: boolean;
   onSuggestionClick?: (content: string) => void;
 }
@@ -27,9 +30,20 @@ const PILL_CLASS = cn(
   "inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-medium text-slate-900 transition-[transform,background-color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-white/90 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 motion-reduce:active:scale-100 dark:text-white dark:hover:bg-white/10",
 );
 
+// Enter for a pill that arrives while streaming: fade + 8px slide from the
+// left, on the pill's own 200ms ease-out. Reduced motion keeps only the fade.
+const PILL_ENTER_CLASS =
+  "animate-in fade-in-0 slide-in-from-left-2 motion-reduce:slide-in-from-left-0";
+
+const SKELETON_PILL_CLASS = cn(
+  GLASS_CLASS,
+  "h-8 shrink-0 animate-pulse rounded-full motion-reduce:animate-none",
+);
+
 export const SuggestionPills = ({
   suggestions,
   isLoading = false,
+  isStreaming = false,
   disabled = false,
   onSuggestionClick,
 }: SuggestionPillsProps) => {
@@ -39,13 +53,7 @@ export const SuggestionPills = ({
     return (
       <div aria-hidden className="flex items-center gap-2 overflow-hidden">
         {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className={cn(
-              GLASS_CLASS,
-              "h-8 w-40 shrink-0 animate-pulse rounded-full motion-reduce:animate-none",
-            )}
-          />
+          <div key={i} className={cn(SKELETON_PILL_CLASS, "w-40")} />
         ))}
       </div>
     );
@@ -69,22 +77,21 @@ export const SuggestionPills = ({
     <div className="flex items-center gap-2">
       {/* Row fades out on the right with a mask, so it blends into whatever
           surface it sits on. */}
-      <div className="flex min-w-0 flex-1 gap-2 -my-1 -ml-1 overflow-x-clip px-1 py-1 [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]">
+      <div
+        aria-busy={isStreaming || undefined}
+        className="flex min-w-0 flex-1 gap-2 -my-1 -ml-1 overflow-x-clip px-1 py-1 [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]"
+      >
         {suggestions.map((suggestion) => (
-          <button
+          <SuggestionPill
             key={suggestion.label}
-            type="button"
-            onClick={() => onSuggestionClick?.(suggestion.content)}
-            className={PILL_CLASS}
-          >
-            {suggestion.emoji && (
-              <span aria-hidden className="shrink-0 text-sm">
-                {suggestion.emoji}
-              </span>
-            )}
-            {suggestion.label}
-          </button>
+            suggestion={suggestion}
+            shouldAnimateIn={isStreaming}
+            onSuggestionClick={onSuggestionClick}
+          />
         ))}
+        {isStreaming && (
+          <div aria-hidden className={cn(SKELETON_PILL_CLASS, "w-24")} />
+        )}
       </div>
 
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -131,5 +138,37 @@ export const SuggestionPills = ({
         </PopoverContent>
       </Popover>
     </div>
+  );
+};
+
+interface SuggestionPillProps {
+  suggestion: Suggestion;
+  shouldAnimateIn: boolean;
+  onSuggestionClick?: (content: string) => void;
+}
+
+const SuggestionPill = ({
+  suggestion,
+  shouldAnimateIn,
+  onSuggestionClick,
+}: SuggestionPillProps) => {
+  // Decided once, on mount: pills already on screen never pick up the enter
+  // class (adding it later would replay the animation), and a pill that
+  // animated in keeps it after the stream ends.
+  const [isEntering] = useState(shouldAnimateIn);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSuggestionClick?.(suggestion.content)}
+      className={cn(PILL_CLASS, isEntering && PILL_ENTER_CLASS)}
+    >
+      {suggestion.emoji && (
+        <span aria-hidden className="shrink-0 text-sm">
+          {suggestion.emoji}
+        </span>
+      )}
+      {suggestion.label}
+    </button>
   );
 };

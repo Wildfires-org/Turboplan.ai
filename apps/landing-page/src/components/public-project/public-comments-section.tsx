@@ -7,6 +7,7 @@ import Link from "next/link";
 import useSWR from "swr";
 
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
+import { useSession } from "@wildfires-org/turboplan-auth/client";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import {
   type CommentData,
@@ -15,6 +16,8 @@ import {
   getCommentCount,
 } from "@wildfires-org/turboplan-utils";
 
+import { useSessionLoaded } from "@/components/providers/client-session-provider";
+import { cn } from "@/lib/utils";
 import { PublicModuleSection } from "./public-module-section";
 
 const { SERVER_URL, TURBOPLAN_URL } = getLandingPageEnv();
@@ -28,7 +31,6 @@ interface PublicCommentsSectionProps {
   officeSlug: string;
   projectSlug: string;
   initialComments: CommentData[];
-  sessionUser: { id: string } | null;
 }
 
 const apiClient = new ApiClient({ baseUrl: SERVER_URL });
@@ -74,11 +76,14 @@ export function PublicCommentsSection({
   officeSlug,
   projectSlug,
   initialComments,
-  sessionUser,
 }: PublicCommentsSectionProps) {
   const [isPolling, setIsPolling] = useState(false);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isLoggedIn = !!sessionUser;
+  // The page is rendered without cookies; the session loads in the browser.
+  const session = useSession();
+  const isSessionLoaded = useSessionLoaded();
+  const sessionUserId = session?.user.id ?? null;
+  const isLoggedIn = !!sessionUserId;
 
   // Clean up polling timeout on unmount
   useEffect(() => {
@@ -89,8 +94,12 @@ export function PublicCommentsSection({
     };
   }, []);
 
+  // Wait for the session so a signed-in visitor's first fetch carries their
+  // token (their private comments); until then the server's comments show.
   const { data: comments, mutate } = useSWR(
-    ["public-comments", orgSlug, officeSlug, projectSlug, isLoggedIn],
+    isSessionLoaded
+      ? ["public-comments", orgSlug, officeSlug, projectSlug, isLoggedIn]
+      : null,
     () => fetchPublicComments(orgSlug, officeSlug, projectSlug, isLoggedIn),
     {
       fallbackData: initialComments,
@@ -120,7 +129,9 @@ export function PublicCommentsSection({
 
   const handleCreateComment = useCallback(
     async (content: string) => {
-      if (!sessionUser) return;
+      if (!isLoggedIn) {
+        return;
+      }
 
       const { error } = await apiClient.post<CommentData>(
         `/api/public/projects/${orgSlug}/${officeSlug}/${projectSlug}/comments`,
@@ -138,12 +149,14 @@ export function PublicCommentsSection({
       // Start polling to catch the auto-response when it's generated
       startPolling();
     },
-    [orgSlug, officeSlug, projectSlug, sessionUser, mutate, startPolling],
+    [orgSlug, officeSlug, projectSlug, isLoggedIn, mutate, startPolling],
   );
 
   const handleReply = useCallback(
     async (parentCommentId: string, content: string) => {
-      if (!sessionUser) return;
+      if (!isLoggedIn) {
+        return;
+      }
 
       const { error } = await apiClient.post<CommentData>(
         `/api/public/projects/${orgSlug}/${officeSlug}/${projectSlug}/comments`,
@@ -158,11 +171,11 @@ export function PublicCommentsSection({
       // Refresh to show the new reply
       await mutate();
     },
-    [orgSlug, officeSlug, projectSlug, sessionUser, mutate],
+    [orgSlug, officeSlug, projectSlug, isLoggedIn, mutate],
   );
 
   const permissions: CommentPermissions = {
-    currentUserId: sessionUser?.id ?? null,
+    currentUserId: sessionUserId,
     canModerate: false,
   };
 
@@ -185,8 +198,15 @@ export function PublicCommentsSection({
           withAccordion={false}
         />
 
+        {/* Hidden, not absent, until the session settles: no flash for a
+            signed-in visitor, no layout shift for a signed-out one. */}
         {!isLoggedIn && (
-          <p className="flex flex-wrap items-center justify-center gap-x-1.5 rounded-xl bg-brandAlt-100 px-4 py-4 text-center font-inter text-[14px] leading-[20px] text-egray-700">
+          <p
+            className={cn(
+              "flex flex-wrap items-center justify-center gap-x-1.5 rounded-xl bg-brandAlt-100 px-4 py-4 text-center font-inter text-[14px] leading-[20px] text-egray-700",
+              !isSessionLoaded && "invisible",
+            )}
+          >
             <Link
               href={`${TURBOPLAN_URL}/login`}
               className="font-medium text-brand-800 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700"

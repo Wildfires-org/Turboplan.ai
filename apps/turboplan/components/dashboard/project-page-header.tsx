@@ -154,6 +154,7 @@ export function ProjectPageHeader({
       <EntityBannerShell
         coverImageUrl={coverImageUrl?.trim() || DEFAULT_COVER_URL}
         logo={projectAvatar}
+        compactCover={readOnly}
         coverOverlay={
           isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-950/35">
@@ -176,6 +177,7 @@ export function ProjectPageHeader({
           isPersonalWorkspace={organization.type === OrganizationType.PERSONAL}
           headerActions={readOnly ? null : undefined}
           showMembers={!readOnly}
+          hideDescriptionOnMobile={readOnly}
           membersHref={membersHref}
           extraActions={readOnly ? null : extraActions}
           progressSlot={

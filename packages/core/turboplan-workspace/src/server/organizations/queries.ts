@@ -12,14 +12,19 @@ import {
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { EntityType, MemberRole } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
-import {
-  generateSlug,
-  generateUniqueSlug,
-  isValidSlug,
-} from "@wildfires-org/turboplan-utils/server";
+import { isValidSlug } from "@wildfires-org/turboplan-utils/server";
 
+import {
+  type DocumentProfile,
+  normalizeDocumentProfile,
+} from "../../document-profile";
+import {
+  type LetterheadLayout,
+  normalizeLetterheadColor,
+} from "../../letterhead";
 import type { SlugLookupResult } from "../../types";
 import { emitWorkspaceAnalytics } from "../analytics";
+import { assertSlugNotReserved, generateAvailableSlug } from "../slug-policy";
 import type { OfficeWithAccess, OrganizationWithOffices } from "./types";
 
 export async function getOrganizationById(
@@ -101,22 +106,12 @@ async function isOrganizationSlugTaken(
 
 /**
  * Generate a unique slug for an organization
- * If the base slug is taken, appends a short unique ID
+ * If the base slug is taken or reserved, appends a short unique ID
  */
 async function generateUniqueOrganizationSlug(name: string): Promise<string> {
-  const baseSlug = generateSlug(name);
-
-  if (!baseSlug) {
-    return generateUniqueSlug(name);
-  }
-
-  const isTaken = await isOrganizationSlugTaken(baseSlug);
-  if (!isTaken) {
-    return baseSlug;
-  }
-
-  // Slug is taken, generate unique one
-  return generateUniqueSlug(name);
+  return generateAvailableSlug("organization", name, (slug) =>
+    isOrganizationSlugTaken(slug),
+  );
 }
 
 /**
@@ -231,6 +226,9 @@ export async function createOrganization({
 }): Promise<Organization> {
   try {
     const now = new Date();
+    if (slug) {
+      assertSlugNotReserved("organization", slug);
+    }
     // Generate slug from name if not provided
     const finalSlug = slug || (await generateUniqueOrganizationSlug(name));
 
@@ -288,6 +286,11 @@ export async function updateOrganization({
   documentFooterText,
   documentFooterNote,
   documentFooterLogoUrl,
+  documentLetterheadLayout,
+  documentLetterheadLines,
+  documentLetterheadContact,
+  documentLetterheadColor,
+  documentProfile,
 }: {
   id: string;
   name?: string;
@@ -303,11 +306,19 @@ export async function updateOrganization({
   documentFooterText?: string;
   documentFooterNote?: string;
   documentFooterLogoUrl?: string;
+  documentLetterheadLayout?: LetterheadLayout | "";
+  documentLetterheadLines?: string;
+  documentLetterheadContact?: string;
+  documentLetterheadColor?: string;
+  documentProfile?: DocumentProfile | null;
 }): Promise<unknown> {
   try {
     // Validate slug format if provided
     if (newSlug !== undefined && !isValidSlug(newSlug)) {
       throw new Error(`Invalid slug format: "${newSlug}"`);
+    }
+    if (newSlug !== undefined) {
+      assertSlugNotReserved("organization", newSlug);
     }
 
     // Use transaction to prevent race conditions during slug updates
@@ -336,6 +347,23 @@ export async function updateOrganization({
       }
       if (documentFooterLogoUrl !== undefined) {
         updateData.documentFooterLogoUrl = documentFooterLogoUrl;
+      }
+      if (documentLetterheadLayout !== undefined) {
+        updateData.documentLetterheadLayout = documentLetterheadLayout || null;
+      }
+      if (documentLetterheadLines !== undefined) {
+        updateData.documentLetterheadLines = documentLetterheadLines;
+      }
+      if (documentLetterheadContact !== undefined) {
+        updateData.documentLetterheadContact = documentLetterheadContact;
+      }
+      if (documentLetterheadColor !== undefined) {
+        updateData.documentLetterheadColor = normalizeLetterheadColor(
+          documentLetterheadColor,
+        );
+      }
+      if (documentProfile !== undefined) {
+        updateData.documentProfile = normalizeDocumentProfile(documentProfile);
       }
 
       // Handle slug change with history tracking

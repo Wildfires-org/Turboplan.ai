@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Terminal } from "lucide-react";
 
-import { getAppEnv } from "@wildfires-org/turboplan-env";
+import { isLocalDevelopment } from "@wildfires-org/turboplan-env";
 import {
   Button,
   Dialog,
@@ -26,7 +26,11 @@ export function SystemPromptDebug({
   const [prompt, setPrompt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  if (getAppEnv() === "production") return null;
+  // Same gate as /api/debug/system-prompt, which only answers in local
+  // development: anywhere else the button could only show an error.
+  if (!isLocalDevelopment()) {
+    return null;
+  }
 
   const handleOpen = async () => {
     setOpen(true);

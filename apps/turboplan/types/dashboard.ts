@@ -4,7 +4,7 @@
  * These types define the parameter structure for different levels
  * of the dashboard hierarchy using slug-based URLs.
  *
- * URL structure: /organizations/{orgSlug}/offices/{officeSlug}/projects/{projectSlug}
+ * URL structure: /{orgSlug}/{officeSlug}/{projectSlug}
  */
 
 export interface OrganizationParams {

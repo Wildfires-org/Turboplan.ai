@@ -1,0 +1,16 @@
+diff --git a/cf/polyfills.js b/cf/polyfills.js
+index 53c5203dd5b057d741d14d708ba83b27751b527c..0367b29dadcebf31782c544a2ef8f245ddb5be89 100644
+--- a/cf/polyfills.js
++++ b/cf/polyfills.js
+@@ -211,7 +211,10 @@ function Socket() {
+   }
+ 
+   function error(err) {
+-    tcp.emit('error', err)
++    // After 'close' the connection has removed its listeners, so a late read
++    // failure (e.g. "This socket has been closed." from our own end()) must not
++    // be emitted: EventEmitter would throw it as an unhandled rejection.
++    tcp.listenerCount('error') && tcp.emit('error', err)
+     tcp.emit('close')
+   }
+ }

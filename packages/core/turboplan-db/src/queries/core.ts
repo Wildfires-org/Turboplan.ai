@@ -402,6 +402,42 @@ export async function saveMessages({
   }
 }
 
+/**
+ * Inserts an assistant message or, if it already exists, replaces its parts.
+ * Used to checkpoint a streaming reply as it progresses.
+ *
+ * The update only applies to an existing assistant message in the same chat:
+ * the id can come from the client (a continued assistant message), so it must
+ * never let a request overwrite a message in another chat or a user message.
+ */
+export const upsertAssistantMessage = async ({
+  message: assistantMessage,
+}: {
+  message: DBMessage;
+}) => {
+  try {
+    await db
+      .insert(message)
+      .values(assistantMessage)
+      .onConflictDoUpdate({
+        target: message.id,
+        set: { parts: assistantMessage.parts },
+        setWhere: and(
+          eq(message.chatId, assistantMessage.chatId),
+          eq(message.role, "assistant"),
+        ),
+      });
+
+    await db
+      .update(chat)
+      .set({ updatedAt: new Date() })
+      .where(eq(chat.id, assistantMessage.chatId));
+  } catch (error) {
+    console.error("Failed to upsert assistant message in database", error);
+    throw error;
+  }
+};
+
 export async function getMessagesByChatId({ id }: { id: string }) {
   try {
     return await db
@@ -422,6 +458,7 @@ export async function saveDocument({
   content,
   userId,
   chatId,
+  createdAt = new Date(),
 }: {
   id: string;
   title: string;
@@ -429,6 +466,8 @@ export async function saveDocument({
   content: string;
   userId: string;
   chatId?: string;
+  /** Version timestamp; pass it to update this version later. */
+  createdAt?: Date;
 }) {
   try {
     return await db.insert(document).values({
@@ -438,13 +477,37 @@ export async function saveDocument({
       content,
       userId,
       chatId,
-      createdAt: new Date(),
+      createdAt,
     });
   } catch (error) {
     console.error("Failed to save document in database");
     throw error;
   }
 }
+
+/**
+ * Overwrites the content of one existing document version, identified by its
+ * (id, createdAt) primary key, without adding a new version row.
+ */
+export const updateDocumentVersionContent = async ({
+  id,
+  createdAt,
+  content,
+}: {
+  id: string;
+  createdAt: Date;
+  content: string;
+}) => {
+  try {
+    return await db
+      .update(document)
+      .set({ content })
+      .where(and(eq(document.id, id), eq(document.createdAt, createdAt)));
+  } catch (error) {
+    console.error("Failed to update document version in database");
+    throw error;
+  }
+};
 
 export async function getDocumentsById({ id }: { id: string }) {
   try {

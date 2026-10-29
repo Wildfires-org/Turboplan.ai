@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { generateObject, getModel } from "@wildfires-org/turboplan-ai/server";
-import { getPrompt } from "@wildfires-org/turboplan-ai/services";
 import {
-  meterAiCall,
-  resolveBillingOrgForProject,
-} from "@wildfires-org/turboplan-billing/server";
-import { chat, type DBMessage } from "@wildfires-org/turboplan-db";
+  getModel,
+  Output,
+  streamText,
+} from "@wildfires-org/turboplan-ai/server";
+import { getPrompt } from "@wildfires-org/turboplan-ai/services";
+import { meterAiCall } from "@wildfires-org/turboplan-billing/server";
+import type { DBMessage } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import {
   createProjectDocument,
@@ -16,18 +16,24 @@ import {
   getProjectDocumentsByProjectId,
 } from "@wildfires-org/turboplan-db/queries";
 import type { ResearchAgentMessage as DbResearchAgentMessage } from "@wildfires-org/turboplan-db/schemas";
+import { isProjectContextPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 import {
   getProjectContextByProjectId,
   insertProjectContext,
 } from "@wildfires-org/turboplan-project-context/server";
 import { createTimelineRecordOrThrow } from "@wildfires-org/turboplan-timeline-records/server";
 import { uploadFile } from "@wildfires-org/turboplan-upload/server";
-import { getProjectById } from "@wildfires-org/turboplan-workspace/server";
+import {
+  getOrganizationContextForProject,
+  getProjectById,
+  ORG_CONTEXT_RESEARCH_BUDGET,
+  ORG_CONTEXT_RESEARCH_MEMORIES_MAX_CHARS,
+  ORG_CONTEXT_RESEARCH_PROMPT_MAX_CHARS,
+} from "@wildfires-org/turboplan-workspace/server";
 
 import { isDownloadableDocument } from "../../document-preview-utils";
 import {
   type ContextItem,
-  DEFAULT_SUGGESTION_TEMPLATES,
   type DocumentItem,
   type FieldItem,
   type MilestoneItem,
@@ -47,20 +53,30 @@ import {
 } from "../document-utils";
 import { getResearchAgentClient } from "../external-client";
 import {
+  getDraftedDocumentTitlesByChatId,
   getExistingMilestoneIds,
   getExistingTaskIds,
   getNewChatMessagesSince,
   getProjectFieldsByProjectId,
+  getProjectMilestonesWithTasks,
+  getRecentUserMessagePartsByChatId,
   getResearchAgentMessageByIdAndProjectId,
   insertMilestonesWithTasks,
   insertProjectFields,
   updateLastForwardedAt,
+  updateResearchAgentChatByExternalId,
   updateResearchAgentChatExternalId,
   updateResearchAgentChatStatus,
   updateResearchAgentMessageData,
   upsertSuggestionsMessage,
 } from "../repository";
 import { describeUrlForLog, safeFetch } from "../safe-fetch";
+import {
+  buildProjectSuggestionPromptVariables,
+  extractMessageText,
+  type ProjectSuggestionInputs,
+} from "./suggestion-inputs";
+import { acceptSuggestion } from "./suggestion-items";
 
 // ---------------------------------------------------------------------------
 // Format chat messages for research agent context
@@ -108,13 +124,17 @@ export function formatChatMessagesForResearchAgent(
 // Gather additional project context for the research agent start prompt
 // ---------------------------------------------------------------------------
 
-// Per-section character budgets. Their sum plus template overhead and
-// sanitizePromptValue expansion is kept comfortably under MAX_START_PROMPT_CHARS
-// so the assembled start prompt clears the external service's hard 10k limit.
+// Per-section character budgets. With every project section full the assembled
+// start prompt is ~18.4k chars, under the external service's hard 20k limit
+// (MAX_START_PROMPT_CHARS). The organization block (up to
+// ORG_CONTEXT_RESEARCH_BUDGET) can push that case ~1.3k over; the trim loop in
+// startResearchAgent then takes the difference from documents.
+// Uploaded documents get the largest share: a user's own scope/proposal lets
+// the agent skip web research for facts it would otherwise rediscover.
 const MAX_FIELDS_CHARS = 800;
 const MAX_CONTEXT_CHARS = 1800;
 const MAX_DOCUMENTS = 5;
-const MAX_DOCUMENTS_TOTAL_CHARS = 3600;
+const MAX_DOCUMENTS_TOTAL_CHARS = 12_000;
 
 const TRUNCATION_MARKER = "\n[truncated]";
 
@@ -238,11 +258,13 @@ async function gatherProjectDocumentsForResearchAgent(
     );
 
     const blocks: string[] = [];
+    const omittedFilenames: string[] = [];
     let totalChars = 0;
 
     for (const doc of recentDocuments) {
       if (totalChars >= MAX_DOCUMENTS_TOTAL_CHARS) {
-        break;
+        omittedFilenames.push(doc.originalFilename);
+        continue;
       }
 
       const extraction = extractionById.get(doc.id);
@@ -261,7 +283,8 @@ async function gatherProjectDocumentsForResearchAgent(
       const header = `## ${doc.originalFilename}\n`;
       const remaining = MAX_DOCUMENTS_TOTAL_CHARS - totalChars - header.length;
       if (remaining <= 0) {
-        break;
+        omittedFilenames.push(doc.originalFilename);
+        continue;
       }
 
       const isTruncated = text.length > remaining;
@@ -273,10 +296,52 @@ async function gatherProjectDocumentsForResearchAgent(
       totalChars += block.length;
     }
 
-    return blocks.length > 0 ? blocks.join("\n\n") : "N/A";
+    if (blocks.length === 0) {
+      return "N/A";
+    }
+    // Tell the agent more material exists, so a missing section is not read
+    // as "the uploads don't cover this".
+    const omittedNote =
+      omittedFilenames.length > 0
+        ? `\n\n[truncated: ${omittedFilenames.length} more uploaded document(s) omitted for length: ${omittedFilenames.join(", ")}]`
+        : "";
+    return `${blocks.join("\n\n")}${omittedNote}`;
   } catch (error) {
     console.error(
       "[bootstrapper] Failed to gather project documents for research agent:",
+      error,
+    );
+    return "N/A";
+  }
+}
+
+/**
+ * The owning organization's budgeted context block (guidance, saved notes and
+ * document key facts), at most {@link ORG_CONTEXT_RESEARCH_BUDGET} chars. No read-tool hint:
+ * the research agent cannot open organization documents. No separate READ
+ * check: starting a run needs project UPDATE, which implies organization READ.
+ * Never throws — any failure degrades to "N/A" so it can't fail or delay the
+ * research run.
+ */
+async function gatherOrganizationContextForResearchAgent(
+  projectId: string,
+): Promise<string> {
+  if (!isProjectContextPackageEnabled()) {
+    return "N/A";
+  }
+  try {
+    const organizationContext = await getOrganizationContextForProject(
+      projectId,
+      {
+        budgetChars: ORG_CONTEXT_RESEARCH_BUDGET,
+        promptMaxChars: ORG_CONTEXT_RESEARCH_PROMPT_MAX_CHARS,
+        memoriesMaxChars: ORG_CONTEXT_RESEARCH_MEMORIES_MAX_CHARS,
+      },
+    );
+    return organizationContext?.block ?? "N/A";
+  } catch (error) {
+    console.error(
+      "[bootstrapper] Failed to gather organization context for research agent:",
       error,
     );
     return "N/A";
@@ -292,11 +357,11 @@ async function gatherProjectDocumentsForResearchAgent(
 const sanitizePromptValue = (value: string): string =>
   value.replace(/<\//g, "&lt;/");
 
-// Mirrors the external research-agent service's hard limit: it rejects any start
-// request whose `prompt` exceeds 10,000 characters (server-side, not
-// configurable from this repo). All per-section caps and the final guard below
-// exist to keep the assembled prompt under this ceiling.
-const MAX_START_PROMPT_CHARS = 10_000;
+// Mirrors the research-agent service's hard limit (MAX_PROMPT_LENGTH in
+// apps/research-agent/src/http/validation.ts): it rejects any start request
+// whose `prompt` exceeds 20,000 characters. All per-section caps and the final
+// guard below exist to keep the assembled prompt under this ceiling.
+const MAX_START_PROMPT_CHARS = 20_000;
 const MAX_NAME_CHARS = 200;
 const MAX_DESCRIPTION_CHARS = 800;
 
@@ -336,17 +401,21 @@ export const startResearchAgent = async ({
 
     // Gather DB-backed project data in parallel. Each gatherer degrades to
     // "N/A" on failure and never throws, so this can't fail or delay the run.
-    const [projectFields, projectContext, projectDocuments] = await Promise.all(
-      [
-        gatherProjectFieldsForResearchAgent(projectId),
-        gatherProjectContextForResearchAgent(projectId),
-        gatherProjectDocumentsForResearchAgent(projectId),
-      ],
-    );
+    const [
+      projectFields,
+      projectContext,
+      projectDocuments,
+      organizationContext,
+    ] = await Promise.all([
+      gatherProjectFieldsForResearchAgent(projectId),
+      gatherProjectContextForResearchAgent(projectId),
+      gatherProjectDocumentsForResearchAgent(projectId),
+      gatherOrganizationContextForResearchAgent(projectId),
+    ]);
 
     // Apply per-section budgets, then sanitize at the choke point. (Fields,
-    // context, documents and conversation are already capped by their gatherers;
-    // name and description are capped here.)
+    // context, documents, conversation and organization context are already
+    // capped by their gatherers; name and description are capped here.)
     const cappedName = projectName.slice(0, MAX_NAME_CHARS);
     const cappedDescription = capValueToBudget(
       projectDescription ?? "N/A",
@@ -365,6 +434,7 @@ export const startResearchAgent = async ({
         projectContext: sanitizePromptValue(projectContext),
         projectDocuments: sanitizePromptValue(documentsValue),
         recentConversation: sanitizePromptValue(conversationValue),
+        organizationContext: sanitizePromptValue(organizationContext),
       });
 
     let documentsValue = projectDocuments;
@@ -461,7 +531,9 @@ export const startResearchAgent = async ({
 /**
  * If the external agent finished but our DB still shows "active",
  * reconcile the DB and return the updated status/step.
- * Returns null when no reconciliation was needed.
+ * Returns null when nothing was written: the agent is still running, or the
+ * row is already terminal (cancelled, or finished by a webhook) or was reset
+ * by a retry.
  */
 export async function reconcileExternalStatus(
   chatId: string,
@@ -490,16 +562,24 @@ export async function reconcileExternalStatus(
         ? "Analysis complete"
         : `Agent ${externalStatus.status}: ${externalStatus.lastError ?? "unknown error"}`;
 
-    await updateResearchAgentChatStatus({
-      chatId,
+    // Runs on every progress webhook as well as the status poll, so it can land
+    // after a cancel or a retry. Scope the write to this run and skip terminal
+    // rows: a by-chat write would turn CANCELLED into FAILED, or fail the
+    // retried run (a retry clears externalRunId, so this misses it).
+    const updated = await updateResearchAgentChatByExternalId({
+      externalRunId,
       status: reconciledStatus,
       currentStep: reconciledStep,
     });
 
+    if (!updated) {
+      return null;
+    }
+
     return { status: reconciledStatus, currentStep: reconciledStep };
   } catch (error) {
     console.error(
-      "[bootstrapper-fallback] Failed to check external status:",
+      `[bootstrapper-fallback] Failed to check external status for chat ${chatId}:`,
       error,
     );
     return null;
@@ -1360,109 +1440,187 @@ export async function saveTimelineToProject(
 }
 
 // ---------------------------------------------------------------------------
-// Generate suggestions from milestones (fire-and-forget)
+// Generate project next-step suggestions (chips under the chat input)
 // ---------------------------------------------------------------------------
 
 const suggestionItemSchema = z.object({
   label: z
     .string()
     .describe(
-      "Short action chip label, 2-5 words, e.g. 'Draft Scoping Letter'",
+      "Chip label, at most 4 words, imperative and specific to the deliverable",
     ),
   content: z
     .string()
     .describe(
-      "Short imperative sentence to send as chat message, max 10-15 words, e.g. 'Draft a scoping letter for the project'",
+      "Full instruction sent as the chat message: names the project and the exact deliverable, 1-2 sentences",
     ),
   emoji: z
     .string()
-    .describe(
-      "Single emoji representing the action, e.g. '📝' for drafting, '🔍' for analysis, '📊' for reports",
-    ),
+    .describe("Single emoji for the action, unique across all chips"),
 });
 
-/** chat → project → org, for attributing the local chip generation. */
-const resolveBillingOrgForProjectByChatId = async (
-  chatId: string,
-): Promise<string | null> => {
-  const [row] = await db
-    .select({ projectId: chat.projectId })
-    .from(chat)
-    .where(eq(chat.id, chatId))
-    .limit(1);
-  if (!row?.projectId) {
-    return null;
+/**
+ * Resolve to an empty list (and log) when an optional input fails to load, so
+ * one broken source never blocks suggestion generation.
+ */
+const loadOrEmpty = async <T>(label: string, load: Promise<T[]>) => {
+  try {
+    return await load;
+  } catch (error) {
+    console.error(
+      `[bootstrapper] Failed to load ${label} for suggestions:`,
+      error,
+    );
+    return [] as T[];
   }
-  return resolveBillingOrgForProject(row.projectId);
 };
 
-export const generateSuggestionsFromMilestones = async ({
+/**
+ * Collect the project's saved data. Unsaved research proposals are
+ * deliberately left out: chips are built when the user completes the research
+ * phase, from what they chose to keep. Chat activity (drafted documents,
+ * recent requests) comes only from the chat the chips belong to, since other
+ * members' chats are private.
+ */
+const gatherProjectSuggestionInputs = async (
+  projectId: string,
+  chatId: string,
+): Promise<ProjectSuggestionInputs> => {
+  const project = await getProjectById(projectId);
+  if (!project) {
+    throw new Error(`Project ${projectId} not found`);
+  }
+
+  const [
+    savedFields,
+    savedContext,
+    documents,
+    savedMilestones,
+    draftedDocumentTitles,
+    userMessageParts,
+  ] = await Promise.all([
+    loadOrEmpty("fields", getProjectFieldsByProjectId(projectId)),
+    loadOrEmpty("context", getProjectContextByProjectId(projectId)),
+    loadOrEmpty("documents", getProjectDocumentsByProjectId(projectId)),
+    loadOrEmpty("milestones", getProjectMilestonesWithTasks(projectId)),
+    loadOrEmpty("drafted documents", getDraftedDocumentTitlesByChatId(chatId)),
+    loadOrEmpty("recent messages", getRecentUserMessagePartsByChatId(chatId)),
+  ]);
+
+  return {
+    projectName: project.name,
+    projectDescription: project.description,
+    projectPrompt: project.prompt,
+    fields: savedFields.map((field) => ({
+      label: field.name,
+      value: (field.values ?? []).filter(Boolean).join(", "),
+    })),
+    context: savedContext.map((entry) => ({
+      label: entry.label,
+      content: entry.content ?? "",
+    })),
+    documentTitles: documents.map((doc) => doc.originalFilename),
+    milestones: savedMilestones,
+    draftedDocumentTitles,
+    recentUserRequests: userMessageParts.map(extractMessageText),
+  };
+};
+
+/**
+ * Thrown when the model finished but none of its chips was accepted. The
+ * message is safe to show the user.
+ */
+export class NoUsableSuggestionsError extends Error {
+  constructor() {
+    super("Model returned no usable suggestions");
+  }
+}
+
+/**
+ * Generate the project's next-step chips from its framework, data and progress,
+ * handing each accepted chip to `onChip` as soon as the model completes it,
+ * then store the full set as the chat's `suggestions` research-agent message
+ * (replacing any previous set). Throws on failure and leaves the stored set
+ * untouched; chips already handed to `onChip` are then void.
+ *
+ * `billingOrgId` is the org the caller already resolved for its credit gate.
+ */
+export const streamProjectSuggestions = async ({
+  projectId,
   chatId,
   researchAgentChatId,
-  milestones,
-  projectName,
+  billingOrgId,
+  onChip,
 }: {
+  projectId: string;
   chatId: string;
   researchAgentChatId: string;
-  milestones: MilestoneItem[];
-  projectName: string;
-}): Promise<void> => {
-  try {
-    const result = await generateObject({
-      model: await getModel("lite"),
-      system: `You generate short action chip suggestions for a project chat UI. Rules:
-- label: 2-5 words, imperative verb phrase (e.g. "Draft Scoping Letter", "Write Purpose Statement")
-- content: single short imperative sentence, max 15 words (e.g. "Draft a scoping letter for the project")
-- emoji: single emoji that best represents the action. Every suggestion MUST have a unique emoji — no duplicates. Avoid 📝, 📋, 📄, ⚖️, and 📅 (already used by fixed suggestions). Use varied, descriptive emojis (e.g. "🔍" for analysis, "📊" for reports, "🗺️" for mapping, "🌲" for forestry, "📐" for planning, "🏗️" for construction, "🦅" for wildlife, "💧" for water/watershed).
-- NO questions. NO explanations. Just direct action requests.
-- Order by workflow priority: what needs to happen first comes first.
-- Cover diverse deliverables: consultation letters, resource analyses, surveys, monitoring plans, contracts, and other documents relevant to the milestones.
-- Focus on document creation, planning, and key deliverables from the milestones.`,
-      prompt: `Project: ${projectName}\n\nMilestones and tasks:\n${milestones.map((m) => `- ${m.title}\n${m.tasks.map((t) => `  - ${t.title}`).join("\n")}`).join("\n")}\n\nGenerate 5-8 action chip suggestions. Do NOT generate suggestions for scoping letters, proposed actions, purpose & need, decision memos, or project schedules — those are already included separately.`,
-      output: "array",
-      schema: suggestionItemSchema,
-    });
+  billingOrgId: string | null;
+  onChip: (chip: SuggestionItem) => void;
+}): Promise<SuggestionItem[]> => {
+  const inputs = await gatherProjectSuggestionInputs(projectId, chatId);
+  const system = await getPrompt(
+    "project-next-step-suggestions",
+    buildProjectSuggestionPromptVariables(inputs),
+  );
 
-    // Consume-only: the run itself was flat-charged at start; this local
-    // chip generation is an extra lite call attributed to the same project.
-    const chipBillingOrgId = await resolveBillingOrgForProjectByChatId(chatId);
-    await meterAiCall({
-      billing: chipBillingOrgId ? { organizationId: chipBillingOrgId } : null,
-      source: "research_agent",
-      usage: result.usage,
-      providerMetadata: result.providerMetadata,
-      metadata: { tool: "suggestionChips", researchAgentChatId },
-    });
+  // streamText reports failures through onError instead of throwing.
+  let streamError: unknown;
+  const result = streamText({
+    model: await getModel("lite"),
+    system,
+    prompt: "Generate the next-step chips for this project, most urgent first.",
+    output: Output.array({ element: suggestionItemSchema }),
+    onError: ({ error }) => {
+      streamError ??= error;
+    },
+  });
 
-    const generated = result.object as SuggestionItem[];
+  // Each element is a complete, schema-valid chip, emitted once the model has
+  // moved past it (the last one when the array closes).
+  const suggestions: SuggestionItem[] = [];
+  for await (const item of result.elementStream) {
+    const chip = acceptSuggestion(item, suggestions);
+    if (chip) {
+      suggestions.push(chip);
+      onChip(chip);
+    }
+  }
+  if (streamError !== undefined) {
+    throw streamError;
+  }
 
-    const fixedSuggestions: SuggestionItem[] = DEFAULT_SUGGESTION_TEMPLATES.map(
-      (t) => ({
-        label: t.label,
-        content: t.contentTemplate.replace("{projectName}", projectName),
-        emoji: t.emoji,
-      }),
-    );
+  const [usage, providerMetadata] = await Promise.all([
+    result.totalUsage,
+    result.providerMetadata,
+  ]);
+  // Never throws.
+  const metering = meterAiCall({
+    billing: billingOrgId ? { organizationId: billingOrgId } : null,
+    source: "research_agent",
+    usage,
+    providerMetadata,
+    metadata: { tool: "suggestionChips", researchAgentChatId },
+  });
 
-    const dynamicSuggestions: SuggestionItem[] = generated
-      .slice(0, 8)
-      .map((s) => ({
-        label: s.label,
-        content: s.content,
-        emoji: s.emoji,
-      }));
+  if (suggestions.length === 0) {
+    await metering;
+    throw new NoUsableSuggestionsError();
+  }
 
-    const suggestions = [...fixedSuggestions, ...dynamicSuggestions];
-
-    await upsertSuggestionsMessage({
+  // Independent writes, run together. Both settle before a failed store is
+  // surfaced, since the caller's DB connection closes once this returns.
+  const [, stored] = await Promise.allSettled([
+    metering,
+    upsertSuggestionsMessage({
       chatId,
       researchAgentChatId,
       data: { suggestions },
-    });
-  } catch (error) {
-    console.error(
-      "[bootstrapper] Failed to generate suggestions from milestones:",
-      error,
-    );
+    }),
+  ]);
+  if (stored.status === "rejected") {
+    throw stored.reason;
   }
+
+  return suggestions;
 };

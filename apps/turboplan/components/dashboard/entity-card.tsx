@@ -89,7 +89,10 @@ function EntityCardBody({
           {title}
         </h3>
         {description && (
-          <p className="line-clamp-2 text-xs leading-[18px] text-gray-550">
+          /* Always two lines tall: the cover takes the leftover height, so a
+             one-line description would otherwise shift this card's text out
+             of line with its neighbours. */
+          <p className="line-clamp-2 min-h-9 text-xs leading-[18px] text-gray-550">
             {description}
           </p>
         )}

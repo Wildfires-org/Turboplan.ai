@@ -9,10 +9,6 @@ const getBaseUrl = () =>
 /** 32x32 beaver logo for the email header */
 export const getLogoUrl = () => `${getBaseUrl()}/images/email/logo-beaver.png`;
 
-/** 120x120 beaver mascot for email body */
+/** Beaver mascot for the card's hero band */
 export const getBeaverUrl = () =>
   `${getBaseUrl()}/images/email/beaver-mascot.png`;
-
-/** 96x96 hand icon (rendered at 12x12) for the greeting pill */
-export const getHandIconUrl = () =>
-  `${getBaseUrl()}/images/email/hand-icon.png`;

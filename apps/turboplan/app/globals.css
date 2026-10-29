@@ -179,6 +179,117 @@ main[class*="overflow-auto"] {
   }
 }
 
+/* Range input on glass: pressed-in track with a brand-gradient fill up to
+   `--range-fill` (set by the component, 0%-100%) and a white glass thumb. */
+@layer utilities {
+  .glass-range {
+    --range-fill: 50%;
+    appearance: none;
+    height: 20px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .glass-range:focus-visible {
+    outline: none;
+  }
+
+  .glass-range::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 9999px;
+    background:
+      linear-gradient(90deg, #1d8a60, #156647) 0 0 / var(--range-fill) 100%
+        no-repeat,
+      var(--glass-inset-bg);
+    box-shadow: var(--glass-inset-shadow);
+  }
+
+  .glass-range::-moz-range-track {
+    height: 8px;
+    border-radius: 9999px;
+    background: var(--glass-inset-bg);
+    box-shadow: var(--glass-inset-shadow);
+  }
+
+  .glass-range::-moz-range-progress {
+    height: 8px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #1d8a60, #156647);
+  }
+
+  .glass-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    margin-top: -6px;
+    border: 1.5px solid #fff;
+    border-radius: 9999px;
+    background: linear-gradient(180deg, #fff, #f1f7f4);
+    box-shadow:
+      0 0 0 1px rgba(21, 102, 71, 0.18),
+      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+    transition:
+      scale 160ms var(--ease-press),
+      box-shadow 200ms ease;
+  }
+
+  .glass-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid #fff;
+    border-radius: 9999px;
+    background: linear-gradient(180deg, #fff, #f1f7f4);
+    box-shadow:
+      0 0 0 1px rgba(21, 102, 71, 0.18),
+      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+    transition:
+      scale 160ms var(--ease-press),
+      box-shadow 200ms ease;
+  }
+
+  .glass-range:active::-webkit-slider-thumb {
+    scale: 0.94;
+  }
+
+  .glass-range:active::-moz-range-thumb {
+    scale: 0.94;
+  }
+
+  .glass-range:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 1px rgba(21, 102, 71, 0.18),
+      0 0 0 4px rgba(32, 158, 110, 0.35),
+      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+  }
+
+  .glass-range:focus-visible::-moz-range-thumb {
+    box-shadow:
+      0 0 0 1px rgba(21, 102, 71, 0.18),
+      0 0 0 4px rgba(32, 158, 110, 0.35),
+      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+  }
+}
+
+@media (hover: hover) {
+  .glass-range:hover::-webkit-slider-thumb {
+    scale: 1.08;
+  }
+
+  .glass-range:hover::-moz-range-thumb {
+    scale: 1.08;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-range::-webkit-slider-thumb {
+    scale: none !important;
+  }
+
+  .glass-range::-moz-range-thumb {
+    scale: none !important;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -427,6 +538,71 @@ main[class*="overflow-auto"] {
   outline: none;
 }
 
+/* A leading table is the AI-written letterhead (a later table is body content,
+   e.g. under a configured letterhead band). Render it like the PDF/DOCX export:
+   borderless and compact, with a rule beneath it. Cell outlines appear only on
+   hover so empty cells stay findable while editing. */
+.ProseMirror > table:first-child {
+  @apply my-0 text-[0.8125rem] leading-snug;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.6);
+}
+
+.ProseMirror > table:first-child tr {
+  @apply border-0;
+}
+
+.ProseMirror > table:first-child td {
+  @apply border-0 px-1.5 pt-0 pb-1 align-top;
+}
+
+.ProseMirror > table:first-child:hover td {
+  @apply outline-dashed outline-1 -outline-offset-1 outline-gray-200 dark:outline-zinc-700;
+}
+
+.ProseMirror > table:first-child td:first-child {
+  @apply pl-0;
+}
+
+.ProseMirror > table:first-child td:last-child {
+  @apply pr-0;
+}
+
+.ProseMirror > table:first-child tr:last-child td {
+  @apply pb-3;
+}
+
+/* Letter layout in the document editor, matching the PDF/DOCX export: even
+   paragraph spacing without indents; `{right}` / `{center}` lines set tight
+   against each other; section headings (markdown headings and bold-only
+   paragraphs, see lib/editor/block-styles.ts) with room above and little
+   below; room to sign under the closing line ("Sincerely,"). */
+.document-editor > .ProseMirror > p,
+.document-editor > .ProseMirror > ul,
+.document-editor > .ProseMirror > ol {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.document-editor > .ProseMirror > p.text-right,
+.document-editor > .ProseMirror > p.text-center {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.document-editor > .ProseMirror > :is(h2, h3, h4, h5, h6),
+.document-editor > .ProseMirror > p.doc-section-heading {
+  margin-top: 1.5em;
+  margin-bottom: 0.25em;
+}
+
+.document-editor > .ProseMirror > :is(h2, h3, h4, h5, h6, .doc-section-heading) + * {
+  margin-top: 0.25em;
+}
+
+.document-editor > .ProseMirror > p.doc-closing {
+  margin-bottom: 2.5em;
+}
+
 .cm-editor,
 .cm-gutters {
   @apply bg-background dark:bg-zinc-800 outline-none selection:bg-zinc-900 !important;
@@ -497,6 +673,16 @@ main[class*="overflow-auto"] {
 .leaflet-tile {
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+/* Leaflet 1.9.4 blends tiles with `plus-lighter` to hide the hairline gaps
+   fractional zoom (zoomSnap 0.25) leaves between them, but where two tiles'
+   anti-aliased edges overlap the colours add up to a visible white grid line.
+   Draw tiles normally; the map container's background matches each basemap
+   (MAP_TYPES in turboplan-map), so any gap stays invisible. !important:
+   leaflet.css loads after this file. */
+.leaflet-container img.leaflet-tile {
+  mix-blend-mode: normal !important;
 }
 
 /* Fix Leaflet marker images */

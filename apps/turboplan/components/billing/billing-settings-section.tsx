@@ -2,11 +2,12 @@
 
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
-import { Skeleton } from "@wildfires-org/turboplan-utils";
+import { GLASS_CARD_CLASS, Skeleton } from "@wildfires-org/turboplan-utils";
 
 import { BillingView } from "@/components/billing/billing-view";
 import { OrgTabNav } from "@/components/dashboard/org-tab-nav";
 import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 interface BillingSettingsSectionProps {
   userId: string;
@@ -40,8 +41,8 @@ export function BillingSettingsSection({
       {isChecking ? (
         <div className="space-y-6 py-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-48 w-full" />
+            <Skeleton className={cn(GLASS_CARD_CLASS, "h-48 w-full")} />
+            <Skeleton className={cn(GLASS_CARD_CLASS, "h-48 w-full")} />
           </div>
         </div>
       ) : canManageBilling ? (

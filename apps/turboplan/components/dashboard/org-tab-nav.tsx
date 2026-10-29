@@ -1,9 +1,16 @@
 "use client";
 
-import { Building2, CreditCard, FileSignature, Users } from "lucide-react";
+import {
+  BookOpen,
+  Building2,
+  CreditCard,
+  FileSignature,
+  Users,
+} from "lucide-react";
 
 import {
   isBillingPackageEnabled,
+  isProjectContextPackageEnabled,
   isSigningPackageEnabled,
 } from "@wildfires-org/turboplan-feature-flags";
 
@@ -18,7 +25,7 @@ type OrgTabNavProps = {
   /**
    * Whether the current user is a member of the organization. Government orgs
    * are viewable by any authenticated user, but the management tabs (Members,
-   * Signing, Billing) are member-only and hidden for non-members.
+   * Context, Signing, Billing) are member-only and hidden for non-members.
    * Defaults to true since the pages that render those tabs already gate access.
    */
   isMember?: boolean;
@@ -46,6 +53,16 @@ export function OrgTabNav({
             icon: Users,
             href: AppUrls.organizationMembers(orgSlug),
           },
+          ...(isProjectContextPackageEnabled()
+            ? [
+                {
+                  key: "context",
+                  label: "Context",
+                  icon: BookOpen,
+                  href: AppUrls.organizationContext(orgSlug),
+                },
+              ]
+            : []),
           ...(isSigningPackageEnabled()
             ? [
                 {

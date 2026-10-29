@@ -1,50 +1,53 @@
 import type { ReactNode } from "react";
 
-import { Img, Section, Text } from "@react-email/components";
+import { Heading, Hr, Section, Text } from "@react-email/components";
 
-import { getBeaverUrl, getHandIconUrl } from "./email-images";
-
-interface BrandCardProps {
+interface ChildrenProps {
   children: ReactNode;
 }
 
 /**
- * Solid brand-green card wrapper shared across all email templates.
+ * Main heading of the card, right below the eyebrow label.
  */
-export const BrandCard = ({ children }: BrandCardProps) => {
-  return <Section style={brandCard}>{children}</Section>;
+export const EmailHeading = ({ children }: ChildrenProps) => {
+  return (
+    <Heading as="h1" style={heading} className="email-heading">
+      {children}
+    </Heading>
+  );
 };
 
-interface GreetingPillProps {
+interface ParagraphProps extends ChildrenProps {
+  /** Smaller, lighter text for secondary notes (e.g. link expiry) */
+  muted?: boolean;
+}
+
+export const Paragraph = ({ children, muted = false }: ParagraphProps) => {
+  return <Text style={muted ? mutedText : bodyText}>{children}</Text>;
+};
+
+/**
+ * Left-aligned inset box for the details of a task, document or assignment.
+ */
+export const DetailsBox = ({ children }: ChildrenProps) => {
+  return <Section style={detailsBox}>{children}</Section>;
+};
+
+export const DetailTitle = ({ children }: ChildrenProps) => {
+  return <Text style={detailTitle}>{children}</Text>;
+};
+
+interface DetailItemProps {
+  label: string;
   children: ReactNode;
 }
 
-/**
- * Small centered pill containing a hand icon and greeting text.
- * Uses a presentation table for email-safe centering.
- */
-export const GreetingPill = ({ children }: GreetingPillProps) => {
+export const DetailItem = ({ label, children }: DetailItemProps) => {
   return (
-    <table
-      role="presentation"
-      cellPadding="0"
-      cellSpacing="0"
-      align="center"
-      style={pillTable}
-    >
-      <tr>
-        <td style={pillTd}>
-          <Img
-            src={getHandIconUrl()}
-            width="12"
-            height="12"
-            alt=""
-            style={pillIcon}
-          />
-          <span style={pillText}>{children}</span>
-        </td>
-      </tr>
-    </table>
+    <Text style={detailItem}>
+      <span style={detailLabel}>{label}</span>
+      {children}
+    </Text>
   );
 };
 
@@ -54,10 +57,8 @@ interface CtaButtonProps {
 }
 
 /**
- * White CTA button with green text and a trailing arrow, with the beaver
- * mascot beside it sitting flush on the card's bottom edge. Must be the last
- * element in the card. Uses a two-cell table instead of negative margins,
- * which Gmail and Outlook strip. The mascot is hidden on narrow screens.
+ * Filled brand-green CTA matching the app's `btn-primary`. The gradient is a
+ * progressive enhancement over the solid background color (Outlook).
  * Keeps the className="cta-link" + nested span pattern for dark-mode defense.
  */
 export const CtaButton = ({ href, label }: CtaButtonProps) => {
@@ -66,52 +67,21 @@ export const CtaButton = ({ href, label }: CtaButtonProps) => {
       role="presentation"
       cellPadding="0"
       cellSpacing="0"
-      width="100%"
+      align="center"
       style={ctaTable}
     >
       <tr>
-        <td style={ctaCell}>
-          <table
-            role="presentation"
-            cellPadding="0"
-            cellSpacing="0"
-            width="100%"
-          >
-            <tr>
-              <td align="center" style={ctaButtonTd}>
-                <a href={href} style={ctaLink} className="cta-link">
-                  <span style={ctaSpan} className="cta-link">
-                    {label}
-                    <span style={ctaArrow}>&rarr;</span>
-                  </span>
-                </a>
-              </td>
-            </tr>
-          </table>
-        </td>
-        <td width="107" className="card-mascot" style={mascotCell}>
-          <Img
-            src={getBeaverUrl()}
-            width="107"
-            height="109"
-            alt="Beaver mascot"
-            style={mascotImage}
-          />
+        <td align="center" style={ctaButtonTd}>
+          <a href={href} style={ctaLink} className="cta-link">
+            <span style={ctaSpan} className="cta-link">
+              {label}
+              <span style={ctaArrow}>&rarr;</span>
+            </span>
+          </a>
         </td>
       </tr>
     </table>
   );
-};
-
-interface DisclaimerProps {
-  children: ReactNode;
-}
-
-/**
- * Muted disclaimer text shown below the card.
- */
-export const Disclaimer = ({ children }: DisclaimerProps) => {
-  return <Text style={disclaimer}>{children}</Text>;
 };
 
 interface FallbackUrlProps {
@@ -119,145 +89,135 @@ interface FallbackUrlProps {
 }
 
 /**
- * "Trouble with the button" fallback label plus the raw URL box.
+ * Divider plus the raw URL for when the button doesn't work.
+ * Must be the last element in the card.
  */
 export const FallbackUrl = ({ url }: FallbackUrlProps) => {
   return (
     <>
+      <Hr style={divider} />
       <Text style={fallbackLabel}>
-        If you're having trouble with the button, copy and paste this URL into
-        your browser:
+        Button not working? Paste this link into your browser:
       </Text>
-      <Section style={fallbackUrlBox}>
-        <Text style={fallbackUrlText}>{url}</Text>
-      </Section>
+      <Text style={fallbackUrlText}>
+        <a href={url} style={fallbackLink}>
+          {url}
+        </a>
+      </Text>
     </>
   );
 };
 
 // Styles
-const brandCard = {
-  backgroundColor: "#3ccf88",
-  borderRadius: "12px",
-  // No bottom padding so the mascot sits flush with the card's bottom edge
-  padding: "42px 42px 0",
+const heading = {
+  fontSize: "28px",
+  lineHeight: "36px",
+  fontWeight: "600" as const,
+  letterSpacing: "-0.02em",
+  color: "#111827",
   textAlign: "center" as const,
-  marginBottom: "30px",
-  overflow: "hidden" as const,
+  margin: "0 0 16px",
 };
 
-const pillTable = {
-  margin: "0 auto 18px",
-};
-
-const pillTd = {
-  backgroundColor: "#dcfaee",
-  background:
-    "linear-gradient(252.28deg, rgba(220, 250, 238, 0.49) 43.66%, #dcfaee 100.16%)",
-  borderRadius: "48px",
-  padding: "6px 8px",
-  textAlign: "center" as const,
-  verticalAlign: "middle" as const,
-};
-
-const pillIcon = {
-  display: "inline-block",
-  verticalAlign: "middle" as const,
-  marginRight: "6px",
-};
-
-const pillText = {
-  fontSize: "12px",
-  lineHeight: "16px",
+const bodyText = {
+  fontSize: "15px",
+  lineHeight: "24px",
   color: "#4b5563",
-  letterSpacing: "0.4px",
-  fontWeight: "400" as const,
-  verticalAlign: "middle" as const,
+  textAlign: "center" as const,
+  margin: "0 0 16px",
 };
 
-const ctaTable = {
-  width: "100%",
+const mutedText = {
+  fontSize: "13px",
+  lineHeight: "20px",
+  color: "#9ca3af",
+  textAlign: "center" as const,
+  margin: "0 0 16px",
+};
+
+const detailsBox = {
+  backgroundColor: "#f7f9f8",
+  border: "1px solid #e8eeea",
+  borderRadius: "12px",
+  padding: "16px 20px",
+  margin: "8px 0 24px",
+  textAlign: "left" as const,
+};
+
+const detailTitle = {
+  fontSize: "16px",
+  lineHeight: "24px",
+  fontWeight: "600" as const,
+  color: "#111827",
   margin: "0",
 };
 
-const ctaCell = {
-  verticalAlign: "bottom" as const,
-  paddingBottom: "28px",
+const detailItem = {
+  fontSize: "14px",
+  lineHeight: "20px",
+  color: "#374151",
+  margin: "8px 0 0",
+};
+
+const detailLabel = {
+  color: "#6b7280",
+  marginRight: "6px",
+};
+
+const ctaTable = {
+  margin: "28px auto 8px",
 };
 
 const ctaButtonTd = {
-  backgroundColor: "#ffffff",
-  borderRadius: "6px",
-  padding: "12px 32px",
-  textAlign: "center" as const,
+  backgroundColor: "#1b845c",
+  backgroundImage:
+    "linear-gradient(135deg, #1d8a60 0%, #156647 65%, #0f4832 100%)",
+  borderRadius: "10px",
+  boxShadow: "0 6px 16px -8px rgba(15, 72, 50, 0.45)",
 };
 
 const ctaLink = {
-  color: "#1b845c",
-  fontSize: "14px",
+  display: "inline-block",
+  padding: "14px 32px",
+  color: "#ffffff",
+  fontSize: "15px",
   fontWeight: "600" as const,
   lineHeight: "20px",
   textDecoration: "none",
-  display: "inline-block",
-  width: "100%",
 };
 
 const ctaSpan = {
-  color: "#1b845c",
+  color: "#ffffff",
   textDecoration: "none",
 };
 
 const ctaArrow = {
-  marginLeft: "10px",
+  marginLeft: "8px",
 };
 
-const mascotCell = {
-  width: "107px",
-  paddingLeft: "12px",
-  verticalAlign: "bottom" as const,
-  // Kill the baseline descender gap so the mascot touches the card edge
-  fontSize: "0",
-  lineHeight: "0",
-};
-
-const mascotImage = {
-  display: "block",
-};
-
-const disclaimer = {
-  fontSize: "12px",
-  fontWeight: "500" as const,
-  color: "#9ca3af",
-  textAlign: "center" as const,
-  lineHeight: "16px",
-  letterSpacing: "0.24px",
-  margin: "0 0 30px",
+const divider = {
+  borderColor: "#eef1ef",
+  borderTopWidth: "1px",
+  margin: "28px 0 20px",
 };
 
 const fallbackLabel = {
   fontSize: "12px",
-  fontWeight: "500" as const,
-  color: "#262626",
+  lineHeight: "18px",
+  color: "#6b7280",
   textAlign: "center" as const,
-  lineHeight: "16px",
-  letterSpacing: "0.24px",
-  margin: "0 0 12px",
-};
-
-const fallbackUrlBox = {
-  backgroundColor: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: "6px",
-  padding: "6px 0",
+  margin: "0 0 4px",
 };
 
 const fallbackUrlText = {
   fontSize: "12px",
-  fontWeight: "500" as const,
-  color: "#80bfff",
+  lineHeight: "18px",
   textAlign: "center" as const,
-  letterSpacing: "0.24px",
-  lineHeight: "16px",
   margin: "0",
   wordBreak: "break-all" as const,
+};
+
+const fallbackLink = {
+  color: "#1b845c",
+  textDecoration: "underline",
 };

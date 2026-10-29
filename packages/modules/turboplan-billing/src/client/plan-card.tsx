@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { cn } from "@wildfires-org/turboplan-utils";
 
 import type { CatalogPlan, PlanKey } from "../types";
@@ -27,6 +28,10 @@ export interface PlanCardProps {
   className?: string;
 }
 
+// Extra seats are never billed while billing enforcement is off, so the card
+// drops the per-extra-seat price then.
+const IS_SEAT_BILLING_ENABLED = isBillingEnforcementEnabled();
+
 const formatCredits = (credits: number): string =>
   credits.toLocaleString("en-US");
 
@@ -41,7 +46,7 @@ const planFacts = (plan: CatalogPlan): string[] => {
     `${formatCredits(plan.limits.credits)} credits/mo`,
   ];
 
-  if (plan.additional_seat_price_usd !== null) {
+  if (IS_SEAT_BILLING_ENABLED && plan.additional_seat_price_usd !== null) {
     facts.push(
       `+$${plan.additional_seat_price_usd}/mo per extra seat (adds ${formatCredits(plan.additional_seat_credits)} credits)`,
     );

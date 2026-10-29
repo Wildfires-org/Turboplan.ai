@@ -109,6 +109,10 @@ export interface MapType {
   url: string;
   attribution: string;
   maxZoom?: number;
+  /** Map background under the tiles, close to the tiles' base colour. At
+   * fractional zoom (zoomSnap 0.25) Leaflet leaves hairline gaps between
+   * tiles; a matching background makes them invisible. */
+  background: string;
   icon: LucideIcon;
 }
 
@@ -322,6 +326,7 @@ export interface MapRepository {
 
   // Layer management operations
   updateLayerFeatureCount(id: string, count: number): Promise<Layer | null>;
+  getLayersForProject(projectId: string): Promise<Layer[]>;
   getLayersWithFeaturesForProject(
     projectId: string,
   ): Promise<GeospatialLayer[]>;

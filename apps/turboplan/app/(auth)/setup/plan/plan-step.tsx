@@ -36,6 +36,8 @@ const planSummary = (plan: PlanKey): string => {
     const activeProjects: number = STARTER_PROJECT_LIMIT;
     return `${seats} · ${credits} · ${activeProjects} active ${activeProjects === 1 ? "project" : "projects"}`;
   }
+  // The plan step only renders while billing enforcement is on, so extra
+  // seats always bill here.
   return `${seats} · ${credits} · +$${config.additional_seat_price_usd}/extra seat`;
 };
 

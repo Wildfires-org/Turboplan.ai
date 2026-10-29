@@ -20,6 +20,8 @@ import {
 import type { Office, Project } from "@wildfires-org/turboplan-workspace/types";
 
 import { toast } from "@/components/toast";
+import { isActiveLink } from "@/lib/nav/activeLink";
+import { AppUrls } from "@/lib/nav/urls";
 import { cn } from "@/lib/utils";
 import { EditOfficeDialog } from "./edit-office-dialog";
 import { EditOrganizationDialog } from "./edit-organization-dialog";
@@ -128,16 +130,22 @@ export function BreadcrumbEntityActions({
     setRenameValue(displayLabel);
   };
 
-  // After a rename the slug is regenerated server-side. Swap the stale slug
-  // segment in the current URL so the user stays on the same page.
+  // After a rename the slug is regenerated server-side. Swap the entity's
+  // base path in the current URL so the user stays on the same page. Matched
+  // on the whole base, not `/${oldSlug}`: org, office and project slugs can
+  // coincide, so a bare segment replace could hit the wrong level.
   const navigateAfterRename = (
-    segment: "organizations" | "offices" | "projects",
+    buildBasePath: (slug: string) => string,
     oldSlug: string,
     newSlug?: string,
   ) => {
     if (newSlug && newSlug !== oldSlug) {
+      const oldBase = buildBasePath(oldSlug);
+      const newBase = buildBasePath(newSlug);
       router.replace(
-        pathname.replace(`/${segment}/${oldSlug}`, `/${segment}/${newSlug}`),
+        isActiveLink(pathname, oldBase)
+          ? `${newBase}${pathname.slice(oldBase.length)}`
+          : newBase,
       );
     }
     router.refresh();
@@ -166,14 +174,18 @@ export function BreadcrumbEntityActions({
     if (error) {
       throw new Error(error || "Failed to rename organization");
     }
-    navigateAfterRename("organizations", organization.slug, updated?.slug);
+    navigateAfterRename(
+      (slug) => AppUrls.organization(slug),
+      organization.slug,
+      updated?.slug,
+    );
   };
 
   const renameOffice = async (name: string) => {
     if (entity.type !== "office") {
       return;
     }
-    const office = entity.data;
+    const { data: office, organizationSlug } = entity;
     const { data: response, error } = await apiClient.put<{ office: Office }>(
       `/api/offices/${office.id}`,
       { name },
@@ -182,14 +194,18 @@ export function BreadcrumbEntityActions({
     if (error) {
       throw new Error(error || "Failed to rename office");
     }
-    navigateAfterRename("offices", office.slug, response?.office?.slug);
+    navigateAfterRename(
+      (slug) => AppUrls.office(organizationSlug, slug),
+      office.slug,
+      response?.office?.slug,
+    );
   };
 
   const renameProject = async (name: string) => {
     if (entity.type !== "project") {
       return;
     }
-    const projectData = entity.data;
+    const { data: projectData, organizationSlug, officeSlug } = entity;
     const { data: response, error } = await apiClient.put<{ project: Project }>(
       `/api/projects/${projectData.id}`,
       { name },
@@ -198,7 +214,11 @@ export function BreadcrumbEntityActions({
     if (error) {
       throw new Error(error || "Failed to rename project");
     }
-    navigateAfterRename("projects", projectData.slug, response?.project?.slug);
+    navigateAfterRename(
+      (slug) => AppUrls.project(organizationSlug, officeSlug, slug),
+      projectData.slug,
+      response?.project?.slug,
+    );
   };
 
   const handleSaveRename = async () => {

@@ -70,6 +70,7 @@ export const PROMPT_VARIABLES: PromptVariable[] = [
     applicablePrompts: [
       "base-identity",
       "empty-state-suggestions",
+      "project-next-step-suggestions",
       "research-agent-start-prompt",
     ],
   },
@@ -79,34 +80,63 @@ export const PROMPT_VARIABLES: PromptVariable[] = [
     isProtected: true,
     applicablePrompts: [
       "empty-state-suggestions",
+      "project-next-step-suggestions",
       "research-agent-start-prompt",
     ],
   },
   {
     name: "projectFields",
-    description:
-      "Custom project fields (name/value pairs) for research agent start prompt",
+    description: "Custom project fields (name/value pairs)",
     isProtected: true,
-    applicablePrompts: ["research-agent-start-prompt"],
+    applicablePrompts: [
+      "project-next-step-suggestions",
+      "research-agent-start-prompt",
+    ],
   },
   {
     name: "projectContext",
-    description:
-      "Saved project context entries for research agent start prompt",
+    description: "Project context entries (label + content)",
     isProtected: true,
-    applicablePrompts: ["research-agent-start-prompt"],
+    applicablePrompts: [
+      "project-next-step-suggestions",
+      "research-agent-start-prompt",
+    ],
   },
   {
     name: "projectDocuments",
     description:
-      "Extracted text of uploaded project documents for research agent start prompt",
+      "Project documents: extracted text for the research agent start prompt, titles for next-step suggestions",
     isProtected: true,
-    applicablePrompts: ["research-agent-start-prompt"],
+    applicablePrompts: [
+      "project-next-step-suggestions",
+      "research-agent-start-prompt",
+    ],
+  },
+  {
+    name: "projectMilestones",
+    description:
+      "Saved project milestones and tasks with status, due dates and open-task descriptions, for next-step suggestions",
+    isProtected: true,
+    applicablePrompts: ["project-next-step-suggestions"],
+  },
+  {
+    name: "projectActivity",
+    description:
+      "Documents already drafted and recent requests in the project chats, for next-step suggestions",
+    isProtected: true,
+    applicablePrompts: ["project-next-step-suggestions"],
   },
   {
     name: "recentConversation",
     description:
       "Recent chat conversation context for research agent start prompt",
+    isProtected: true,
+    applicablePrompts: ["research-agent-start-prompt"],
+  },
+  {
+    name: "organizationContext",
+    description:
+      "Owning organization's guidance and key facts from its documents, for the research agent start prompt",
     isProtected: true,
     applicablePrompts: ["research-agent-start-prompt"],
   },
@@ -145,7 +175,10 @@ export interface VariableContext {
   projectFields?: string;
   projectContext?: string;
   projectDocuments?: string;
+  projectMilestones?: string;
+  projectActivity?: string;
   recentConversation?: string;
+  organizationContext?: string;
   sections?: string;
   messages?: string;
 }
@@ -220,11 +253,32 @@ export function parsePromptVariables(
     );
   }
 
+  if (context.projectMilestones !== undefined) {
+    const projectMilestones = context.projectMilestones;
+    result = result.replace(
+      /\{\{projectMilestones\}\}/g,
+      () => projectMilestones,
+    );
+  }
+
+  if (context.projectActivity !== undefined) {
+    const projectActivity = context.projectActivity;
+    result = result.replace(/\{\{projectActivity\}\}/g, () => projectActivity);
+  }
+
   if (context.recentConversation !== undefined) {
     const recentConversation = context.recentConversation;
     result = result.replace(
       /\{\{recentConversation\}\}/g,
       () => recentConversation,
+    );
+  }
+
+  if (context.organizationContext !== undefined) {
+    const organizationContext = context.organizationContext;
+    result = result.replace(
+      /\{\{organizationContext\}\}/g,
+      () => organizationContext,
     );
   }
 

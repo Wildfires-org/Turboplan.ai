@@ -43,6 +43,7 @@ import {
   projectUsers,
   tasks,
   timelineRecord,
+  UserRole,
   user,
 } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
@@ -711,7 +712,7 @@ const getOrCreateCommenter = async (): Promise<string> => {
     lastName: COMMENTER.lastName,
     city: COMMENTER.city,
     state: COMMENTER.state,
-    userRole: "citizen",
+    userRole: UserRole.CITIZEN,
     createdAt: now,
     updatedAt: now,
   });

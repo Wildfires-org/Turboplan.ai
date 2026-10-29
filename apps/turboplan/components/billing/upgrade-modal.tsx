@@ -18,6 +18,7 @@ import {
   PLANS,
   type PlanKey,
 } from "@wildfires-org/turboplan-billing/types";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 import {
@@ -38,6 +39,11 @@ import type { SeatMember, SeatsResponse } from "./types";
 
 const TRIAL_DAYS = CATALOG.billing.trial_days;
 const HAS_TRIAL = TRIAL_DAYS > 0;
+
+// Extra seats bill only while billing enforcement is on. With it off the
+// server adds no extra-seat item at checkout (`countChargeableSeats`), so the
+// preview shows the flat workspace price and skips the seat roster entirely.
+const IS_SEAT_BILLING_ENABLED = isBillingEnforcementEnabled();
 
 const DEFAULT_PLAN: PaidPlanKey = "pro";
 
@@ -126,13 +132,14 @@ export function UpgradeModal({
   // base_plus_seats: the flat workspace price covers the plan's included
   // seats; only billable members beyond that add extra-seat items. Fetched
   // once we know the user can purchase (org owner). This never blocks
-  // checkout — on error we fall back to the base workspace price.
+  // checkout — on error (or with seat billing off, when nothing is fetched)
+  // we fall back to the base workspace price.
   const {
     data: seats,
     error: seatsError,
     isLoading: isSeatsLoading,
   } = useSWR<SeatsResponse>(
-    isOpen && canPurchase
+    IS_SEAT_BILLING_ENABLED && isOpen && canPurchase
       ? `/api/billing/seats?organizationId=${organizationId}`
       : null,
     fetcher,
@@ -245,7 +252,7 @@ export function UpgradeModal({
               ))}
             </div>
 
-            {!seatsError ? (
+            {IS_SEAT_BILLING_ENABLED && !seatsError ? (
               <div className="flex flex-col gap-2 rounded-lg bg-muted px-4 py-3 text-sm">
                 {isSeatsLoading ? (
                   <Skeleton className="h-5 w-48" />

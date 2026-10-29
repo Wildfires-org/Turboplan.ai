@@ -21,6 +21,26 @@ export function getLayerKey(layer: GeospatialLayer): string {
 }
 
 /**
+ * A layer read without error and with at least one feature to draw
+ */
+export const hasMapFeatures = (
+  layer: GeospatialLayer,
+): layer is GeospatialLayer & {
+  data: NonNullable<GeospatialLayer["data"]>;
+} => !layer.error && (layer.data?.features.length ?? 0) > 0;
+
+/**
+ * Message for layers an upload skipped because the project already has them
+ * (same name, source file and type), with how to replace them.
+ */
+export const formatSkippedLayersMessage = (layerNames: string[]): string => {
+  const names = layerNames.map((name) => `"${name}"`).join(", ");
+  return layerNames.length === 1
+    ? `${names} is already in the project. To replace it, delete that layer first, then upload the file again.`
+    : `${names} are already in the project. To replace them, delete those layers first, then upload the file again.`;
+};
+
+/**
  * Validates if a layer has valid data and can be displayed
  */
 export function isValidLayer(layer: GeospatialLayer): boolean {

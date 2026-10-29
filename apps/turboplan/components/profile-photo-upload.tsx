@@ -171,7 +171,7 @@ export function ProfilePhotoUpload({
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
-            variant="brand"
+            variant="glass"
             size="sm"
             onClick={handleChangePhoto}
             disabled={isBusy}

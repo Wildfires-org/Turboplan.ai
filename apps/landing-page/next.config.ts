@@ -78,6 +78,8 @@ const contentSecurityPolicyReportOnly = [
     toOrigin(process.env.NEXT_PUBLIC_SERVER_URL),
     toOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST),
     ...r2Origins,
+    // Browser PUTs to presigned R2 upload URLs (hero document attachments).
+    "https://*.r2.cloudflarestorage.com",
     "https://www.googletagmanager.com",
     "https://*.google-analytics.com",
     "https://*.analytics.google.com",
@@ -130,6 +132,22 @@ const nextConfig: NextConfig = {
         fs: false,
       };
     }
+
+    if (isServer) {
+      // `@sentry/nextjs`'s server entry re-exports `withSentryConfig`, which
+      // drags its build-time webpack plugin into the runtime bundle. That
+      // plugin inlines `es-module-lexer`, whose module body calls
+      // `WebAssembly.compile()` at load — Cloudflare Workers forbid runtime
+      // wasm codegen, so every cold start logged three unhandled
+      // "Wasm code generation disallowed by embedder" errors. Nothing at
+      // runtime calls the plugin; alias it to an empty module. Same fix as
+      // apps/turboplan/next.config.ts.
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "@apm-js-collab/code-transformer-bundler-plugins": false,
+      };
+    }
+
     return config;
   },
 
@@ -172,6 +190,8 @@ const nextConfig: NextConfig = {
   },
 
   async redirects() {
+    const appOrigin = toOrigin(process.env.NEXT_PUBLIC_TURBOPLAN_URL);
+
     return [
       // Specific rule must precede the wildcard below so it wins.
       {
@@ -192,6 +212,23 @@ const nextConfig: NextConfig = {
         destination: "/#contact",
         permanent: false,
       },
+      // Pricing is a homepage section too; /pricing was a 404. Temporary for
+      // the same reason as /contact.
+      {
+        source: "/pricing",
+        destination: "/#pricing",
+        permanent: false,
+      },
+      // Sign-in lives on the app; /login on the marketing domain was a 404.
+      ...(appOrigin
+        ? [
+            {
+              source: "/login",
+              destination: `${appOrigin}/login`,
+              permanent: false,
+            },
+          ]
+        : []),
       {
         source: "/user-guide",
         destination: "/docs",

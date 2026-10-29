@@ -44,6 +44,38 @@ const TABS: Tab[] = [
 // Matches the `showcase-tab-shrink` duration in showcase-tabs.tsx.
 const TAB_SHRINK_DURATION_MS = 250;
 
+// The inputs that also end largest-contentful-paint measurement. Tabs only
+// start rotating after one of them: each new caption is a fresh paint, and a
+// larger one at 6s became the page's LCP in Lighthouse (14-20s on home).
+const INTERACTION_EVENTS = [
+  "scroll",
+  "pointerdown",
+  "keydown",
+  "touchstart",
+] as const;
+
+const useHasInteracted = () => {
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  useEffect(() => {
+    if (hasInteracted) {
+      return;
+    }
+    const handleInteraction = () => setHasInteracted(true);
+    const options = { capture: true, passive: true };
+    for (const type of INTERACTION_EVENTS) {
+      window.addEventListener(type, handleInteraction, options);
+    }
+    return () => {
+      for (const type of INTERACTION_EVENTS) {
+        window.removeEventListener(type, handleInteraction, options);
+      }
+    };
+  }, [hasInteracted]);
+
+  return hasInteracted;
+};
+
 interface FeatureShowcaseProps {
   // Entrance delay, so the card can join a surrounding reveal sequence.
   revealDelay?: number;
@@ -53,6 +85,7 @@ export function FeatureShowcase({ revealDelay = 0 }: FeatureShowcaseProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.4 });
   const prefersReducedMotion = useReducedMotion();
+  const hasInteracted = useHasInteracted();
 
   const [active, setActive] = useState(0);
   const [exiting, setExiting] = useState<number | null>(null);
@@ -60,7 +93,7 @@ export function FeatureShowcase({ revealDelay = 0 }: FeatureShowcaseProps) {
   // and replay their entrance animations.
   const [phase, setPhase] = useState(0);
 
-  const autoAdvance = isInView && !prefersReducedMotion;
+  const autoAdvance = hasInteracted && isInView && !prefersReducedMotion;
 
   const goTo = (index: number) => {
     if (index === active) {
@@ -142,7 +175,9 @@ export function FeatureShowcase({ revealDelay = 0 }: FeatureShowcaseProps) {
 
             {/* Stage — panels crossfade in place (250ms). Both panels overlap
                 mid-swap, so a 2px blur masks the seam; `invisible` lands
-                after the fade and takes idle panels out of rendering.
+                after the fade and takes idle panels out of rendering. Only
+                the active and the exiting panel hold a mock, so the copy of
+                tabs nobody opened stays out of the HTML.
                 Height is fixed per viewport (never by slide content). On
                 laptops+ it follows the window height so tabs + description +
                 window fit on one screen below the sticky navbar; `/ var(--ui-scale)` undoes the body
@@ -164,11 +199,14 @@ export function FeatureShowcase({ revealDelay = 0 }: FeatureShowcaseProps) {
                         : "pointer-events-none invisible translate-y-2 opacity-0 blur-[2px] motion-reduce:translate-y-0 motion-reduce:blur-none",
                     )}
                   >
-                    <MockScreen
-                      type={tab.type}
-                      playKey={isActive ? `active-${phase}` : "idle"}
-                      reduce={Boolean(prefersReducedMotion)}
-                    />
+                    {(isActive || index === exiting) && (
+                      <MockScreen
+                        type={tab.type}
+                        label={tab.description}
+                        playKey={isActive ? `active-${phase}` : "idle"}
+                        reduce={Boolean(prefersReducedMotion)}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -182,18 +220,24 @@ export function FeatureShowcase({ revealDelay = 0 }: FeatureShowcaseProps) {
 
 type MockScreenProps = {
   type: SlideType;
+  label: string;
   playKey: string;
   reduce: boolean;
 };
 
-function MockScreen({ type, playKey, reduce }: MockScreenProps) {
+function MockScreen({ type, label, playKey, reduce }: MockScreenProps) {
   return (
+    // A picture of the app, not UI: one image named by the tab's description.
+    // `inert` keeps its mock text out of focus and the accessibility tree
+    // (WCAG 1.4.3 exempts text that is part of a picture from contrast).
     // Remount on activation so entrance animations replay.
-    <div key={playKey} className="h-full w-full">
-      {type === "research" && <ResearchSlide reduce={reduce} />}
-      {type === "draft" && <DraftSlide reduce={reduce} />}
-      {type === "plan" && <PlanSlide reduce={reduce} />}
-      {type === "collab" && <CollaborateSlide reduce={reduce} />}
+    <div key={playKey} role="img" aria-label={label} className="h-full w-full">
+      <div inert className="h-full w-full">
+        {type === "research" && <ResearchSlide reduce={reduce} />}
+        {type === "draft" && <DraftSlide reduce={reduce} />}
+        {type === "plan" && <PlanSlide reduce={reduce} />}
+        {type === "collab" && <CollaborateSlide reduce={reduce} />}
+      </div>
     </div>
   );
 }

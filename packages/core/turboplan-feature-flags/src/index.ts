@@ -24,6 +24,11 @@ export const isProjectContextPackageEnabled = () =>
   isPackageEnabled("projectContext");
 export const isSigningPackageEnabled = () => isPackageEnabled("signing");
 export const isBillingPackageEnabled = () => isPackageEnabled("billing");
+// Billing limits (credits, active projects, seats) and extra-seat billing apply
+// only when the billing package is on AND enforcement has not been explicitly
+// disabled.
+export const isBillingEnforcementEnabled = () =>
+  isBillingPackageEnabled() && featureFlags.billing.enforcement;
 
 // Export types and config
 export type { PackageName, TurboPlanPackages } from "./config";

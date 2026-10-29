@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createToken } from "@wildfires-org/turboplan-api-client";
+import { createToken } from "@wildfires-org/turboplan-api-client/server";
 
 import { createTestUserWithMagicLink } from "../../utils/test-auth";
 

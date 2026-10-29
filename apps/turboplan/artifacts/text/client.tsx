@@ -1,23 +1,32 @@
-import { MoreHorizontal, Users } from "lucide-react";
+import { MoreHorizontal, Stamp, TextCursorInput, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import type { Suggestion } from "@wildfires-org/turboplan-db/types";
 import { isSigningPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { RequestSignaturesDialog } from "@wildfires-org/turboplan-signing/client";
+import { contentHasLetterheadTable } from "@wildfires-org/turboplan-workspace/types";
 
 import { ArtifactActionsMenu } from "@/components/artifact-actions-menu";
 import { ExportDocumentMenu } from "@/components/artifact-export-menu";
 import { Artifact } from "@/components/create-artifact";
 import { DiffView } from "@/components/diffview";
+import { DocumentLetterheadPicker } from "@/components/document-letterhead-picker";
+import { DocumentPlaceholdersButton } from "@/components/document-placeholders-button";
+import { DocumentPlaceholdersPanel } from "@/components/document-placeholders-panel";
 import { DocumentSkeleton } from "@/components/document-skeleton";
 import { DownloadIcon, MessageIcon, PenIcon } from "@/components/icons";
+import { LetterheadBand } from "@/components/letterhead-band";
+import { LetterheadLogo } from "@/components/letterhead-logo";
 import { useUser } from "@/components/providers/user-provider";
 import { Editor } from "@/components/text-editor";
+import { useDocumentLetterhead } from "@/hooks/use-document-letterhead";
+import { useLetterheadLogo } from "@/hooks/use-letterhead-logo";
 import { getSuggestions } from "../actions";
 
 interface TextArtifactMetadata {
   suggestions: Array<Suggestion>;
   isRequestSignaturesOpen?: boolean;
+  isPlaceholdersOpen?: boolean;
 }
 
 // Streamed characters after which the artifact panel opens by itself.
@@ -82,6 +91,26 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
   }) => {
     // Rendered as a React component by artifact-panel, so hooks are safe here.
     const { user } = useUser();
+    // "init" is the placeholder id before the document is persisted.
+    const savedDocumentId = documentId !== "init" ? documentId : null;
+    const letterheadLogo = useLetterheadLogo(projectId, savedDocumentId);
+    const documentLetterhead = useDocumentLetterhead(
+      projectId,
+      savedDocumentId,
+    );
+    const hasOwnLetterheadTable = contentHasLetterheadTable(content);
+    const chosenLetterhead = documentLetterhead?.letterhead ?? null;
+    const isBanner = chosenLetterhead?.layout === "banner";
+    // The document's chosen letterhead (default, library or none) replaces an
+    // AI-written one, unless the document already carries its own letterhead
+    // table (older documents). A banner is only its image (no markdown), shown
+    // once loaded.
+    const structuredLetterhead =
+      chosenLetterhead &&
+      (isBanner ? !!letterheadLogo : !!documentLetterhead?.markdown) &&
+      !hasOwnLetterheadTable
+        ? chosenLetterhead
+        : null;
 
     if (isLoading) {
       return <DocumentSkeleton />;
@@ -98,7 +127,19 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
       <>
         <div className="flex w-full justify-center py-6 md:py-10 px-4 md:px-8">
           <div className="flex w-full max-w-4xl flex-row items-start">
-            <div className="min-w-0 flex-1">
+            <div className="relative min-w-0 flex-1">
+              {structuredLetterhead ? (
+                <div className="prose dark:prose-invert mx-auto">
+                  <LetterheadBand
+                    letterhead={structuredLetterhead}
+                    logoSrc={letterheadLogo}
+                  />
+                </div>
+              ) : (
+                // A banner image never doubles as a margin logo.
+                letterheadLogo &&
+                !isBanner && <LetterheadLogo src={letterheadLogo} />
+              )}
               <Editor
                 content={content}
                 suggestions={metadata ? metadata.suggestions : []}
@@ -117,6 +158,16 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
           </div>
         </div>
 
+        <DocumentPlaceholdersPanel
+          open={isCurrentVersion && (metadata?.isPlaceholdersOpen ?? false)}
+          onOpenChange={(open) => {
+            setMetadata((m) => ({ ...m, isPlaceholdersOpen: open }));
+          }}
+          content={content}
+          projectId={projectId}
+          onSaveContent={onSaveContent}
+        />
+
         {isSigningPackageEnabled() && projectId && (
           <RequestSignaturesDialog
             documentId={documentId}
@@ -132,6 +183,33 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
     );
   },
   actions: [
+    {
+      icon: <TextCursorInput size={18} />,
+      description: "Fill placeholders",
+      render: (ctx) =>
+        ctx.isCurrentVersion ? (
+          <DocumentPlaceholdersButton
+            content={ctx.content}
+            disabled={ctx.disabled}
+            onOpen={() =>
+              ctx.setMetadata((m) => ({ ...m, isPlaceholdersOpen: true }))
+            }
+          />
+        ) : null,
+    },
+    {
+      icon: <Stamp size={18} />,
+      description: "Letterhead",
+      render: (ctx) =>
+        ctx.projectId && ctx.documentId && ctx.documentId !== "init" ? (
+          <DocumentLetterheadPicker
+            projectId={ctx.projectId}
+            documentId={ctx.documentId}
+            hasOwnLetterheadTable={contentHasLetterheadTable(ctx.content)}
+            disabled={ctx.disabled || !ctx.isCurrentVersion}
+          />
+        ) : null,
+    },
     {
       icon: <MoreHorizontal size={18} />,
       description: "Document actions",
@@ -153,6 +231,7 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
           content={ctx.content}
           title={ctx.title}
           projectId={ctx.projectId}
+          documentId={ctx.documentId}
           disabled={ctx.disabled}
         />
       ),

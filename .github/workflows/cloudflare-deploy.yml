@@ -47,6 +47,12 @@ jobs:
             shared:
               - 'packages/core/**'
               - 'packages/modules/**'
+              # Dependencies (a version bump, an override, a pnpm patch) end up
+              # in every service's bundle without touching apps/ or packages/.
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'patches/**'
             landing_only:
               - 'apps/landing-page/**'
             server_only:
@@ -315,6 +321,7 @@ jobs:
           API_DOMAIN: ${{ vars.PRODUCTION_API_DOMAIN }}
           APP_DOMAIN: ${{ vars.PRODUCTION_APP_DOMAIN }}
           COOKIE_DOMAIN: ${{ vars.PRODUCTION_COOKIE_DOMAIN }}
+          LANDING_DOMAIN: ${{ vars.PRODUCTION_LANDING_DOMAIN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           SUFFIX="$WORKERS_SUBDOMAIN"
@@ -337,12 +344,15 @@ jobs:
             fi
             echo "server_url=https://${API_DOMAIN:-turboplan-api-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
             echo "turboplan_url=https://${APP_DOMAIN:-turboplan-web-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://${LANDING_DOMAIN:-turboplan-landing-prod.${SUFFIX}}" >> "$GITHUB_OUTPUT"
           elif [ "$REF_NAME" = "develop" ]; then
             echo "server_url=https://turboplan-api-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
             echo "turboplan_url=https://turboplan-web-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-staging.${SUFFIX}" >> "$GITHUB_OUTPUT"
           else
             echo "server_url=https://turboplan-api-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
             echo "turboplan_url=https://turboplan-web-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
+            echo "landing_url=https://turboplan-landing-pr-${PR_NUMBER}.${SUFFIX}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install dependencies
@@ -359,6 +369,9 @@ jobs:
         env:
           NEXT_PUBLIC_SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
           NEXT_PUBLIC_TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          # The site's own origin: metadataBase and social card URLs. Unset, Next
+          # falls back to http://localhost:3000.
+          NEXT_PUBLIC_LANDING_URL: ${{ steps.service-urls.outputs.landing_url }}
           NEXT_PUBLIC_LINKEDIN_URL: https://linkedin.com
           NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
@@ -371,6 +384,12 @@ jobs:
           NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN_LANDING }}
+          # /checkout (the pricing buttons' target) renders "Billing is not
+          # enabled" without it. Same flag as the web build.
+          NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          # Off means extra seats are never billed, so the /checkout preview
+          # drops the seat breakdown. Same flag and fallback as the web build.
+          NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED: ${{ vars.FF_IS_BILLING_ENFORCEMENT_ENABLED || 'true' }}
 
       - name: Deploy
         id: deploy
@@ -385,6 +404,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           NEXT_PUBLIC_SERVER_URL: ${{ steps.service-urls.outputs.server_url }}
           NEXT_PUBLIC_TURBOPLAN_URL: ${{ steps.service-urls.outputs.turboplan_url }}
+          NEXT_PUBLIC_LANDING_URL: ${{ steps.service-urls.outputs.landing_url }}
           NEXT_PUBLIC_LINKEDIN_URL: https://linkedin.com
           NEXT_PUBLIC_APP_NAME: ${{ vars.APP_NAME }}
           NEXT_PUBLIC_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
@@ -397,6 +417,8 @@ jobs:
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED: ${{ vars.FF_IS_BILLING_ENFORCEMENT_ENABLED || 'true' }}
           # Sentry (optional — monitoring/sourcemap upload disabled when unset)
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN_LANDING }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -633,6 +655,7 @@ jobs:
           IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
           IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
           IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          IS_BILLING_ENFORCEMENT_ENABLED: ${{ vars.FF_IS_BILLING_ENFORCEMENT_ENABLED || 'true' }}
           IS_SIGNING_PACKAGE_ENABLED: ${{ vars.FF_IS_SIGNING_PACKAGE_ENABLED }}
           # Documenso signing — all three are required once the flag above is set,
           # or the worker throws on env validation at startup.
@@ -856,6 +879,7 @@ jobs:
           NEXT_PUBLIC_IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
           NEXT_PUBLIC_IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
           NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED: ${{ vars.FF_IS_BILLING_ENFORCEMENT_ENABLED || 'true' }}
           # Server-side vars needed during prerendering
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
@@ -906,6 +930,7 @@ jobs:
           NEXT_PUBLIC_IS_TIMELINE_RECORDS_PACKAGE_ENABLED: ${{ vars.FF_IS_TIMELINE_RECORDS_PACKAGE_ENABLED }}
           NEXT_PUBLIC_IS_PROJECT_CONTEXT_PACKAGE_ENABLED: ${{ vars.FF_IS_PROJECT_CONTEXT_PACKAGE_ENABLED }}
           NEXT_PUBLIC_IS_BILLING_PACKAGE_ENABLED: ${{ vars.FF_IS_BILLING_PACKAGE_ENABLED }}
+          NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED: ${{ vars.FF_IS_BILLING_ENFORCEMENT_ENABLED || 'true' }}
           # Runtime secrets (used by deploy script for wrangler secret put)
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}

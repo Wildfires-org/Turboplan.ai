@@ -10,11 +10,12 @@ import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { isBillingPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 import { CATALOG, LIVE_SUBSCRIPTION_STATUS_VALUES } from "../types";
 import { isDuplicateMeterEventError } from "./credits";
 import {
-  countBillableSeats,
+  countChargeableSeats,
   getOrganizationOwnerEmails,
   getSubscriptionByStripeSubscriptionId,
 } from "./queries";
@@ -63,6 +64,8 @@ export type SeatReconciliationSummary = {
  *
  * Scope: every subscription row with a `stripeSubscriptionId` in a
  * {@link SEAT_SYNC_STATUSES} status — the exact set the live path repices.
+ * The target is {@link countChargeableSeats}, so with billing enforcement off
+ * every extra-seat item is removed.
  *
  * Isolation: each org is processed in its own try/catch, so a single Stripe or
  * DB failure increments `failed` and is logged but never aborts the run.
@@ -110,7 +113,7 @@ export const reconcileSubscriptionSeats =
       checked += 1;
 
       try {
-        const seats = await countBillableSeats(row.organizationId);
+        const seats = await countChargeableSeats(row.organizationId);
         const result = await reconcileSeatQuantityForSubscription({
           organizationId: row.organizationId,
           stripeSubscriptionId,
@@ -123,7 +126,7 @@ export const reconcileSubscriptionSeats =
           console.log(
             `[billing] reconciled seats for organization ${row.organizationId}: ` +
               `extra-seat item ${result.previousExtraQuantity} -> ` +
-              `${result.extraSeatQuantity} (billable ${seats}, mirror was ${row.seats})`,
+              `${result.extraSeatQuantity} (chargeable seats ${seats}, mirror was ${row.seats})`,
           );
         }
       } catch (error) {
@@ -372,7 +375,7 @@ export const sweepDiscountEndingNotices =
           continue;
         }
 
-        const billingUrl = `${getApiEnv().TURBOPLAN_URL}/organizations/${row.orgSlug}/billing`;
+        const billingUrl = `${getApiEnv().TURBOPLAN_URL}${appPaths.organization(row.orgSlug)}/billing`;
         const endsAtLabel = row.discountEndsAt.toLocaleDateString("en-US", {
           year: "numeric",
           month: "long",
@@ -437,7 +440,9 @@ export const sweepDiscountEndingNotices =
  * drifted quantity.
  *
  * The caller (the `invoice.upcoming` webhook handler) already runs only when the
- * billing package is enabled, so this does not re-check the feature flag.
+ * billing package is enabled, so this does not re-check the feature flag. The
+ * enforcement flag applies through {@link countChargeableSeats}: while it is
+ * off the target is 0 extra seats.
  */
 export const reconcileSeatsForStripeSubscription = async (
   stripeSubscriptionId: string,
@@ -451,7 +456,7 @@ export const reconcileSeatsForStripeSubscription = async (
     return;
   }
 
-  const seats = await countBillableSeats(existing.organizationId);
+  const seats = await countChargeableSeats(existing.organizationId);
   const result = await reconcileSeatQuantityForSubscription({
     organizationId: existing.organizationId,
     stripeSubscriptionId: existing.stripeSubscriptionId,
@@ -463,7 +468,7 @@ export const reconcileSeatsForStripeSubscription = async (
     console.log(
       `[billing] reconciled seats for organization ${existing.organizationId}: ` +
         `extra-seat item ${result.previousExtraQuantity} -> ` +
-        `${result.extraSeatQuantity} (billable ${seats}, mirror was ${existing.seats})`,
+        `${result.extraSeatQuantity} (chargeable seats ${seats}, mirror was ${existing.seats})`,
     );
   }
 };

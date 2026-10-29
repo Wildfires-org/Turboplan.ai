@@ -45,6 +45,7 @@ import {
   useModuleVisibility,
 } from "@wildfires-org/turboplan-workspace/client";
 
+import { AppUrls } from "@/lib/nav/urls";
 import { cn } from "@/lib/utils";
 import { AddSectionsBar } from "./add-sections-bar";
 import {
@@ -649,7 +650,11 @@ export function ProjectModules({
             dragHandleProps={dragHandleProps}
             readOnly={effectiveReadOnly}
             isResearchPhaseCompleted={isResearchPhaseCompleted}
-            chatBaseUrl={`/organizations/${organizationSlug}/offices/${officeSlug}/projects/${projectSlug}/chat/new`}
+            chatBaseUrl={AppUrls.projectNewChat(
+              organizationSlug,
+              officeSlug,
+              projectSlug,
+            )}
           />
         );
       case "timeline":

@@ -3,7 +3,9 @@ import { and, eq, isNull } from "drizzle-orm";
 import { billingCreditUsage, organization } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 import { CATALOG, type PlanKey, planHasHardStop } from "../types";
 import { getOrganizationOwnerEmails } from "./queries";
@@ -58,6 +60,9 @@ const isStampableThreshold = (value: number): value is AlertThreshold =>
  * Stamps every crossed threshold and emails org owners about the HIGHEST one
  * (a burst that jumps 0→100% sends one email, not three; the lower stamps are
  * still set so no later, stale alert fires).
+ *
+ * Skipped on every plan when billing enforcement is disabled
+ * (`IS_BILLING_ENFORCEMENT_ENABLED=false`).
  */
 export const maybeSendUsageAlerts = async (params: {
   organizationId: string;
@@ -67,6 +72,10 @@ export const maybeSendUsageAlerts = async (params: {
   allowance: number;
   plan: PlanKey;
 }): Promise<void> => {
+  if (!isBillingEnforcementEnabled()) {
+    return;
+  }
+
   const crossed = crossedThresholds({
     usedBefore: params.usedBefore,
     usedAfter: params.usedAfter,
@@ -116,7 +125,7 @@ export const maybeSendUsageAlerts = async (params: {
     return;
   }
 
-  const billingUrl = `${getApiEnv().TURBOPLAN_URL}/organizations/${org.slug}/billing`;
+  const billingUrl = `${getApiEnv().TURBOPLAN_URL}${appPaths.organization(org.slug)}/billing`;
   const mailService = getMailService();
 
   await Promise.all(

@@ -100,8 +100,10 @@ export function PublicDetailHero({
               )}
             </p>
 
+            {/* empty:hidden: an action that renders nothing (the template
+                CTA for a signed-out visitor) leaves no gap. */}
             {actions && (
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-3 empty:hidden">
                 {actions}
               </div>
             )}

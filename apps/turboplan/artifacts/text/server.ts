@@ -1,4 +1,9 @@
-import { smoothStream, streamText } from "ai";
+import {
+  type LanguageModelUsage,
+  smoothStream,
+  streamText,
+  type UIMessageStreamWriter,
+} from "ai";
 import type { Session } from "next-auth";
 
 import { getModel } from "@wildfires-org/turboplan-ai/server";
@@ -9,7 +14,22 @@ import {
   resolveBillingOrgForUser,
 } from "@wildfires-org/turboplan-billing/server";
 import { getChatById } from "@wildfires-org/turboplan-db/queries";
+import {
+  getProjectDocumentProfile,
+  getProjectLetterhead,
+} from "@wildfires-org/turboplan-workspace/server";
+import {
+  type DocumentLetterhead,
+  documentProfileToFacts,
+} from "@wildfires-org/turboplan-workspace/types";
 
+import {
+  type ChatTimingLog,
+  createChatTimer,
+  getErrorName,
+  summarizeUsage,
+} from "@/lib/ai/chat-timing";
+import { formatReferenceDocuments } from "@/lib/ai/reference-documents";
 import { createDocumentHandler } from "@/lib/artifacts/server";
 import { stripPlaceholderNotesInTableRows } from "@/lib/placeholders";
 import type { AuthUser } from "@/lib/types/auth";
@@ -18,7 +38,7 @@ import type { AuthUser } from "@/lib/types/auth";
 // the chat system prompt, not this separate generation model) and the logged-in
 // user's name. Supplied as authoritative context so the draft fills them in
 // rather than leaving [INSERT: ...] placeholders.
-const buildKnownFacts = (session: Session): string => {
+const buildKnownFacts = (session: Session, officeFacts: string[]): string => {
   const today = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -38,7 +58,50 @@ const buildKnownFacts = (session: Session): string => {
     );
   }
 
+  if (officeFacts.length > 0) {
+    facts.push(
+      "Office document details (confirmed by the office — use these values wherever the document needs them):",
+      ...officeFacts.map((fact) => `- ${fact}`),
+    );
+  }
+
   return facts.join("\n");
+};
+
+// Confirmed office/org facts (signatory, contacts, file code, …) from the
+// office's document details. Never breaks document generation.
+const loadOfficeFacts = async (
+  projectId: string | null | undefined,
+): Promise<string[]> => {
+  if (!projectId) {
+    return [];
+  }
+  try {
+    return documentProfileToFacts(await getProjectDocumentProfile(projectId));
+  } catch (error) {
+    console.error("[documents] failed to load document profile:", error);
+    return [];
+  }
+};
+
+// The letterhead the app renders above the document (the project default or
+// the one chosen for it). Its presence tells the generator to skip the
+// letterhead table it would otherwise write.
+const buildLetterheadSection = (letterhead: DocumentLetterhead): string => {
+  const lines = [
+    "The application renders this letterhead above the document. Do NOT write a letterhead table.",
+    "Omit ONLY the letterhead table: still write everything that follows it for this document type (e.g. the {right} File Code and Date lines of agency correspondence, or a centered title block).",
+  ];
+  // A banner letterhead is an image, so it may carry no text lines.
+  if (letterhead.nameLines.length > 0) {
+    lines.push(`Author identity: ${letterhead.nameLines.join(" / ")}`);
+  }
+  if (letterhead.contactLines.length > 0) {
+    lines.push(
+      `Author address and contact: ${letterhead.contactLines.join(", ")}`,
+    );
+  }
+  return lines.join("\n");
 };
 
 /**
@@ -84,6 +147,67 @@ const meterDocumentRun = async ({
   }
 };
 
+/**
+ * Streams the draft to the client as artifact deltas and returns the full
+ * text. Timing is document-local: elapsedMs counts from document start.
+ */
+const streamDraft = async ({
+  result,
+  writer,
+  logTiming,
+  startedAt,
+  onProgress,
+}: {
+  result: ReturnType<typeof streamText>;
+  writer: UIMessageStreamWriter;
+  logTiming: ChatTimingLog;
+  startedAt: number;
+  onProgress?: (content: string) => void;
+}): Promise<string> => {
+  let draftContent = "";
+  let deltaCount = 0;
+  let totalUsage: LanguageModelUsage | undefined;
+  let finishReason: string | undefined;
+  let errorName: string | undefined;
+
+  for await (const delta of result.fullStream) {
+    if (delta.type === "finish") {
+      totalUsage = delta.totalUsage;
+      finishReason = delta.finishReason;
+    }
+
+    if (delta.type === "error") {
+      errorName = getErrorName(delta.error);
+    }
+
+    if (delta.type === "text-delta") {
+      if (deltaCount === 0) {
+        logTiming("document-first-token", { ttftMs: Date.now() - startedAt });
+      }
+      deltaCount += 1;
+      draftContent += delta.text;
+
+      writer.write({
+        type: "data-artifact",
+        transient: true,
+        data: { type: "text-delta", content: delta.text },
+      });
+      onProgress?.(draftContent);
+    }
+  }
+
+  logTiming("document-finished", {
+    durationMs: Date.now() - startedAt,
+    outputChars: draftContent.length,
+    deltaCount,
+    finishReason,
+    errorName,
+    usage: summarizeUsage(totalUsage),
+  });
+
+  return draftContent;
+};
+
 export const textDocumentHandler = createDocumentHandler<"text">({
   kind: "text",
   onCreateDocument: async ({
@@ -93,13 +217,38 @@ export const textDocumentHandler = createDocumentHandler<"text">({
     projectContext,
     session,
     projectId,
+    chatId,
+    loadReferenceDocuments,
+    letterhead: chosenLetterhead,
+    onDraftProgress,
   }) => {
-    let draftContent = "";
+    const startedAt = Date.now();
+    const logTiming = createChatTimer({ chatId, startedAt });
 
-    const systemPrompt = await getPrompt("text-document");
+    // Undefined: no letterhead was chosen for this document, so fall back to
+    // the project default. Null ("none") stays null — no Application
+    // letterhead section, so the generator writes the author's own.
+    const [systemPrompt, referenceDocuments, letterhead, officeFacts] =
+      await Promise.all([
+        getPrompt("text-document"),
+        loadReferenceDocuments?.() ?? [],
+        chosenLetterhead !== undefined
+          ? chosenLetterhead
+          : projectId
+            ? getProjectLetterhead(projectId).catch(() => null)
+            : null,
+        loadOfficeFacts(projectId),
+      ]);
+    // The rendered letterhead's address block is the document author's — which
+    // may be a partner agency rather than the office — so it is confirmed too.
+    if (letterhead && letterhead.contactLines.length > 0) {
+      officeFacts.push(
+        `Author address and contact (letterhead): ${letterhead.contactLines.join(", ")}`,
+      );
+    }
 
     const promptParts = [
-      `## Known facts (authoritative — use these exact values; do NOT replace them with placeholders)\n${buildKnownFacts(session)}`,
+      `## Known facts (authoritative — use these exact values; do NOT replace them with placeholders)\n${buildKnownFacts(session, officeFacts)}`,
       `Document title: ${title}`,
     ];
 
@@ -109,11 +258,33 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       );
     }
 
+    if (referenceDocuments.length > 0) {
+      promptParts.push(formatReferenceDocuments(referenceDocuments));
+    }
+
     if (projectContext) {
       promptParts.push(`## Project Context\n${projectContext}`);
     }
 
+    if (letterhead) {
+      promptParts.push(
+        `## Application letterhead\n${buildLetterheadSection(letterhead)}`,
+      );
+    }
+
     const userPrompt = promptParts.join("\n\n");
+
+    logTiming("document-start", {
+      userContextChars: userContext?.length ?? 0,
+      referenceCount: referenceDocuments.length,
+      referenceChars: referenceDocuments.reduce(
+        (total, { text }) => total + text.length,
+        0,
+      ),
+      projectContextChars: projectContext?.length ?? 0,
+      promptChars: userPrompt.length,
+      systemChars: systemPrompt.length,
+    });
 
     const result = streamText({
       model: await getModel("primary"),
@@ -122,38 +293,48 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       prompt: userPrompt,
     });
 
-    for await (const delta of result.fullStream) {
-      const { type } = delta;
-
-      if (type === "text-delta") {
-        const { text: textDelta } = delta;
-
-        draftContent += textDelta;
-
-        writer.write({
-          type: "data-artifact",
-          transient: true,
-          data: { type: "text-delta", content: textDelta },
-        });
-      }
-    }
+    // Checkpoints store the raw draft; only the final save is cleaned up.
+    const draftContent = await streamDraft({
+      result,
+      writer,
+      logTiming,
+      startedAt,
+      onProgress: onDraftProgress,
+    });
 
     await meterDocumentRun({ result, session, projectId });
 
     return stripPlaceholderNotesInTableRows(draftContent);
   },
   onUpdateDocument: async ({ document, description, writer, session }) => {
-    let draftContent = "";
+    const startedAt = Date.now();
+    const logTiming = createChatTimer({ chatId: document.chatId, startedAt });
+
+    // The document row has no project column — its chat does.
+    const chat = document.chatId
+      ? await getChatById({ id: document.chatId })
+      : null;
+    const officeFacts = await loadOfficeFacts(chat?.projectId);
+    const prompt =
+      officeFacts.length > 0
+        ? `${description}\n\n## Office document details (confirmed — use these values to fill matching [INSERT: …] placeholders)\n${officeFacts.map((fact) => `- ${fact}`).join("\n")}`
+        : description;
 
     const systemPrompt = await getPrompt("update-document-text", {
       currentContent: document.content,
+    });
+
+    logTiming("document-start", {
+      currentContentChars: document.content?.length ?? 0,
+      promptChars: description.length,
+      systemChars: systemPrompt.length,
     });
 
     const result = streamText({
       model: await getModel("primary"),
       system: systemPrompt,
       experimental_transform: smoothStream({ chunking: "word" }),
-      prompt: description,
+      prompt,
       providerOptions: {
         openai: {
           prediction: {
@@ -164,25 +345,13 @@ export const textDocumentHandler = createDocumentHandler<"text">({
       },
     });
 
-    for await (const delta of result.fullStream) {
-      const { type } = delta;
+    const draftContent = await streamDraft({
+      result,
+      writer,
+      logTiming,
+      startedAt,
+    });
 
-      if (type === "text-delta") {
-        const { text: textDelta } = delta;
-
-        draftContent += textDelta;
-        writer.write({
-          type: "data-artifact",
-          transient: true,
-          data: { type: "text-delta", content: textDelta },
-        });
-      }
-    }
-
-    // The document row has no project column — its chat does.
-    const chat = document.chatId
-      ? await getChatById({ id: document.chatId })
-      : null;
     await meterDocumentRun({ result, session, projectId: chat?.projectId });
 
     return stripPlaceholderNotesInTableRows(draftContent);

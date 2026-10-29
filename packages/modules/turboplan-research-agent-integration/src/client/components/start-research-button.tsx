@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 
 import { Check, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -32,12 +32,39 @@ interface StartResearchButtonProps {
   canEdit: boolean;
   /** Surface style: "outline" (white, default) or "glass" (glass UI hosts). */
   appearance?: "outline" | "glass";
+  /** Icon-only button with the label in a tooltip, for narrow card headers. */
+  iconOnly?: boolean;
 }
 
 const APPEARANCE_CLASS = {
   outline: "border-white bg-white shadow-sm hover:bg-white/90",
   glass: "rounded-lg text-foreground",
 } as const;
+
+const ICON_ONLY_CLASS = "size-7 rounded-lg p-0";
+
+/** Wraps a control in a tooltip; `focusable` for disabled buttons, which
+ * cannot receive focus themselves. */
+const WithTooltip = ({
+  label,
+  focusable = false,
+  children,
+}: {
+  label: string;
+  focusable?: boolean;
+  children: ReactNode;
+}) => (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {focusable ? <span tabIndex={0}>{children}</span> : children}
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-xs">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
 
 // Maps the raw status payload to the derived UI state. No `status` field means
 // there is no run record yet (idle); an active run takes precedence over the
@@ -61,6 +88,7 @@ export function StartResearchButton({
   projectId,
   canEdit,
   appearance = "outline",
+  iconOnly = false,
 }: StartResearchButtonProps) {
   const variant = appearance === "glass" ? "glass" : "outline";
   const { mutate: globalMutate } = useSWRConfig();
@@ -106,6 +134,70 @@ export function StartResearchButton({
     return null;
   }
 
+  const isFailed = uiState === "failed";
+
+  const renderIconOnly = () => {
+    if (uiState === "running") {
+      return (
+        <WithTooltip label={status?.currentStep ?? "Researching…"} focusable>
+          <Button
+            variant={variant}
+            size="icon"
+            disabled
+            aria-label="Researching…"
+            className={cn(
+              APPEARANCE_CLASS[appearance],
+              ICON_ONLY_CLASS,
+              "cursor-default disabled:opacity-100",
+            )}
+          >
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          </Button>
+        </WithTooltip>
+      );
+    }
+
+    if (uiState === "completed") {
+      return (
+        <WithTooltip label="Research completed" focusable>
+          <span
+            role="img"
+            aria-label="Research completed"
+            className="flex size-7 items-center justify-center text-muted-foreground"
+          >
+            <Check className="size-4" aria-hidden />
+          </span>
+        </WithTooltip>
+      );
+    }
+
+    const label = isFailed ? "Retry research" : "Start research";
+    return (
+      <WithTooltip label={label}>
+        <Button
+          variant={variant}
+          size="icon"
+          onClick={handleStartResearch}
+          disabled={isStarting}
+          aria-label={label}
+          className={cn(APPEARANCE_CLASS[appearance], ICON_ONLY_CLASS)}
+        >
+          {isStarting ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : isFailed ? (
+            <RefreshCw className="size-4" aria-hidden />
+          ) : (
+            <Sparkles className="size-4" aria-hidden />
+          )}
+        </Button>
+      </WithTooltip>
+    );
+  };
+
+  if (iconOnly) {
+    return renderIconOnly();
+  }
+
   if (uiState === "running") {
     const runningButton = (
       <Button
@@ -148,8 +240,6 @@ export function StartResearchButton({
       </span>
     );
   }
-
-  const isFailed = uiState === "failed";
 
   return (
     <Button

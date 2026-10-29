@@ -16,6 +16,7 @@ import {
 
 import { getPreviewDocumentMimeType } from "../../document-mime";
 import { getFileTypeLabel } from "../utils";
+import { DocTextViewer } from "./doc-text-viewer";
 import { DocxViewerLazy } from "./docx-viewer-lazy";
 import { PageNavigation } from "./page-navigation";
 import { PdfViewerLazy } from "./pdf-viewer-lazy";
@@ -32,6 +33,9 @@ interface DocumentPreviewDialogBaseProps {
   previewUrl?: string | null;
   /** Optional mime type hint. Derived from filename/url if omitted. */
   mimeType?: string | null;
+  /** Set when the file is a saved project document: legacy .doc files then
+   *  preview as their extracted text. */
+  projectDocumentId?: string;
   addToProject?: {
     isLoading: boolean;
     handler: () => void;
@@ -221,7 +225,14 @@ export function DocumentPreviewDialog(props: DocumentPreviewDialogProps) {
               </div>
             )}
 
-            {isDoc && (
+            {isDoc && props.projectDocumentId && (
+              <DocTextViewer
+                documentId={props.projectDocumentId}
+                onDownload={handleDownload}
+              />
+            )}
+
+            {isDoc && !props.projectDocumentId && (
               <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
                 <FileText className="size-12 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">

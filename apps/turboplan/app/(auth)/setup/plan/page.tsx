@@ -1,15 +1,17 @@
 import { redirect } from "next/navigation";
 
-import { isBillingPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 
 import { PlanStep } from "./plan-step";
 
 /**
- * Onboarding plan step. Bypassed entirely when billing is disabled —
- * open-source installs go straight to the app.
+ * Onboarding plan step. Bypassed entirely when billing enforcement is
+ * disabled: with the billing package off (open-source installs) or
+ * enforcement switched off, no plan unlocks anything, so users go straight to
+ * the app.
  */
 export default function SetupPlanPage() {
-  if (!isBillingPackageEnabled()) {
+  if (!isBillingEnforcementEnabled()) {
     redirect("/?setup=true");
   }
 

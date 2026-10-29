@@ -15,6 +15,7 @@ import {
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
 import { assertSafeFetchUrl } from "@wildfires-org/turboplan-utils/ssrf";
 
+import { formatSkippedLayersMessage } from "../utils/layer-utils";
 import { createMapRepository } from "./repository";
 import { createMapService, type IndividualLayerData } from "./service";
 
@@ -64,7 +65,9 @@ const layerUploadSchema = z
 // Schema for map processing proxy request
 const processRequestSchema = z.object({
   url: z.string().url("Valid URL is required"),
-  filename: z.string().min(1, "Filename is required"),
+  // Forwarded to the map service, which names layers after it and uses its
+  // extension as a format hint (presigned/storage URLs lose the name).
+  filename: z.string().min(1, "Filename is required").max(255),
 });
 
 // GIS processing is genuinely slow — a large archive means a download, a zip
@@ -95,6 +98,31 @@ const assertSafeProcessUrl = (raw: string): void => {
         ? "Only HTTP and HTTPS URLs are allowed"
         : guardError,
     );
+  }
+};
+
+const USER_FACING_STATUSES = new Set([400, 413]);
+const MAX_USER_FACING_DETAIL_LENGTH = 500;
+
+// Extract the FastAPI `detail` string from a map-server error body when the
+// status is one whose message is meant for the user.
+const getUserFacingDetail = (status: number, body: string): string | null => {
+  if (!USER_FACING_STATUSES.has(status)) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(body);
+    const detail =
+      parsed && typeof parsed === "object" && "detail" in parsed
+        ? parsed.detail
+        : null;
+    if (typeof detail !== "string" || detail.length === 0) {
+      return null;
+    }
+    return detail.slice(0, MAX_USER_FACING_DETAIL_LENGTH);
+  } catch {
+    return null;
   }
 };
 
@@ -165,6 +193,7 @@ router.post("/layers/upload", async (c) => {
     }
 
     const layers = result.layers || (result.layer ? [result.layer] : []);
+    const skippedLayers = result.skippedLayers ?? [];
 
     // Record a single timeline entry for the upload (not one per layer)
     if (layers.length > 0) {
@@ -184,7 +213,10 @@ router.post("/layers/upload", async (c) => {
     // Return success response with information about all created layers
     return c.json({
       success: true,
-      message: `${layers.length} layer${layers.length > 1 ? "s" : ""} uploaded successfully`,
+      message:
+        layers.length === 0 && skippedLayers.length > 0
+          ? formatSkippedLayersMessage(skippedLayers)
+          : `${layers.length} layer${layers.length === 1 ? "" : "s"} uploaded successfully`,
       layerId: result.layer?.id, // For backward compatibility
       featureCount: result.layer?.featureCount || 0, // For backward compatibility
       layers: layers.map((layer) => ({
@@ -195,6 +227,9 @@ router.post("/layers/upload", async (c) => {
         unitIdKey: layer.unitIdKey,
         unitAcresKey: layer.unitAcresKey,
       })),
+      // Layers the project already had (same name and source file): not
+      // inserted again, still a success.
+      skippedLayers,
       warnings: result.warnings,
     });
   } catch (error) {
@@ -385,6 +420,18 @@ router.post("/process", async (c) => {
         status: response.status,
         body: errorText,
       });
+
+      // 400/413 are caller-side problems (no GIS data in the ZIP, broken
+      // archive, too large). The map-server writes those messages for users
+      // and never echoes internals into them, so pass them through.
+      const userFacingDetail = getUserFacingDetail(response.status, errorText);
+      if (userFacingDetail) {
+        return c.json(
+          { error: userFacingDetail },
+          response.status === 413 ? 413 : 400,
+        );
+      }
+
       return c.json(
         { error: `Map processing service error: ${response.status}` },
         502,

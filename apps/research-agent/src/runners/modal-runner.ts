@@ -4,7 +4,7 @@ import { getResearchAgentEnv } from "@wildfires-org/turboplan-env";
 
 import { logger } from "../infra/logger";
 import type { ModalResources } from "../infra/modal-setup";
-import type { AgentOutputLine } from "./runner-schema";
+import type { AgentOutputLine, RunStats } from "./runner-schema";
 import type {
   AgentRunner,
   RunnerContext,
@@ -109,6 +109,7 @@ export function createModalRunner(resources: ModalResources): AgentRunner {
     // Collect output and handle parsed NDJSON lines
     let result = "";
     let lastError: { msg: string; status: number } | null = null;
+    let stats: RunStats | undefined;
     const { done, flush } = collectOutput(sandbox, (parsed) => {
       switch (parsed.type) {
         case "progress":
@@ -116,9 +117,11 @@ export function createModalRunner(resources: ModalResources): AgentRunner {
           break;
         case "result":
           result = parsed.result;
+          stats = parsed.stats ?? stats;
           break;
         case "error":
           lastError = { msg: parsed.msg, status: parsed.status };
+          stats = parsed.stats ?? stats;
           break;
       }
     });
@@ -134,17 +137,27 @@ export function createModalRunner(resources: ModalResources): AgentRunner {
     if (signal?.aborted) return cancelledResult();
     if (exitCode !== 0) {
       if (lastError) {
-        return { ok: false, error: lastError };
+        return { ok: false, error: lastError, stats };
       }
       return failedResult(stderr || `Exit code ${exitCode}`);
     }
 
     // Flush remaining buffer
     const flushed = flush();
-    if (flushed?.type === "result") result = flushed.result;
+    if (flushed?.type === "result") {
+      result = flushed.result;
+      stats = flushed.stats ?? stats;
+    }
 
-    if (!result) return failedResult("No result line found in agent output");
-    return { ok: true, data: result };
+    if (!result) {
+      // The agent exits 0 after an SDK error result (e.g. error_max_turns);
+      // surface that error instead of a generic "no result" failure.
+      if (lastError) {
+        return { ok: false, error: lastError, stats };
+      }
+      return failedResult("No result line found in agent output");
+    }
+    return { ok: true, data: result, stats };
   };
 
   const run = async (
@@ -178,7 +191,11 @@ export function createModalRunner(resources: ModalResources): AgentRunner {
     });
     context?.onSandboxCreated?.(sandbox.sandboxId);
 
-    await sendToSandbox(sandbox, { type: "start", prompt });
+    await sendToSandbox(sandbox, {
+      type: "start",
+      prompt,
+      skill: context?.skill,
+    });
 
     return watchSandbox(sandbox, signal, context);
   };

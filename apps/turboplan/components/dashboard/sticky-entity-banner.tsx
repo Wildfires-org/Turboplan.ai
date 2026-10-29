@@ -104,9 +104,10 @@ export function StickyEntityBanner({
                 {title}
               </h2>
 
-              {/* Actions */}
+              {/* Actions — phones keep just the title here; the actions stay
+                  in the full banner, a short scroll up. */}
               {actions && (
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="hidden shrink-0 items-center gap-2 sm:flex">
                   {actions}
                 </div>
               )}

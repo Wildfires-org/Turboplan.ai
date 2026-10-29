@@ -9,7 +9,7 @@ import type {
   Organization,
 } from "@wildfires-org/turboplan-workspace/types";
 
-import ProjectLoading from "@/app/(dashboard)/organizations/[orgSlug]/offices/[officeSlug]/projects/[projectSlug]/loading";
+import ProjectLoading from "@/app/(dashboard)/[orgSlug]/[officeSlug]/[projectSlug]/loading";
 import { CitizenSubmissionsSection } from "@/components/dashboard/citizen-submissions-section";
 import { DashboardHeaderSkeleton } from "@/components/dashboard/dashboard-header";
 import { InviteMembersProvider } from "@/components/dashboard/invite-members-context";
@@ -26,11 +26,9 @@ import { TemplatesGridSection } from "@/components/dashboard/templates-grid-sect
 import { useOptionalDashboard } from "@/components/providers/dashboard-provider";
 import { useUser } from "@/components/providers/user-provider";
 import { PAGE_CONTAINER_CLASS, STICKY_TOOLBAR_CLASS } from "@/lib/glass";
-import { AppUrls } from "@/lib/nav/urls";
+import { getOfficeRoute } from "@/lib/nav/office-route";
 
 // ── Types ─────────────────────────────────────────────────────────────
-
-type OfficeRoute = OfficeTab | "project" | "other";
 
 interface OfficeTabBodyProps {
   tab: OfficeTab;
@@ -43,36 +41,6 @@ interface OfficeTabBodyProps {
 // ── Constants ─────────────────────────────────────────────────────────
 
 const noop = () => {};
-
-// ── Helpers ───────────────────────────────────────────────────────────
-
-const getOfficeRoute = (
-  pathname: string,
-  orgSlug: string,
-  officeSlug: string,
-): OfficeRoute => {
-  const officeUrl = AppUrls.office(orgSlug, officeSlug);
-  if (pathname === officeUrl) {
-    return "projects";
-  }
-  const rest = pathname.slice(officeUrl.length + 1).split("/")[0];
-  if (
-    rest === "members" ||
-    rest === "my-submissions" ||
-    rest === "citizen-submissions"
-  ) {
-    return rest;
-  }
-  // Only the templates list shares the office frame (template detail and
-  // document templates have their own layouts).
-  if (pathname === AppUrls.officeProjectTemplates(orgSlug, officeSlug)) {
-    return "templates";
-  }
-  if (rest === "projects") {
-    return "project";
-  }
-  return "other";
-};
 
 // ── Component ─────────────────────────────────────────────────────────
 

@@ -11,8 +11,10 @@ export function parseWireMessage(line: string): RunnerWireMessage | null {
       message.type === "start" &&
       typeof (message as { prompt?: unknown }).prompt === "string"
     ) {
-      const prompt = (message as { prompt: string }).prompt;
-      return { type: "start", prompt };
+      const { prompt, skill } = message as { prompt: string; skill?: unknown };
+      return typeof skill === "string"
+        ? { type: "start", prompt, skill }
+        : { type: "start", prompt };
     }
     if (
       (message.type === "context" || message.type === "continue") &&

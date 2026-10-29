@@ -4,6 +4,7 @@ import { organization } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { getApiEnv } from "@wildfires-org/turboplan-env";
 import { getMailService } from "@wildfires-org/turboplan-mail/server";
+import { appPaths } from "@wildfires-org/turboplan-utils/server";
 
 import {
   getOrganizationOwnerEmails,
@@ -46,7 +47,7 @@ export const sendPaymentFailedEmail = async (
     return;
   }
 
-  const billingUrl = `${getApiEnv().TURBOPLAN_URL}/organizations/${org.slug}/billing`;
+  const billingUrl = `${getApiEnv().TURBOPLAN_URL}${appPaths.organization(org.slug)}/billing`;
   const mailService = getMailService();
 
   await Promise.all(

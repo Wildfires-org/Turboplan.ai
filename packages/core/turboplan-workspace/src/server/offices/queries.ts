@@ -12,13 +12,17 @@ import {
 import { db } from "@wildfires-org/turboplan-db/db-client";
 import { EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
-import {
-  generateSlug,
-  generateUniqueSlug,
-  isValidSlug,
-} from "@wildfires-org/turboplan-utils/server";
+import { isValidSlug } from "@wildfires-org/turboplan-utils/server";
 
+import {
+  appendDocumentProfileFact,
+  DOCUMENT_PROFILE_FACTS_MAX_CHARS,
+  type DocumentProfile,
+  normalizeDocumentProfile,
+} from "../../document-profile";
+import { normalizeLetterheadColor } from "../../letterhead";
 import type { SlugLookupResult } from "../../types";
+import { assertSlugNotReserved, generateAvailableSlug } from "../slug-policy";
 import type {
   CreateOfficeRequest,
   OfficeStatus,
@@ -123,25 +127,15 @@ async function isOfficeSlugTaken(
 
 /**
  * Generate a unique slug for an office within an organization
- * If the base slug is taken, appends a short unique ID
+ * If the base slug is taken or reserved, appends a short unique ID
  */
 async function generateUniqueOfficeSlug(
   organizationId: string,
   name: string,
 ): Promise<string> {
-  const baseSlug = generateSlug(name);
-
-  if (!baseSlug) {
-    return generateUniqueSlug(name);
-  }
-
-  const isTaken = await isOfficeSlugTaken(organizationId, baseSlug);
-  if (!isTaken) {
-    return baseSlug;
-  }
-
-  // Slug is taken, generate unique one
-  return generateUniqueSlug(name);
+  return generateAvailableSlug("office", name, (slug) =>
+    isOfficeSlugTaken(organizationId, slug),
+  );
 }
 
 export async function getOfficesByOrganization(
@@ -210,6 +204,9 @@ export async function getOfficesByOrganization(
 
 export async function createOffice(data: CreateOfficeRequest): Promise<Office> {
   try {
+    if (data.slug) {
+      assertSlugNotReserved("office", data.slug);
+    }
     // Generate slug from name if not provided
     const finalSlug =
       data.slug ||
@@ -254,6 +251,9 @@ export async function updateOffice(data: UpdateOfficeRequest): Promise<void> {
     if (data.slug !== undefined && !isValidSlug(data.slug)) {
       throw new Error(`Invalid slug format: "${data.slug}"`);
     }
+    if (data.slug !== undefined) {
+      assertSlugNotReserved("office", data.slug);
+    }
 
     // Use transaction to prevent race conditions during slug updates
     await db.transaction(async (tx) => {
@@ -287,6 +287,31 @@ export async function updateOffice(data: UpdateOfficeRequest): Promise<void> {
 
       if (data.documentFooterLogoUrl !== undefined) {
         updateData.documentFooterLogoUrl = data.documentFooterLogoUrl;
+      }
+
+      if (data.documentLetterheadLayout !== undefined) {
+        updateData.documentLetterheadLayout =
+          data.documentLetterheadLayout || null;
+      }
+
+      if (data.documentLetterheadLines !== undefined) {
+        updateData.documentLetterheadLines = data.documentLetterheadLines;
+      }
+
+      if (data.documentLetterheadContact !== undefined) {
+        updateData.documentLetterheadContact = data.documentLetterheadContact;
+      }
+
+      if (data.documentLetterheadColor !== undefined) {
+        updateData.documentLetterheadColor = normalizeLetterheadColor(
+          data.documentLetterheadColor,
+        );
+      }
+
+      if (data.documentProfile !== undefined) {
+        updateData.documentProfile = normalizeDocumentProfile(
+          data.documentProfile,
+        );
       }
 
       // Handle slug change with history tracking
@@ -461,3 +486,48 @@ export async function getUserAccessibleOffices(
     throw error;
   }
 }
+
+/**
+ * Append the fact line `${label}: ${value}` to an office's document profile
+ * (no-op when an identical line exists). The row is locked so concurrent
+ * appends cannot drop each other's facts. Fails with `facts_too_long` when the
+ * facts would exceed {@link DOCUMENT_PROFILE_FACTS_MAX_CHARS}.
+ */
+export const appendOfficeDocumentProfileFact = async (
+  officeId: string,
+  label: string,
+  value: string,
+): Promise<
+  | { ok: true; documentProfile: DocumentProfile }
+  | { ok: false; reason: "not_found" | "facts_too_long" }
+> => {
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ documentProfile: office.documentProfile })
+      .from(office)
+      .where(eq(office.id, officeId))
+      .for("update");
+    if (!current) {
+      return { ok: false, reason: "not_found" } as const;
+    }
+
+    const { profile, changed } = appendDocumentProfileFact(
+      current.documentProfile,
+      label,
+      value,
+    );
+    if (!changed) {
+      return { ok: true, documentProfile: profile } as const;
+    }
+    if ((profile.facts ?? "").length > DOCUMENT_PROFILE_FACTS_MAX_CHARS) {
+      return { ok: false, reason: "facts_too_long" } as const;
+    }
+
+    const documentProfile = normalizeDocumentProfile(profile) ?? {};
+    await tx
+      .update(office)
+      .set({ documentProfile, updatedAt: new Date() })
+      .where(eq(office.id, officeId));
+    return { ok: true, documentProfile } as const;
+  });
+};

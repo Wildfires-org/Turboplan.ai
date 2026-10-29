@@ -1,9 +1,9 @@
 import { getWebEnv } from "@wildfires-org/turboplan-env";
 
 const EXA_BASE_URL = "https://api.exa.ai";
+const EXA_SEARCH_NUM_RESULTS = 5;
 
 type ExaSearchOptions = {
-  numResults?: number;
   searchType?: "auto" | "neural" | "keyword";
   category?: string;
   startPublishedDate?: string;
@@ -33,7 +33,13 @@ type ExaContentResult = {
 type ExaGetContentsResponse = {
   results: ExaContentResult[];
   warning?: string;
-  statuses?: Array<{ url: string; status: string; error?: string }>;
+  // Per-URL fetch outcome, per Exa's OpenAPI spec: keyed by `id` (the
+  // requested URL); `error` is an object, present only when status is "error".
+  statuses?: Array<{
+    id: string;
+    status: "success" | "error";
+    error?: { tag: string; httpStatusCode: number | null } | null;
+  }>;
 };
 
 const getApiKey = (): string | undefined => {
@@ -87,7 +93,7 @@ export const exaSearch = async (
       signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({
         query,
-        numResults: options?.numResults ?? 5,
+        numResults: EXA_SEARCH_NUM_RESULTS,
         type: options?.searchType ?? "auto",
         ...(options?.category && { category: options.category }),
         ...(options?.startPublishedDate && {
@@ -167,7 +173,9 @@ export const exaGetContents = async (
   if (data.statuses) {
     for (const status of data.statuses) {
       if (status.error) {
-        console.warn(`[Exa] Error fetching ${status.url}: ${status.error}`);
+        console.warn(
+          `[Exa] Error fetching ${status.id}: ${JSON.stringify(status.error)}`,
+        );
       }
     }
   }

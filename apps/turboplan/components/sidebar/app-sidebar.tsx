@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useIsClient } from "usehooks-ts";
@@ -19,6 +19,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsCitizen } from "@/hooks/use-citizen-mode";
 import { useSidebarBehavior } from "@/hooks/use-sidebar-behavior";
@@ -52,6 +53,7 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
     handleTogglePin,
   } = useSidebarBehavior({ defaultPinned });
 
+  const { isMobile, setOpenMobile } = useSidebar();
   const isCitizen = useIsCitizen();
   const isClient = useIsClient();
   const appName = brand.name;
@@ -84,7 +86,19 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
           </span>
         </div>
         <div className="ml-auto shrink-0 pr-1 group-data-[collapsible=icon]:hidden">
-          <SidebarPinButton isPinned={isPinned} onToggle={handleTogglePin} />
+          {/* Phones show the sidebar as a sheet, where pinning means nothing. */}
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={() => setOpenMobile(false)}
+              aria-label="Close navigation"
+              className="flex size-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-900/5 hover:text-foreground"
+            >
+              <X className="size-5" />
+            </button>
+          ) : (
+            <SidebarPinButton isPinned={isPinned} onToggle={handleTogglePin} />
+          )}
         </div>
       </SidebarHeader>
 
@@ -102,8 +116,8 @@ export function AppSidebar({ defaultPinned = false }: AppSidebarProps) {
             <SidebarGroup>
               <SidebarGroupContent>
                 <Button
-                  variant="brand"
-                  className="h-11 w-full justify-center gap-2 overflow-hidden group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:p-0"
+                  variant="outline"
+                  className="h-11 w-full justify-center gap-2 overflow-hidden rounded-lg border-slate-200 bg-white text-slate-700 shadow-none hover:bg-slate-900/[0.03] hover:text-slate-900 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:p-0"
                   onClick={() => setAddProjectOpen(true)}
                 >
                   <Plus className="size-5 shrink-0" />

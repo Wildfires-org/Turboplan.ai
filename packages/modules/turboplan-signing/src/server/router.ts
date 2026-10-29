@@ -15,6 +15,7 @@ import {
   requirePermission,
 } from "@wildfires-org/turboplan-rbac/hono";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
+import { getProjectDocumentBranding } from "@wildfires-org/turboplan-workspace/server";
 
 import { resolveDocumensoConfig } from "./config-resolver";
 import {
@@ -205,8 +206,24 @@ signingRouter.post("/", async (c) => {
     // Resolve org-level Documenso config (or fall back to env vars)
     const docConfig = await resolveDocumensoConfig(projectId);
 
-    // Generate PDF from markdown
-    const pdf = await generatePdfFromMarkdown(doc.content, signingRequestTitle);
+    // Generate PDF from markdown, branded like the PDF export (letterhead logo,
+    // footer and the letterhead this document selected) so the signed copy
+    // matches the downloadable one.
+    const branding = await getProjectDocumentBranding(
+      projectId,
+      doc.content,
+      doc.id,
+    );
+    const pdf = await generatePdfFromMarkdown(
+      branding.content,
+      signingRequestTitle,
+      {
+        logo: branding.logo ?? undefined,
+        footer: branding.footer,
+        logoPlacement: branding.logoPlacement,
+        accentColor: branding.color ?? undefined,
+      },
+    );
 
     // Create Documenso envelope with our signing request ID as external reference
     const envelope = await createEnvelope(

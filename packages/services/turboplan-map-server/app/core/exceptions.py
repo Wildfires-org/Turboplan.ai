@@ -31,6 +31,11 @@ class NoGISFilesFoundError(GISProcessingError):
     pass
 
 
+class UnsupportedFileTypeError(GISProcessingError):
+    """Raised when an uploaded file is neither an archive nor a GIS format."""
+    pass
+
+
 class GISFileProcessingError(GISProcessingError):
     """Raised when processing a GIS file fails."""
     pass

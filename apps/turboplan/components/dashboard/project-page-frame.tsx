@@ -166,6 +166,7 @@ export function ProjectPageFrameSkeleton({
       <DashboardHeaderSkeleton crumbs={isOverview ? 3 : 4} />
       <EntityBannerShell
         coverImageUrl={DEFAULT_COVER_URL}
+        compactCover={!isOverview}
         logo={
           <span
             aria-hidden

@@ -38,7 +38,7 @@ export function LoadingState({ isAuthenticated }: LoadingStateProps) {
   const fact = LOADING_FACTS[factIndex];
 
   return (
-    <div className="flex min-h-dvh w-screen bg-brandAlt-100">
+    <div className="flex min-h-dvh w-full bg-brandAlt-100">
       <div className="absolute top-6 left-6 sm:top-[63px] sm:left-[116px] flex items-center gap-1.5">
         <Image
           src={brand.logo}
@@ -53,7 +53,7 @@ export function LoadingState({ isAuthenticated }: LoadingStateProps) {
       </div>
 
       <div className="flex flex-1 items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-[0px_4px_4px_0px_rgba(0,0,0,0.1)] p-9 w-full max-w-[456px]">
+        <div className="glass-card relative w-full max-w-[456px] rounded-[24px] p-7 sm:p-9">
           <div className="flex flex-col items-center gap-3 text-center">
             <Image
               src="/images/auth/beaver-verifying.gif"

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
 
 import { OFFICE_URL_PATTERN, PROJECT_URL_PATTERN } from "../../config/patterns";
 import { getCitizenCredentials } from "../../config/test-credentials";
@@ -39,9 +40,7 @@ test.describe("Project Soft Delete", () => {
 
     // Navigate directly to the citizen's office (citizen may have access to
     // multiple orgs, so "/" redirect is not deterministic).
-    await page.goto(
-      `/organizations/${citizenOrgSlug}/offices/${citizenOfficeSlug}`,
-    );
+    await page.goto(appPaths.office(citizenOrgSlug, citizenOfficeSlug));
     await page.waitForURL(OFFICE_URL_PATTERN, { timeout: 10000 });
 
     // Create a dedicated project for this test.
@@ -59,9 +58,7 @@ test.describe("Project Soft Delete", () => {
     const projectUrl = page.url();
 
     // Go back to office projects list.
-    await page.goto(
-      `/organizations/${citizenOrgSlug}/offices/${citizenOfficeSlug}`,
-    );
+    await page.goto(appPaths.office(citizenOrgSlug, citizenOfficeSlug));
     await page.waitForURL(OFFICE_URL_PATTERN, { timeout: 10000 });
 
     const main = page.getByRole("main");

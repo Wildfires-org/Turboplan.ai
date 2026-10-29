@@ -9,16 +9,15 @@ import { EditorView } from "prosemirror-view";
 
 import type { Suggestion } from "@wildfires-org/turboplan-db/types";
 
+import { blockStylesPlugin } from "@/lib/editor/block-styles";
 import {
   documentSchema,
   handleTransaction,
   headingRule,
 } from "@/lib/editor/config";
-import {
-  buildContentFromDocument,
-  buildDocumentFromContent,
-  createDecorations,
-} from "@/lib/editor/functions";
+import { createDecorations } from "@/lib/editor/functions";
+import { buildContentFromDocument } from "@/lib/editor/markdown-serializer";
+import { buildDocumentFromContent } from "@/lib/editor/parse-document";
 import { placeholderHighlightPlugin } from "@/lib/editor/placeholder-highlights";
 import {
   projectWithPositions,
@@ -66,6 +65,7 @@ function PureEditor({
           }),
           suggestionsPlugin,
           placeholderHighlightPlugin,
+          blockStylesPlugin,
         ],
       });
 
@@ -155,7 +155,7 @@ function PureEditor({
 
   return (
     <div
-      className="relative prose dark:prose-invert mx-auto"
+      className="document-editor relative prose dark:prose-invert mx-auto"
       ref={containerRef}
     />
   );

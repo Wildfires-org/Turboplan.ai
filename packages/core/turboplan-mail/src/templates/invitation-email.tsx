@@ -1,15 +1,7 @@
-import { Text } from "@react-email/components";
-
 import { getAppName } from "@wildfires-org/turboplan-env";
 
 import { BaseLayout, preventAutoLink } from "./base-layout";
-import {
-  BrandCard,
-  CtaButton,
-  Disclaimer,
-  FallbackUrl,
-  GreetingPill,
-} from "./email-card";
+import { CtaButton, EmailHeading, FallbackUrl, Paragraph } from "./email-card";
 
 export type InvitationEntityType = "organization" | "office" | "project";
 
@@ -73,33 +65,22 @@ export function InvitationEmail({
     <BaseLayout
       preview={`${inviterName} invited you to join ${entityName} on ${appName}`}
       label={getInvitationLabel(entityType)}
+      footer={`This invitation was sent to ${inviteeEmail}. If you weren't expecting it, you can safely ignore this email.`}
     >
-      <BrandCard>
-        <GreetingPill>Hello</GreetingPill>
+      <EmailHeading>Join {entityName}</EmailHeading>
 
-        <Text style={inviteText}>
-          <strong>{inviterName}</strong>
-          <span style={inviteTextLight}> has invited you to join the </span>
-          <strong>{entityName}</strong>
-          <span style={inviteTextLight}>
-            {" "}
-            {entityLabel} on {preventAutoLink(appName)}
-          </span>
-        </Text>
+      <Paragraph>
+        <strong style={strong}>{inviterName}</strong> has invited you to join
+        the <strong style={strong}>{entityName}</strong> {entityLabel} on{" "}
+        {preventAutoLink(appName)}.
+      </Paragraph>
 
-        <Text style={descriptionText}>
-          {preventAutoLink(appName)} helps teams collaborate more effectively
-          with AI-powered chat, task management and project coordination. Join
-          your team and start collaborating today!
-        </Text>
+      <Paragraph>
+        {preventAutoLink(appName)} brings AI-powered chat, task management and
+        project coordination together in one place.
+      </Paragraph>
 
-        <CtaButton href={inviteUrl} label="Accept Invitation" />
-      </BrandCard>
-
-      <Disclaimer>
-        This invitation was sent to {inviteeEmail}. If you weren't expecting
-        this invitation, you can safely ignore this email.
-      </Disclaimer>
+      <CtaButton href={inviteUrl} label="Accept Invitation" />
 
       <FallbackUrl url={inviteUrl} />
     </BaseLayout>
@@ -107,22 +88,6 @@ export function InvitationEmail({
 }
 
 // Styles
-const inviteText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "#ffffff",
-  textAlign: "center" as const,
-  margin: "0 0 16px",
-};
-
-const inviteTextLight = {
-  color: "rgba(255, 255, 255, 0.8)",
-};
-
-const descriptionText = {
-  fontSize: "14px",
-  lineHeight: "20px",
-  color: "rgba(255, 255, 255, 0.8)",
-  textAlign: "center" as const,
-  margin: "0 0 36px",
+const strong = {
+  color: "#111827",
 };

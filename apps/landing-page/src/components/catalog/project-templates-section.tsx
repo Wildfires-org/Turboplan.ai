@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTemplates } from "@/hooks/use-templates";
-import { cn } from "@/lib/utils";
 import { routing } from "@/utils/routing";
 import { CatalogCardSkeletonGrid } from "./catalog-card-skeleton";
 import { CatalogEmptyState } from "./catalog-empty-state";
@@ -118,15 +117,7 @@ export function ProjectTemplatesSection({
           description="There are no templates matching your current filters. Try adjusting your search or create a new template from scratch."
           actionButton={
             <CatalogRequestDialog>
-              <button
-                type="button"
-                className={PRIMARY_BUTTON_CLASS}
-                onClick={() => {
-                  document
-                    .getElementById("accelerate-planning")
-                    ?.scrollIntoView({ behavior: "smooth" });
-                }}
-              >
+              <button type="button" className={PRIMARY_BUTTON_CLASS}>
                 <PlusIcon className="size-4" />
                 Create Template
               </button>
@@ -141,27 +132,18 @@ export function ProjectTemplatesSection({
     <TemplatesSectionShell
       actions={
         !showMoreLink && (
-          <>
-            <button
-              type="button"
-              aria-label="Create template"
-              className={cn(GLASS_BUTTON_CLASS, "size-10 px-0")}
-            >
-              <PlusIcon className="size-4" />
-            </button>
-            <Select
-              value={sortBy}
-              onValueChange={(v) => setSortBy(v as SortOption)}
-            >
-              <SelectTrigger className="glass h-10 w-fit gap-1 rounded-xl border-white/85 bg-white/55 px-4 font-inter text-[14px] text-egray-900 focus:ring-0 focus:ring-offset-0 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={SORT_OPTIONS.name}>Name</SelectItem>
-                <SelectItem value={SORT_OPTIONS.newest}>Newest</SelectItem>
-              </SelectContent>
-            </Select>
-          </>
+          <Select
+            value={sortBy}
+            onValueChange={(v) => setSortBy(v as SortOption)}
+          >
+            <SelectTrigger className="glass h-10 w-fit gap-1 rounded-xl border-white/85 bg-white/55 px-4 font-inter text-[14px] text-egray-900 focus:ring-0 focus:ring-offset-0 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SORT_OPTIONS.name}>Name</SelectItem>
+              <SelectItem value={SORT_OPTIONS.newest}>Newest</SelectItem>
+            </SelectContent>
+          </Select>
         )
       }
     >

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { getUserByEmail } from "@wildfires-org/turboplan-db/queries";
+import { appPaths } from "@wildfires-org/turboplan-utils/app-paths";
 
 import { PROJECT_URL_PATTERN } from "../../config/patterns";
 import { getCitizenCredentials } from "../../config/test-credentials";
@@ -43,7 +44,7 @@ test.describe("Cross-App User Journey", () => {
   }) => {
     // Navigate directly to citizen's org (citizen may have access to
     // multiple orgs, so "/" redirect is not deterministic).
-    await page.goto(`/organizations/${citizenOrgSlug}`);
+    await page.goto(appPaths.organization(citizenOrgSlug));
 
     // Verify we're authenticated (not on login page)
     await expect(page).not.toHaveURL(/\/login/);
@@ -69,9 +70,7 @@ test.describe("Cross-App User Journey", () => {
     page,
   }) => {
     // Navigate directly to citizen's office
-    await page.goto(
-      `/organizations/${citizenOrgSlug}/offices/${citizenOfficeSlug}`,
-    );
+    await page.goto(appPaths.office(citizenOrgSlug, citizenOfficeSlug));
     await page
       .getByRole("main")
       .getByRole("link", { name: TEST_WORKSPACE.PROJECT_NAME })

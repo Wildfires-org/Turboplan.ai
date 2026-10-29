@@ -9,11 +9,17 @@ import type {
   ViewMode,
 } from "@wildfires-org/turboplan-tasks/types";
 
+import { PublicEmptyState } from "./public-empty-state";
+
 interface PublicTasksSectionProps {
   milestones: MilestoneWithTasks[];
+  entity: "project" | "template";
 }
 
-export function PublicTasksSection({ milestones }: PublicTasksSectionProps) {
+export function PublicTasksSection({
+  milestones,
+  entity,
+}: PublicTasksSectionProps) {
   // UI State - using useState so controls actually work
   const [activeTab, setActiveTab] = useState<"gantt" | "card">("gantt");
   const [searchQuery, setSearchQuery] = useState("");
@@ -159,14 +165,10 @@ export function PublicTasksSection({ milestones }: PublicTasksSectionProps) {
 
   if (milestones.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl bg-brandAlt-100 px-4 py-8 text-center">
-        <h3 className="mb-1 font-heading text-[18px] font-normal leading-[26px] text-egray-900">
-          No tasks yet
-        </h3>
-        <p className="max-w-md font-inter text-[14px] leading-[20px] text-egray-700">
-          This project doesn&apos;t have any tasks or milestones yet.
-        </p>
-      </div>
+      <PublicEmptyState
+        title="No tasks yet"
+        message={`This ${entity} doesn't have any tasks or milestones yet.`}
+      />
     );
   }
 

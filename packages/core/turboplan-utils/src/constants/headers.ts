@@ -7,3 +7,9 @@
  * This enables slug redirect logic to preserve path suffixes
  */
 export const PATHNAME_HEADER = "x-pathname";
+
+/**
+ * Companion to PATHNAME_HEADER carrying the request's query string (`?a=b`, or
+ * empty), so slug redirects keep it as well as the path suffix
+ */
+export const SEARCH_HEADER = "x-search";

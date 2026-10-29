@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+import { documentProfileSchema } from "../../document-profile";
+import {
+  letterheadColorSchema,
+  letterheadLayoutSchema,
+} from "../organizations/letterhead-validation";
 import { OfficeStatus } from "./types";
 
 // Office validation schemas
@@ -33,6 +38,19 @@ export const editOfficeSchema = z.object({
     .url("Please enter a valid URL")
     .optional()
     .or(z.literal("")),
+  documentLetterheadLayout: letterheadLayoutSchema.optional().or(z.literal("")),
+  documentLetterheadLines: z
+    .string()
+    .max(400, "Letterhead name lines must be less than 400 characters")
+    .optional()
+    .or(z.literal("")),
+  documentLetterheadContact: z
+    .string()
+    .max(400, "Letterhead contact lines must be less than 400 characters")
+    .optional()
+    .or(z.literal("")),
+  documentLetterheadColor: letterheadColorSchema.optional(),
+  documentProfile: documentProfileSchema.nullable().optional(),
 });
 
 // Client-side schema (without createdBy - handled by server)

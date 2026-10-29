@@ -9,6 +9,7 @@ import useSWRMutation from "swr/mutation";
 
 import { fetcher, postFetcher } from "@wildfires-org/turboplan-api-client";
 import { useSession } from "@wildfires-org/turboplan-auth/client";
+import { isBillingEnforcementEnabled } from "@wildfires-org/turboplan-feature-flags";
 import {
   Badge,
   Button,
@@ -35,6 +36,11 @@ import { PlanCard } from "./plan-card";
 
 const TRIAL_DAYS = CATALOG.billing.trial_days;
 const HAS_TRIAL = TRIAL_DAYS > 0;
+
+// Extra seats bill only while billing enforcement is on. With it off the
+// server adds no extra-seat item at checkout (`countChargeableSeats`), so the
+// preview shows the flat workspace price and skips the seat roster entirely.
+const IS_SEAT_BILLING_ENABLED = isBillingEnforcementEnabled();
 
 /**
  * Minimal shape of an org returned by `GET /api/billing/billable-organizations`.
@@ -198,14 +204,17 @@ export function CheckoutView({
   // base_plus_seats: the workspace price covers the plan's included seats;
   // only billable members beyond that add extra-seat items. The SWR key
   // includes `billingOrgId`, so switching the org in the picker re-fetches
-  // and re-prices automatically. This never blocks checkout — on error we
-  // fall back to the base workspace price.
+  // and re-prices automatically. This never blocks checkout — on error (or
+  // with seat billing off, when nothing is fetched) we fall back to the base
+  // workspace price.
   const {
     data: seats,
     error: seatsError,
     isLoading: isSeatsLoading,
   } = useSWR<SeatsResponse>(
-    billingOrgId ? `/api/billing/seats?organizationId=${billingOrgId}` : null,
+    IS_SEAT_BILLING_ENABLED && billingOrgId
+      ? `/api/billing/seats?organizationId=${billingOrgId}`
+      : null,
     fetcher,
   );
 
@@ -270,7 +279,9 @@ export function CheckoutView({
           <p className="mt-1 text-sm text-muted-foreground">
             {HAS_TRIAL
               ? `You will not be charged until your ${TRIAL_DAYS}-day free trial ends.`
-              : "A flat workspace price — seats beyond the included count bill separately."}
+              : IS_SEAT_BILLING_ENABLED
+                ? "A flat workspace price — seats beyond the included count bill separately."
+                : "A flat monthly workspace price."}
           </p>
         </header>
       ) : null}
@@ -291,7 +302,7 @@ export function CheckoutView({
         ))}
       </div>
 
-      {billingOrgId && !seatsError ? (
+      {IS_SEAT_BILLING_ENABLED && billingOrgId && !seatsError ? (
         <div className="mt-8 flex flex-col gap-2 rounded-lg bg-muted px-4 py-3 text-sm">
           {isSeatsLoading ? (
             <Skeleton className="h-5 w-48" />

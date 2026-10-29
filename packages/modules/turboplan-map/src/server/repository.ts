@@ -303,6 +303,29 @@ export class DrizzleMapRepository implements MapRepository {
     }
   }
 
+  // Layer rows only (no features): cheap enough to check before an insert.
+  async getLayersForProject(projectId: string): Promise<Layer[]> {
+    if (!projectId?.trim()) {
+      throw new GeospatialError(
+        "Invalid project ID",
+        ERROR_CODES.INVALID_PROJECT_ID,
+      );
+    }
+
+    try {
+      return await db
+        .select()
+        .from(layers)
+        .where(eq(layers.projectId, projectId));
+    } catch (error) {
+      throw new GeospatialError(
+        "Failed to get layers for project",
+        ERROR_CODES.LAYERS_RETRIEVAL_FAILED,
+        { projectId, originalError: error },
+      );
+    }
+  }
+
   // Get all layers for a project as GeospatialLayer format
   async getLayersWithFeaturesForProject(
     projectId: string,

@@ -7,7 +7,6 @@ import {
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { getSession } from "@wildfires-org/turboplan-auth/session";
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 import type { MilestoneWithTasks } from "@wildfires-org/turboplan-tasks/types";
 
@@ -24,6 +23,7 @@ import { PublicFieldsSection } from "@/components/public-project/public-fields-s
 import { PublicModuleSection } from "@/components/public-project/public-module-section";
 import { PublicTasksSection } from "@/components/public-project/public-tasks-section";
 import { ReadOnlyModulesRenderer } from "@/components/public-project/read-only-modules-renderer";
+import { getPublicEntity } from "@/handlers/public-entity";
 import { brand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import { routing } from "@/utils/routing";
@@ -90,35 +90,14 @@ interface TemplatePageProps {
   }>;
 }
 
-async function getPublicTemplate(
+const getPublicTemplate = (
   orgSlug: string,
   officeSlug: string,
   templateSlug: string,
-): Promise<PublicTemplateDetail | null> {
-  const { SERVER_URL } = getLandingPageEnv();
-
-  try {
-    const response = await fetch(
-      `${SERVER_URL}/api/public/templates/${orgSlug}/${officeSlug}/${templateSlug}`,
-      {
-        next: { revalidate: 60 },
-      },
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      console.error("Failed to fetch public template:", response.statusText);
-      return null;
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching public template:", error);
-    return null;
-  }
-}
+) =>
+  getPublicEntity<PublicTemplateDetail>(
+    `templates/${orgSlug}/${officeSlug}/${templateSlug}`,
+  );
 
 async function getPublicTemplateModules(
   orgSlug: string,
@@ -190,10 +169,9 @@ export default async function PublicTemplatePage({
   params,
 }: TemplatePageProps) {
   const { organization, office, template: templateSlug } = await params;
-  const [template, modules, session] = await Promise.all([
+  const [template, modules] = await Promise.all([
     getPublicTemplate(organization, office, templateSlug),
     getPublicTemplateModules(organization, office, templateSlug),
-    getSession(),
   ]);
 
   if (!template) {
@@ -214,7 +192,6 @@ export default async function PublicTemplatePage({
   const taskMilestones = modules?.tasks?.milestones || [];
   const fieldsData = modules?.fields?.fields || [];
   const documentsData = modules?.documents?.documents || [];
-  const showCreateFromTemplateCta = !!session?.user;
 
   return (
     <div className={CATALOG_PAGE_CLASS}>
@@ -257,14 +234,14 @@ export default async function PublicTemplatePage({
           </span>
         }
         actions={
-          showCreateFromTemplateCta ? (
-            <CreateProjectFromTemplateButton
-              templateId={template.id}
-              templateName={template.name}
-              templateDescription={template.description}
-              initialOrganization={template.organization}
-            />
-          ) : undefined
+          // Renders only for a signed-in visitor, once the browser has
+          // loaded the session.
+          <CreateProjectFromTemplateButton
+            templateId={template.id}
+            templateName={template.name}
+            templateDescription={template.description}
+            initialOrganization={template.organization}
+          />
         }
       />
 
@@ -278,7 +255,10 @@ export default async function PublicTemplatePage({
                 isHidden: isTasksHidden,
                 render: () => (
                   <PublicModuleSection title="Tasks" icon={<ListChecks />}>
-                    <PublicTasksSection milestones={taskMilestones} />
+                    <PublicTasksSection
+                      milestones={taskMilestones}
+                      entity="template"
+                    />
                   </PublicModuleSection>
                 ),
               },

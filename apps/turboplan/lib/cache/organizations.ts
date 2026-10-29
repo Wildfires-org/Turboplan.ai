@@ -10,10 +10,15 @@ import {
   OrganizationType,
   PUBLICLY_LISTED_ORG_TYPES,
 } from "@wildfires-org/turboplan-db/types";
-import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
+import {
+  Action,
+  type ActionType,
+  EntityType,
+} from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { getOrganizationBySlug } from "@wildfires-org/turboplan-workspace/server";
 
+import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
 
 // ============================================================================
@@ -53,6 +58,13 @@ export const getValidatedOrganizationBySlug = cache(
       NonNullable<Awaited<ReturnType<typeof getOrganizationBySlug>>["entity"]>
     >
   > => {
+    // Malformed or reserved slugs (`/wp-admin.php`, `/organizations`) can't
+    // name an entity: skip the DB. Layouts 404 on them; this covers the
+    // pages' generateMetadata, which runs alongside the layouts.
+    if (!isRoutableSlugPath({ orgSlug })) {
+      return { data: null };
+    }
+
     // Single query to check both current and historical slugs
     const { entity: organization, foundViaHistory } =
       await getCachedOrganizationBySlug(orgSlug);
@@ -109,5 +121,21 @@ export const canReadOrganizationAsMember = cache(
     );
 
     return accessResult.allowed;
+  },
+);
+
+/**
+ * Actions the user may take on the organization. Read access alone (also
+ * granted "upward" by a role on a child office or project) is not enough for
+ * the banner's management actions; they need the action the API checks.
+ */
+export const getOrganizationAllowedActions = cache(
+  async (userId: string, organizationId: string): Promise<ActionType[]> => {
+    const { actions } = await getRBACService().getAllowedActions(
+      userId,
+      organizationId,
+      EntityType.ORGANIZATION,
+    );
+    return actions;
   },
 );

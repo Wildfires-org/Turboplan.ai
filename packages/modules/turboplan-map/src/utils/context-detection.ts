@@ -3,6 +3,8 @@
  * Determines if user input indicates geospatial intent
  */
 
+import { classifyProjectFile } from "@wildfires-org/turboplan-upload/types";
+
 import { isZipFile } from "./file-validators";
 
 /**
@@ -30,10 +32,18 @@ export function hasGeospatialContext(
 }
 
 /**
- * Find geospatial attachments (ZIP files) in attachment list
+ * Find geospatial attachments in an attachment list: ZIP/KMZ archives and
+ * standalone GeoJSON, KML and GeoPackage files.
  */
 export function findGeospatialAttachments(
   attachments: Array<{ url: string; name?: string; contentType?: string }>,
 ): Array<{ url: string; name?: string; contentType?: string }> {
-  return attachments.filter((attachment) => isZipFile(attachment));
+  return attachments.filter(
+    (attachment) =>
+      isZipFile(attachment) ||
+      classifyProjectFile({
+        name: attachment.name ?? "",
+        type: attachment.contentType ?? "",
+      }) === "gis",
+  );
 }

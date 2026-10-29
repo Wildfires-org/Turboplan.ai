@@ -27,7 +27,7 @@ export const getModalResources = async (): Promise<ModalResources> => {
     .fromRegistry("node:22")
     .dockerfileCommands([
       "RUN apt-get update && apt-get install -y jq && rm -rf /var/lib/apt/lists/*",
-      "RUN npm install -g tsx@4.21.0 firecrawl-mcp@3.20.4 && mkdir -p /deps && cd /deps && npm init -y && npm install @anthropic-ai/claude-agent-sdk@0.2.37 && ln -sf /usr/local/bin/node /usr/bin/node",
+      "RUN npm install -g tsx@4.21.0 firecrawl-mcp@3.20.4 && mkdir -p /deps && cd /deps && npm init -y && npm install @anthropic-ai/claude-agent-sdk@0.3.283 && ln -sf /usr/local/bin/node /usr/bin/node",
       "ENV NODE_PATH=/deps/node_modules",
       "ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     ]);

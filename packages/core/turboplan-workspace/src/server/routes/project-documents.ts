@@ -3,6 +3,7 @@
  *
  * Endpoints for managing uploaded documents (PDFs, DOCX, etc.) in projects:
  * - GET /api/project-documents?projectId=xxx - List all documents for a project
+ * - GET /api/project-documents/:id/text - Extracted text + extraction status
  * - POST /api/project-documents - Create a document record after upload to R2
  * - PATCH /api/project-documents/:id - Rename a document (display name only)
  * - DELETE /api/project-documents/:id - Delete a document
@@ -24,91 +25,24 @@ import {
   type RBACContext,
 } from "@wildfires-org/turboplan-rbac/hono";
 import { createTimelineRecord } from "@wildfires-org/turboplan-timeline-records/server";
-import {
-  isOwnedUploadUrl,
-  isStorageUrl,
-} from "@wildfires-org/turboplan-upload/server";
+import { isOwnedUploadUrl } from "@wildfires-org/turboplan-upload/server";
 
+import {
+  documentDisplayNameSchema,
+  normalizeRenamedFilename,
+  uploadedDocumentFieldsSchema,
+} from "../documents/validation";
+import { toDocumentTextResponse } from "../projects/document-text";
 import { removeProjectDocument } from "../projects/documents";
 
-// Allowed MIME types for document uploads
-const ALLOWED_MIME_TYPES = [
-  "application/pdf",
-  "application/msword", // .doc
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-];
-
-// Maximum file size: 50MB
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
-
 // Zod validation schemas
-const createDocumentSchema = z.object({
+const createDocumentSchema = uploadedDocumentFieldsSchema.extend({
   projectId: z.string().uuid("Invalid project ID"),
-  filename: z.string().min(1, "Filename is required").max(255),
-  originalFilename: z.string().min(1, "Original filename is required").max(255),
-  mimeType: z
-    .string()
-    .refine(
-      (type) => ALLOWED_MIME_TYPES.includes(type),
-      "File type not allowed. Only PDF and Word documents are supported.",
-    ),
-  size: z
-    .number()
-    .int()
-    .positive()
-    .max(MAX_FILE_SIZE, `File size exceeds maximum allowed (50MB)`),
-  // User-registered documents must live in our own storage bucket. Anything
-  // else lets a project editor point the document extractor at an arbitrary
-  // host (SSRF, including DNS-rebinding, which hostname checks cannot stop).
-  url: z
-    .string()
-    .url("Invalid file URL")
-    .refine((value) => isStorageUrl(value), "File URL must point to storage"),
 });
-
-// Maximum filename length, extension included
-const MAX_FILENAME_LENGTH = 255;
-
-// Rejects Unicode control (\p{Cc}) and format (\p{Cf}) characters. Both classes
-// are invisible but load-bearing in the places this name ends up: CR/LF would
-// inject headers into the download's Content-Disposition, NUL truncates in
-// C-string consumers, and U+202E (RTLO, a Cf character) visually reverses the
-// tail so "fdp.exe" renders as "exe.pdf" — spoofing an extension that the
-// pinning below otherwise guarantees.
-const FILENAME_SAFE_PATTERN = /^[^\p{Cc}\p{Cf}]+$/u;
 
 const renameDocumentSchema = z.object({
-  originalFilename: z
-    .string()
-    .trim()
-    .min(1, "Filename is required")
-    .max(MAX_FILENAME_LENGTH, "Filename must be 255 characters or fewer")
-    .refine(
-      (value) => !value.includes("/") && !value.includes("\\"),
-      "Filename must not contain path separators",
-    )
-    .refine(
-      (value) => FILENAME_SAFE_PATTERN.test(value),
-      "Filename must not contain control or formatting characters",
-    ),
+  originalFilename: documentDisplayNameSchema,
 });
-
-/**
- * Splits a filename into basename and extension (leading dot included).
- * Names with no dot ("README") and dotfiles (".env") have no extension.
- */
-const splitFilename = (filename: string) => {
-  const dotIndex = filename.lastIndexOf(".");
-
-  if (dotIndex <= 0) {
-    return { basename: filename, extension: "" };
-  }
-
-  return {
-    basename: filename.slice(0, dotIndex),
-    extension: filename.slice(dotIndex),
-  };
-};
 
 export const projectDocumentsRouter = new Hono<RBACContext>();
 
@@ -183,6 +117,63 @@ projectDocumentsRouter.get("/", async (c) => {
     return c.json(documents);
   } catch (error) {
     console.error("Failed to get project documents:", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+});
+
+/**
+ * GET /:id/text - The document's extracted text, for the preview
+ *
+ * Returns `{ status, text, error }` (see `toDocumentTextResponse`); `text` is
+ * the stored extraction, already capped at 40k characters. Same read access as
+ * the list: READ on the document's project, or — for public government
+ * projects — the visibility check of the module the document belongs to.
+ */
+projectDocumentsRouter.get("/:id/text", async (c) => {
+  try {
+    const user = c.get("user");
+    const documentId = c.req.param("id");
+
+    if (!user?.userId) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const parseResult = z.string().uuid().safeParse(documentId);
+    if (!parseResult.success) {
+      return c.json({ error: "Invalid document ID format" }, 400);
+    }
+
+    const document = await getProjectDocumentById(documentId);
+    if (!document) {
+      return c.json({ error: "Document not found" }, 404);
+    }
+
+    const rbacService = getRBACServiceForRequest(c);
+    const permissionResult = await rbacService.checkPermission(
+      user.userId,
+      document.projectId,
+      EntityType.PROJECT,
+      Action.READ,
+    );
+
+    if (!permissionResult.allowed) {
+      const allowedAsPublic = await isPublicGovProjectReadAllowed(
+        document.projectId,
+        {
+          moduleName: document.source === "research" ? "context" : "documents",
+        },
+      );
+      if (!allowedAsPublic) {
+        return c.json({ error: "Forbidden" }, 403);
+      }
+    }
+
+    // Per-user authorization decides who may see this text: never let a
+    // shared cache keep it.
+    c.header("Cache-Control", "private, no-store");
+    return c.json(toDocumentTextResponse(document));
+  } catch (error) {
+    console.error("Failed to get project document text:", error);
     return c.json({ error: "Internal Server Error" }, 500);
   }
 });
@@ -358,27 +349,17 @@ projectDocumentsRouter.patch("/:id", async (c) => {
       return c.json({ error: "Forbidden" }, 403);
     }
 
-    // Rename is display-name-only: the extension is pinned to whatever the
-    // stored file already had. The dialog only lets the basename be edited, but
-    // a direct API call could strip the extension (breaking downloads, which
-    // use this name verbatim) or swap in a misleading one (".exe"). Re-append
-    // the original extension whenever the request drops or changes it.
-    const { extension } = splitFilename(existingDocument.originalFilename);
-    const { basename } = splitFilename(originalFilename);
-    const requestedBasename = basename.trim();
-
-    if (requestedBasename.length === 0) {
-      return c.json({ error: "Filename is required" }, 400);
-    }
-
-    const normalizedFilename = `${requestedBasename}${extension}`;
-
-    if (normalizedFilename.length > MAX_FILENAME_LENGTH) {
-      return c.json({ error: "Filename must be 255 characters or fewer" }, 400);
+    // Display-name-only rename with the stored file's extension pinned
+    const renamed = normalizeRenamedFilename(
+      originalFilename,
+      existingDocument.originalFilename,
+    );
+    if ("error" in renamed) {
+      return c.json({ error: renamed.error }, 400);
     }
 
     const updatedDocument = await updateProjectDocument(documentId, {
-      originalFilename: normalizedFilename,
+      originalFilename: renamed.filename,
     });
 
     if (!updatedDocument) {

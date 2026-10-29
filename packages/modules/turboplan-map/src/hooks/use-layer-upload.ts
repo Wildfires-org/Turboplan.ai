@@ -22,6 +22,9 @@ export interface LayerUploadResult {
     unitIdKey?: string | null;
     unitAcresKey?: string | null;
   }>;
+  /** Layers the project already had (same name, source file and type) */
+  skippedLayers?: string[];
+  warnings?: string[];
 }
 
 const apiClient = new ApiClient();

@@ -101,6 +101,7 @@ publicTemplatesRouter.get("/", async (c) => {
         id: t.organizationId,
         name: t.organizationName,
         slug: t.organizationSlug,
+        logoUrl: t.organizationLogoUrl,
       },
     }));
 

@@ -1,3 +1,4 @@
+import { AlertTriangle, Check, Info } from "lucide-react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
@@ -15,6 +16,8 @@ import { UiScaleProvider } from "@/components/providers/ui-scale-provider";
 import { ReleaseInfoLogger } from "@/components/release-info-logger";
 import { ThemeProvider } from "@/components/theme-provider";
 import { brand } from "@/lib/brand";
+import { TOAST_ICON_CLASS, TOAST_SURFACE_CLASS } from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 import "./globals.css";
 
@@ -135,7 +138,36 @@ export default async function RootLayout({
               disableTransitionOnChange
             >
               <UiScaleProvider cookieDomain={uiScaleCookieDomain}>
-                <Toaster position="top-center" />
+                <Toaster
+                  position="top-center"
+                  // Direct sonner calls (toast.success etc.) get the same
+                  // glass surface as our custom `toast()`.
+                  icons={{
+                    success: <Check aria-hidden strokeWidth={2.5} />,
+                    error: <AlertTriangle aria-hidden />,
+                    warning: <AlertTriangle aria-hidden />,
+                    info: <Info aria-hidden />,
+                  }}
+                  toastOptions={{
+                    unstyled: true,
+                    classNames: {
+                      toast: cn(TOAST_SURFACE_CLASS, "w-full"),
+                      icon: cn(
+                        TOAST_ICON_CLASS,
+                        "bg-brand-50 text-brand-800 ring-brand-800/15",
+                      ),
+                      error:
+                        "[&_[data-icon]]:bg-error-50 [&_[data-icon]]:text-error-700 [&_[data-icon]]:ring-error-700/15",
+                      warning:
+                        "[&_[data-icon]]:bg-amber-50 [&_[data-icon]]:text-amber-700 [&_[data-icon]]:ring-amber-700/15",
+                      description: "text-xs text-gray-550",
+                      actionButton:
+                        "ml-auto rounded-lg px-2 py-1 text-xs font-medium text-brand-800 hover:bg-brandAlt-100",
+                      cancelButton:
+                        "rounded-lg px-2 py-1 text-xs font-medium text-gray-550 hover:bg-brandAlt-100",
+                    },
+                  }}
+                />
                 {children}
               </UiScaleProvider>
             </ThemeProvider>

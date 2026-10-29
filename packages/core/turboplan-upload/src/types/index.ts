@@ -4,6 +4,8 @@
  * This file contains all shared type definitions for upload operations.
  */
 
+import { GIS_UPLOAD_CONTENT_TYPES } from "./project-files";
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -28,6 +30,13 @@ export const ABSOLUTE_MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
  * - images: avatars, organization logos, document logos, chat attachments
  * - documents: project document uploads (PDF / DOC / DOCX)
  * - archives + json: geospatial layer uploads (shapefile zips, GeoJSON)
+ * - other GIS files: KMZ, GeoPackage, and KML stored as `text/plain`
+ *   (`GIS_UPLOAD_CONTENT_TYPES` in ./project-files is the source)
+ *
+ * KML's own type (`application/vnd.google-earth.kml+xml`) is deliberately NOT
+ * listed: browsers render every `+xml` type as an XML document, so a crafted
+ * ".kml" holding XHTML would run script from the public storage URL. The
+ * map service detects KML by content, so the stored type does not matter.
  *
  * Wildcards (`type/*`) are supported and match the whole category. Adding a
  * type is a one-line change here; do not re-introduce per-endpoint lists.
@@ -42,11 +51,11 @@ export const ALLOWED_UPLOAD_CONTENT_TYPES = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  // Geospatial / archives
-  "application/zip",
-  "application/x-zip-compressed",
+  // Geospatial: every type a GIS file is uploaded with (ZIP, KMZ, GeoJSON,
+  // GeoPackage, and KML as text/plain — see above), plus plain JSON for the
+  // map page's GeoJSON uploads
+  ...GIS_UPLOAD_CONTENT_TYPES,
   "application/json",
-  "application/geo+json",
 ] as const;
 
 /**
@@ -286,3 +295,6 @@ export interface UseFileUploadReturn {
    */
   reset: () => void;
 }
+
+export * from "./landing-uploads";
+export * from "./project-files";

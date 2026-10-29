@@ -14,7 +14,7 @@ export const AuthForm = ({
   defaultEmail?: string;
 }) => {
   return (
-    <Form action={action} className="flex flex-col gap-5 w-full min-w-[340px]">
+    <Form action={action} className="flex w-full flex-col gap-5">
       <div className="flex flex-col gap-2">
         <Label htmlFor="email" className="text-neutral-500 font-normal">
           Email Address

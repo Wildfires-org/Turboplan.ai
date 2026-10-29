@@ -1,5 +1,7 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -19,6 +21,12 @@ const getS3Client = (): S3Client => {
         accessKeyId: env.R2_ACCESS_KEY_ID,
         secretAccessKey: env.R2_SECRET_ACCESS_KEY,
       },
+      // Since 3.729 the SDK adds a CRC32 checksum to every PutObject by
+      // default, so a presigned URL carries the checksum of an EMPTY body
+      // (`x-amz-checksum-crc32=AAAAAA==`) that the real upload cannot match.
+      // Checksum only when an operation requires it.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
   }
   return _s3Client;
@@ -38,7 +46,7 @@ const getBaseUrl = (): string => {
   return getR2Env().R2_PUBLIC_URL.replace(/\/+$/, "");
 };
 
-const getPublicUrl = (key: string): string => {
+export const getPublicUrl = (key: string): string => {
   return `${getBaseUrl()}/${key}`;
 };
 
@@ -147,12 +155,12 @@ export const uploadFile = async (
   return { url: getPublicUrl(key), key };
 };
 
-export const deleteFile = async (url: string): Promise<void> => {
-  const key = canonicalStorageKey(url);
-  if (!key) {
-    throw new Error(`URL does not resolve to a storage key: ${url}`);
-  }
-
+/**
+ * Delete the object at an exact key. No ownership check — callers decide
+ * whose key it is; URL-driven deletes go through `deleteFile` /
+ * `deleteOwnedStorageFile` instead.
+ */
+export const deleteStorageObject = async (key: string): Promise<void> => {
   await getS3Client().send(
     new DeleteObjectCommand({
       Bucket: getBucketName(),
@@ -161,6 +169,98 @@ export const deleteFile = async (url: string): Promise<void> => {
   );
 };
 
+export const deleteFile = async (url: string): Promise<void> => {
+  const key = canonicalStorageKey(url);
+  if (!key) {
+    throw new Error(`URL does not resolve to a storage key: ${url}`);
+  }
+
+  await deleteStorageObject(key);
+};
+
+/** What storage reports for an object — never what a client claimed. */
+export type StorageObjectInfo = {
+  contentType: string;
+  size: number;
+  etag: string | undefined;
+};
+
+const isNotFoundError = (error: unknown): boolean => {
+  const { name, $metadata } = (error ?? {}) as {
+    name?: string;
+    $metadata?: { httpStatusCode?: number };
+  };
+  return (
+    name === "NotFound" ||
+    name === "NoSuchKey" ||
+    $metadata?.httpStatusCode === 404
+  );
+};
+
+/** The stored type, size and ETag of the object at `key`, or null if absent. */
+export const headStorageObject = async (
+  key: string,
+): Promise<StorageObjectInfo | null> => {
+  try {
+    const result = await getS3Client().send(
+      new HeadObjectCommand({
+        Bucket: getBucketName(),
+        Key: key,
+      }),
+    );
+
+    return {
+      contentType: result.ContentType ?? "",
+      size: result.ContentLength ?? 0,
+      etag: result.ETag,
+    };
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Server-side copy within the bucket. With `ifMatch`, storage refuses the copy
+ * unless the source still has that ETag, so the destination holds exactly the
+ * bytes the caller inspected (no swap between HEAD and COPY). With
+ * `contentType`, the destination's metadata is replaced and stored with that
+ * type instead of inheriting the source's — the ETag covers the body only, so
+ * this is what pins the type.
+ */
+export const copyStorageObject = async (
+  sourceKey: string,
+  destinationKey: string,
+  { ifMatch, contentType }: { ifMatch?: string; contentType?: string } = {},
+): Promise<void> => {
+  const bucket = getBucketName();
+
+  await getS3Client().send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      Key: destinationKey,
+      // `x-amz-copy-source` must be URL-encoded and the SDK sends it verbatim.
+      CopySource: [bucket, ...sourceKey.split("/")]
+        .map(encodeURIComponent)
+        .join("/"),
+      CopySourceIfMatch: ifMatch,
+      ...(contentType
+        ? { MetadataDirective: "REPLACE" as const, ContentType: contentType }
+        : {}),
+    }),
+  );
+};
+
+/**
+ * Presigned PUT for exactly `contentType` and `contentLength`. Both are signed
+ * into the URL, so a PUT with any other `Content-Type` (e.g. `text/html` on a
+ * URL presigned for a PDF) fails with `SignatureDoesNotMatch` instead of
+ * storing a publicly served object of the caller's choosing. The presigner
+ * leaves `content-type` unsigned unless it is listed in `signableHeaders`.
+ * Callers must PUT with the very same `Content-Type` string.
+ */
 export const generatePresignedUploadUrl = async (
   key: string,
   contentType: string,
@@ -175,6 +275,7 @@ export const generatePresignedUploadUrl = async (
 
   const uploadUrl = await getSignedUrl(getS3Client(), command, {
     expiresIn: 300,
+    signableHeaders: new Set(["content-type"]),
   });
 
   return {
@@ -227,7 +328,9 @@ export type StorageOwner = {
 
 // An id carrying separators or dot-segments would make a prefix built from it
 // mean something other than "this entity's directory".
-const isSafeKeySegment = (id: string | null | undefined): id is string => {
+export const isSafeKeySegment = (
+  id: string | null | undefined,
+): id is string => {
   return !!id && !id.includes("/") && !id.includes("..");
 };
 

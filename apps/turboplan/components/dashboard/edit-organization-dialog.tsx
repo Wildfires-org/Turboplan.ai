@@ -11,6 +11,7 @@ import {
   type LucideIcon,
   Palette,
   SlidersHorizontal,
+  Stamp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -45,14 +46,25 @@ import {
 
 import { useUser } from "@/components/providers/user-provider";
 import { toast } from "@/components/toast";
+import type { LetterheadImportValues } from "@/lib/letterhead-import";
 import { AppUrls } from "@/lib/nav/urls";
-import { DocumentBrandingFields } from "./document-branding-fields";
+import {
+  DocumentBrandingFields,
+  toDocumentProfileErrors,
+  toDocumentProfileFormValues,
+} from "./document-branding-fields";
 import { OrgEmailDomainsSection } from "./org-email-domains-section";
+import { OrgLetterheadsSection } from "./org-letterheads-section";
 import { OrganizationLogoUpload } from "./organization-logo-upload";
 
 const apiClient = new ApiClient();
 
-type OrgSettingsTab = "general" | "branding" | "domains" | "signing";
+type OrgSettingsTab =
+  | "general"
+  | "branding"
+  | "letterheads"
+  | "domains"
+  | "signing";
 
 interface OrgSettingsTabConfig {
   key: OrgSettingsTab;
@@ -70,6 +82,7 @@ const BASE_TABS: OrgSettingsTabConfig[] = [
     usesSharedForm: true,
   },
   { key: "branding", label: "Branding", icon: Palette, usesSharedForm: true },
+  { key: "letterheads", label: "Letterheads", icon: Stamp },
   { key: "domains", label: "Email Domains", icon: AtSign },
 ];
 
@@ -125,6 +138,14 @@ export function EditOrganizationDialog({
       documentFooterText: organization.documentFooterText || "",
       documentFooterNote: organization.documentFooterNote || "",
       documentFooterLogoUrl: organization.documentFooterLogoUrl || "",
+      documentLetterheadLayout:
+        organization.documentLetterheadLayout ?? "split",
+      documentLetterheadLines: organization.documentLetterheadLines || "",
+      documentLetterheadContact: organization.documentLetterheadContact || "",
+      documentLetterheadColor: organization.documentLetterheadColor || "",
+      documentProfile: toDocumentProfileFormValues(
+        organization.documentProfile,
+      ),
     },
   });
 
@@ -135,6 +156,28 @@ export function EditOrganizationDialog({
     setValue,
     watch,
   } = form;
+
+  // Fields read by "Import from document"; saved with the rest of the form.
+  const handleLetterheadImport = ({
+    layout,
+    lines,
+    contact,
+    color,
+    logoUrl,
+  }: LetterheadImportValues) => {
+    const options = { shouldDirty: true };
+    setValue("documentLetterheadLayout", layout, options);
+    setValue("documentLetterheadColor", color, options);
+    if (lines !== undefined) {
+      setValue("documentLetterheadLines", lines, options);
+    }
+    if (contact !== undefined) {
+      setValue("documentLetterheadContact", contact, options);
+    }
+    if (logoUrl) {
+      setValue("documentLogoUrl", logoUrl, options);
+    }
+  };
 
   const watchedName = watch("name") as string;
 
@@ -197,7 +240,7 @@ export function EditOrganizationDialog({
         {/* Left tab rail (collapses to a top row on small screens) */}
         <nav
           aria-label="Organization settings sections"
-          className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-muted/30 p-2 sm:w-56 sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-4"
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-muted/30 p-2 [scrollbar-width:none] max-sm:mr-11 sm:w-56 sm:flex-col sm:overflow-x-visible sm:border-b-0 sm:border-r sm:p-4"
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -210,11 +253,11 @@ export function EditOrganizationDialog({
                 className={cn(
                   "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    ? "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08)] dark:bg-white/10 dark:text-white"
+                    : "text-gray-550 hover:bg-white/60 hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className="size-4 shrink-0 max-sm:hidden" />
                 <span className="whitespace-nowrap">{tab.label}</span>
               </button>
             );
@@ -225,7 +268,7 @@ export function EditOrganizationDialog({
         <div className="flex min-w-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 py-4 pr-12 text-left">
             <DialogTitle className="flex items-center gap-2">
-              <Building2 className="size-5" />
+              <Building2 aria-hidden className="size-5 text-brand-800" />
               Manage Organization
             </DialogTitle>
             <DialogDescription>
@@ -390,6 +433,33 @@ export function EditOrganizationDialog({
                 <DocumentBrandingFields
                   textField={register("documentFooterText")}
                   noteField={register("documentFooterNote")}
+                  letterheadLinesField={register("documentLetterheadLines")}
+                  letterheadContactField={register("documentLetterheadContact")}
+                  registerProfileField={(key) =>
+                    register(`documentProfile.${key}`)
+                  }
+                  profileErrors={toDocumentProfileErrors(
+                    errors.documentProfile,
+                  )}
+                  letterheadLayout={
+                    watch("documentLetterheadLayout") || "split"
+                  }
+                  letterheadLines={watch("documentLetterheadLines") ?? ""}
+                  letterheadContact={watch("documentLetterheadContact") ?? ""}
+                  documentLogoUrl={watch("documentLogoUrl") ?? ""}
+                  letterheadColor={watch("documentLetterheadColor") ?? ""}
+                  onLetterheadLayoutChange={(layout) =>
+                    setValue("documentLetterheadLayout", layout, {
+                      shouldDirty: true,
+                    })
+                  }
+                  onLetterheadColorChange={(color) =>
+                    setValue("documentLetterheadColor", color, {
+                      shouldDirty: true,
+                    })
+                  }
+                  onLetterheadImport={handleLetterheadImport}
+                  organizationId={organization.id}
                   onDocumentLogoChange={(url) =>
                     setValue("documentLogoUrl", url ?? "")
                   }
@@ -400,10 +470,21 @@ export function EditOrganizationDialog({
                   initialFooterLogoUrl={organization.documentFooterLogoUrl}
                   textError={errors.documentFooterText?.message}
                   noteError={errors.documentFooterNote?.message}
+                  letterheadLinesError={errors.documentLetterheadLines?.message}
+                  letterheadContactError={
+                    errors.documentLetterheadContact?.message
+                  }
                   disabled={isLoading}
                 />
               </div>
             </form>
+
+            {/* Letterheads — the org's library of extra letterheads, saved one
+                at a time via their own endpoints. Callers only mount this
+                dialog for users who can update the organization. */}
+            {activeTab === "letterheads" && (
+              <OrgLetterheadsSection organizationId={organization.id} canEdit />
+            )}
 
             {/* Email Domains — saves via its own dedicated endpoint. Kept
                 mounted (hidden when inactive) so unsaved pill edits survive tab
@@ -434,7 +515,7 @@ export function EditOrganizationDialog({
             <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-4">
               <Button
                 type="button"
-                variant="outline"
+                variant="glass"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
               >
@@ -442,6 +523,7 @@ export function EditOrganizationDialog({
               </Button>
               <Button
                 type="submit"
+                variant="brand"
                 form="edit-organization-form"
                 disabled={isLoading}
               >

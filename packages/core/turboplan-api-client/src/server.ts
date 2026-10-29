@@ -2,6 +2,9 @@ import type { Context, Next } from "hono";
 
 import { extractTokenFromHeader, type TokenPayload, verifyToken } from "./jwt";
 
+export * from "./jwt";
+export * from "./pat";
+
 export interface AuthContext {
   userId: string;
   email?: string;

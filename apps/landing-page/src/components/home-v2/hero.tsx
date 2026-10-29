@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -20,7 +20,6 @@ import { FeatureShowcase } from "./feature-showcase";
 import { PAGE_CONTAINER, PAGE_GUTTER } from "./ui/layout";
 import { EASE_OUT } from "./ui/motion";
 import { QuickStartPills } from "./ui/quick-start-pills";
-import { ScrollReveal } from "./ui/scroll-reveal";
 import { SearchInput } from "./ui/search-input";
 import { EYEBROW_CLASS, EYEBROW_ICON_CLASS } from "./ui/section-header";
 import { useTypewriterHeading } from "./ui/typewriter-heading";
@@ -70,18 +69,13 @@ const getPromptTextarea = () =>
   document.getElementById("project-prompt-input")?.querySelector("textarea");
 
 export function Hero() {
-  const router = useRouter();
-  const params = useSearchParams();
-
   const headingWords = CONTENT_PAIRS.map((p) => p.heading);
   // Sizing copies only need each distinct word once (keys must be unique).
   const uniqueHeadingWords = [...new Set(headingWords)];
   const { displayText, currentIndex } = useTypewriterHeading(headingWords);
   const prefersReducedMotion = useReducedMotion();
 
-  const [promptValue, setPromptValue] = useState(
-    params.get(PROJECT_DESCRIPTION_PARAM) || "",
-  );
+  const [promptValue, setPromptValue] = useState("");
 
   // Blinking cursor — static (always visible) under reduced motion.
   const [showCursor, setShowCursor] = useState(true);
@@ -103,24 +97,6 @@ export function Hero() {
     setSparkleKey((k) => k + 1);
   }, [currentIndex]);
 
-  // Preserve ?tryIt=true behavior: scroll to and focus the prompt input on
-  // mount, then strip the param from the URL.
-  useEffect(() => {
-    if (!params.get("tryIt")) {
-      return;
-    }
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    getPromptTextarea()?.focus({ preventScroll: true });
-
-    // Strip the param only after the smooth scroll has finished — an
-    // immediate replace cancels the scroll animation.
-    const timeout = setTimeout(() => {
-      router.replace(routing.home(), { scroll: false });
-    }, 600);
-    return () => clearTimeout(timeout);
-  }, [params, router]);
-
   // Focus the prompt with the caret at the end so Enter submits right away.
   // Selection is set on the next frame, after React has flushed the new value.
   const handleQuickStart = (prompt: string) => {
@@ -141,6 +117,9 @@ export function Hero() {
 
   return (
     <section className={PAGE_GUTTER}>
+      <Suspense fallback={null}>
+        <HeroUrlParams onProjectDescription={setPromptValue} />
+      </Suspense>
       {/* Bottom padding is shorter than SECTION_Y: the logo marquee's own
           padding and hairline complete the gap. */}
       <div className="flex flex-col items-center">
@@ -150,11 +129,13 @@ export function Hero() {
             "flex flex-col items-center pb-10 pt-12 text-center sm:pb-12 sm:pt-16 lg:pb-16 lg:pt-[88px]",
           )}
         >
-          <ScrollReveal delay={0} direction="up" distance={30}>
+          <div className="hero-in [--hero-in-distance:30px]">
             <div className="flex flex-col items-center gap-[18px]">
               {/* Eyebrow — synced with heading index */}
               <div className="flex h-[28px] items-center justify-center">
-                <AnimatePresence mode="wait">
+                {/* initial={false}: the first eyebrow renders visible (it is
+                    in the static HTML); only later rotations animate. */}
+                <AnimatePresence mode="wait" initial={false}>
                   <motion.span
                     key={CONTENT_PAIRS[currentIndex].eyebrow}
                     initial={
@@ -209,29 +190,19 @@ export function Hero() {
                 </span>
               </h1>
             </div>
-          </ScrollReveal>
+          </div>
 
           {/* H1 → Input */}
-          <ScrollReveal
-            delay={0.15}
-            direction="up"
-            distance={20}
-            className="mt-[42px] w-full max-w-[686px]"
-          >
+          <div className="hero-in mt-[42px] w-full max-w-[686px] [--hero-in-distance:20px] [animation-delay:150ms]">
             <SearchInput value={promptValue} onValueChange={setPromptValue} />
-          </ScrollReveal>
+          </div>
 
           {/* Input → Pills — Embla carousel with ambient auto-scroll. Hover,
               focus, drag/swipe and the arrows all pause it, so a missed
               example is one gesture away instead of a full loop away. */}
-          <ScrollReveal
-            delay={0.25}
-            direction="up"
-            distance={16}
-            className="mt-[18px] w-full max-w-[686px]"
-          >
+          <div className="hero-in mt-[18px] w-full max-w-[686px] [--hero-in-distance:16px] [animation-delay:250ms]">
             <QuickStartPills onSelect={handleQuickStart} />
-          </ScrollReveal>
+          </div>
 
           {/* Pills → Product showcase. Joins the hero's entrance sequence
               right after the pills; `text-left` resets the hero's centered
@@ -251,6 +222,45 @@ interface HeadingLineProps {
   isCursorVisible?: boolean;
   prefersReducedMotion?: boolean;
 }
+
+interface HeroUrlParamsProps {
+  onProjectDescription: (value: string) => void;
+}
+
+// Applies ?projectDescription (prefills the prompt) and ?tryIt (scrolls to and
+// focuses it, then strips the param). It renders nothing and sits in its own
+// Suspense: useSearchParams on a prerendered page
+// client-renders everything up to the nearest boundary, and a boundary around
+// the whole hero kept the H1 and copy out of the HTML crawlers see.
+const HeroUrlParams = ({ onProjectDescription }: HeroUrlParamsProps) => {
+  const router = useRouter();
+  const params = useSearchParams();
+
+  useEffect(() => {
+    const projectDescription = params.get(PROJECT_DESCRIPTION_PARAM);
+    if (projectDescription) {
+      onProjectDescription(projectDescription);
+    }
+  }, [params, onProjectDescription]);
+
+  useEffect(() => {
+    if (!params.get("tryIt")) {
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    getPromptTextarea()?.focus({ preventScroll: true });
+
+    // Strip the param only after the smooth scroll has finished — an
+    // immediate replace cancels the scroll animation.
+    const timeout = setTimeout(() => {
+      router.replace(routing.home(), { scroll: false });
+    }, 600);
+    return () => clearTimeout(timeout);
+  }, [params, router]);
+
+  return null;
+};
 
 // Sparkle + accent word + cursor. The invisible sizing copies render it
 // static (no sparkleKey), so only the live line animates.

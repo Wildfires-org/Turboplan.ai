@@ -6,7 +6,11 @@ import { FieldLabel } from "./field-label";
 import { FieldValuesDisplay } from "./field-values-display";
 import { FieldsFieldItem, FieldsListLayout } from "./fields-list-layout";
 
-const fieldLabelColumnClassName = "w-36 shrink-0 sm:w-44";
+// Label takes up to 40% of the row (max 176px) so values keep room in the
+// narrow two-column layout on the project overview.
+// Phones stack the label above the value so values are not cut to a word.
+const fieldLabelColumnClassName =
+  "w-2/5 max-w-44 shrink-0 max-sm:w-full max-sm:max-w-none";
 
 export interface ReadOnlyField {
   id: string;

@@ -21,8 +21,8 @@ export default async function SetupLayout({
   const { hasCompleteProfile } = await checkProfileCompletion(userId);
 
   // Setup is finished only once BOTH steps are done: profile complete AND a
-  // plan chosen on the personal org (hasChosenPlan is always true when the
-  // billing package is disabled). A complete profile alone keeps /setup/plan
+  // plan chosen on the personal org (hasChosenPlan is always true when billing
+  // enforcement is disabled). A complete profile alone keeps /setup/plan
   // reachable so returning users can finish the plan step.
   if (hasCompleteProfile && (await hasChosenPlan(userId))) {
     redirect("/");
