@@ -4,6 +4,6 @@
   "version": "1.0.0",
   "description": "GIS file processing service (Cloudflare Container)",
   "dependencies": {
-    "@cloudflare/containers": "^0.2.3"
+    "@cloudflare/containers": "^0.3.7"
   }
 }

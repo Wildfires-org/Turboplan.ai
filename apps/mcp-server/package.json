@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
-    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@sentry/cloudflare": "^10.70.0",
     "@wildfires-org/turboplan-api-client": "workspace:*",
     "@wildfires-org/turboplan-billing": "workspace:*",
@@ -24,14 +24,14 @@
     "@wildfires-org/turboplan-upload": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
     "@wildfires-org/turboplan-workspace": "workspace:*",
-    "drizzle-orm": "^0.45.2",
-    "zod": "^4.4.3"
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250410.0",
     "@types/node": "^25.9.1",
     "esbuild": "^0.25.12",
-    "tsx": "^4.19.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.2",
     "wrangler": "^4.151.3"
   }
