@@ -18,10 +18,12 @@ export async function updateProfileAction(formData: FormData) {
       throw new Error("Not authenticated");
     }
 
-    // Helper function to get non-empty string or undefined
+    // The form submits every field, so an empty one was cleared: store null
+    // (undefined would make Drizzle skip the column and keep the old value).
     const getFormValue = (key: string) => {
-      const value = formData.get(key) as string;
-      return value && value.trim() !== "" ? value.trim() : undefined;
+      const value = formData.get(key);
+      const trimmed = typeof value === "string" ? value.trim() : "";
+      return trimmed === "" ? null : trimmed;
     };
 
     const profileData = {

@@ -33,16 +33,16 @@ export async function createProfile({
   userRole,
 }: {
   userId: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  city?: string;
-  streetAddress?: string;
-  unitNumber?: string;
-  state?: string;
-  zipCode?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  streetAddress?: string | null;
+  unitNumber?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
   avatarUrl?: string | null;
-  jobTitle?: string;
+  jobTitle?: string | null;
   userRole?: UserRole;
 }) {
   try {
@@ -84,16 +84,16 @@ export async function updateProfile({
   userRole,
 }: {
   userId: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  city?: string;
-  streetAddress?: string;
-  unitNumber?: string;
-  state?: string;
-  zipCode?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  streetAddress?: string | null;
+  unitNumber?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
   avatarUrl?: string | null;
-  jobTitle?: string;
+  jobTitle?: string | null;
   userRole?: UserRole;
 }) {
   try {

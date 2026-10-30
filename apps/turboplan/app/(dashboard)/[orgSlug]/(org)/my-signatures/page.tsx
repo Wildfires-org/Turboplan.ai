@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
+import { isSigningPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { MySignaturesPage } from "@wildfires-org/turboplan-signing/client";
 
 import { AccessError } from "@/components/access-error";
@@ -50,6 +51,10 @@ export async function generateMetadata({
 export default async function OrganizationMySignaturesPage({
   params,
 }: OrganizationPageProps) {
+  if (!isSigningPackageEnabled()) {
+    notFound();
+  }
+
   const session = await getCachedSession();
   const resolvedParams = await params;
 

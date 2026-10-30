@@ -235,10 +235,11 @@ organizationsRouter.put(
       await updateOrganization({
         id,
         name,
-        shortName: shortName || undefined,
+        // An empty string clears the field; undefined would leave it as is.
+        shortName: shortName === "" ? null : shortName,
         slug: newSlug,
         description,
-        country: country || undefined,
+        country: country === "" ? null : country,
         type,
         status,
         logoUrl,

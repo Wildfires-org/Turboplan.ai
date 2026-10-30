@@ -19,15 +19,14 @@ import { SimpleMap } from "./simple-map";
 interface ProjectMapViewerProps {
   className?: string;
   projectId: string;
-  organizationId: string;
-  officeId: string;
+  /** The project page, linked from the empty map ("Back to project") */
+  projectHref: string;
 }
 
 export function ProjectMapViewer({
   className,
   projectId,
-  organizationId,
-  officeId,
+  projectHref,
 }: ProjectMapViewerProps) {
   const layersKey = `/api/maps/layers/project/${projectId}`;
 
@@ -126,7 +125,7 @@ export function ProjectMapViewer({
         <>
           <div className="flex justify-end absolute top-20 left-4 z-20 gap-4">
             <Button variant="outline">
-              <Link href={`/${organizationId}/${officeId}/${projectId}`}>
+              <Link href={projectHref}>
                 <div className="flex items-center gap-2">
                   <ArrowLeftIcon /> Back to project
                 </div>

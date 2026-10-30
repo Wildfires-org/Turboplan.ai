@@ -10,6 +10,7 @@ import {
   getCachedSession,
   getValidatedProjectBySlug,
 } from "@/lib/cache/dashboard";
+import { AppUrls } from "@/lib/nav/urls";
 import type { ProjectPageProps } from "@/types/dashboard";
 
 export async function generateMetadata({
@@ -89,9 +90,12 @@ export default async function ProjectMapPage({ params }: ProjectPageProps) {
 
       <ProjectMapViewer
         className="flex-1"
-        organizationId={organization.id}
-        officeId={office.id}
         projectId={project.id}
+        projectHref={AppUrls.project(
+          organization.slug,
+          office.slug,
+          project.slug,
+        )}
       />
     </div>
   );

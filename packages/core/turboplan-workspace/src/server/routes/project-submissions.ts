@@ -105,6 +105,7 @@ projectSubmissionsRouter.get("/user/submissions", async (c) => {
         creatorLastName: profile.lastName,
         createdAt: project.createdAt,
         submittedAt: projectSubmission.createdAt,
+        rejectionReason: projectSubmission.rejectionReason,
       })
       .from(projectSubmission)
       .innerJoin(project, eq(projectSubmission.projectId, project.id))
@@ -122,7 +123,18 @@ projectSubmissionsRouter.get("/user/submissions", async (c) => {
       .leftJoin(profile, eq(project.createdBy, profile.userId))
       .where(eq(projectSubmission.submittedBy, user.userId));
 
-    return c.json(submissions);
+    // A rejected project goes back to DRAFT so it can be edited and
+    // resubmitted, so its own status would read as a fresh draft. Report the
+    // review outcome instead: only a rejection stores a reason.
+    return c.json(
+      submissions.map(({ rejectionReason, ...submission }) => ({
+        ...submission,
+        ownershipStatus:
+          rejectionReason !== null
+            ? OwnershipStatus.REJECTED
+            : submission.ownershipStatus,
+      })),
+    );
   } catch (error) {
     console.error("Failed to get user submissions:", error);
     return c.json({ error: "Internal server error" }, 500);

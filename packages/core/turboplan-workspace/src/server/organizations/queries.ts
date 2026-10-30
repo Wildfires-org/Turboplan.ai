@@ -294,10 +294,10 @@ export async function updateOrganization({
 }: {
   id: string;
   name?: string;
-  shortName?: string;
+  shortName?: string | null;
   slug?: string;
   description?: string;
-  country?: string;
+  country?: string | null;
   type?: OrganizationType;
   status?: OrganizationStatus;
   logoUrl?: string;
