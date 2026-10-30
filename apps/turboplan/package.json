@@ -114,7 +114,7 @@
     "react-dom": "19.1.7",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.75.0",
-    "react-markdown": "^9.0.1",
+    "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.0",
     "server-only": "^0.0.1",
     "sonner": "^1.5.0",
