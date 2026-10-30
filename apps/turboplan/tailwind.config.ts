@@ -1,6 +1,7 @@
 // Theme tokens are now provided via @wildfires-org/theme-tokens and should be imported in the app's root CSS/TSX.
 
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 import { BRAND_GRADIENT_CSS } from "@wildfires-org/turboplan-utils";
 
@@ -11,6 +12,9 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./lib/**/*.{js,ts,jsx,tsx}",
+    "./artifacts/**/*.{js,ts,jsx,tsx}",
+    "./contexts/**/*.{js,ts,jsx,tsx}",
+    "./hooks/**/*.{js,ts,jsx,tsx}",
     "../../packages/*/*/src/**/*.{js,ts,jsx,tsx,mdx}",
     "./node_modules/streamdown/dist/**/*.js",
   ],
@@ -197,6 +201,16 @@ const config: Config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
+    // `band-wide:` — a container query: applies once the nearest size
+    // container (the letterhead band, `components/letterhead-band.tsx`) is
+    // at least 30rem wide, so the band lays out by its own width rather than
+    // the viewport's.
+    plugin(({ addVariant }) => {
+      addVariant("band-wide", "@container (min-width: 30rem)");
+    }),
+  ],
 };
 export default config;

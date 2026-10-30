@@ -14,13 +14,15 @@ import {
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import {
-  getOfficeBySlug,
-  getOrganizationBySlug,
   getProjectById,
   getProjectBySlug,
   getProjectsByOffice,
   isDraftHiddenFromUser,
 } from "@wildfires-org/turboplan-workspace/server";
+import type {
+  ClientOffice,
+  ClientOrganization,
+} from "@wildfires-org/turboplan-workspace/types";
 
 import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
@@ -78,12 +80,8 @@ export const getValidatedProjectBySlug = cache(
     projectSlug: string,
   ): Promise<
     SlugValidationResult<{
-      organization: NonNullable<
-        Awaited<ReturnType<typeof getOrganizationBySlug>>["entity"]
-      >;
-      office: NonNullable<
-        Awaited<ReturnType<typeof getOfficeBySlug>>["entity"]
-      >;
+      organization: ClientOrganization;
+      office: ClientOffice;
       project: NonNullable<
         Awaited<ReturnType<typeof getProjectBySlug>>["entity"]
       >;

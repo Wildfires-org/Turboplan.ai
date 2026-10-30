@@ -1,4 +1,9 @@
 export { commentsRouter } from "./comments";
+export {
+  officeLetterheadGridRouter,
+  organizationLetterheadGridRouter,
+  projectLetterheadTargetRouter,
+} from "./default-letterhead-grids";
 export { invitationsRouter, publicInvitationsRouter } from "./invitations";
 export { officesRouter } from "./offices";
 export { organizationContextRouter } from "./organization-context";

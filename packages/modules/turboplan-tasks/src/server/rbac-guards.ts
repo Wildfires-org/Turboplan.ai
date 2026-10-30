@@ -10,8 +10,9 @@
  *
  * Routes keyed on a project/document id extract it synchronously; routes keyed
  * on a task or milestone id resolve the owning project from that row first. A
- * row id matching nothing gets the same 403 as a denial, so those routes never
- * emit 404 — see `requireEntityPermission` in the rbac package for why.
+ * row id matching nothing — or not a uuid at all — gets the same 403 as a
+ * denial, so those routes never emit 404 — see `requireEntityPermission` in the
+ * rbac package for why.
  *
  * READ routes additionally allow the public-government fallback: any
  * authenticated user may read tasks of a public project owned by a publicly
@@ -40,14 +41,25 @@ import { type AssigneeCarrier, withoutAssignees } from "./assignee-redaction";
 const PUBLIC_GOV_READ = { moduleName: "tasks" } as const;
 
 /**
+ * A uuid in canonical 8-4-4-4-12 hex form. Task and milestone ids are `uuid`
+ * columns, so any other string fails the cast in Postgres (22P02) and the guard
+ * would answer 500. Deliberately not `z.string().uuid()`: zod v4 also checks
+ * the version/variant bits, which Postgres does not, so it could turn away an
+ * id that is really stored.
+ */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
  * Resolver for a guard keyed on a row id: the owning project, or `null` (→ the
- * guard's uniform 403) when the path carries no id or the row does not exist.
+ * guard's uniform 403) when the path carries no id, the id is not a uuid, or
+ * the row does not exist.
  */
 const projectFromParam =
   (lookup: (id: string) => Promise<string | null>, paramName: string) =>
   async (c: Context<RBACContext>): Promise<string | null> => {
     const id = c.req.param(paramName);
-    if (!id) {
+    if (!id || !UUID_RE.test(id)) {
       return null;
     }
     return lookup(id);

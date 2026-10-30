@@ -52,6 +52,7 @@ export {
   getTestUserOrganization,
   type TestInvitation,
 } from "./test-invitations";
+export { createTestMilestone } from "./test-tasks";
 export {
   addOrganizationOfficeViewer,
   createTestOrganization,

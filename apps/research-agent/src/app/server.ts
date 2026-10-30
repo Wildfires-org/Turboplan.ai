@@ -2,16 +2,23 @@ import "./instrument";
 
 import { serve } from "@hono/node-server";
 
-import { getResearchAgentEnv } from "@wildfires-org/turboplan-env";
+import {
+  getOptionalR2Env,
+  getResearchAgentEnv,
+} from "@wildfires-org/turboplan-env";
 
 import { createDocumentExtraction } from "../documents/create-document-extraction";
+import { createLetterheadAnalysis } from "../documents/letterhead/create-letterhead-analysis";
+import { createR2LogoStore } from "../documents/letterhead/logo-storage";
 import { createDocumentSummarizer } from "../documents/summarize-document";
+import { createWorkerGate } from "../documents/worker-gate";
 import { createFastModelClient } from "../infra/fast-model-client";
 import { logger } from "../infra/logger";
 import { getModalResources } from "../infra/modal-setup";
 import {
   getFastModelClientOptions,
   getFastModelId,
+  getLetterheadModelSettings,
   getModelProviderName,
 } from "../infra/model-provider";
 import { createTargetApiClient } from "../infra/target-api-client";
@@ -64,11 +71,34 @@ async function main(): Promise<void> {
       : "Organization document summaries disabled (CLAUDE_FAST_MODEL unset)",
     summarizeDocument ? "success" : "warning",
   );
+  // One document worker thread at a time across both loops below: two side
+  // by side would not fit the 512MB machine.
+  const documentWorkerGate = createWorkerGate();
   const documentExtraction = createDocumentExtraction({
     summarize: summarizeDocument,
+    workerGate: documentWorkerGate,
   });
+  // Letterhead analysis of uploaded PDFs, a second loop beside extraction,
+  // through OpenRouter only. Off: no loop, documents stay pending.
+  const letterheadSettings = getLetterheadModelSettings(env);
+  const letterheadLogoStore = createR2LogoStore(getOptionalR2Env());
+  const letterheadAnalysis = createLetterheadAnalysis(letterheadSettings, {
+    storeLogo: letterheadLogoStore,
+    workerGate: documentWorkerGate,
+  });
+  logger.log(
+    letterheadSettings
+      ? `Letterhead analysis enabled (${letterheadSettings.model} via openrouter, logos ${letterheadLogoStore ? "stored in R2" : "not stored: R2 credentials unset"})`
+      : "Letterhead analysis disabled (needs OPENROUTER_API_KEY and CLAUDE_LETTERHEAD_MODEL or CLAUDE_FAST_MODEL; CLAUDE_LETTERHEAD_MODEL=off turns it off)",
+    letterheadSettings && letterheadLogoStore ? "success" : "warning",
+  );
 
-  registerGracefulShutdown(runManager, documentExtraction);
+  registerGracefulShutdown(runManager, [
+    { name: "document extraction", loop: documentExtraction },
+    ...(letterheadAnalysis
+      ? [{ name: "letterhead analysis", loop: letterheadAnalysis }]
+      : []),
+  ]);
 
   const app = createRouter(env, runManager, documentExtraction);
 
@@ -80,6 +110,10 @@ async function main(): Promise<void> {
 
   documentExtraction.start();
   logger.log("Document text extraction loop started", "success");
+  if (letterheadAnalysis) {
+    letterheadAnalysis.start();
+    logger.log("Letterhead analysis loop started", "success");
+  }
 
   // Reconcile orphaned runs from previous server instance (non-blocking)
   void reattachOrphanedRuns(

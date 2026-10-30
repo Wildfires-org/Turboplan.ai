@@ -1,19 +1,24 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "../db-client";
 import {
+  type DocumentLetterheadStatus,
+  letterheadPendingPredicate,
+  MAX_LETTERHEAD_ATTEMPTS,
   type NewProjectDocument,
   type ProjectDocument,
   type ProjectDocumentExtractionStatus,
   type ProjectDocumentSource,
   profile,
   projectDocument,
+  type StoredLetterheadAnalysis,
   user,
 } from "../schemas";
 
 /**
  * Every project document column except `extractedText`, which can hold up to
- * 40k characters per row and is only ever wanted one document at a time.
+ * 40k characters per row and is only ever wanted one document at a time, and
+ * the letterhead analysis columns.
  * Queries that return lists select this instead of `select()` so the text does
  * not travel with every listing.
  */
@@ -37,8 +42,18 @@ const projectDocumentColumns = {
   createdAt: projectDocument.createdAt,
 } as const;
 
-/** A project document row without its (potentially huge) extracted text. */
-export type ProjectDocumentListItem = Omit<ProjectDocument, "extractedText">;
+/**
+ * A project document row without its (potentially huge) extracted text and
+ * without the letterhead analysis, which only the analysis loop and document
+ * creation read (through their own queries).
+ */
+export type ProjectDocumentListItem = Omit<
+  ProjectDocument,
+  | "extractedText"
+  | "letterheadStatus"
+  | "letterheadAnalysis"
+  | "letterheadAttempts"
+>;
 
 /**
  * Get all documents for a project, ordered by creation date (newest first).
@@ -179,17 +194,18 @@ export const hasProjectDocumentWithUrl = async (
 
 /**
  * Update the display name (originalFilename) of a project document.
- * Storage fields (filename, url) are intentionally left untouched.
+ * Storage fields (filename, url) are intentionally left untouched. Returns the
+ * list columns: the rename route sends the row to the client as is.
  */
 export const updateProjectDocument = async (
   id: string,
   data: { originalFilename: string },
-): Promise<ProjectDocument | null> => {
+): Promise<ProjectDocumentListItem | null> => {
   const [result] = await db
     .update(projectDocument)
     .set({ originalFilename: data.originalFilename })
     .where(eq(projectDocument.id, id))
-    .returning();
+    .returning(projectDocumentColumns);
 
   return result ?? null;
 };
@@ -249,6 +265,8 @@ export type ProjectDocumentExtraction = {
   originalFilename: string;
   mimeType: string;
   url: string;
+  /** See {@link ProjectDocumentSource}; the column is a plain varchar */
+  source: string;
   extractionStatus: ProjectDocumentExtractionStatus;
   extractedText: string | null;
   extractionError: string | null;
@@ -271,10 +289,143 @@ export const getProjectDocumentExtractionByIds = async (
       originalFilename: projectDocument.originalFilename,
       mimeType: projectDocument.mimeType,
       url: projectDocument.url,
+      source: projectDocument.source,
       extractionStatus: projectDocument.extractionStatus,
       extractedText: projectDocument.extractedText,
       extractionError: projectDocument.extractionError,
     })
     .from(projectDocument)
     .where(inArray(projectDocument.id, ids));
+};
+
+/** The subset of a pending document the letterhead analysis loop needs. */
+export type ProjectDocumentPendingLetterhead = Pick<
+  ProjectDocument,
+  "id" | "url" | "mimeType" | "originalFilename"
+>;
+
+/**
+ * Newest documents still awaiting letterhead analysis with attempts left, for
+ * the research agent's analysis loop: a fresh upload is analyzed within
+ * seconds even with a backlog of older documents (they drain after it).
+ * Served by the partial `project_document_letterhead_pending_idx`.
+ */
+export const getProjectDocumentsPendingLetterhead = async (
+  limit: number,
+): Promise<ProjectDocumentPendingLetterhead[]> => {
+  return db
+    .select({
+      id: projectDocument.id,
+      url: projectDocument.url,
+      mimeType: projectDocument.mimeType,
+      originalFilename: projectDocument.originalFilename,
+    })
+    .from(projectDocument)
+    .where(
+      and(
+        letterheadPendingPredicate(projectDocument.letterheadStatus),
+        lt(projectDocument.letterheadAttempts, MAX_LETTERHEAD_ATTEMPTS),
+      ),
+    )
+    .orderBy(desc(projectDocument.createdAt))
+    .limit(limit);
+};
+
+/**
+ * Count one letterhead analysis attempt on a pending document, right before
+ * its run: the attempts made so far, this one included, or null when the
+ * document is gone, no longer pending or out of attempts (skip it).
+ */
+export const claimProjectDocumentLetterhead = async (
+  id: string,
+): Promise<number | null> => {
+  const [claimed] = await db
+    .update(projectDocument)
+    .set({ letterheadAttempts: sql`${projectDocument.letterheadAttempts} + 1` })
+    .where(
+      and(
+        eq(projectDocument.id, id),
+        letterheadPendingPredicate(projectDocument.letterheadStatus),
+        lt(projectDocument.letterheadAttempts, MAX_LETTERHEAD_ATTEMPTS),
+      ),
+    )
+    .returning({ attempts: projectDocument.letterheadAttempts });
+
+  return claimed?.attempts ?? null;
+};
+
+/**
+ * Mark "failed" the documents still pending after their last attempt (each
+ * failed temporarily, or crashed the process). Resolves how many.
+ */
+export const failExhaustedProjectDocumentLetterheads =
+  async (): Promise<number> => {
+    const failed = await db
+      .update(projectDocument)
+      .set({ letterheadStatus: "failed" })
+      .where(
+        and(
+          letterheadPendingPredicate(projectDocument.letterheadStatus),
+          gte(projectDocument.letterheadAttempts, MAX_LETTERHEAD_ATTEMPTS),
+        ),
+      )
+      .returning({ id: projectDocument.id });
+
+    return failed.length;
+  };
+
+/**
+ * Record the outcome of a letterhead analysis run. False when the document no
+ * longer exists.
+ */
+export const updateProjectDocumentLetterhead = async (
+  id: string,
+  {
+    status,
+    analysis,
+  }: {
+    status: DocumentLetterheadStatus;
+    analysis: StoredLetterheadAnalysis | null;
+  },
+): Promise<boolean> => {
+  const updated = await db
+    .update(projectDocument)
+    .set({ letterheadStatus: status, letterheadAnalysis: analysis })
+    .where(eq(projectDocument.id, id))
+    .returning({ id: projectDocument.id });
+
+  return updated.length > 0;
+};
+
+/** A reference document's letterhead analysis, as document creation reads it. */
+export type ProjectDocumentLetterheadAnalysis = Pick<
+  ProjectDocument,
+  "id" | "originalFilename" | "letterheadStatus" | "letterheadAnalysis"
+>;
+
+/**
+ * Letterhead analyses of the given documents of one project. Ids belonging to
+ * another project are simply absent from the result (IDOR guard).
+ */
+export const getProjectDocumentLetterheadAnalyses = async (
+  projectId: string,
+  ids: string[],
+): Promise<ProjectDocumentLetterheadAnalysis[]> => {
+  if (ids.length === 0) {
+    return [];
+  }
+  return db
+    .select({
+      id: projectDocument.id,
+      originalFilename: projectDocument.originalFilename,
+      letterheadStatus: projectDocument.letterheadStatus,
+      letterheadAnalysis: projectDocument.letterheadAnalysis,
+    })
+    .from(projectDocument)
+    .where(
+      and(
+        eq(projectDocument.projectId, projectId),
+        inArray(projectDocument.id, ids),
+      ),
+    );
 };

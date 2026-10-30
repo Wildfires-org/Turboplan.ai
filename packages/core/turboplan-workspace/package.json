@@ -9,7 +9,7 @@
     "dev": "tsdown --watch --no-clean",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test $(find tests -name '*.test.ts')",
+    "test": "node --import tsx --experimental-test-module-mocks --test $(find tests -name '*.test.ts')",
     "seed:organizations": "tsx src/seed/organizations.ts"
   },
   "exports": {

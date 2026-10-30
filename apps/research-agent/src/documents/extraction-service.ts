@@ -11,21 +11,22 @@ import type { ExtractionResult } from "@wildfires-org/turboplan-document-extract
 import { getGenericExtractionError } from "@wildfires-org/turboplan-document-extraction/errors";
 
 import { logger as defaultLogger, type Logger } from "../infra/logger";
+import {
+  createDocumentPollLoop,
+  type DocumentLoop,
+  type DocumentLoopStatus,
+  type PendingDocument,
+  type PollSource,
+} from "./document-poll-loop";
 import type { ExtractionInput } from "./run-extraction-in-worker";
+
+export type { PendingDocument } from "./document-poll-loop";
 
 export type ExtractionStatusValue =
   | "pending"
   | "done"
   | "failed"
   | "unsupported";
-
-/** The subset of a document row this loop needs. */
-export type PendingDocument = {
-  id: string;
-  url: string;
-  mimeType: string;
-  originalFilename: string;
-};
 
 export type ExtractionUpdate = {
   extractionStatus: ExtractionStatusValue;
@@ -42,10 +43,7 @@ export type DocumentSummarizer = (input: {
 }) => Promise<string | null>;
 
 /** One document table the loop drains. */
-export type ExtractionSource = {
-  /** Used in log lines, e.g. "project" or "organization". */
-  name: string;
-  fetchPending: (limit: number) => Promise<PendingDocument[]>;
+export type ExtractionSource = PollSource & {
   persist: (id: string, data: ExtractionUpdate) => Promise<unknown>;
   /**
    * Runs after a successful extraction; its result is persisted as `summary`.
@@ -55,19 +53,9 @@ export type ExtractionSource = {
   summarize?: DocumentSummarizer;
 };
 
-export type DocumentExtractionStatus = {
-  inFlight: boolean;
-  lastRunAt: number | null;
-  processed: number;
-  failed: number;
-};
+export type DocumentExtractionStatus = DocumentLoopStatus;
 
-export type DocumentExtractionService = {
-  start(): void;
-  stop(): Promise<void>;
-  wake(): void;
-  getStatus(): DocumentExtractionStatus;
-};
+export type DocumentExtractionService = DocumentLoop;
 
 export type DocumentExtractionServiceDeps = {
   /** Drained in array order within each pass. */
@@ -78,9 +66,6 @@ export type DocumentExtractionServiceDeps = {
   batchSize?: number;
   logger?: Logger;
 };
-
-const DEFAULT_POLL_INTERVAL_MS = 5_000;
-const DEFAULT_BATCH_SIZE = 5;
 
 const describeError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
@@ -112,17 +97,10 @@ const toUpdate = (result: ExtractionResult): ExtractionUpdate => {
 export const createDocumentExtractionService = ({
   sources,
   runExtraction,
-  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
-  batchSize = DEFAULT_BATCH_SIZE,
+  pollIntervalMs,
+  batchSize,
   logger = defaultLogger,
 }: DocumentExtractionServiceDeps): DocumentExtractionService => {
-  let timer: ReturnType<typeof setInterval> | null = null;
-  let inFlight: Promise<void> | null = null;
-  let stopped = false;
-  let lastRunAt: number | null = null;
-  let processed = 0;
-  let failed = 0;
-
   const summarizeDocument = async (
     source: ExtractionSource,
     summarize: DocumentSummarizer,
@@ -144,7 +122,7 @@ export const createDocumentExtractionService = ({
   const processDocument = async (
     source: ExtractionSource,
     doc: PendingDocument,
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     let result: ExtractionResult;
     try {
       result = await runExtraction({ url: doc.url, mimeType: doc.mimeType });
@@ -159,7 +137,6 @@ export const createDocumentExtractionService = ({
 
     const update = toUpdate(result);
     if (result.ok) {
-      processed += 1;
       if (source.summarize) {
         update.summary = await summarizeDocument(
           source,
@@ -169,7 +146,6 @@ export const createDocumentExtractionService = ({
         );
       }
     } else {
-      failed += 1;
       // Only the user-facing message is stored; the raw cause goes to logs.
       const detail = result.detail ? ` (${result.detail})` : "";
       logger.log(
@@ -188,97 +164,17 @@ export const createDocumentExtractionService = ({
         err,
       );
     }
+    return result.ok;
   };
 
-  const drainSource = async (source: ExtractionSource): Promise<void> => {
-    let documents: PendingDocument[];
-    try {
-      documents = await source.fetchPending(batchSize);
-    } catch (err) {
-      logger.error(
-        `[${source.name}] Failed to load documents pending extraction`,
-        err,
-      );
-      return;
-    }
-
-    if (documents.length === 0) {
-      return;
-    }
-
-    logger.log(
-      `[${source.name}] Extracting text for ${documents.length} document(s)`,
-      "info",
-    );
-
-    for (const doc of documents) {
-      // Leave the rest "pending" for the next boot rather than delay shutdown.
-      if (stopped) {
-        return;
-      }
-      await processDocument(source, doc);
-    }
-  };
-
-  const runOnce = async (): Promise<void> => {
-    // Sequential on purpose: one worker thread at a time on a 512MB box, so
-    // sources take turns instead of running side by side. Each source fails
-    // independently — a broken query in one never skips the others.
-    for (const source of sources) {
-      if (stopped) {
-        return;
-      }
-      await drainSource(source);
-    }
-  };
-
-  const tick = (): void => {
-    if (stopped || inFlight) {
-      return;
-    }
-    lastRunAt = Date.now();
-    inFlight = runOnce()
-      .catch((err) => {
-        logger.error("Document extraction pass failed", err);
-      })
-      .finally(() => {
-        inFlight = null;
-      });
-  };
-
-  return {
-    start(): void {
-      if (timer) {
-        return;
-      }
-      stopped = false;
-      timer = setInterval(tick, pollIntervalMs);
-      timer.unref?.();
-      tick();
-    },
-
-    async stop(): Promise<void> {
-      stopped = true;
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-      // Bounded by the current document: its worker timeout plus, for a
-      // summarized source, the summary request timeout.
-      await inFlight;
-    },
-
-    wake(): void {
-      tick();
-    },
-
-    getStatus(): DocumentExtractionStatus {
-      return {
-        inFlight: inFlight !== null,
-        lastRunAt,
-        processed,
-        failed,
-      };
-    },
-  };
+  // stop() is bounded by the current document: its worker timeout plus, for a
+  // summarized source, the summary request timeout.
+  return createDocumentPollLoop({
+    taskName: "extraction",
+    sources,
+    processDocument,
+    pollIntervalMs,
+    batchSize,
+    logger,
+  });
 };

@@ -9,6 +9,20 @@
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 
 import {
+  cleanGridLineText,
+  GRID_LINE_SCALE,
+  type GridLetterheadTextCell,
+  type GridVerticalAlign,
+  gridBaseFontRatio,
+  gridCellOffset,
+  gridLogoCells,
+  gridLogoSize,
+  layoutGridLetterhead,
+  type PublicGridLetterhead,
+  type PublicGridLetterheadLogoCell,
+} from "@wildfires-org/turboplan-workspace/types";
+
+import {
   type ColumnAlignment,
   computeColumnWidths,
   hasExplicitAlignment,
@@ -78,6 +92,8 @@ const ABOVE_LOGO_GAP = 6;
 // full content width on page 1, aspect kept, never taller than this.
 const BANNER_MAX_H = 120;
 const BANNER_GAP = 6;
+// The rule under the letterhead (points).
+const RULE_WIDTH = 0.75;
 const DEFAULT_INK = "#000000";
 
 // Where the letterhead logo goes: the left page margin (default — legacy AI
@@ -98,6 +114,55 @@ export type DocumentFooter = {
   text?: string | null;
   note?: string | null;
   logo?: LetterheadLogo | null;
+};
+
+// A letterhead copied from a reference document (or saved from one as the
+// office/org default), drawn from its structure at the top of page 1 — one
+// row of cells laid out by `layoutGridLetterhead`, the same layout as the
+// preview and the DOCX export, its base text size `gridBaseFontRatio(grid)`
+// of the content width (as large as the reference printed it, when known). `logos[cell.index]` holds a logo cell's bytes (null when
+// it did not load — nothing is drawn and it adds no height). The content
+// carries no letterhead table then, and the grid's own colour is the accent;
+// `logo` (placement "margin") is drawn only for a grid without logo cells
+// (the office → org letterhead logo, in the margin as before).
+export type GridLetterheadOption = {
+  grid: PublicGridLetterhead;
+  logos: (LetterheadLogo | null)[];
+};
+
+// One wrapped part of a grid text cell's line as drawn: its line's weight,
+// its size (points) and the height it takes.
+type GridTextRun = {
+  text: string;
+  bold: boolean;
+  size: number;
+  height: number;
+};
+
+// A grid cell measured before the row is drawn, so each can be placed in the
+// row's height by its `valign`.
+type PlacedGridCell = {
+  x: number;
+  height: number;
+  valign?: GridVerticalAlign;
+} & (
+  | {
+      kind: "text";
+      width: number;
+      align: GridLetterheadTextCell["align"];
+      runs: GridTextRun[];
+    }
+  | { kind: "logo"; src: string; width: number }
+);
+
+type PdfOptions = {
+  logo?: LetterheadLogo;
+  footer?: DocumentFooter;
+  logoPlacement?: LogoPlacement;
+  // Hex color ("#1f5f3a") for the rule under the letterhead and the bold
+  // text of the letterhead table (ignored with a grid: it has its own).
+  accentColor?: string;
+  gridLetterhead?: GridLetterheadOption;
 };
 
 // Footer/page-number layout (points). The footer sits inside the bottom margin
@@ -290,14 +355,7 @@ const decodeHtmlEntities = (text: string): string =>
 export const generatePdfFromMarkdown = async (
   markdown: string,
   title: string,
-  options?: {
-    logo?: LetterheadLogo;
-    footer?: DocumentFooter;
-    logoPlacement?: LogoPlacement;
-    // Hex color ("#1f5f3a") for the rule under the letterhead and the bold
-    // text of the letterhead table.
-    accentColor?: string;
-  },
+  options?: PdfOptions,
 ): Promise<Uint8Array> => {
   // The document content already carries its own letterhead/heading, so don't
   // inject the title as a visible heading — only set it as PDF metadata. Same
@@ -322,11 +380,14 @@ export const generatePdfFromMarkdown = async (
 
   const usableWidth =
     doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const gridLetterhead = options?.gridLetterhead;
   // Only a well-formed hex reaches PDFKit; anything else keeps the default ink.
+  // A grid letterhead brings its own colour.
+  const accentInput = gridLetterhead
+    ? gridLetterhead.grid.color
+    : options?.accentColor;
   const accentColor =
-    options?.accentColor && HEX_COLOR_REGEX.test(options.accentColor)
-      ? options.accentColor
-      : undefined;
+    accentInput && HEX_COLOR_REGEX.test(accentInput) ? accentInput : undefined;
 
   // Greedy word wrap of formatted runs into lines no wider than maxWidth, at
   // the current font size. Lines break only at whitespace; a word wider than
@@ -634,7 +695,7 @@ export const generatePdfFromMarkdown = async (
     const y = doc.y;
     doc
       .save()
-      .lineWidth(0.75)
+      .lineWidth(RULE_WIDTH)
       .strokeColor(accentColor ?? DEFAULT_INK)
       .moveTo(doc.page.margins.left, y)
       .lineTo(doc.page.margins.left + usableWidth, y)
@@ -694,12 +755,248 @@ export const generatePdfFromMarkdown = async (
     }
   };
 
+  // The letterhead logo in the LEFT PAGE MARGIN: right-aligned in its box so
+  // its right edge sits LOGO_GAP before the content margin, extending left
+  // into the margin whitespace (clamped to the page edge), so the letterhead
+  // keeps the full width. Leaves doc.y at `top` (the letterhead starts at the
+  // logo's top edge) and returns the bottom of the logo box. Throws when the
+  // image can't be embedded.
+  const drawMarginLogo = (logo: LetterheadLogo, top: number): number => {
+    const logoLeft = Math.max(2, doc.page.margins.left - LOGO_W - LOGO_GAP);
+    doc.image(toImageSrc(logo), logoLeft, top, {
+      fit: [LOGO_W, LOGO_H],
+      align: "right",
+    });
+    doc.y = top;
+    return top + LOGO_H;
+  };
+
+  // Greedy word wrap of one single-format letterhead line at the current
+  // font, like `layoutRuns`, except that a word wider than the box breaks
+  // between characters, so a narrow grid cell never spills into the next.
+  const wrapCellText = (text: string, width: number): string[] => {
+    const fits = (candidate: string) =>
+      doc.widthOfString(candidate) <= width + WRAP_TOLERANCE;
+    const wrapped: string[] = [];
+    let current = "";
+    for (const word of text.split(" ")) {
+      const joined = current ? `${current} ${word}` : word;
+      if (fits(joined)) {
+        current = joined;
+        continue;
+      }
+      if (current) {
+        wrapped.push(current);
+      }
+      current = "";
+      for (const char of word) {
+        if (current && !fits(current + char)) {
+          wrapped.push(current);
+          current = "";
+        }
+        current += char;
+      }
+    }
+    if (current) {
+      wrapped.push(current);
+    }
+    return wrapped;
+  };
+
+  // A grid text cell's lines as drawn: each at the grid's base size
+  // (`baseFontSize`, points) times its scale, wrapped to `width`. The text is
+  // the reference PDF's: invisible characters dropped, whitespace and control
+  // characters collapsed (as in `gridToLines`), empty lines skipped.
+  const layoutGridTextCell = (
+    cell: GridLetterheadTextCell,
+    width: number,
+    baseFontSize: number,
+  ): GridTextRun[] =>
+    cell.lines.flatMap((line) => {
+      const text = cleanGridLineText(line.text);
+      if (!text) {
+        return [];
+      }
+      const size = baseFontSize * GRID_LINE_SCALE[line.size];
+      doc.font(fontFor(line.bold, false)).fontSize(size);
+      const height = doc.currentLineHeight(true);
+      return wrapCellText(text, width).map((part) => ({
+        text: part,
+        bold: line.bold,
+        size,
+        height,
+      }));
+    });
+
+  // A grid text cell's runs stacked from `top`, bold ones in the accent
+  // colour, aligned inside the cell's content box. A run that would end below
+  // `maxBottom` is not drawn, nor is anything after it, so a letterhead taller
+  // than the page stays on page 1. Returns the cell's bottom and whether runs
+  // were dropped.
+  const drawGridTextCell = (
+    { x, width, align, runs }: Extract<PlacedGridCell, { kind: "text" }>,
+    top: number,
+    maxBottom: number,
+  ): { bottom: number; isClipped: boolean } => {
+    let y = top;
+    for (const run of runs) {
+      if (y + run.height > maxBottom) {
+        doc.fillColor(DEFAULT_INK);
+        return { bottom: y, isClipped: true };
+      }
+      doc
+        .font(fontFor(run.bold, false))
+        .fontSize(run.size)
+        .fillColor(run.bold && accentColor ? accentColor : DEFAULT_INK);
+      const freeSpace = width - doc.widthOfString(run.text);
+      const offset =
+        align === "right" ? freeSpace : align === "center" ? freeSpace / 2 : 0;
+      doc.text(run.text, x + offset, y, { lineBreak: false });
+      y += run.height;
+    }
+    doc.fillColor(DEFAULT_INK);
+    return { bottom: y, isClipped: false };
+  };
+
+  // A grid logo cell's image as drawn: fitted (aspect kept) into the cell's
+  // logo box. Null for a logo that is missing or can't be read — it takes no
+  // height and never fails the export.
+  const placeGridLogo = (
+    logo: LetterheadLogo | null,
+    cell: PublicGridLetterheadLogoCell,
+    contentWidth: number,
+  ): { src: string; width: number; height: number } | null => {
+    if (!logo) {
+      return null;
+    }
+    const box = gridLogoSize(cell, contentWidth);
+    try {
+      const src = toImageSrc(logo);
+      const image = imageSize(src);
+      const scale = Math.min(
+        (box.width * usableWidth) / image.width,
+        (box.height * usableWidth) / image.height,
+      );
+      return { src, width: image.width * scale, height: image.height * scale };
+    } catch (error) {
+      console.error("[pdf-generator] Failed to embed letterhead logo:", error);
+      return null;
+    }
+  };
+
+  // A grid letterhead, drawn at the top of page 1: every cell at its segment
+  // of the content width, measured first, then placed in one row as tall as
+  // its tallest cell — at the row's top, or its middle or bottom by the
+  // cell's `valign` — then the rule. The body starts below it. Text that
+  // would push the rule past the bottom margin is dropped (the letterhead
+  // editor keeps grids far smaller; logos are capped by `gridLogoSize`).
+  const drawGridLetterhead = ({ grid, logos }: GridLetterheadOption) => {
+    const left = doc.page.margins.left;
+    const top = doc.y;
+    const maxBottom = pageBottom() - PARAGRAPH_GAP;
+    // The same fraction of the content width as in the preview and the DOCX
+    // export: the reference's own size on this page when the grid knows it
+    // (6.5–13 pt), else 9.5 pt.
+    const baseFontSize = gridBaseFontRatio(grid) * usableWidth;
+
+    const cells = layoutGridLetterhead(grid).flatMap(
+      (segment): PlacedGridCell[] => {
+        if (segment.kind === "gap") {
+          return [];
+        }
+        const { cell } = segment;
+        const x = left + segment.contentStart * usableWidth;
+        if (cell.kind === "logo") {
+          const image = placeGridLogo(
+            logos[cell.index] ?? null,
+            cell,
+            segment.contentWidth,
+          );
+          return image
+            ? [{ kind: "logo", x, valign: cell.valign, ...image }]
+            : [];
+        }
+        const width = segment.contentWidth * usableWidth;
+        const runs = layoutGridTextCell(cell, width, baseFontSize);
+        return [
+          {
+            kind: "text",
+            x,
+            width,
+            align: cell.align,
+            valign: cell.valign,
+            runs,
+            height: runs.reduce((sum, run) => sum + run.height, 0),
+          },
+        ];
+      },
+    );
+    // As tall as the tallest cell, but never past the bottom margin: a cell
+    // taller than that starts at the top and loses what does not fit.
+    const rowHeight = Math.min(
+      Math.max(0, ...cells.map((cell) => cell.height)),
+      maxBottom - top,
+    );
+
+    let bottom = top;
+    let isClipped = false;
+    for (const cell of cells) {
+      const y = top + gridCellOffset(cell.valign, cell.height, rowHeight);
+      if (cell.kind === "logo") {
+        try {
+          doc.image(cell.src, cell.x, y, {
+            width: cell.width,
+            height: cell.height,
+          });
+          bottom = Math.max(bottom, y + cell.height);
+        } catch (error) {
+          console.error(
+            "[pdf-generator] Failed to embed letterhead logo:",
+            error,
+          );
+        }
+        continue;
+      }
+      const drawn = drawGridTextCell(cell, y, maxBottom);
+      bottom = Math.max(bottom, drawn.bottom);
+      isClipped ||= drawn.isClipped;
+    }
+    if (isClipped) {
+      console.warn(
+        "[pdf-generator] Grid letterhead taller than the page: lines past the bottom margin were dropped",
+      );
+    }
+
+    // A grid without logo cells keeps the office → org letterhead logo in
+    // the margin.
+    if (options?.logo && gridLogoCells(grid).length === 0) {
+      try {
+        bottom = Math.max(bottom, drawMarginLogo(options.logo, top));
+      } catch (error) {
+        console.error(
+          "[pdf-generator] Failed to embed letterhead logo:",
+          error,
+        );
+      }
+    }
+
+    doc.x = left;
+    doc.y = bottom + PARAGRAPH_GAP;
+    drawHorizontalRule();
+  };
+
   const isBanner = options?.logoPlacement === "banner";
   const lines = normalized.split("\n");
   let i = 0;
-  // With a banner the letterhead is drawn up front, so every table in the
+  // A grid or banner letterhead is drawn up front, so every table in the
   // content is a body table.
-  let isFirstTable = !(isBanner && options?.logo && drawBanner(options.logo));
+  let isFirstTable = true;
+  if (gridLetterhead) {
+    drawGridLetterhead(gridLetterhead);
+    isFirstTable = false;
+  } else if (isBanner && options?.logo) {
+    isFirstTable = !drawBanner(options.logo);
+  }
 
   while (i < lines.length) {
     const line = lines[i];
@@ -740,27 +1037,12 @@ export const generatePdfFromMarkdown = async (
           const logoTop = doc.y;
           const placement = options.logoPlacement ?? "margin";
           try {
-            const src = toImageSrc(options.logo);
             if (placement === "margin") {
-              // Place the logo in the left margin: right-aligned in its box so
-              // its right edge sits LOGO_GAP before the content margin,
-              // extending left into the margin whitespace (clamped to the page
-              // edge), so the table keeps the full width.
-              const logoLeft = Math.max(
-                2,
-                doc.page.margins.left - LOGO_W - LOGO_GAP,
-              );
-              doc.image(src, logoLeft, logoTop, {
-                fit: [LOGO_W, LOGO_H],
-                align: "right",
-              });
-              logoBottom = logoTop + LOGO_H;
-              // `doc.image()` advances doc.y past the image; reset to logoTop
-              // so the header table starts at the same top edge as the logo.
-              doc.y = logoTop;
+              logoBottom = drawMarginLogo(options.logo, logoTop);
             } else {
               // Size the logo to its box (aspect kept) up front so the table
               // can be laid out around its real footprint.
+              const src = toImageSrc(options.logo);
               const image = imageSize(src);
               const [boxW, boxH] =
                 placement === "inline"
@@ -888,7 +1170,7 @@ export const generatePdfFromMarkdown = async (
   const hasFooter = !!(footer && (footer.text || footer.note || footer.logo));
   // Page numbers are letterhead chrome — only stamp them (and run the buffered
   // page pass at all) for branded documents, so plain exports keep their layout.
-  const isBranded = !!options?.logo || hasFooter;
+  const isBranded = !!options?.logo || hasFooter || !!gridLetterhead;
   const range = doc.bufferedPageRange();
   for (let p = 0; isBranded && p < range.count; p++) {
     doc.switchToPage(range.start + p);

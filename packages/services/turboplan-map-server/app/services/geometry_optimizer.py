@@ -88,8 +88,9 @@ class GeometryOptimizerService:
         )
     
     def _optimize_coordinates(self, coords: Any) -> Any:
-        """Recursively optimize coordinates."""
-        if isinstance(coords, list):
+        """Recursively optimize coordinates. Fiona returns positions as tuples,
+        GeoJSON parsed from JSON as lists; both come back as lists."""
+        if isinstance(coords, (list, tuple)):
             if coords and isinstance(coords[0], (int, float)):
                 # Coordinate pair [lon, lat] or [lon, lat, elevation]
                 # Remove elevation if present and round coordinates

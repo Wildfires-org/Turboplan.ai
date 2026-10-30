@@ -17,7 +17,6 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
-import type { Organization } from "@wildfires-org/turboplan-db/types";
 import { isSigningPackageEnabled } from "@wildfires-org/turboplan-feature-flags";
 import { OrgSigningConfig } from "@wildfires-org/turboplan-signing/client";
 import {
@@ -38,6 +37,7 @@ import {
   Textarea,
 } from "@wildfires-org/turboplan-utils";
 import {
+  type ClientOrganization,
   type EditOrganizationFormData,
   editOrganizationSchema,
   OrganizationStatus,
@@ -93,7 +93,7 @@ const SIGNING_TAB: OrgSettingsTabConfig = {
 };
 
 interface EditOrganizationDialogProps {
-  organization: Organization;
+  organization: ClientOrganization;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -185,10 +185,11 @@ export function EditOrganizationDialog({
     setIsLoading(true);
 
     try {
-      const { data: updatedOrg, error } = await apiClient.put<Organization>(
-        `/api/organizations/${organization.id}`,
-        data,
-      );
+      const { data: updatedOrg, error } =
+        await apiClient.put<ClientOrganization>(
+          `/api/organizations/${organization.id}`,
+          data,
+        );
 
       if (error) {
         throw new Error(error || "Failed to update organization");
@@ -466,7 +467,6 @@ export function EditOrganizationDialog({
                   onFooterLogoChange={(url) =>
                     setValue("documentFooterLogoUrl", url ?? "")
                   }
-                  initialDocumentLogoUrl={organization.documentLogoUrl}
                   initialFooterLogoUrl={organization.documentFooterLogoUrl}
                   textError={errors.documentFooterText?.message}
                   noteError={errors.documentFooterNote?.message}

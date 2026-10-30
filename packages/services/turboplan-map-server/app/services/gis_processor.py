@@ -129,7 +129,7 @@ class GISProcessor:
         Process GIS file from URL.
 
         Every step below is blocking: a synchronous HTTP download, zip
-        extraction, and fiona/shapely parsing. The service runs a single
+        extraction, and fiona parsing. The service runs a single
         uvicorn worker, so doing that work inline on the event loop would
         freeze every other request — health checks included — for the whole
         duration of one upload. Hand it to the threadpool instead and keep this

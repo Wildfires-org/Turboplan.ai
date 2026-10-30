@@ -1,3 +1,5 @@
+import time
+
 from app.main import _redact_sensitive_url, _scrub_sentry_event
 
 
@@ -25,6 +27,31 @@ def test_redacts_email_param():
 def test_untouched_without_sensitive_params():
     url = "https://app.example.com/projects?page=2&sort=name"
     assert _redact_sensitive_url(url) == url
+
+
+def test_redacts_param_nested_in_another_params_value():
+    assert (
+        _redact_sensitive_url("/login?next=/verify?token=abc&x=1")
+        == "/login?next=/verify?token=[redacted]&x=1"
+    )
+
+
+def test_redacts_params_inside_free_text():
+    assert (
+        _redact_sensitive_url("GET https://x.com/?code=123 failed")
+        == "GET https://x.com/?code=[redacted] failed"
+    )
+    assert _redact_sensitive_url("my token=abc") == "my token=[redacted]"
+
+
+def test_stays_linear_on_catastrophic_backtracking_input():
+    k = 16_000
+    url = "Y" + "?" * k + "KEY" * k + "#KEY=v"
+    start = time.perf_counter()
+    redacted = _redact_sensitive_url(url)
+    elapsed = time.perf_counter() - start
+    assert redacted == url[:-1] + "[redacted]"
+    assert elapsed < 0.25, f"took {elapsed:.3f}s"
 
 
 def test_scrub_event_strips_headers_cookies_and_redacts_urls():

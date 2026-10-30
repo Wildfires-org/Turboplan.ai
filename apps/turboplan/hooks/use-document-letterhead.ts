@@ -17,6 +17,15 @@ export const documentLetterheadKey = (
   documentId ?? null,
 ];
 
+/**
+ * SWR key filter for the letterhead of every document (and project default)
+ * the client holds, for `mutate(isDocumentLetterheadKey)` after a default
+ * letterhead changed: documents on "default" resolve to it, and the picker
+ * labels it.
+ */
+export const isDocumentLetterheadKey = (key: unknown) =>
+  Array.isArray(key) && key[0] === "document-letterhead";
+
 const fetchLetterhead = ([, projectId, documentId]: DocumentLetterheadKey) =>
   fetchDocumentLetterhead(projectId, documentId);
 

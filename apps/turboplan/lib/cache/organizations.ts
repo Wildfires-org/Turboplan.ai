@@ -17,6 +17,10 @@ import {
 } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { getOrganizationBySlug } from "@wildfires-org/turboplan-workspace/server";
+import {
+  type ClientOrganization,
+  withoutLetterheadGrid,
+} from "@wildfires-org/turboplan-workspace/types";
 
 import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
@@ -27,11 +31,21 @@ import { AppUrls } from "@/lib/nav/urls";
 
 /**
  * Get organization by slug with caching
- * Checks both current and historical slugs, returns entity and foundViaHistory flag
+ * Checks both current and historical slugs, returns entity and foundViaHistory flag.
+ * The organization comes without its default letterhead grid (storage URLs):
+ * pages pass it on to client components.
  */
-export const getCachedOrganizationBySlug = cache(async (slug: string) => {
-  return getOrganizationBySlug(slug);
-});
+export const getCachedOrganizationBySlug = cache(
+  async (
+    slug: string,
+  ): Promise<{
+    entity: ClientOrganization | null;
+    foundViaHistory: boolean;
+  }> => {
+    const { entity, foundViaHistory } = await getOrganizationBySlug(slug);
+    return { entity: entity && withoutLetterheadGrid(entity), foundViaHistory };
+  },
+);
 
 // ============================================================================
 // Slug-Based Validation (with redirect support)
@@ -53,11 +67,7 @@ export const getValidatedOrganizationBySlug = cache(
   async (
     userId: string,
     orgSlug: string,
-  ): Promise<
-    SlugValidationResult<
-      NonNullable<Awaited<ReturnType<typeof getOrganizationBySlug>>["entity"]>
-    >
-  > => {
+  ): Promise<SlugValidationResult<ClientOrganization>> => {
     // Malformed or reserved slugs (`/wp-admin.php`, `/organizations`) can't
     // name an entity: skip the DB. Layouts 404 on them; this covers the
     // pages' generateMetadata, which runs alongside the layouts.

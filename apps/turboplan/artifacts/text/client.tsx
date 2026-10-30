@@ -1,4 +1,12 @@
-import { MoreHorizontal, Stamp, TextCursorInput, Users } from "lucide-react";
+import { useEffect } from "react";
+
+import {
+  MoreHorizontal,
+  Pencil,
+  Stamp,
+  TextCursorInput,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import type { Suggestion } from "@wildfires-org/turboplan-db/types";
@@ -14,6 +22,7 @@ import { DocumentLetterheadPicker } from "@/components/document-letterhead-picke
 import { DocumentPlaceholdersButton } from "@/components/document-placeholders-button";
 import { DocumentPlaceholdersPanel } from "@/components/document-placeholders-panel";
 import { DocumentSkeleton } from "@/components/document-skeleton";
+import { GridLetterheadEditor } from "@/components/grid-letterhead-editor";
 import { DownloadIcon, MessageIcon, PenIcon } from "@/components/icons";
 import { LetterheadBand } from "@/components/letterhead-band";
 import { LetterheadLogo } from "@/components/letterhead-logo";
@@ -27,6 +36,9 @@ interface TextArtifactMetadata {
   suggestions: Array<Suggestion>;
   isRequestSignaturesOpen?: boolean;
   isPlaceholdersOpen?: boolean;
+  // The editor of the document's own letterhead copy (opened from the
+  // letterhead band or the Letterhead menu).
+  isLetterheadEditorOpen?: boolean;
 }
 
 // Streamed characters after which the artifact panel opens by itself.
@@ -46,6 +58,7 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
     if (streamPart.type === "suggestion") {
       setMetadata((metadata) => {
         return {
+          ...metadata,
           suggestions: [
             ...metadata.suggestions,
             streamPart.content as Suggestion,
@@ -86,6 +99,7 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
     onSaveContent,
     getDocumentContentById,
     isLoading,
+    canEdit,
     metadata,
     setMetadata,
   }) => {
@@ -98,19 +112,46 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
       projectId,
       savedDocumentId,
     );
-    const hasOwnLetterheadTable = contentHasLetterheadTable(content);
+    const hasWrittenLetterheadTable = contentHasLetterheadTable(content);
     const chosenLetterhead = documentLetterhead?.letterhead ?? null;
     const isBanner = chosenLetterhead?.layout === "banner";
-    // The document's chosen letterhead (default, library or none) replaces an
-    // AI-written one, unless the document already carries its own letterhead
-    // table (older documents). A banner is only its image (no markdown), shown
-    // once loaded.
+    // The document's chosen letterhead (reference copy, default, library or
+    // none) replaces an AI-written one, unless the content already carries a
+    // written letterhead table (older documents). A grid (a reference's copy)
+    // draws from its structure; a banner is only its image (no markdown),
+    // shown once loaded; the other layouts show when they have lines.
+    const hasLetterheadToDraw =
+      chosenLetterhead?.layout === "grid" ||
+      (isBanner ? !!letterheadLogo : !!documentLetterhead?.markdown);
     const structuredLetterhead =
-      chosenLetterhead &&
-      (isBanner ? !!letterheadLogo : !!documentLetterhead?.markdown) &&
-      !hasOwnLetterheadTable
+      chosenLetterhead && hasLetterheadToDraw && !hasWrittenLetterheadTable
         ? chosenLetterhead
         : null;
+    // The document's own copy can be edited while it is the selection, by a
+    // viewer who may change the project (the save needs project UPDATE), on
+    // the current version once streaming is done (as the Letterhead menu).
+    const ownGrid =
+      documentLetterhead?.selection === "own" &&
+      chosenLetterhead?.layout === "grid"
+        ? chosenLetterhead.grid
+        : null;
+    const ownVersion = documentLetterhead?.own?.version ?? null;
+    const canOpenLetterheadEditor =
+      !!ownGrid && !!ownVersion && !!projectId && !!savedDocumentId && canEdit;
+    const canEditLetterhead =
+      canOpenLetterheadEditor && isCurrentVersion && status !== "streaming";
+    const isLetterheadEditorOpen = metadata?.isLetterheadEditorOpen ?? false;
+    const handleLetterheadEditorChange = (open: boolean) =>
+      setMetadata((m) => ({ ...m, isLetterheadEditorOpen: open }));
+
+    // The copy went away (another letterhead selected elsewhere, the
+    // permission lost): the request to open the editor goes with it, so the
+    // editor never pops up later on its own.
+    useEffect(() => {
+      if (isLetterheadEditorOpen && !canOpenLetterheadEditor) {
+        setMetadata((m) => ({ ...m, isLetterheadEditorOpen: false }));
+      }
+    }, [isLetterheadEditorOpen, canOpenLetterheadEditor, setMetadata]);
 
     if (isLoading) {
       return <DocumentSkeleton />;
@@ -130,10 +171,32 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
             <div className="relative min-w-0 flex-1">
               {structuredLetterhead ? (
                 <div className="prose dark:prose-invert mx-auto">
-                  <LetterheadBand
-                    letterhead={structuredLetterhead}
-                    logoSrc={letterheadLogo}
-                  />
+                  <div className="not-prose relative">
+                    <LetterheadBand
+                      letterhead={structuredLetterhead}
+                      logoSrc={letterheadLogo}
+                      projectId={projectId}
+                      documentId={savedDocumentId}
+                    />
+                    {canEditLetterhead && (
+                      // Over the band rather than around it: the band is
+                      // block content, which a <button> may not hold.
+                      <button
+                        type="button"
+                        aria-label="Edit letterhead"
+                        title="Edit letterhead"
+                        onClick={() => handleLetterheadEditorChange(true)}
+                        className="group absolute -inset-2 rounded-lg transition-colors hover:bg-brand-50/20 hover:ring-1 hover:ring-brand-700/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 dark:hover:bg-white/5"
+                      >
+                        {/* On the outline's top edge, not inside it: the
+                            top-right corner is where an address block sits. */}
+                        <span className="pointer-events-none absolute -top-3 right-3 inline-flex items-center gap-1 rounded-full bg-background/95 px-2 py-0.5 text-xs font-medium text-foreground opacity-0 shadow-sm ring-1 ring-border transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                          <Pencil aria-hidden className="size-3" />
+                          Edit
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 // A banner image never doubles as a margin logo.
@@ -167,6 +230,25 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
           projectId={projectId}
           onSaveContent={onSaveContent}
         />
+
+        {isLetterheadEditorOpen &&
+          canOpenLetterheadEditor &&
+          ownGrid &&
+          ownVersion &&
+          projectId &&
+          savedDocumentId && (
+            <GridLetterheadEditor
+              target={{
+                kind: "document",
+                projectId,
+                documentId: savedDocumentId,
+                version: ownVersion,
+              }}
+              grid={ownGrid}
+              open
+              onOpenChange={handleLetterheadEditorChange}
+            />
+          )}
 
         {isSigningPackageEnabled() && projectId && (
           <RequestSignaturesDialog
@@ -205,8 +287,19 @@ export const textArtifact = new Artifact<"text", TextArtifactMetadata>({
           <DocumentLetterheadPicker
             projectId={ctx.projectId}
             documentId={ctx.documentId}
-            hasOwnLetterheadTable={contentHasLetterheadTable(ctx.content)}
+            hasWrittenLetterheadTable={contentHasLetterheadTable(ctx.content)}
             disabled={ctx.disabled || !ctx.isCurrentVersion}
+            // Both only for a viewer who may save them (project UPDATE).
+            canChangeSelection={ctx.canEdit}
+            onEditLetterhead={
+              ctx.canEdit
+                ? () =>
+                    ctx.setMetadata((m) => ({
+                      ...m,
+                      isLetterheadEditorOpen: true,
+                    }))
+                : undefined
+            }
           />
         ) : null,
     },

@@ -15,6 +15,7 @@ import {
 import { MAX_SLUG_LENGTH } from "../../constants";
 import { generatedImages } from "../core/generated-images";
 import { user } from "../core/user";
+import type { StoredLetterheadGrid } from "./letterhead-analysis";
 import { type DocumentProfile, organization } from "./organization";
 
 export enum OfficeStatus {
@@ -57,6 +58,12 @@ export const office = pgTable(
       length: 7,
     }),
     documentProfile: jsonb("document_profile").$type<DocumentProfile>(),
+    // When set, the office's default letterhead is this grid (a document's
+    // letterhead saved as the default); the layout/lines/contact/color fields
+    // above are ignored while it is set.
+    documentLetterheadGrid: jsonb(
+      "document_letterhead_grid",
+    ).$type<StoredLetterheadGrid>(),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => user.id),

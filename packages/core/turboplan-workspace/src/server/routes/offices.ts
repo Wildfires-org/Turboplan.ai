@@ -55,9 +55,22 @@ import {
 } from "../offices/validation";
 import { getOrganizationBySlug } from "../organizations/queries";
 import { selectMembersFrom } from "../queries";
+import { withoutLetterheadGrid } from "../without-letterhead-grid";
 import { seatLimitResponse } from "./seat-gate";
 
 export const officesRouter = new Hono<RBACContext>();
+
+// An office with its organization and creator as GET/PUT /:id send it: the
+// office's and the organization's default letterhead grids stay on the server.
+const officeWithRelationsPayload = ({
+  office: officeRow,
+  organization: organizationRow,
+  ...rest
+}: NonNullable<Awaited<ReturnType<typeof getOfficeWithRelations>>>) => ({
+  ...rest,
+  office: withoutLetterheadGrid(officeRow),
+  organization: organizationRow && withoutLetterheadGrid(organizationRow),
+});
 
 /**
  * Resolve the office's organization and push the current billable-seat count to
@@ -196,7 +209,7 @@ officesRouter.get("/", async (c) => {
 
     // Merge project counts into the response
     const result = filteredOffices.map((o) => ({
-      ...o,
+      ...withoutLetterheadGrid(o),
       projectCount: projectCounts[o.id]?.total ?? 0,
       activeProjectCount: projectCounts[o.id]?.active ?? 0,
     }));
@@ -271,7 +284,7 @@ officesRouter.post("/", async (c) => {
 
     const newOffice = await createOffice(officeData);
 
-    return c.json(newOffice, 201);
+    return c.json(withoutLetterheadGrid(newOffice), 201);
   } catch (error) {
     console.error("Failed to create office:", error);
     return c.json({ error: "Internal Server Error" }, 500);
@@ -291,7 +304,7 @@ officesRouter.get(
         return c.json({ error: "Office not found" }, 404);
       }
 
-      return c.json(officeWithRelations);
+      return c.json(officeWithRelationsPayload(officeWithRelations));
     } catch (error) {
       console.error("Failed to get office:", error);
       return c.json({ error: "Internal Server Error" }, 500);
@@ -377,7 +390,7 @@ officesRouter.put(
 
       // Return updated office
       const updatedOffice = await getOfficeWithRelations(id);
-      return c.json(updatedOffice);
+      return c.json(updatedOffice && officeWithRelationsPayload(updatedOffice));
     } catch (error) {
       console.error("Failed to update office:", error);
       return c.json({ error: "Internal Server Error" }, 500);

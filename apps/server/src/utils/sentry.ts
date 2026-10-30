@@ -19,13 +19,33 @@ const SENSITIVE_HEADERS = [
 
 // Matches the sensitive word anywhere in the param name so presigned-URL
 // params (e.g. X-Amz-Signature, X-Amz-Security-Token) are caught too.
-const SENSITIVE_PARAM_PATTERN = new RegExp(
-  `(^|[?&#])([^&#=]*(?:${SENSITIVE_QUERY_PARAMS.join("|")})[^&#=]*)=[^&#\\s]*`,
-  "gi",
+// The name is tested separately from the `name=` scan to keep matching linear.
+const PARAM_NAME_PATTERN = /(?:^|[?&#\s])([^?&#=\s]*)=/g;
+const PARAM_VALUE_PATTERN = /[^&#\s]*/y;
+const SENSITIVE_PARAM_NAME_PATTERN = new RegExp(
+  SENSITIVE_QUERY_PARAMS.join("|"),
+  "i",
 );
 
 export const redactSensitiveUrl = (url: string): string => {
-  return url.replace(SENSITIVE_PARAM_PATTERN, "$1$2=[redacted]");
+  let redacted = "";
+  let copiedUpTo = 0;
+  // A non-sensitive value is still scanned, so a nested `?token=` is caught;
+  // pairs inside an already-redacted value are skipped.
+  for (const match of url.matchAll(PARAM_NAME_PATTERN)) {
+    if (
+      match.index < copiedUpTo ||
+      !SENSITIVE_PARAM_NAME_PATTERN.test(match[1])
+    ) {
+      continue;
+    }
+    const valueStart = match.index + match[0].length;
+    PARAM_VALUE_PATTERN.lastIndex = valueStart;
+    PARAM_VALUE_PATTERN.test(url);
+    redacted += `${url.slice(copiedUpTo, valueStart)}[redacted]`;
+    copiedUpTo = PARAM_VALUE_PATTERN.lastIndex;
+  }
+  return redacted + url.slice(copiedUpTo);
 };
 
 /**

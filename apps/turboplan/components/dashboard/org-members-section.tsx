@@ -7,7 +7,7 @@ import {
   InviteMembersDialog,
   MembersTable,
 } from "@wildfires-org/turboplan-workspace/client";
-import type { Organization } from "@wildfires-org/turboplan-workspace/types";
+import type { ClientOrganization } from "@wildfires-org/turboplan-workspace/types";
 
 import { OrgTabNav } from "@/components/dashboard/org-tab-nav";
 import { useMembersSection } from "@/hooks/use-members-section";
@@ -16,7 +16,7 @@ import { STICKY_TOOLBAR_CLASS } from "@/lib/glass";
 
 interface OrgMembersSectionProps {
   user: User;
-  organization: Organization;
+  organization: ClientOrganization;
   orgSlug: string;
 }
 

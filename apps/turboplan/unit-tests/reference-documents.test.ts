@@ -167,6 +167,48 @@ describe("formatReferenceDocuments", () => {
     assert.ok(section.endsWith("Body"));
   });
 
+  it("frames a saved document by its owner and names it by filename only", () => {
+    const section = formatReferenceDocuments([
+      {
+        url: "https://files.example.test/uploads/u/letter.pdf",
+        title: "letter.pdf",
+        text: "Project body",
+        saved: "project",
+      },
+      {
+        url: "https://files.example.test/organizations/o/policy.pdf",
+        title: "policy.pdf",
+        text: "Organization body",
+        saved: "organization",
+      },
+    ]);
+
+    assert.match(section, /\(this project's saved document — /);
+    assert.match(section, /\(your organization's document — /);
+    assert.match(section, /UNCONFIRMED: reuse one only as a suggested-value/);
+    assert.doesNotMatch(section, /a different project's document/);
+    assert.match(section, /Source: letter\.pdf\n/);
+    assert.match(section, /Source: policy\.pdf\n/);
+    assert.doesNotMatch(section, /files\.example\.test/);
+  });
+
+  it("frames a research document like a web reference, named by filename only", () => {
+    const section = formatReferenceDocuments([
+      {
+        url: "https://files.example.test/research/u/p/analog-letter.pdf",
+        title: "analog-letter.pdf",
+        text: "Analog body",
+        saved: "research",
+      },
+    ]);
+
+    assert.match(section, /\(a different project's document — /);
+    assert.match(section, /structure, style and length ONLY/);
+    assert.doesNotMatch(section, /UNCONFIRMED/);
+    assert.match(section, /Source: analog-letter\.pdf\n/);
+    assert.doesNotMatch(section, /files\.example\.test/);
+  });
+
   it("is empty without references", () => {
     assert.equal(formatReferenceDocuments([]), "");
   });

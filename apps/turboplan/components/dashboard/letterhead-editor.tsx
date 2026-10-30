@@ -1,8 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
-import { Pipette } from "lucide-react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
 import { cn, Label, Textarea } from "@wildfires-org/turboplan-utils";
@@ -14,6 +11,7 @@ import {
 import { LetterheadBand } from "@/components/letterhead-band";
 import type { LetterheadImportValues } from "@/lib/letterhead-import";
 import { DocumentLogoUpload } from "./document-logo-upload";
+import { LetterheadColorField } from "./letterhead-color-field";
 import { LetterheadImport } from "./letterhead-import";
 
 interface LetterheadEditorProps {
@@ -38,8 +36,6 @@ interface LetterheadEditorProps {
   // Whose letterhead is edited, for the import's permission check.
   organizationId: string;
   officeId?: string;
-  // Seeds the logo upload preview.
-  initialLogoUrl?: string | null;
   linesError?: string;
   contactError?: string;
   disabled?: boolean;
@@ -51,22 +47,6 @@ const LAYOUT_OPTIONS: Array<{ value: LetterheadLayout; label: string }> = [
   { value: "centered", label: "Centered" },
   { value: "banner", label: "Banner image" },
 ];
-
-// Brand color presets. "Default" clears the color (black text, gray rule).
-const COLOR_PRESETS: Array<{ value: string; label: string; swatch: string }> = [
-  { value: "", label: "Default", swatch: "bg-[#1f2937]" },
-  { value: "#1f5f3a", label: "Forest green", swatch: "bg-[#1f5f3a]" },
-  { value: "#14532d", label: "Pine", swatch: "bg-[#14532d]" },
-  { value: "#1e3a8a", label: "Navy", swatch: "bg-[#1e3a8a]" },
-  { value: "#7c2d12", label: "Rust", swatch: "bg-[#7c2d12]" },
-  { value: "#6b21a8", label: "Purple", swatch: "bg-[#6b21a8]" },
-];
-const DEFAULT_PICKER_COLOR = "#1f2937";
-
-const SWATCH_CLASS =
-  "flex size-8 cursor-pointer items-center justify-center rounded-full ring-1 ring-black/10 transition-shadow has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-700 dark:ring-white/20";
-const SELECTED_SWATCH_CLASS =
-  "ring-2 ring-offset-2 ring-brand-700 ring-offset-background dark:ring-brand-300";
 
 // Structured letterhead inputs: layout picker, logo, name/contact lines and a
 // live preview. Used for the office/org default letterhead and for the org's
@@ -86,7 +66,6 @@ export function LetterheadEditor({
   onImport,
   organizationId,
   officeId,
-  initialLogoUrl,
   linesError,
   contactError,
   disabled = false,
@@ -98,27 +77,15 @@ export function LetterheadEditor({
     ? !!logoUrl
     : nameLines.length > 0 || contactLines.length > 0;
   const hasMarginLogo = layout === "columns" && !!logoUrl;
-  const isCustomColor =
-    !!color && !COLOR_PRESETS.some((preset) => preset.value === color);
   const linesId = `${idPrefix}Lines`;
   const contactId = `${idPrefix}Contact`;
-  const colorId = `${idPrefix}Color`;
-  // Bumped by an import that sets a logo, to reseed the upload preview.
-  const [importCount, setImportCount] = useState(0);
-
-  const handleImport = (values: LetterheadImportValues) => {
-    onImport(values);
-    if (values.logoUrl) {
-      setImportCount((count) => count + 1);
-    }
-  };
 
   return (
     <>
       <LetterheadImport
         organizationId={organizationId}
         officeId={officeId}
-        onImport={handleImport}
+        onImport={onImport}
         disabled={disabled}
       />
 
@@ -157,10 +124,11 @@ export function LetterheadEditor({
         </div>
       </div>
 
+      {/* Follows the form's value (an import, or the margin logo changed
+          while a default grid hid this editor). */}
       <DocumentLogoUpload
-        key={importCount}
         label={isBanner ? "Letterhead image" : "Document logo"}
-        value={importCount > 0 ? logoUrl || null : (initialLogoUrl ?? null)}
+        value={logoUrl || null}
         onChange={onLogoChange}
         helperText={
           isBanner
@@ -215,75 +183,13 @@ export function LetterheadEditor({
         </>
       )}
 
-      <div className="space-y-2">
-        <span id={colorId} className="text-sm font-medium">
-          Brand color
-        </span>
-        <div
-          role="radiogroup"
-          aria-labelledby={colorId}
-          className="flex flex-wrap items-center gap-2.5"
-        >
-          {COLOR_PRESETS.map((preset) => {
-            const isSelected = color === preset.value;
-            return (
-              <label
-                key={preset.label}
-                title={preset.label}
-                className={cn(
-                  SWATCH_CLASS,
-                  preset.swatch,
-                  isSelected && SELECTED_SWATCH_CLASS,
-                )}
-              >
-                <input
-                  type="radio"
-                  name={`${idPrefix}Color`}
-                  value={preset.value}
-                  checked={isSelected}
-                  onChange={() => onColorChange(preset.value)}
-                  disabled={disabled}
-                  aria-label={preset.label}
-                  className="sr-only"
-                />
-              </label>
-            );
-          })}
-          {/* Any other color: the native picker. Shows the current custom
-              color (or the default) as its swatch. */}
-          <label
-            title="Custom color"
-            className={cn(
-              SWATCH_CLASS,
-              "relative overflow-hidden",
-              isCustomColor && SELECTED_SWATCH_CLASS,
-            )}
-          >
-            <input
-              type="color"
-              value={color || DEFAULT_PICKER_COLOR}
-              onChange={(event) => onColorChange(event.target.value)}
-              disabled={disabled}
-              aria-label="Custom color"
-              className="size-12 shrink-0 cursor-pointer border-0 bg-transparent p-0"
-            />
-            {!isCustomColor && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white text-gray-550 dark:bg-zinc-800">
-                <Pipette aria-hidden className="size-4" />
-              </span>
-            )}
-          </label>
-          {color && (
-            <span className="font-mono text-xs uppercase text-gray-550">
-              {color}
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-gray-550">
-          Used for the rule under the letterhead
-          {isBanner ? "" : " and the bold name lines"}.
-        </p>
-      </div>
+      <LetterheadColorField
+        idPrefix={idPrefix}
+        color={color}
+        onColorChange={onColorChange}
+        hint={`Used for the rule under the letterhead${isBanner ? "" : " and the bold name lines"}.`}
+        disabled={disabled}
+      />
 
       <div className="space-y-2">
         <span className="text-sm font-medium">Preview</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ImageIcon } from "lucide-react";
 
@@ -9,12 +9,17 @@ import { Button, cn, toast } from "@wildfires-org/turboplan-utils";
 
 interface DocumentLogoUploadProps {
   label: string;
+  // The saved image. A new value (e.g. one that finished loading) replaces
+  // the thumbnail, except while an upload is in flight: the upload's preview
+  // stays, and the latest value is taken once it ends.
   value: string | null;
   onChange: (url: string | null) => void;
   helperText?: string;
   // A wide image (a full letterhead banner): wider thumbnail, "image" wording.
   isWide?: boolean;
   disabled?: boolean;
+  // Told when an upload starts and ends (e.g. to hold a form's submit).
+  onUploadingChange?: (isUploading: boolean) => void;
 }
 
 const ACCEPT = "image/png,image/jpeg";
@@ -29,8 +34,11 @@ export function DocumentLogoUpload({
   helperText = DEFAULT_HELPER_TEXT,
   isWide = false,
   disabled = false,
+  onUploadingChange,
 }: DocumentLogoUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(value || null);
+  // The `value` the thumbnail was last seeded from.
+  const [seededValue, setSeededValue] = useState(value);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -51,6 +59,17 @@ export function DocumentLogoUpload({
       });
     },
   });
+
+  useEffect(() => {
+    onUploadingChange?.(isUploading);
+  }, [isUploading, onUploadingChange]);
+
+  // Re-seeded during render rather than by remounting (a remount would lose
+  // an upload in flight and report it as finished).
+  if (value !== seededValue && !isUploading) {
+    setSeededValue(value);
+    setPreviewUrl(value || null);
+  }
 
   const handleFileSelect = async (
     event: React.ChangeEvent<HTMLInputElement>,

@@ -1,5 +1,5 @@
 import { render } from "@react-email/render";
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
 import type {
   MailConfig,
@@ -34,7 +34,7 @@ export class EtherealProvider implements MailProvider {
   private defaultReplyTo?: string;
   private etherealUser?: string;
   private etherealPass?: string;
-  private transporter: nodemailer.Transporter | null = null;
+  private transporter: Transporter | null = null;
   private initPromise: Promise<void> | null = null;
 
   constructor(config: EtherealConfig) {

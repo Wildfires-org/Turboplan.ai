@@ -7,15 +7,14 @@ import { hmacEmailId } from "@wildfires-org/turboplan-auth/email-identity";
 import { getUserById } from "@wildfires-org/turboplan-db/queries";
 import { getWebEnv } from "@wildfires-org/turboplan-env";
 
+import { UUID_PATTERN } from "@/lib/utils";
+
 /**
  * Server-side PostHog capture for Next.js route handlers and next-auth
  * events. Uses immediate flush (flushAt: 1) because there is no
  * per-request flush middleware in the Next runtime. No-ops when
  * POSTHOG_API_KEY is unset.
  */
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 let client: PostHog | null = null;
 
 const getClient = (): PostHog | null => {

@@ -59,17 +59,23 @@ export const sniffLogoImageType = (
   return null;
 };
 
-// SVG root detection: optional BOM/whitespace, then any mix of an XML prolog
-// and comments, an optional DOCTYPE, more optional comments, then an <svg>
-// root element. The prolog requires whitespace after `<?xml` so an
+// SVG root detection: optional BOM/whitespace, an optional XML prolog, any
+// comments, an optional DOCTYPE followed by more comments, then an <svg> root
+// element. The prolog requires whitespace after `<?xml` so an
 // `<?xml-stylesheet ...?>` processing instruction can never pose as the
 // declaration. The only DOCTYPEs allowed are a bare `<!DOCTYPE svg>` and the
 // W3C SVG PUBLIC doctype emitted by Illustrator/Inkscape — SYSTEM identifiers,
 // non-W3C PUBLIC identifiers, and internal subsets (`[...]`, where XML
 // entities live) are all rejected so no downstream XML consumer can be tricked
 // into resolving an attacker-controlled DTD (SSRF/XXE).
+// The pattern runs on up to 2MB of untrusted text, so it is written to match
+// in exactly one way: a comment body (`[^-]` or a `-` not starting `->`) ends
+// at its first `-->`, and the post-DOCTYPE comments sit inside the DOCTYPE
+// group so two comment loops are never adjacent. A lazy `[\s\S]*?` body
+// backtracked exponentially here, and could run past a `-->` to hide a SYSTEM
+// DOCTYPE between two comments.
 export const SVG_ROOT_PATTERN =
-  /^\uFEFF?\s*(?:<\?xml\s[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*)*(?:<!DOCTYPE\s+svg(?:\s+PUBLIC\s+"-\/\/W3C\/\/DTD SVG [^"]*"\s+"https?:\/\/www\.w3\.org\/[^"]*")?\s*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg[\s>]/i;
+  /^\uFEFF?\s*(?:<\?xml\s[^>]*\?>\s*)?(?:<!--(?:[^-]|-(?!->))*-->\s*)*(?:<!DOCTYPE\s+svg(?:\s+PUBLIC\s+"-\/\/W3C\/\/DTD SVG [^"]*"\s+"https?:\/\/www\.w3\.org\/[^"]*")?\s*>\s*(?:<!--(?:[^-]|-(?!->))*-->\s*)*)?<svg[\s>]/i;
 
 // Active content that must never appear in a stored SVG. Logos render via
 // <img>, where scripts never execute — but the stored file is directly
@@ -83,12 +89,14 @@ export const SVG_ROOT_PATTERN =
 //   `<?xml-stylesheet ...?>` PI applies XSLT on navigation, which can emit
 //   attacker HTML/JS.
 // - `attributeName` pointing at an event handler — SMIL `<set>`/`<animate>`
-//   can arm `onload`-style handlers without a literal `on*=` attribute.
+//   can arm `onload`-style handlers without a literal `on*=` attribute. The
+//   whitespace after the quote sits inside the optional quote group because
+//   two adjacent `\s*` backtrack quadratically on a long whitespace run.
 // - `data:` URLs for anything but embedded raster images (a common pattern in
 //   exported SVGs) — text/html, image/svg+xml, and typeless base64 data: URLs
 //   can carry a nested document.
 export const SVG_ACTIVE_CONTENT_PATTERN =
-  /<(?:[\w.-]+:)?(?:script|foreignobject|iframe|embed|object)|<\?(?!xml\s)|javascript:|<!entity|\battributename\s*=\s*["']?\s*on|\bon[a-z]+\s*=|data:(?!image\/(?:png|jpe?g|gif|webp)[;,])/i;
+  /<(?:[\w.-]+:)?(?:script|foreignobject|iframe|embed|object)|<\?(?!xml\s)|javascript:|<!entity|\battributename\s*=\s*(?:["']\s*)?on|\bon[a-z]+\s*=|data:(?!image\/(?:png|jpe?g|gif|webp)[;,])/i;
 
 // XML parsers decode numeric character references (`&#106;` / `&#x6A;`) inside
 // attribute values, so `href="jav&#x61;script:..."` reaches the browser as

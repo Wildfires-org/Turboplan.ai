@@ -1,5 +1,6 @@
 import { generateText } from "ai";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 import { getModel } from "@wildfires-org/turboplan-ai/server";
 import { getPrompt } from "@wildfires-org/turboplan-ai/services";
@@ -39,14 +40,18 @@ const sanitizeDescription = (description: string): string => {
     description
       // Remove angle brackets
       .replace(/[<>]/g, "")
-      // Remove JSON-like role definitions that could inject prompts
-      .replace(/\{[\s\S]*?"role"[\s\S]*?\}/gi, "")
+      // Remove JSON-like role definitions that could inject prompts: any
+      // innermost {...} containing "role". Testing "role" in a callback keeps
+      // this linear — a single regex with "role" between two unbounded runs
+      // backtracks polynomially.
+      .replace(/\{[^{}]*\}/g, (block) => (/"role"/i.test(block) ? "" : block))
       // Remove role indicators
       .replace(/(system|user|assistant):/gi, "")
       // Remove code blocks
       .replace(/```[\s\S]*?```/g, "")
-      // Remove markdown headers/lists that could manipulate structure
-      .replace(/^[\s]*[#\-*]/gm, "")
+      // Remove markdown headers/lists that could manipulate structure. Leading
+      // blanks only — \s would span newlines and backtrack quadratically.
+      .replace(/^[ \t]*[#\-*]/gm, "")
       // Limit consecutive newlines
       .replace(/\n{3,}/g, "\n\n")
       .trim()
@@ -55,15 +60,16 @@ const sanitizeDescription = (description: string): string => {
   );
 };
 
-// Middleware to check request size - ONLY for generate-titles endpoint
-// Note: This middleware only applies to routes defined in this router
-generateTitleRouter.use("/generate-titles", async (c, next) => {
-  const contentLength = c.req.header("content-length");
-  if (contentLength && parseInt(contentLength) > CONFIG.MAX_REQUEST_BODY_SIZE) {
-    return c.json({ error: "Request body too large" }, 413);
-  }
-  await next();
-});
+// Request size cap - ONLY for generate-titles endpoint. bodyLimit also counts
+// chunked bodies sent without a content-length header, which a header check
+// lets through uncapped.
+generateTitleRouter.use(
+  "/generate-titles",
+  bodyLimit({
+    maxSize: CONFIG.MAX_REQUEST_BODY_SIZE,
+    onError: (c) => c.json({ error: "Request body too large" }, 413),
+  }),
+);
 
 // Metering exemption: this endpoint is PUBLIC-ONLY (pre-auth signup flow) —
 // there is no identity to bill. Exposure is bounded by the lite model, the

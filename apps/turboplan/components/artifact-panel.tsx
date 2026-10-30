@@ -18,14 +18,18 @@ import { useDebounceCallback, useWindowSize } from "usehooks-ts";
 
 import type { Attachment } from "@wildfires-org/turboplan-chat-actions/types";
 import type { Document } from "@wildfires-org/turboplan-db/types";
+import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
+import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 
 import { CHAT_COMPOSER_SHELL_CLASS } from "@/components/chat/chat-classes";
 import { ProjectMultimodalInput } from "@/components/chat/project-multimodal-input";
+import { useUser } from "@/components/providers/user-provider";
 import { useResearchPanel } from "@/contexts/research-panel-context";
 import { initialArtifactData, useArtifact } from "@/hooks/use-artifact";
 import type { ChatHelpers } from "@/hooks/use-chat-compat";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useSidebarPinnedState } from "@/hooks/use-sidebar-pinned-state";
+import { shouldCloseOnEscape } from "@/lib/artifact-panel-escape";
 import { cn, fetcher } from "@/lib/utils";
 import { artifactDefinitions, type UIArtifact } from "./artifact";
 import { ArtifactActions } from "./artifact-actions";
@@ -117,6 +121,16 @@ export function ArtifactPanel({
   disabledPlaceholder,
 }: ArtifactPanelProps) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
+  const { user } = useUser();
+  // A project document's settings (e.g. its letterhead) need UPDATE on the
+  // project; the shared, cached action list answers it.
+  const { hasPermission: canUpdateProject } = useEntityPermission({
+    userId: projectId ? user?.id : undefined,
+    entityType: EntityType.PROJECT,
+    entityId: projectId ?? "",
+    action: Action.UPDATE,
+  });
+  const canEdit = !isReadonly && (!projectId || canUpdateProject);
   const { isOpen: isResearchPanelOpen, width: researchPanelWidth } =
     useResearchPanel();
   const { width: chatRailWidth, handleResizeStart: handleChatRailResizeStart } =
@@ -172,7 +186,7 @@ export function ArtifactPanel({
     if (!artifact.isVisible) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (shouldCloseOnEscape(e)) {
         setArtifact((currentArtifact) =>
           currentArtifact.status === "streaming"
             ? { ...currentArtifact, isVisible: false }
@@ -590,6 +604,7 @@ export function ArtifactPanel({
                     metadata={metadata}
                     setMetadata={setMetadata}
                     projectId={projectId}
+                    canEdit={canEdit}
                   />
                 </div>
               </div>
@@ -614,6 +629,7 @@ export function ArtifactPanel({
                     isCurrentVersion,
                     getDocumentContentById,
                     isLoading: isDocumentsFetching && !artifact.content,
+                    canEdit,
                     metadata,
                     setMetadata,
                     projectId,

@@ -5,9 +5,9 @@ import { useState } from "react";
 import { Plus, Settings2, UserPlus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
-import type { Office } from "@wildfires-org/turboplan-db/types";
 import { Action } from "@wildfires-org/turboplan-rbac";
 import { Button } from "@wildfires-org/turboplan-utils";
+import type { ClientOffice } from "@wildfires-org/turboplan-workspace/types";
 
 import { CreateProjectButton } from "@/components/dashboard/create-project-button";
 import { EditOfficeDialog } from "@/components/dashboard/edit-office-dialog";
@@ -19,7 +19,7 @@ import { AppUrls } from "@/lib/nav/urls";
 
 interface OfficeBannerActionsProps {
   organizationSlug: string;
-  office: Office;
+  office: ClientOffice;
 }
 
 export function OfficeBannerActions({

@@ -27,7 +27,7 @@ import {
 } from "@/hooks/use-artifact";
 import { useChatCompat } from "@/hooks/use-chat-compat";
 import { documentLetterheadKey } from "@/hooks/use-document-letterhead";
-import { letterheadLogoKey } from "@/hooks/use-letterhead-logo";
+import { letterheadLogoKeysOf } from "@/hooks/use-letterhead-logo";
 import { getSidebarChatsKey } from "@/hooks/use-sidebar-chats";
 import { getChatHistoryPaginationKey } from "@/lib/chat-history";
 import {
@@ -116,8 +116,10 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
     const streamingDocumentIdRef = useRef<string | null>(null);
 
     // The server stores the chosen letterhead before the document exists, so
-    // the preview's fetch on the "id" delta cached the default. Refetch both
-    // keys (as the letterhead picker does) once the document is saved.
+    // the preview's fetch on the "id" delta cached the default. Refetch the
+    // letterhead and every logo (as the letterhead picker does) once the
+    // document is saved: on its first save ("saved", mid-stream) and again
+    // when the run ends.
     const revalidateDocumentLetterhead = useCallback(
       (documentId: string) => {
         if (!projectId) {
@@ -125,7 +127,7 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         }
         void Promise.all([
           mutate(documentLetterheadKey(projectId, documentId)),
-          mutate(letterheadLogoKey(projectId, documentId)),
+          mutate(letterheadLogoKeysOf(projectId, documentId)),
         ]);
       },
       [projectId, mutate],
@@ -221,6 +223,9 @@ export const ProjectChat = forwardRef<ProjectChatRef, ProjectChatProps>(
         });
 
         // Outside the updater above, which must stay free of side effects.
+        if (delta.type === "saved") {
+          revalidateDocumentLetterhead(delta.content as string);
+        }
         if (delta.type === "finish" && streamingDocumentIdRef.current) {
           revalidateDocumentLetterhead(streamingDocumentIdRef.current);
           streamingDocumentIdRef.current = null;

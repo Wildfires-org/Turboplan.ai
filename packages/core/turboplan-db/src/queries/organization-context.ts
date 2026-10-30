@@ -1,7 +1,10 @@
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { type DbInstance, db } from "../db-client";
 import {
+  type DocumentLetterheadStatus,
+  letterheadPendingPredicate,
+  MAX_LETTERHEAD_ATTEMPTS,
   type NewOrganizationDocument,
   type Organization,
   type OrganizationContext,
@@ -14,6 +17,7 @@ import {
   organizationDocument,
   organizationMemory,
   project,
+  type StoredLetterheadAnalysis,
 } from "../schemas";
 
 /**
@@ -27,8 +31,9 @@ export const ORGANIZATION_DOCUMENT_EXCERPT_CHARS = 400;
 
 /**
  * Every organization document column except `extractedText`, which can hold up
- * to 40k characters per row. Queries that return lists select this instead of
- * `select()` so the text does not travel with every listing.
+ * to 40k characters per row, and the letterhead analysis columns. Queries that
+ * return lists select this instead of `select()` so the text does not travel
+ * with every listing.
  */
 const organizationDocumentColumns = {
   id: organizationDocument.id,
@@ -49,10 +54,17 @@ const organizationDocumentColumns = {
   updatedAt: organizationDocument.updatedAt,
 } as const;
 
-/** An organization document row without its (potentially huge) extracted text. */
+/**
+ * An organization document row without its (potentially huge) extracted text
+ * and without the letterhead analysis, which only the analysis loop and
+ * document creation read (through their own queries).
+ */
 export type OrganizationDocumentListItem = Omit<
   OrganizationDocument,
-  "extractedText"
+  | "extractedText"
+  | "letterheadStatus"
+  | "letterheadAnalysis"
+  | "letterheadAttempts"
 >;
 
 export type OrganizationPrompt = Pick<
@@ -68,7 +80,7 @@ export type OrganizationDocumentPendingExtraction = Pick<
 
 export type OrganizationDocumentText = Pick<
   OrganizationDocument,
-  "id" | "originalFilename" | "extractionStatus" | "extractedText"
+  "id" | "url" | "originalFilename" | "extractionStatus" | "extractedText"
 >;
 
 export type OrganizationContextSourceDocument = Pick<
@@ -300,6 +312,142 @@ export const updateOrganizationDocumentExtraction = async (
   return result ?? null;
 };
 
+/** The subset of a pending document the letterhead analysis loop needs. */
+export type OrganizationDocumentPendingLetterhead = Pick<
+  OrganizationDocument,
+  "id" | "url" | "mimeType" | "originalFilename"
+>;
+
+/**
+ * Newest documents still awaiting letterhead analysis with attempts left, for
+ * the research agent's analysis loop: a fresh upload is analyzed within
+ * seconds even with a backlog of older documents (they drain after it).
+ * Served by the partial `organization_document_letterhead_pending_idx`.
+ */
+export const getOrganizationDocumentsPendingLetterhead = async (
+  limit: number,
+): Promise<OrganizationDocumentPendingLetterhead[]> => {
+  return db
+    .select({
+      id: organizationDocument.id,
+      url: organizationDocument.url,
+      mimeType: organizationDocument.mimeType,
+      originalFilename: organizationDocument.originalFilename,
+    })
+    .from(organizationDocument)
+    .where(
+      and(
+        letterheadPendingPredicate(organizationDocument.letterheadStatus),
+        lt(organizationDocument.letterheadAttempts, MAX_LETTERHEAD_ATTEMPTS),
+      ),
+    )
+    .orderBy(desc(organizationDocument.createdAt))
+    .limit(limit);
+};
+
+/**
+ * Count one letterhead analysis attempt on a pending document, right before
+ * its run: the attempts made so far, this one included, or null when the
+ * document is gone, no longer pending or out of attempts (skip it).
+ * `updatedAt` is left alone: it tracks user edits.
+ */
+export const claimOrganizationDocumentLetterhead = async (
+  id: string,
+): Promise<number | null> => {
+  const [claimed] = await db
+    .update(organizationDocument)
+    .set({
+      letterheadAttempts: sql`${organizationDocument.letterheadAttempts} + 1`,
+    })
+    .where(
+      and(
+        eq(organizationDocument.id, id),
+        letterheadPendingPredicate(organizationDocument.letterheadStatus),
+        lt(organizationDocument.letterheadAttempts, MAX_LETTERHEAD_ATTEMPTS),
+      ),
+    )
+    .returning({ attempts: organizationDocument.letterheadAttempts });
+
+  return claimed?.attempts ?? null;
+};
+
+/**
+ * Mark "failed" the documents still pending after their last attempt (each
+ * failed temporarily, or crashed the process). Resolves how many.
+ */
+export const failExhaustedOrganizationDocumentLetterheads =
+  async (): Promise<number> => {
+    const failed = await db
+      .update(organizationDocument)
+      .set({ letterheadStatus: "failed" })
+      .where(
+        and(
+          letterheadPendingPredicate(organizationDocument.letterheadStatus),
+          gte(organizationDocument.letterheadAttempts, MAX_LETTERHEAD_ATTEMPTS),
+        ),
+      )
+      .returning({ id: organizationDocument.id });
+
+    return failed.length;
+  };
+
+/**
+ * Record the outcome of a letterhead analysis run. False when the document no
+ * longer exists. `updatedAt` is left alone: it tracks user edits.
+ */
+export const updateOrganizationDocumentLetterhead = async (
+  id: string,
+  {
+    status,
+    analysis,
+  }: {
+    status: DocumentLetterheadStatus;
+    analysis: StoredLetterheadAnalysis | null;
+  },
+): Promise<boolean> => {
+  const updated = await db
+    .update(organizationDocument)
+    .set({ letterheadStatus: status, letterheadAnalysis: analysis })
+    .where(eq(organizationDocument.id, id))
+    .returning({ id: organizationDocument.id });
+
+  return updated.length > 0;
+};
+
+/** A reference document's letterhead analysis, as document creation reads it. */
+export type OrganizationDocumentLetterheadAnalysis = Pick<
+  OrganizationDocument,
+  "id" | "originalFilename" | "letterheadStatus" | "letterheadAnalysis"
+>;
+
+/**
+ * Letterhead analyses of the given documents of one organization. Ids
+ * belonging to another organization are simply absent from the result (IDOR
+ * guard).
+ */
+export const getOrganizationDocumentLetterheadAnalyses = async (
+  organizationId: string,
+  ids: string[],
+): Promise<OrganizationDocumentLetterheadAnalysis[]> => {
+  if (ids.length === 0) {
+    return [];
+  }
+  return db
+    .select({
+      id: organizationDocument.id,
+      originalFilename: organizationDocument.originalFilename,
+      letterheadStatus: organizationDocument.letterheadStatus,
+      letterheadAnalysis: organizationDocument.letterheadAnalysis,
+    })
+    .from(organizationDocument)
+    .where(
+      and(
+        eq(organizationDocument.organizationId, organizationId),
+        inArray(organizationDocument.id, ids),
+      ),
+    );
+};
+
 /**
  * Extracted text for the given documents of one organization. Ids belonging to
  * another organization are simply absent from the result (IDOR guard). This is
@@ -315,6 +463,7 @@ export const getOrganizationDocumentTextsByIds = async (
   return db
     .select({
       id: organizationDocument.id,
+      url: organizationDocument.url,
       originalFilename: organizationDocument.originalFilename,
       extractionStatus: organizationDocument.extractionStatus,
       extractedText: organizationDocument.extractedText,

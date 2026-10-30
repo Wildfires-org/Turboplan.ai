@@ -17,6 +17,10 @@ export type ArtifactActionContext<M = unknown> = {
   // True while the artifact is still streaming — render-based actions should
   // disable themselves so the user can't act on partial content.
   disabled: boolean;
+  // The viewer may change the document's settings: the chat is not read-only
+  // and, for a project document, they hold UPDATE on the project (false
+  // while that is checked). Gates affordances whose endpoint requires it.
+  canEdit: boolean;
   mode: "edit" | "diff";
   metadata: M;
   setMetadata: Dispatch<SetStateAction<M>>;
@@ -55,6 +59,8 @@ interface ArtifactContent<M = unknown> {
   isInline: boolean;
   getDocumentContentById: (index: number) => string;
   isLoading: boolean;
+  // See `ArtifactActionContext.canEdit`.
+  canEdit: boolean;
   metadata: M;
   setMetadata: Dispatch<SetStateAction<M>>;
 }

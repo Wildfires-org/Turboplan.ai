@@ -12,6 +12,8 @@ export * from "./assignees";
 export * from "./comment-public-view";
 export * from "./comments";
 export * from "./core";
+// Office/organization default letterhead grid
+export * from "./default-letterhead-grids";
 // Document letterhead library + per-document selection
 export * from "./document-letterheads";
 // Prompt queries

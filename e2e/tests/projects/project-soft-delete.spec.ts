@@ -67,6 +67,12 @@ test.describe("Project Soft Delete", () => {
     await main.getByRole("button", { name: /Status:/i }).click();
     await page.getByRole("menuitem", { name: "All" }).click();
 
+    // The office is shared by the suite and the list is paginated, so narrow
+    // it to this project instead of relying on it being on page one.
+    await main
+      .getByRole("textbox", { name: "Search projects..." })
+      .fill(projectName);
+
     const projectLink = main.getByRole("link", { name: projectName });
     await expect(projectLink).toBeVisible({ timeout: 15000 });
 

@@ -7,7 +7,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { ApiClient } from "@wildfires-org/turboplan-api-client";
-import type { Organization } from "@wildfires-org/turboplan-db/types";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
 import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 import {
@@ -17,7 +16,11 @@ import {
   DropdownMenuTrigger,
   Input,
 } from "@wildfires-org/turboplan-utils";
-import type { Office, Project } from "@wildfires-org/turboplan-workspace/types";
+import type {
+  ClientOffice,
+  ClientOrganization,
+  Project,
+} from "@wildfires-org/turboplan-workspace/types";
 
 import { toast } from "@/components/toast";
 import { isActiveLink } from "@/lib/nav/activeLink";
@@ -28,8 +31,8 @@ import { EditOrganizationDialog } from "./edit-organization-dialog";
 import { EditProjectDialog } from "./edit-project-dialog";
 
 export type BreadcrumbEntity =
-  | { type: "organization"; data: Organization }
-  | { type: "office"; data: Office; organizationSlug: string }
+  | { type: "organization"; data: ClientOrganization }
+  | { type: "office"; data: ClientOffice; organizationSlug: string }
   | {
       type: "project";
       data: Project;
@@ -158,7 +161,7 @@ export function BreadcrumbEntityActions({
     const organization = entity.data;
     // The organization PUT requires the full edit payload, so send the current
     // values with only the name overridden.
-    const { data: updated, error } = await apiClient.put<Organization>(
+    const { data: updated, error } = await apiClient.put<ClientOrganization>(
       `/api/organizations/${organization.id}`,
       {
         name,
@@ -186,10 +189,9 @@ export function BreadcrumbEntityActions({
       return;
     }
     const { data: office, organizationSlug } = entity;
-    const { data: response, error } = await apiClient.put<{ office: Office }>(
-      `/api/offices/${office.id}`,
-      { name },
-    );
+    const { data: response, error } = await apiClient.put<{
+      office: ClientOffice;
+    }>(`/api/offices/${office.id}`, { name });
 
     if (error) {
       throw new Error(error || "Failed to rename office");

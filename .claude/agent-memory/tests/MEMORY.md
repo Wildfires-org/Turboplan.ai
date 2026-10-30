@@ -1,0 +1,7 @@
+- [E2E local env gotchas](e2e-env-gotchas.md) — R2 CORS, no map service, flags off, UI project create triggers LLM chat; mocks in tests/projects/project-helpers.ts
+- [E2E app quirks](e2e-app-quirks.md) — sidebar links, chats/new ids, global search location, rejected submissions
+- [Parallel agents](e2e-parallel-agents.md) — sharing servers/DB with other agents: output dir, DB clear flag, data isolation
+- [Shared-workspace pitfalls](e2e-shared-workspace-pitfalls.md) — touching shared citizen/gov workspaces, flags, timeouts, test-results
+- [E2E console noise](e2e-console-noise.md) — harmless "Failed to fetch" from dashboard redirects; fresh page per checked navigation
+- [Known app gaps](e2e-feature-flag-pages.md) — flag-off signing/context pages render; middleware login redirect must be a Response, not false
+- [Admin users in e2e](e2e-admin-users.md) — DB admin via admin_user row; super-admin-only /admin/users; don't touch global admin state

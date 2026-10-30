@@ -54,6 +54,7 @@ import {
   editOrganizationEmailDomainsSchema,
   editOrganizationSchema,
 } from "../organizations/validation";
+import { withoutLetterheadGrid } from "../without-letterhead-grid";
 import { seatLimitResponse } from "./seat-gate";
 
 export const organizationsRouter = new Hono<RBACContext>();
@@ -83,7 +84,8 @@ organizationsRouter.get("/", async (c) => {
       }
     }
 
-    return c.json(Array.from(orgMap.values()));
+    // Publicly listed orgs go to every signed-in user: never their grid.
+    return c.json(Array.from(orgMap.values(), withoutLetterheadGrid));
   } catch (error) {
     console.error("Failed to get organizations:", error);
     return c.json({ error: "Internal Server Error" }, 500);
@@ -124,7 +126,7 @@ organizationsRouter.get(
         return c.json({ error: "Organization not found" }, 404);
       }
 
-      return c.json(organization);
+      return c.json(withoutLetterheadGrid(organization));
     } catch (error) {
       console.error("Failed to get organization:", error);
       return c.json({ error: "Internal Server Error" }, 500);
@@ -233,10 +235,11 @@ organizationsRouter.put(
       await updateOrganization({
         id,
         name,
-        shortName: shortName || undefined,
+        // An empty string clears the field; undefined would leave it as is.
+        shortName: shortName === "" ? null : shortName,
         slug: newSlug,
         description,
-        country: country || undefined,
+        country: country === "" ? null : country,
         type,
         status,
         logoUrl,
@@ -259,7 +262,9 @@ organizationsRouter.put(
 
       // Return updated organization
       const updatedOrganization = await getOrganizationById(id);
-      return c.json(updatedOrganization);
+      return c.json(
+        updatedOrganization && withoutLetterheadGrid(updatedOrganization),
+      );
     } catch (error) {
       console.error("Failed to update organization:", error);
       return c.json({ error: "Internal Server Error" }, 500);

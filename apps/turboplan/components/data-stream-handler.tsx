@@ -20,6 +20,8 @@ export type ArtifactStreamDelta = {
     | "clear"
     | "finish"
     | "kind"
+    // The document's first save inserted it (content: its id)
+    | "saved"
     | "debug-user-context"
     | "debug-project-context";
   content: string | Suggestion;

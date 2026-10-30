@@ -98,7 +98,11 @@ export function ProjectContextPageSection({
         <ProjectGisLayersPanel projectId={projectId} canDelete={canDelete} />
       )}
 
-      <ProjectNotesSection projectId={projectId} canEdit={canEdit} />
+      {/* Notes live in the project-context package, whose API is only
+          mounted when it is on. */}
+      {isOrganizationContextEnabled && (
+        <ProjectNotesSection projectId={projectId} canEdit={canEdit} />
+      )}
 
       {researchedDocuments.length > 0 && (
         <section className={cn(PANEL_CLASS, "space-y-4")}>

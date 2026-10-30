@@ -10,6 +10,7 @@ import type { ITaskDataService } from "../../types/service";
 export interface MilestoneStoreActions {
   addMilestone: (milestone: MilestoneWithTasks) => void;
   updateMilestone: (milestoneId: string, updates: Partial<Milestone>) => void;
+  replaceMilestone: (milestoneId: string, milestone: Milestone) => void;
   removeMilestone: (milestoneId: string) => void;
   setError: (error: string) => void;
 }
@@ -40,8 +41,13 @@ export function createMilestoneOperations(config: MilestoneOperationsConfig) {
     taskService,
   } = config;
 
-  const { addMilestone, updateMilestone, removeMilestone, setError } =
-    storeActions;
+  const {
+    addMilestone,
+    updateMilestone,
+    replaceMilestone,
+    removeMilestone,
+    setError,
+  } = storeActions;
 
   // ===== MILESTONE CRUD OPERATIONS =====
 
@@ -67,14 +73,20 @@ export function createMilestoneOperations(config: MilestoneOperationsConfig) {
       tasks: [],
     };
 
-    await executeOptimistic(
+    const createdMilestone = await executeOptimistic(
       // Optimistic update
       () => addMilestone(optimisticMilestone),
 
       // API operation
       async () => {
+        // Send the defaults the placeholder shows: the server requires a title,
+        // and the saved row should match what was displayed.
         const milestoneCreateData = {
           ...milestoneData,
+          title: optimisticMilestone.title,
+          status: optimisticMilestone.status,
+          startDate: optimisticMilestone.startDate,
+          dueDate: optimisticMilestone.dueDate,
           documentId: projectId,
         };
         return await taskService.createMilestone(milestoneCreateData);
@@ -85,6 +97,9 @@ export function createMilestoneOperations(config: MilestoneOperationsConfig) {
 
       "createMilestone",
     );
+
+    // Swap the temp id for the real one, or later updates/deletes hit the API with it
+    replaceMilestone(optimisticMilestone.id, createdMilestone);
   };
 
   const updateMilestoneById = async (

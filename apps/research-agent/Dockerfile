@@ -1,4 +1,4 @@
-FROM node:22-slim AS build
+FROM node:22.23.4-slim AS build
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -30,7 +30,7 @@ COPY packages/modules/turboplan-document-extraction packages/modules/turboplan-d
 RUN pnpm --filter @wildfires-org/research-agent... build
 RUN pnpm deploy --legacy --filter @wildfires-org/research-agent --prod /prod/research-agent
 
-FROM node:22-slim AS runtime
+FROM node:22.23.4-slim AS runtime
 
 ENV NODE_ENV="production"
 

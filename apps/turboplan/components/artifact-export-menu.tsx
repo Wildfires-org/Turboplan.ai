@@ -58,7 +58,9 @@ const buildBlob = async (
   const { generateDocxFromMarkdown, sanitizeFilename } = await import(
     "@/lib/export/markdown-to-docx"
   );
-  const { fetchLetterheadLogo } = await import("@/lib/export/letterhead-logo");
+  const { fetchGridLetterheadLogos, fetchLetterheadLogo } = await import(
+    "@/lib/export/letterhead-logo"
+  );
   const { fetchDocumentFooter } = await import("@/lib/export/document-footer");
   const { fetchDocumentLetterhead } = await import("@/lib/export/letterhead");
   // The server embeds the letterhead, logo and footer for PDFs; for
@@ -72,12 +74,25 @@ const buildBlob = async (
   ]);
   // The chosen letterhead replaces an AI-written one; documents that already
   // carry their own letterhead table keep it (and the margin logo). A banner
-  // is drawn as its image, never as a margin logo.
+  // is drawn as its image, never as a margin logo. A grid is drawn from its
+  // structure, with one logo per logo cell (fetched by index; the index-0 one
+  // is `logo`, already fetched).
   const plan = planLetterheadBranding(
     content,
     letterhead?.letterhead ?? null,
     !!logo,
   );
+  const gridLetterhead = plan.grid
+    ? {
+        grid: plan.grid,
+        logos: await fetchGridLetterheadLogos(
+          projectId,
+          documentId,
+          plan.grid,
+          logo,
+        ),
+      }
+    : undefined;
   const blob = await generateDocxFromMarkdown(
     plan.content,
     title,
@@ -85,6 +100,7 @@ const buildBlob = async (
     footer,
     plan.logoPlacement ?? "margin",
     plan.color,
+    { gridLetterhead },
   );
   return { blob, filename: sanitizeFilename(title), mime: DOCX_MIME };
 };

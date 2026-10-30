@@ -62,6 +62,66 @@ class TestGeometryOptimizerService:
         assert result['coordinates'][0][0] == [0.123457, 0.123457]
         assert result['coordinates'][0][-1] == [0.123457, 0.123457]  # Closure preserved
     
+    # Fiona returns a Point's coordinates as one tuple and the other types as
+    # lists of tuples, with Z kept for 3D sources (KML, 3D shapefiles).
+    @pytest.mark.parametrize('geometry_type, coordinates, expected', [
+        ('Point',
+         (-120.123456789012, 38.987654321098, 512.3),
+         [-120.123457, 38.987654]),
+        ('LineString',
+         [(-121.49440000000001, 38.581599999999995, 1.5),
+          (-120.2, 38.222222222222, 2.5)],
+         [[-121.4944, 38.5816], [-120.2, 38.222222]]),
+        ('Polygon',
+         [[(-120.0000004, 38.0, 0.0), (-119.0, 38.0000007, 0.0),
+           (-119.0, 39.0, 0.0), (-120.0000004, 38.0, 0.0)]],
+         [[[-120.0, 38.0], [-119.0, 38.000001], [-119.0, 39.0], [-120.0, 38.0]]]),
+        ('MultiPoint',
+         [(-120.44999999999999, 38.25000000000001, 512.3),
+          (-13.987654321, 51.5555555555)],
+         [[-120.45, 38.25], [-13.987654, 51.555556]]),
+        ('MultiLineString',
+         [[(-120.123456789012, 38.1, 3.0), (-120.2, 38.987654321098, 4.0)]],
+         [[[-120.123457, 38.1], [-120.2, 38.987654]]]),
+        ('MultiPolygon',
+         [[[(-120.0000004, 38.0, 1.0), (-119.0, 38.0000007, 1.0),
+            (-119.0, 39.0, 1.0), (-120.0000004, 38.0, 1.0)]]],
+         [[[[-120.0, 38.0], [-119.0, 38.000001], [-119.0, 39.0], [-120.0, 38.0]]]]),
+        # Tuples at every depth, not only for positions.
+        ('MultiLineString',
+         (((-120.123456789012, 38.1, 3.0), (-120.2, 38.987654321098, 4.0)),),
+         [[[-120.123457, 38.1], [-120.2, 38.987654]]]),
+    ])
+    def test_optimize_tuple_coordinates(self, geometry_type, coordinates, expected):
+        """Test that fiona's tuple coordinates are rounded and made 2D."""
+        geometry = {'type': geometry_type, 'coordinates': coordinates}
+
+        result = self.service.optimize_geometry(geometry)
+
+        # Lists (not tuples) compare equal only to lists: output is plain JSON.
+        assert result == {'type': geometry_type, 'coordinates': expected}
+
+    def test_optimize_list_coordinates_with_elevation(self):
+        """Test that GeoJSON-style list coordinates also lose Z at every depth."""
+        geometry = {
+            'type': 'MultiPolygon',
+            'coordinates': [[[
+                [-120.123456789012, 38.987654321098, 512.3],
+                [-119.0, 38.0000007, 512.3],
+                [-119.0, 39.0, 512.3],
+                [-120.123456789012, 38.987654321098, 512.3],
+            ]]]
+        }
+
+        result = self.service.optimize_geometry(geometry)
+
+        assert result['coordinates'] == [[[
+            [-120.123457, 38.987654],
+            [-119.0, 38.000001],
+            [-119.0, 39.0],
+            [-120.123457, 38.987654],
+        ]]]
+
     def test_invalid_geometry_handling(self):
         """Test handling of invalid geometries."""
         invalid_geometries = [

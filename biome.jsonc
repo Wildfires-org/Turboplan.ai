@@ -15,6 +15,9 @@
       "**/*.json",
       "**/*.jsonc",
       "!**/node_modules/**/*",
+      // Claude Code worktrees are full repo checkouts with their own root
+      // biome.jsonc, which Biome rejects as a nested root configuration.
+      "!.claude/worktrees/**/*",
       "!**/dist/**/*",
       "!**/build/**/*",
       "!**/.turbo/**/*",

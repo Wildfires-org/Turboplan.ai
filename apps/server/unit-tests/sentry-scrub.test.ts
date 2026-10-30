@@ -34,6 +34,31 @@ describe("redactSensitiveUrl", () => {
     const url = "https://app.example.com/projects?page=2&sort=name";
     assert.equal(redactSensitiveUrl(url), url);
   });
+
+  it("redacts a sensitive param nested in another param's value", () => {
+    assert.equal(
+      redactSensitiveUrl("/login?next=/verify?token=abc&x=1"),
+      "/login?next=/verify?token=[redacted]&x=1",
+    );
+  });
+
+  it("redacts params inside free text (exception messages)", () => {
+    assert.equal(
+      redactSensitiveUrl("GET https://x.com/?code=123 failed"),
+      "GET https://x.com/?code=[redacted] failed",
+    );
+    assert.equal(redactSensitiveUrl("my token=abc"), "my token=[redacted]");
+  });
+
+  it("stays linear on input that backtracked catastrophically", () => {
+    const k = 16_000;
+    const url = `Y${"?".repeat(k)}${"KEY".repeat(k)}#KEY=v`;
+    const start = performance.now();
+    const redacted = redactSensitiveUrl(url);
+    const elapsedMs = performance.now() - start;
+    assert.equal(redacted, `${url.slice(0, -1)}[redacted]`);
+    assert.ok(elapsedMs < 250, `took ${elapsedMs}ms`);
+  });
 });
 
 describe("scrubSentryEvent", () => {

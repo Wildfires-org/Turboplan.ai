@@ -1,9 +1,10 @@
 /**
- * Runs `extractDocumentText` in a worker thread with a hard heap cap.
+ * Runs `extractDocumentText` — and letterhead analysis — in a worker thread
+ * with a hard heap cap.
  *
  * The Fly VM has 512MB total; a runaway PDF must not take the HTTP server with
  * it. Every failure mode (throw, OOM, silent exit, timeout) is normalised into
- * an `ExtractionResult` so callers never have to try/catch.
+ * a result so callers never have to try/catch.
  */
 
 import { Worker } from "node:worker_threads";
@@ -16,6 +17,12 @@ import {
   getResaveHint,
 } from "@wildfires-org/turboplan-document-extraction/errors";
 import { DOC_MIME } from "@wildfires-org/turboplan-document-extraction/mime";
+
+import type { ExtractionWorkerData } from "./extraction-worker";
+import type {
+  LetterheadTaskResult,
+  LetterheadWorkerInput,
+} from "./letterhead/analysis-task";
 
 export type ExtractionInput = {
   url: string;
@@ -37,10 +44,34 @@ const DEFAULT_TIMEOUT_MS = 120_000;
  */
 const LEGACY_DOC_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_OLD_GENERATION_MB = 256;
+/**
+ * Letterhead analysis renders one header: its worker peaks at ~25–40 MB of
+ * heap on real letters and 300 dpi scans, and every sample still rendered
+ * under a 32 MB cap (24 MB ran out). Twice that leaves room for the model
+ * request and the grid. Images are decoded outside the heap (see
+ * `PDF_MAX_IMAGE_PIXELS` in letterhead/render-header.ts).
+ */
+export const LETTERHEAD_MAX_OLD_GENERATION_MB = 64;
+/**
+ * The figures above are for the built bundle. The dev bootstrap (see
+ * `resolveWorkerPath`) loads the letterhead modules through tsx inside the
+ * worker, which needs more than 64 MB of heap: every analysis ran out of
+ * memory in ~300 ms (text extraction is unaffected). 128 MB was enough on a
+ * small letter; dev takes the extraction cap for headroom.
+ */
+const LETTERHEAD_DEV_MAX_OLD_GENERATION_MB = DEFAULT_MAX_OLD_GENERATION_MB;
 const MAX_YOUNG_GENERATION_MB = 48;
+/**
+ * Letterhead analysis: download, a page render (~0.2–3 s) and one vision call
+ * (~3–5 s). The task stops itself at 50 s, so this only fires when stuck.
+ */
+export const LETTERHEAD_WORKER_TIMEOUT_MS = 60_000;
 
 /** The worker's own failure: user-facing message, raw cause for the logs. */
-const failure = (message: string, detail?: string): ExtractionResult => ({
+const extractionFailure = (
+  message: string,
+  detail?: string,
+): ExtractionResult => ({
   ok: false,
   reason: "extraction-failed",
   message,
@@ -67,45 +98,72 @@ const isOutOfMemoryError = (err: unknown): boolean =>
  * while the worker is a separate bundle at `dist/documents/extraction-worker.js`
  * — hence the climb out of `dist/app/`.
  *
- * Dev (`tsx watch`) and vitest: the module runs from `src/documents/*.ts` and
- * the worker is its `.ts` sibling. The extension of `import.meta.url` is what
- * tells the two apart.
+ * Dev (`tsx watch`, scripts) and vitest: the module runs from
+ * `src/documents/*.ts`, and the worker starts from a small bootstrap that
+ * registers tsx inside the worker thread before loading
+ * `extraction-worker.ts`. tsx's hooks do not reach worker threads on their
+ * own, and Node's built-in type stripping would then reject the worker's
+ * extensionless relative imports. The extension of `import.meta.url` is what
+ * tells built from dev apart.
  */
+const usesDevWorkerBootstrap = import.meta.url.endsWith(".ts");
+
 const resolveWorkerPath = (): URL => {
-  if (import.meta.url.endsWith(".ts")) {
-    return new URL("./extraction-worker.ts", import.meta.url);
+  if (usesDevWorkerBootstrap) {
+    return new URL("./extraction-worker-dev.mjs", import.meta.url);
   }
   return new URL("../documents/extraction-worker.js", import.meta.url);
 };
 
-export const runExtractionInWorker = (
-  input: ExtractionInput,
-  {
-    timeoutMs = resolveExtractionTimeoutMs(input.mimeType),
-    maxOldGenerationSizeMb = DEFAULT_MAX_OLD_GENERATION_MB,
-  }: RunExtractionOptions = {},
-): Promise<ExtractionResult> =>
-  new Promise<ExtractionResult>((resolve) => {
+/** The letterhead worker's default heap cap for the bootstrap in use. */
+export const resolveLetterheadMaxOldGenerationMb = (
+  devBootstrap: boolean = usesDevWorkerBootstrap,
+): number =>
+  devBootstrap
+    ? LETTERHEAD_DEV_MAX_OLD_GENERATION_MB
+    : LETTERHEAD_MAX_OLD_GENERATION_MB;
+
+type WorkerFailure =
+  | { kind: "timeout" }
+  | { kind: "out-of-memory"; detail: string }
+  | { kind: "crashed"; detail: string }
+  | { kind: "no-result" };
+
+/**
+ * Spawns the worker for one task and settles exactly once: with the worker's
+ * message, or with `onFailure` for a spawn error, crash, OOM, silent exit or
+ * timeout. A timeout terminates the worker, which also aborts its requests.
+ */
+const spawnWorkerTask = <T>({
+  workerData,
+  timeoutMs,
+  maxOldGenerationSizeMb,
+  onFailure,
+}: {
+  workerData: ExtractionWorkerData;
+  timeoutMs: number;
+  maxOldGenerationSizeMb: number;
+  onFailure: (failure: WorkerFailure) => T;
+}): Promise<T> =>
+  new Promise<T>((resolve) => {
     let worker: Worker;
     try {
       worker = new Worker(resolveWorkerPath(), {
-        workerData: input,
+        workerData,
         resourceLimits: {
           maxOldGenerationSizeMb,
           maxYoungGenerationSizeMb: MAX_YOUNG_GENERATION_MB,
         },
       });
     } catch (err) {
-      resolve(
-        failure(getGenericExtractionError(input.mimeType), describeError(err)),
-      );
+      resolve(onFailure({ kind: "crashed", detail: describeError(err) }));
       return;
     }
 
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const settle = (result: ExtractionResult): void => {
+    const settle = (result: T): void => {
       if (settled) {
         return;
       }
@@ -118,37 +176,96 @@ export const runExtractionInWorker = (
 
     timer = setTimeout(() => {
       void worker.terminate();
-      settle(
-        failure(
-          `Reading this file took too long. ${getResaveHint(input.mimeType)}`,
-          `Extraction timed out after ${timeoutMs}ms`,
-        ),
-      );
+      settle(onFailure({ kind: "timeout" }));
     }, timeoutMs);
     timer.unref?.();
 
-    worker.on("message", (result: ExtractionResult) => {
+    worker.on("message", (result: T) => {
       settle(result);
       void worker.terminate();
     });
 
     worker.on("error", (err: unknown) => {
       settle(
-        failure(
+        onFailure(
           isOutOfMemoryError(err)
-            ? `This file is too large or complex to read. ${getResaveHint(input.mimeType)}`
-            : getGenericExtractionError(input.mimeType),
-          describeError(err),
+            ? { kind: "out-of-memory", detail: describeError(err) }
+            : { kind: "crashed", detail: describeError(err) },
         ),
       );
     });
 
     worker.on("exit", () => {
-      settle(
-        failure(
-          getGenericExtractionError(input.mimeType),
-          "Extraction worker exited without a result",
-        ),
-      );
+      settle(onFailure({ kind: "no-result" }));
     });
+  });
+
+export const runExtractionInWorker = (
+  input: ExtractionInput,
+  {
+    timeoutMs = resolveExtractionTimeoutMs(input.mimeType),
+    maxOldGenerationSizeMb = DEFAULT_MAX_OLD_GENERATION_MB,
+  }: RunExtractionOptions = {},
+): Promise<ExtractionResult> =>
+  spawnWorkerTask<ExtractionResult>({
+    workerData: { task: "extract", url: input.url, mimeType: input.mimeType },
+    timeoutMs,
+    maxOldGenerationSizeMb,
+    onFailure: (failure) => {
+      switch (failure.kind) {
+        case "timeout":
+          return extractionFailure(
+            `Reading this file took too long. ${getResaveHint(input.mimeType)}`,
+            `Extraction timed out after ${timeoutMs}ms`,
+          );
+        case "out-of-memory":
+          return extractionFailure(
+            `This file is too large or complex to read. ${getResaveHint(input.mimeType)}`,
+            failure.detail,
+          );
+        case "crashed":
+          return extractionFailure(
+            getGenericExtractionError(input.mimeType),
+            failure.detail,
+          );
+        case "no-result":
+          return extractionFailure(
+            getGenericExtractionError(input.mimeType),
+            "Extraction worker exited without a result",
+          );
+      }
+    },
+  });
+
+/** Letterhead analysis of a PDF (see `letterhead/analysis-task.ts`). */
+export const runLetterheadInWorker = (
+  input: LetterheadWorkerInput,
+  {
+    timeoutMs = LETTERHEAD_WORKER_TIMEOUT_MS,
+    maxOldGenerationSizeMb = resolveLetterheadMaxOldGenerationMb(),
+  }: RunExtractionOptions = {},
+): Promise<LetterheadTaskResult> =>
+  spawnWorkerTask<LetterheadTaskResult>({
+    workerData: { task: "letterhead", ...input },
+    timeoutMs,
+    maxOldGenerationSizeMb,
+    onFailure: (failure) => {
+      switch (failure.kind) {
+        case "timeout":
+          return {
+            ok: false,
+            reason: "timeout",
+            detail: `Letterhead analysis timed out after ${timeoutMs}ms`,
+          };
+        case "out-of-memory":
+        case "crashed":
+          return { ok: false, reason: "worker-failed", detail: failure.detail };
+        case "no-result":
+          return {
+            ok: false,
+            reason: "worker-failed",
+            detail: "Letterhead worker exited without a result",
+          };
+      }
+    },
   });

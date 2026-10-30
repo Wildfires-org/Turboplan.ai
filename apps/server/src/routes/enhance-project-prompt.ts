@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 import type { Context } from "hono";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 import { getModel } from "@wildfires-org/turboplan-ai/server";
 import { getPrompt } from "@wildfires-org/turboplan-ai/services";
@@ -11,7 +12,10 @@ import {
 } from "@wildfires-org/turboplan-billing/server";
 
 import { createIpRateLimiter } from "../utils/ip-rate-limit.js";
-import { sanitizePromptInput } from "../utils/sanitize-prompt-input.js";
+import {
+  MAX_PROMPT_BODY_BYTES,
+  sanitizePromptInput,
+} from "../utils/sanitize-prompt-input.js";
 
 const ROUTE_NAME = "enhance-prompt";
 
@@ -98,9 +102,19 @@ const enhanceProjectPromptHandler = async (c: Context) => {
   }
 };
 
+// Shared by both mounts. Counts chunked bodies too, not just content-length.
+const promptBodyLimit = bodyLimit({
+  maxSize: MAX_PROMPT_BODY_BYTES,
+  onError: (c) => c.json({ error: "Request body too large" }, 413),
+});
+
 // Private router (requires auth, mounted on private routes)
 const enhanceProjectPromptRouter = new Hono();
-enhanceProjectPromptRouter.post("/enhance-prompt", enhanceProjectPromptHandler);
+enhanceProjectPromptRouter.post(
+  "/enhance-prompt",
+  promptBodyLimit,
+  enhanceProjectPromptHandler,
+);
 
 // Public router (no auth required, mounted on public routes)
 const publicEnhanceProjectPromptRouter = new Hono();
@@ -110,14 +124,18 @@ const checkPublicRateLimit = createIpRateLimiter({
   windowMs: 60_000,
   maxRequests: 10,
 });
-publicEnhanceProjectPromptRouter.post("/enhance-prompt", async (c) => {
-  if (!checkPublicRateLimit(c)) {
-    return c.json(
-      { error: "Rate limit exceeded. Please try again later." },
-      429,
-    );
-  }
-  return enhanceProjectPromptHandler(c);
-});
+publicEnhanceProjectPromptRouter.post(
+  "/enhance-prompt",
+  promptBodyLimit,
+  async (c) => {
+    if (!checkPublicRateLimit(c)) {
+      return c.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        429,
+      );
+    }
+    return enhanceProjectPromptHandler(c);
+  },
+);
 
 export { enhanceProjectPromptRouter, publicEnhanceProjectPromptRouter };

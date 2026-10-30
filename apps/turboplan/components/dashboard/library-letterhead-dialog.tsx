@@ -201,7 +201,6 @@ export function LibraryLetterheadDialog({
               }
             }}
             organizationId={organizationId}
-            initialLogoUrl={letterhead?.logoUrl}
             linesError={errors.lines?.message}
             contactError={errors.contact?.message}
             disabled={isSaving}

@@ -76,6 +76,21 @@ describe("detectSvg — root detection", () => {
     assert.strictEqual(detectSvg(bytes(svg)), "safe");
   });
 
+  it("accepts comments before and after the doctype", () => {
+    const svg = `<!-- a -->\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<!-- b -->\n<!-- c -->\n${SAFE_SVG}`;
+    assert.strictEqual(detectSvg(bytes(svg)), "safe");
+  });
+
+  it("ends a comment at its first -->", () => {
+    const svg = `<!-- a --> junk -->\n${SAFE_SVG}`;
+    assert.strictEqual(detectSvg(bytes(svg)), "not-svg");
+  });
+
+  it("rejects a SYSTEM doctype hidden between two comments", () => {
+    const svg = `<!-- a --><!DOCTYPE svg SYSTEM "http://evil.test/xxe.dtd"><!-- b -->${SAFE_SVG}`;
+    assert.strictEqual(detectSvg(bytes(svg)), "not-svg");
+  });
+
   it("rejects a SYSTEM doctype (external DTD / XXE vector)", () => {
     const svg = `<!DOCTYPE svg SYSTEM "http://evil.test/xxe.dtd">\n${SAFE_SVG}`;
     assert.strictEqual(detectSvg(bytes(svg)), "not-svg");
@@ -249,6 +264,20 @@ describe("detectSvg — active-content rejection", () => {
     );
   });
 
+  it("rejects a quoted event attributeName with surrounding whitespace", () => {
+    assert.strictEqual(
+      detectSvg(bytes(unsafeBody(`<set attributeName = ' onclick' to="x"/>`))),
+      "unsafe",
+    );
+  });
+
+  it("rejects an unquoted event attributeName", () => {
+    assert.strictEqual(
+      detectSvg(bytes(unsafeBody(`<set attributeName=onload to="x"/>`))),
+      "unsafe",
+    );
+  });
+
   it("rejects a character-reference-smuggled event attributeName", () => {
     assert.strictEqual(
       detectSvg(bytes(unsafeBody(`<set attributeName="on&#x6C;oad" to="x"/>`))),
@@ -276,6 +305,48 @@ describe("detectSvg — active-content rejection", () => {
       detectSvg(bytes(unsafeBody(`<desc>PostScript logo description</desc>`))),
       "safe",
     );
+  });
+});
+
+describe("detectSvg — ReDoS resistance", () => {
+  // The fixed patterns take under 1 ms on these inputs; the vulnerable
+  // versions took 2-3 s, so the budget only trips on a real regression. Inputs
+  // are kept small on purpose: a synchronous regex blocks the event loop, so a
+  // test timeout cannot interrupt it, and a full-size attack on a regressed
+  // pattern would hang the run instead of failing it.
+  const BUDGET_MS = 250;
+
+  const detectTimed = (text: string) => {
+    const startedAt = performance.now();
+    const result = detectSvg(bytes(text));
+    return { result, elapsedMs: performance.now() - startedAt };
+  };
+
+  it("rejects a run of empty comments without exponential backtracking", () => {
+    const { result, elapsedMs } = detectTimed(`${"<!---->".repeat(26)}x`);
+    assert.strictEqual(result, "not-svg");
+    assert.ok(elapsedMs < BUDGET_MS, `took ${elapsedMs.toFixed(1)} ms`);
+  });
+
+  it("rejects overlapping comment delimiters without exponential backtracking", () => {
+    const { result, elapsedMs } = detectTimed(`<!--${"--><!--<".repeat(25)}`);
+    assert.strictEqual(result, "not-svg");
+    assert.ok(elapsedMs < BUDGET_MS, `took ${elapsedMs.toFixed(1)} ms`);
+  });
+
+  it("accepts a 2MB comment preamble in linear time", () => {
+    const preamble = "<!-- exported -->\n".repeat(110_000);
+    const { result, elapsedMs } = detectTimed(`${preamble}${SAFE_SVG}`);
+    assert.strictEqual(result, "safe");
+    assert.ok(elapsedMs < BUDGET_MS, `took ${elapsedMs.toFixed(1)} ms`);
+  });
+
+  it("scans whitespace after attributeName= in linear time", () => {
+    const { result, elapsedMs } = detectTimed(
+      `<svg>ATTRIBUTENAME=${"\t".repeat(50_000)}N</svg>`,
+    );
+    assert.strictEqual(result, "safe");
+    assert.ok(elapsedMs < BUDGET_MS, `took ${elapsedMs.toFixed(1)} ms`);
   });
 });
 

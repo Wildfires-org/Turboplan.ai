@@ -5,9 +5,9 @@ import { useState } from "react";
 import { Plus, Settings2, UserPlus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
-import type { Organization } from "@wildfires-org/turboplan-db/types";
 import { Action, type ActionType } from "@wildfires-org/turboplan-rbac";
 import { Button } from "@wildfires-org/turboplan-utils";
+import type { ClientOrganization } from "@wildfires-org/turboplan-workspace/types";
 
 import { CreateOfficeButton } from "@/components/dashboard/create-office-button";
 import { EditOrganizationDialog } from "@/components/dashboard/edit-organization-dialog";
@@ -17,7 +17,7 @@ import { isActiveLink } from "@/lib/nav/activeLink";
 import { AppUrls } from "@/lib/nav/urls";
 
 interface OrgBannerActionsProps {
-  organization: Organization;
+  organization: ClientOrganization;
   /**
    * The user's allowed actions on the organization. Each button needs the
    * action its API checks: read access (any user on a government org, or a

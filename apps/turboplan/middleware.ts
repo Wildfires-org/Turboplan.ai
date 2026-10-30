@@ -2,6 +2,7 @@ import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 
+import { getAuthCookieName } from "@wildfires-org/turboplan-env";
 import {
   PATHNAME_HEADER,
   SEARCH_HEADER,
@@ -34,8 +35,13 @@ const isBlockedAuthPost = (request: NextRequest) => {
   );
 };
 
-// Create auth handler
-const { auth } = NextAuth(authConfig);
+// Create auth handler. The session cookie has a custom name (auth.ts), and
+// without it here the middleware never sees a session. Only the name is needed
+// to read the cookie; auth.ts owns the options it is written with.
+const { auth } = NextAuth({
+  ...authConfig,
+  cookies: { sessionToken: { name: getAuthCookieName() } },
+});
 
 // Auth middleware that adds pathname header and handles auth
 // Note: Slug redirects are handled in layouts (not middleware) due to Edge runtime limitations

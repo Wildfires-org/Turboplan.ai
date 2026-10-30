@@ -22,6 +22,8 @@ interface ArtifactActionsProps {
   metadata: unknown;
   setMetadata: Dispatch<SetStateAction<unknown>>;
   projectId?: string;
+  // See `ArtifactActionContext.canEdit`.
+  canEdit: boolean;
 }
 
 function PureArtifactActions({
@@ -33,6 +35,7 @@ function PureArtifactActions({
   metadata,
   setMetadata,
   projectId,
+  canEdit,
 }: ArtifactActionsProps) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -54,6 +57,7 @@ function PureArtifactActions({
     currentVersionIndex,
     isCurrentVersion,
     disabled: isLoading || artifact.status === "streaming",
+    canEdit,
     mode,
     metadata,
     setMetadata,
@@ -135,6 +139,10 @@ export const ArtifactActions = memo(
       return false;
     if (prevProps.isCurrentVersion !== nextProps.isCurrentVersion) return false;
     if (prevProps.artifact.content !== nextProps.artifact.content) return false;
+    // The project permission arrives after the panel opens.
+    if (prevProps.canEdit !== nextProps.canEdit) {
+      return false;
+    }
 
     return true;
   },

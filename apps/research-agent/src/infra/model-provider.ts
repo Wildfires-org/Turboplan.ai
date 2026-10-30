@@ -122,3 +122,49 @@ export const getFastModelId = (env: FastModelEnv): string | null => {
 export const getModelProviderName = (env: ProviderKeys): ModelProviderName => {
   return env.OPENROUTER_API_KEY ? "openrouter" : "anthropic";
 };
+
+/**
+ * What a worker thread needs to call a model through OpenRouter (letterhead
+ * analysis). Holds the key: never log it.
+ */
+export type OpenRouterTaskSettings = FastModelClientOptions & {
+  /** OpenRouter slug, e.g. `anthropic/claude-haiku-4.5`. */
+  model: string;
+};
+
+export type LetterheadModelSettings = OpenRouterTaskSettings;
+
+/** A task model set to "off" turns that task off (cost kill-switch). */
+export const MODEL_OFF_VALUE = "off";
+
+/**
+ * Settings for a background model task that runs only through OpenRouter, so
+ * all its spend shows up there: without `OPENROUTER_API_KEY` the task is
+ * disabled rather than falling back to `ANTHROPIC_API_KEY`. The model is the
+ * task's own setting, else `CLAUDE_FAST_MODEL`; null when neither is set or
+ * the task's setting is "off".
+ */
+const getOpenRouterTaskSettings = (
+  env: FastModelEnv,
+  taskModel: string | null,
+): OpenRouterTaskSettings | null => {
+  const clientOptions = getFastModelClientOptions(env);
+  if (!clientOptions) {
+    return null;
+  }
+  const model = taskModel ?? env.CLAUDE_FAST_MODEL;
+  if (!model || model.toLowerCase() === MODEL_OFF_VALUE) {
+    return null;
+  }
+  return { ...clientOptions, model: toOpenRouterModel(model) };
+};
+
+/**
+ * Letterhead analysis settings, or null when the analysis is off:
+ * `CLAUDE_LETTERHEAD_MODEL`, else `CLAUDE_FAST_MODEL`, through OpenRouter
+ * only. The model must read images.
+ */
+export const getLetterheadModelSettings = (
+  env: FastModelEnv & { CLAUDE_LETTERHEAD_MODEL: string | null },
+): LetterheadModelSettings | null =>
+  getOpenRouterTaskSettings(env, env.CLAUDE_LETTERHEAD_MODEL);

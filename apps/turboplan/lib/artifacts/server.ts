@@ -103,6 +103,14 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
           createdAt,
         });
         versionCreatedAt = createdAt;
+        // The document exists from now on, so its letterhead (stored before
+        // this insert) resolves: the client refetches it mid-stream instead
+        // of showing the default until the run ends.
+        args.writer.write({
+          type: "data-artifact",
+          transient: true,
+          data: { type: "saved", content: args.id },
+        });
       };
 
       const checkpointer = createDraftCheckpointer({

@@ -1,6 +1,17 @@
 import type { FileChild, ICommentOptions, IPropertiesOptions } from "docx";
 
-import type { LetterheadLogoPlacement } from "@wildfires-org/turboplan-workspace/types";
+import {
+  cleanGridLineText,
+  GRID_LINE_SCALE,
+  type GridSegment,
+  gridBaseFontRatio,
+  gridLogoCells,
+  gridLogoSize,
+  type LetterheadLogoPlacement,
+  layoutGridLetterhead,
+  type PublicGridLetterhead,
+  type PublicGridLetterheadCell,
+} from "@wildfires-org/turboplan-workspace/types";
 
 import {
   type ColumnAlignment,
@@ -40,6 +51,23 @@ export type DocxDocumentFooter = {
   text?: string | null;
   note?: string | null;
   logo?: DocxLetterheadLogo | null;
+};
+
+// A letterhead copied from a reference document (or saved from one as the
+// office/org default), drawn from its structure instead of a markdown table:
+// one row of cells at their `x` / `width` fractions of the content width
+// (lay out with `layoutGridLetterhead`). `logos[cell.index]` holds a logo
+// cell's image (null when it did not load — draw nothing there). The content
+// carries no letterhead table then; `letterheadColor` is the grid's colour,
+// and `logo` (placement "margin") is set only for a grid without logo cells
+// (the office → org letterhead logo, drawn in the margin as before).
+export type DocxGridLetterhead = {
+  grid: PublicGridLetterhead;
+  logos: (DocxLetterheadLogo | null)[];
+};
+
+export type DocxExportOptions = {
+  gridLetterhead?: DocxGridLetterhead;
 };
 
 // Portability: the export must render the same in Word, Pages, Google Docs and
@@ -270,10 +298,53 @@ const HEADER_FONT_HALFPT = 19;
 // bottom inset keeps the text clear of the rule below the letterhead.
 const HEADER_CELL_MARGINS = { top: 20, bottom: 100, left: 0, right: 160 };
 const LAST_HEADER_CELL_MARGINS = { ...HEADER_CELL_MARGINS, right: 0 };
+// Grid letterhead spacing, as in the PDF export: cells flush with the top,
+// the rule 6pt below the row (the cells' bottom inset) and 6pt above the body
+// (the spacer after the table). Left and right insets are each cell's share
+// of the gutter it keeps from a touching neighbour (zero on the outer edges
+// and next to a gap).
+const GRID_RULE_GAP_TWIPS = 120;
+const GRID_CELL_MARGINS = {
+  top: 0,
+  bottom: GRID_RULE_GAP_TWIPS,
+  left: 0,
+  right: 0,
+};
+const GRID_LETTERHEAD_GAP_TWIPS = 120;
+// Single-spaced letterhead lines with no space before or after.
+const LETTERHEAD_LINE_SPACING = { before: 0, after: 0, line: 240 };
 // Gap (twips) between stacked letterhead lines in one column.
 const HEADER_LINE_GAP_TWIPS = 40;
 // Width (twips) of a table column that has no content at all.
 const EMPTY_COLUMN_TWIPS = 360;
+
+// The letterhead's logo column ("margin"/"inline" placement): the logo inline
+// at its top left, with a gutter before the text. `margins` are the insets of
+// the letterhead's other cells (its right inset is the gutter).
+const buildLogoColumnCell = (
+  logo: DocxLetterheadLogo,
+  docxModule: typeof import("docx"),
+  placement: "margin" | "inline",
+  margins: { top: number; bottom: number } = HEADER_CELL_MARGINS,
+): InstanceType<typeof import("docx").TableCell> => {
+  const { TableCell, Paragraph, VerticalAlign, WidthType } = docxModule;
+  return new TableCell({
+    verticalAlign: VerticalAlign.TOP,
+    width: { size: logoColumnTwips(logo, placement), type: WidthType.DXA },
+    margins: {
+      top: margins.top,
+      bottom: margins.bottom,
+      left: 0,
+      right: LOGO_COLUMN_GAP_TWIPS,
+    },
+    children: [
+      new Paragraph({
+        spacing: LETTERHEAD_LINE_SPACING,
+        children: [buildLogoImage(logo, docxModule, placement)],
+      }),
+    ],
+  });
+};
 
 // Body tables use the body run size and Word's default cell margins (108
 // twips on the left and on the right), since their cells set none of their
@@ -729,7 +800,7 @@ const buildTable = (
   // Letterhead rows are single-spaced with no trailing gap; body table cells
   // get a little air inside the grid.
   const cellSpacing = isHeader
-    ? { before: 0, after: 0, line: 240 }
+    ? LETTERHEAD_LINE_SPACING
     : { before: 40, after: 40, line: 240 };
 
   const cellRuns = (text: string, colIndex: number, rowIndex: number) =>
@@ -793,21 +864,7 @@ const buildTable = (
     );
     // The logo sits inline in its own first column.
     const logoCells = logo
-      ? [
-          new TableCell({
-            verticalAlign: VerticalAlign.TOP,
-            width: { size: logoColumn, type: WidthType.DXA },
-            margins: { ...HEADER_CELL_MARGINS, right: LOGO_COLUMN_GAP_TWIPS },
-            children: [
-              new Paragraph({
-                spacing: cellSpacing,
-                children: [
-                  buildLogoImage(logo, docxModule, letterhead.logoPlacement),
-                ],
-              }),
-            ],
-          }),
-        ]
+      ? [buildLogoColumnCell(logo, docxModule, letterhead.logoPlacement)]
       : [];
     return new Table({
       rows: [new TableRow({ children: [...logoCells, ...textCells] })],
@@ -842,6 +899,196 @@ const buildTable = (
     width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
     borders,
     columnWidths: colWidths,
+    layout: TableLayoutType.FIXED,
+  });
+};
+
+// A logo's image fitted (aspect kept) into its box (px), like the PDF's
+// `fit`; the box itself when the image's size is unknown.
+const fitLogoInBox = (logo: DocxLetterheadLogo, box: LogoBox): LogoBox => {
+  if (logo.width <= 0 || logo.height <= 0) {
+    return box;
+  }
+  const scale = Math.min(box.width / logo.width, box.height / logo.height);
+  return { width: logo.width * scale, height: logo.height * scale };
+};
+
+/**
+ * A grid letterhead as ONE borderless table row: one column per
+ * `layoutGridLetterhead` segment (cell or gap) at its fraction of the grid's
+ * width, in a fixed layout so Word, Pages and LibreOffice keep it. A text
+ * cell stacks its lines (base size × `GRID_LINE_SCALE`, bold lines in the
+ * grid's colour) and Word wraps them inside the cell; the base size is
+ * `gridBaseFontRatio(grid)` of the grid's width (the reference's own size
+ * when the grid has one), as in the PDF and the preview, so lines wrap at
+ * the same words. A logo cell holds `logos[cell.index]`
+ * fitted into its `gridLogoSize` box, top-left, or nothing when it is null.
+ * The row is as tall as its tallest cell; a cell (text or logo) sits at its
+ * top, or in its middle or at its bottom by its `valign` — the cell's own
+ * vertical alignment, which Word applies between the cell's margins, so it
+ * moves as far as the PDF's `gridCellOffset` (every cell's lines have no
+ * space before or after to tip it). The table's bottom border is the rule.
+ *
+ * `marginLogo` (a grid without logo cells: the office → org logo) gets its
+ * own first column INSIDE the content width, as on every other letterhead,
+ * and the grid spans what it leaves (≈ 88% of the width; its text scales
+ * with it, so it wraps as in the PDF). The PDF and the preview hang that
+ * logo in the page margin instead. Pulling the column into the margin with a
+ * negative table indent was tried: LibreOffice honours it, but the rule (the
+ * table's bottom border) then runs under the logo into the margin, and a
+ * renderer that clamps the indent to 0 would push the whole letterhead into
+ * the right margin.
+ */
+const buildGridLetterheadTable = (
+  { grid, logos }: DocxGridLetterhead,
+  docxModule: typeof import("docx"),
+  marginLogo?: DocxLetterheadLogo,
+): InstanceType<typeof import("docx").Table> => {
+  const {
+    Table,
+    TableRow,
+    TableCell,
+    Paragraph,
+    TextRun,
+    ImageRun,
+    AlignmentType,
+    LineRuleType,
+    TableLayoutType,
+    VerticalAlign,
+    WidthType,
+  } = docxModule;
+  const color = toDocxColor(grid.color);
+  const logoColumn = marginLogo ? logoColumnTwips(marginLogo, "margin") : 0;
+  const gridWidth = CONTENT_WIDTH_TWIPS - logoColumn;
+  const toTwips = (fraction: number) => Math.round(fraction * gridWidth);
+  // Twips → points (÷ 20) → half-points (× 2); each line rounds its own size.
+  const baseHalfPt = (gridBaseFontRatio(grid) * gridWidth) / 10;
+
+  // `layoutGridLetterhead` drops sliver cells, but a gap can still be float
+  // noise between two cells: one that rounds to 0 twips gets no column.
+  const segments = layoutGridLetterhead(grid).filter(
+    (segment) => toTwips(segment.width) > 0,
+  );
+  const widths = segments.map((segment) => toTwips(segment.width));
+  // OOXML widths are whole twips; the last column absorbs the rounding.
+  widths[widths.length - 1] +=
+    gridWidth - widths.reduce((total, width) => total + width, 0);
+
+  const alignments = {
+    left: AlignmentType.LEFT,
+    center: AlignmentType.CENTER,
+    right: AlignmentType.RIGHT,
+  };
+  const verticalAlignments = {
+    top: VerticalAlign.TOP,
+    middle: VerticalAlign.CENTER,
+    bottom: VerticalAlign.BOTTOM,
+  };
+  // What a cell with nothing to draw holds (a cell needs a paragraph): one
+  // exactly-1pt line, so it never adds to the row's height.
+  const emptyParagraph = () =>
+    new Paragraph({
+      spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT },
+    });
+
+  const contentOf = (segment: GridSegment<PublicGridLetterheadCell>) => {
+    if (segment.kind === "gap") {
+      return [emptyParagraph()];
+    }
+    const { cell } = segment;
+    if (cell.kind === "logo") {
+      const logo = logos[cell.index];
+      if (!logo) {
+        return [emptyParagraph()];
+      }
+      // Fractions of the width → px, the unit of ImageRun (96 dpi).
+      const box = gridLogoSize(cell, segment.contentWidth);
+      return [
+        new Paragraph({
+          alignment: AlignmentType.LEFT,
+          spacing: LETTERHEAD_LINE_SPACING,
+          children: [
+            new ImageRun({
+              data: logo.data,
+              type: logo.type,
+              transformation: fitLogoInBox(logo, {
+                width: (box.width * gridWidth) / TWIPS_PER_PX,
+                height: (box.height * gridWidth) / TWIPS_PER_PX,
+              }),
+            }),
+          ],
+        }),
+      ];
+    }
+    const lines = cell.lines.flatMap((line) => {
+      const text = cleanGridLineText(line.text);
+      if (!text) {
+        return [];
+      }
+      return [
+        new Paragraph({
+          alignment: alignments[cell.align],
+          spacing: LETTERHEAD_LINE_SPACING,
+          children: [
+            new TextRun({
+              text,
+              bold: line.bold,
+              color: line.bold ? color : undefined,
+              size: Math.round(baseHalfPt * GRID_LINE_SCALE[line.size]),
+            }),
+          ],
+        }),
+      ];
+    });
+    return lines.length > 0 ? lines : [emptyParagraph()];
+  };
+
+  const cells = segments.map(
+    (segment, index) =>
+      new TableCell({
+        // A gap has nothing to place.
+        verticalAlign:
+          segment.kind === "cell"
+            ? verticalAlignments[segment.cell.valign ?? "top"]
+            : VerticalAlign.TOP,
+        width: { size: widths[index], type: WidthType.DXA },
+        // A cell's gutters are inside its segment: its left and right margins.
+        margins:
+          segment.kind === "cell"
+            ? {
+                ...GRID_CELL_MARGINS,
+                left: toTwips(segment.contentStart - segment.start),
+                right: toTwips(
+                  segment.start +
+                    segment.width -
+                    segment.contentStart -
+                    segment.contentWidth,
+                ),
+              }
+            : GRID_CELL_MARGINS,
+        children: contentOf(segment),
+      }),
+  );
+
+  return new Table({
+    rows: [
+      new TableRow({
+        children: marginLogo
+          ? [
+              buildLogoColumnCell(
+                marginLogo,
+                docxModule,
+                "margin",
+                GRID_CELL_MARGINS,
+              ),
+              ...cells,
+            ]
+          : cells,
+      }),
+    ],
+    width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
+    borders: letterheadTableBorders(docxModule, color),
+    columnWidths: marginLogo ? [logoColumn, ...widths] : widths,
     layout: TableLayoutType.FIXED,
   });
 };
@@ -979,21 +1226,25 @@ const headingStyle = (level: number) => ({
 export const generateDocxFromMarkdown = async (
   content: string,
   title: string,
+  // The letterhead logo; with a grid letterhead, the margin logo of a grid
+  // without logo cells (ignored when the grid has its own).
   logo?: DocxLetterheadLogo,
   footer?: DocxDocumentFooter,
   logoPlacement: LetterheadLogoPlacement = "margin",
   // The applied letterhead's brand color ("#rrggbb"): tints the rule under the
   // letterhead and its bold lines.
   letterheadColor?: string | null,
+  { gridLetterhead }: DocxExportOptions = {},
 ): Promise<Blob> => {
   const docx = await import("docx");
   const { Document, Paragraph, TextRun, Packer, HeadingLevel, AlignmentType } =
     docx;
 
   const hasFooter = !!(footer && (footer.text || footer.note || footer.logo));
-  // A document is "branded" when it carries a letterhead logo or footer. Only
-  // branded documents get page-number chrome; plain exports keep their layout.
-  const isBranded = !!logo || hasFooter;
+  // A document is "branded" when it carries a letterhead logo, a grid
+  // letterhead or a footer. Only branded documents get page-number chrome;
+  // plain exports keep their layout.
+  const isBranded = !!logo || !!gridLetterhead || hasFooter;
 
   // Strip "|| note" from placeholders inside table rows before anything else —
   // their pipes would shift parseTableRow's cell split. Covers documents stored
@@ -1048,16 +1299,28 @@ export const generateDocxFromMarkdown = async (
       }),
     });
 
-  // A banner letterhead is the image itself, drawn above the content; the
-  // document's first table is then ordinary body content.
+  // A banner letterhead is the image itself, and a grid letterhead is drawn
+  // from its structure (the content carries no letterhead table then), both
+  // above the content; the document's first table is then ordinary body
+  // content.
   const isBanner = logoPlacement === "banner";
-  if (isBanner && logo) {
+  if (gridLetterhead) {
+    const hasLogoCells = gridLogoCells(gridLetterhead.grid).length > 0;
+    paragraphs.push(
+      buildGridLetterheadTable(
+        gridLetterhead,
+        docx,
+        hasLogoCells ? undefined : logo,
+      ),
+      buildSpacer(docx, GRID_LETTERHEAD_GAP_TWIPS),
+    );
+  } else if (isBanner && logo) {
     paragraphs.push(
       buildBannerTable(logo, docx, accentColor),
       buildSpacer(docx, LETTERHEAD_GAP_TWIPS),
     );
   }
-  let isFirstTable = !isBanner;
+  let isFirstTable = !isBanner && !gridLetterhead;
 
   const lines = normalizedContent.split("\n");
   let i = 0;

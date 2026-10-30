@@ -287,6 +287,34 @@ to the raw secret when the binding is absent (local dev, or a deploy run without
 
 ### R2 bucket
 
+`R2_PUBLIC_URL` may be a comma-separated list of public base URLs. On the
+servers (API, web, MCP) the **first** entry is the write base:
+every new object's URL is built on it, and ownership checks, deletes and
+landing-upload claims only recognise URLs under it. The other entries are
+read-only aliases (for example an older custom domain or the `r2.dev` URL of
+the same bucket): URLs under them still count as our storage (logos are
+fetched from them, links to them are never handed to a web reader), but they
+are owned by no one, so a logo field cannot be set to one and nothing under
+one is ever deleted. The web app and landing page also allowlist every entry
+for `next/image`.
+
+Letterhead logos copied from a reference document, and the logos of
+letterheads edited in the app, are stored as R2 **object keys**
+(`letterheads/…` crops, `uploads/<userId>/…` uploads) and read by the API
+with its R2 credentials (S3 `GetObject`, ≤ 5 MB, 5 s, only keys under those
+two prefixes), never through the public URL — so they keep working when the
+bucket goes private. Those reads need the four credential variables
+(`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+`R2_BUCKET_NAME`) on the API, not `R2_PUBLIC_URL`: the API uses that only to
+build URLs and to map the letterhead editor's upload URL back to its key. The
+research agent likewise needs only credentials for the API's bucket (a token
+scoped to that bucket with Object Read & Write), no `R2_PUBLIC_URL`. The other logo
+fields (office/organization letterhead, banner and footer logos, library
+letterheads) still hold public URLs: the API fetches those only from URLs
+under one of its bases and drops any other logo, logging `[branding] Image
+URL refused …` with the URL's origin (once per URL and process for a host
+that is not ours, since organization logos may be external links by design).
+
 Browsers upload straight to R2 through presigned `PUT` URLs, both from the web
 app and, without an account, from the landing-page prompt. Two bucket settings
 are needed for that:
@@ -352,7 +380,7 @@ missing.
 | `POSTGRES_URL` | web, api, mcp | |
 | `OPENROUTER_API_KEY` | web, api, mcp | |
 | `SERVER_API_KEY` | api | |
-| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | web, api, mcp | |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | web, api, mcp, research agent | Research agent: optional, with `R2_ACCOUNT_ID` and `R2_BUCKET_NAME` (the API's bucket; no `R2_PUBLIC_URL`) — letterhead logo crops are stored only when all four are set |
 | `MAP_SERVICE_API_KEY` | api, map | Same value on both |
 | `RESEND_API_KEY` | api | Optional — no-op mail without it |
 | `EXA_API_KEY` | web | Optional — web search is a chat tool in the Next.js app; the API server never reads it |
@@ -402,8 +430,20 @@ set, and the feature flags — which are named `FF_IS_<MODULE>_PACKAGE_ENABLED`
 and `FF_USE_EXTERNAL_PROMPTS` in the workflow to keep them out of the runner's
 ambient environment.
 
-The research agent is not part of this pipeline: it deploys to Modal (sandbox)
-and Fly.io (app server) via its own `pnpm deploy` script.
+The research agent deploys from `main` only (`deploy-research-agent`): one Fly
+app and one Modal sandbox volume serve every environment. A push that touches
+`apps/research-agent/` or a package its Dockerfile copies deploys the Fly app
+(after the database migration); one that touches the sandbox runtime
+(`src/agent-runtime/`, `workspace/.claude/`) first uploads it to Modal. It
+needs, in the `production` environment, the secrets `FLY_API_TOKEN` (`fly
+tokens create deploy -a <app>`), `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`,
+and the variable `RESEARCH_AGENT_FLY_APP` (the Fly app name; `fly.toml`'s is
+a placeholder). The app's runtime secrets, including the optional `R2_*` set
+for letterhead logos, stay in Fly (`fly secrets set`).
+The deploy succeeds only once the machine passes the `/health` check in
+`fly.toml`; a failed check is not rolled back, so redeploy the previous image
+(`fly releases --image`, then `fly deploy --image <image>`).
+Its own `pnpm deploy` script still deploys by hand.
 
 ## Troubleshooting
 
@@ -430,7 +470,7 @@ startup, with the exception of the two marked otherwise.
 | ``Missing `DOCUMENSO_API_URL` / `DOCUMENSO_API_KEY` / `DOCUMENSO_WEBHOOK_SECRET` env variable`` | Signing is enabled. Start `docker/documenso` and fill these in, or set the signing flag to `false` |
 | ``Missing `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` env variable`` | Billing is enabled. Add test-mode Stripe keys or set the billing flag to `false` on both sides |
 | ``Missing `OPENROUTER_API_KEY` env variable`` | Thrown lazily on the first AI call, not at startup — the route returns 500. Add the key to the web app and the API server |
-| ``Missing `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_ACCOUNT_ID` / `R2_PUBLIC_URL` env variable`` | Thrown lazily on the first storage call — the upload or image route returns 500. Configure all five together |
+| ``Missing `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_ACCOUNT_ID` / `R2_PUBLIC_URL` env variable`` | Thrown lazily on the first storage call that needs the variable — the upload or image route returns 500. Uploads, deletes and storage URLs need all five; reading letterhead grid logos by key needs only the four credentials (without them those logos are left out, logged as `[storage] Object read failed`). Configure all five together |
 | ``Missing `AGENT_API_KEY` env variable`` | `apps/research-agent` only. Must match `RESEARCH_AGENT_SERVICE_API_KEY` on the API server |
 | ``Missing required Modal env variables: …`` | `apps/research-agent` only. Set `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, or `AGENT_LOCAL=true` for local development |
 | ``Missing model provider key: set ANTHROPIC_API_KEY or OPENROUTER_API_KEY.`` | `apps/research-agent` only. Set one of the two, or `AGENT_LOCAL=true` |

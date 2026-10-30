@@ -23,6 +23,31 @@ const PUBLIC_ROUTES = [
 // Logged-in users are sent home from these (verify handles sign-in itself).
 const LOGGED_OUT_ONLY_ROUTES = ["/login", "/register", "/check-email"];
 
+// The middleware guards pages only. API routes answer 401 themselves, the
+// Sentry tunnel reports errors from signed-out pages, and an invitation is
+// accepted before the invitee has an account.
+const UNGUARDED_ROUTES = ["/api", "/monitoring", "/invite"];
+
+// Files served from `public/` (`/brand/logo.svg`); slugs never contain a dot.
+const isStaticFile = (pathname: string) => {
+  return /\/[^/]+\.[^/]+$/.test(pathname);
+};
+
+/**
+ * Sends a signed-out visitor to login, keeping where they were going as a
+ * relative `callbackUrl` (the login form drops absolute ones).
+ */
+const redirectToLogin = (nextUrl: URL) => {
+  const loginUrl = new URL("/login", nextUrl);
+  if (nextUrl.pathname !== "/") {
+    loginUrl.searchParams.set(
+      "callbackUrl",
+      `${nextUrl.pathname}${nextUrl.search}`,
+    );
+  }
+  return Response.redirect(loginUrl);
+};
+
 export const authConfig = {
   pages: {
     signIn: "/login",
@@ -44,14 +69,23 @@ export const authConfig = {
         return Response.redirect(new URL("/", nextUrl as unknown as URL));
       }
 
-      if (isOnAnyRoute(PUBLIC_ROUTES)) {
+      if (
+        isOnAnyRoute(PUBLIC_ROUTES) ||
+        isOnAnyRoute(UNGUARDED_ROUTES) ||
+        isStaticFile(pathname)
+      ) {
         return true;
       }
 
       // Everything else, `/setup` and the dashboard at the root included,
-      // needs a session; returning false redirects to the login page. The
-      // profile completion check is handled by middleware.
-      return isLoggedIn;
+      // needs a session. Return the redirect rather than `false`: next-auth
+      // ignores `false` when the middleware passes its own handler to
+      // `auth()`, as middleware.ts does. The profile completion check is
+      // handled by middleware.
+      if (!isLoggedIn) {
+        return redirectToLogin(nextUrl as unknown as URL);
+      }
+      return true;
     },
   },
 } satisfies NextAuthConfig;

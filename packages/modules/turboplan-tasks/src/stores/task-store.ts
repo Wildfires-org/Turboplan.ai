@@ -49,6 +49,8 @@ interface TaskDataActions {
   // Data mutations with optimistic updates
   addMilestone: (milestone: MilestoneWithTasks) => void;
   updateMilestone: (milestoneId: string, updates: Partial<Milestone>) => void;
+  /** Swaps a milestone for `milestone` (new id included), keeping its tasks and UI state */
+  replaceMilestone: (milestoneId: string, milestone: Milestone) => void;
   removeMilestone: (milestoneId: string) => void;
 
   addTask: (milestoneId: string, task: Task) => void;
@@ -148,6 +150,25 @@ export const useTaskStore: () => TaskStore = create<TaskStore>()(
           if (milestone) {
             Object.assign(milestone, updates);
           }
+        }),
+
+      replaceMilestone: (milestoneId, replacement) =>
+        set((state) => {
+          const milestone = state.milestones.find((m) => m.id === milestoneId);
+          if (!milestone) {
+            return;
+          }
+          Object.assign(milestone, replacement, { tasks: milestone.tasks });
+
+          if (replacement.id === milestoneId) {
+            return;
+          }
+          state.expandedMilestones[replacement.id] =
+            state.expandedMilestones[milestoneId] ?? true;
+          state.milestonesOpenStatus[replacement.id] =
+            state.milestonesOpenStatus[milestoneId] ?? true;
+          delete state.expandedMilestones[milestoneId];
+          delete state.milestonesOpenStatus[milestoneId];
         }),
 
       removeMilestone: (milestoneId) =>

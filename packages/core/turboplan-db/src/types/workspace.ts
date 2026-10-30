@@ -4,6 +4,14 @@
  * Re-exports types and enums from database schemas.
  */
 
+// Reference-document letterhead analysis
+export type {
+  DocumentLetterheadStatus,
+  StoredLetterheadAnalysis,
+  StoredLetterheadCell,
+  StoredLetterheadGrid,
+  StoredLetterheadLine,
+} from "../schemas/workspace/letterhead-analysis";
 // Entity types
 export type { Office } from "../schemas/workspace/office";
 // Enums (runtime values)

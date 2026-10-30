@@ -9,7 +9,7 @@
     "start": "tsdown && dotenv -e .env.local -- node dist/local.js",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test 'unit-tests/*.test.ts'"
+    "test": "node --import tsx --experimental-test-module-mocks --test 'unit-tests/*.test.ts'"
   },
   "dependencies": {
     "@sentry/bun": "^10.70.0",

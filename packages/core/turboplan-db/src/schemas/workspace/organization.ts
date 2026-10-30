@@ -14,6 +14,7 @@ import {
 import { MAX_SLUG_LENGTH } from "../../constants";
 import { generatedImages } from "../core/generated-images";
 import { user } from "../core/user";
+import type { StoredLetterheadGrid } from "./letterhead-analysis";
 
 // Facts about an office/organization that generated documents keep needing
 // (signatory, comment contact, office hours, ...). Stored as jsonb on both
@@ -106,6 +107,12 @@ export const organization = pgTable(
       length: 7,
     }),
     documentProfile: jsonb("document_profile").$type<DocumentProfile>(),
+    // When set, the default letterhead is this grid ("Save as organization
+    // letterhead"); the layout/lines/contact/color fields above are ignored
+    // while it is set.
+    documentLetterheadGrid: jsonb(
+      "document_letterhead_grid",
+    ).$type<StoredLetterheadGrid>(),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => user.id),

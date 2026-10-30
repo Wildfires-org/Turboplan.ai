@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   effectiveSelection,
   libraryLetterheadToDocumentLetterhead,
+  normalizeLetterheadChoice,
   selectionFromRow,
 } from "../src/letterhead";
 import { libraryLetterheadSchema } from "../src/server/organizations/letterhead-validation";
@@ -19,21 +20,30 @@ describe("selectionFromRow", () => {
   });
 
   it("reads a row without a letterhead as none", () => {
-    assert.equal(selectionFromRow({ letterheadId: null }), "none");
+    assert.equal(
+      selectionFromRow({ letterheadId: null, useOwn: false }),
+      "none",
+    );
   });
 
   it("reads a row with a letterhead as its id", () => {
     assert.equal(
-      selectionFromRow({ letterheadId: LETTERHEAD_ID }),
+      selectionFromRow({ letterheadId: LETTERHEAD_ID, useOwn: false }),
       LETTERHEAD_ID,
     );
+  });
+
+  it("reads a row using the document's own copy as own", () => {
+    assert.equal(selectionFromRow({ letterheadId: null, useOwn: true }), "own");
   });
 });
 
 describe("effectiveSelection", () => {
-  it("passes default and none through", () => {
+  it("passes default, none and own through", () => {
     assert.equal(effectiveSelection("default", null, ORG_ID), "default");
     assert.equal(effectiveSelection("none", null, ORG_ID), "none");
+    assert.equal(effectiveSelection("own", null, ORG_ID), "own");
+    assert.equal(effectiveSelection("own", null, null), "own");
   });
 
   it("keeps a library letterhead of the project's organization", () => {
@@ -53,6 +63,28 @@ describe("effectiveSelection", () => {
   it("falls back to the default for a missing letterhead or organization", () => {
     assert.equal(effectiveSelection(LETTERHEAD_ID, null, ORG_ID), "default");
     assert.equal(effectiveSelection(LETTERHEAD_ID, ORG_ID, null), "default");
+  });
+});
+
+describe("normalizeLetterheadChoice", () => {
+  it("keeps none and a lowercased letterhead id", () => {
+    assert.equal(normalizeLetterheadChoice(" None "), "none");
+    assert.equal(
+      normalizeLetterheadChoice(LETTERHEAD_ID.toUpperCase()),
+      LETTERHEAD_ID,
+    );
+  });
+
+  it("never yields own: the model cannot pick the document's copy", () => {
+    for (const choice of ["own", "OWN", " own "]) {
+      assert.equal(normalizeLetterheadChoice(choice), "default");
+    }
+  });
+
+  it("reads missing, blank and unknown choices as the default", () => {
+    for (const choice of [undefined, null, "", "  ", "default", "partner"]) {
+      assert.equal(normalizeLetterheadChoice(choice), "default");
+    }
   });
 });
 

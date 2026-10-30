@@ -52,7 +52,13 @@ function PureEditor({
       const state = EditorState.create({
         doc: buildDocumentFromContent(content),
         plugins: [
-          ...exampleSetup({ schema: documentSchema, menuBar: false }),
+          // Escape belongs to the artifact panel (it closes it): the setup's
+          // own binding (select the parent node) would prevent its default.
+          ...exampleSetup({
+            schema: documentSchema,
+            menuBar: false,
+            mapKeys: { Escape: false },
+          }),
           inputRules({
             rules: [
               headingRule(1),

@@ -1,0 +1,2 @@
+- [Dist typecheck gotcha](dist-typecheck-gotcha.md) — app typecheck reads packages' dist types; rebuild with `tsdown --no-clean` first
+- [Research-source references](reference-letterhead-research-source.md) — research docs: web label + unselected letterhead copy; pending letterhead reported in result

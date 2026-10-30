@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 import type { Context } from "hono";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 import { getModel } from "@wildfires-org/turboplan-ai/server";
 import { getPrompt } from "@wildfires-org/turboplan-ai/services";
@@ -11,7 +12,10 @@ import {
 } from "@wildfires-org/turboplan-billing/server";
 
 import { createIpRateLimiter } from "../utils/ip-rate-limit.js";
-import { sanitizePromptInput } from "../utils/sanitize-prompt-input.js";
+import {
+  MAX_PROMPT_BODY_BYTES,
+  sanitizePromptInput,
+} from "../utils/sanitize-prompt-input.js";
 
 const ROUTE_NAME = "validate-prompt";
 
@@ -141,10 +145,17 @@ USER_PROMPT_END`;
   }
 };
 
+// Shared by both mounts. Counts chunked bodies too, not just content-length.
+const promptBodyLimit = bodyLimit({
+  maxSize: MAX_PROMPT_BODY_BYTES,
+  onError: (c) => c.json({ error: "Request body too large" }, 413),
+});
+
 // Private router (requires auth, mounted on private routes)
 const validateProjectPromptRouter = new Hono();
 validateProjectPromptRouter.post(
   "/validate-prompt",
+  promptBodyLimit,
   validateProjectPromptHandler,
 );
 
@@ -156,14 +167,18 @@ const checkPublicRateLimit = createIpRateLimiter({
   windowMs: 60_000,
   maxRequests: 10,
 });
-publicValidateProjectPromptRouter.post("/validate-prompt", async (c) => {
-  if (!checkPublicRateLimit(c)) {
-    return c.json(
-      { error: "Rate limit exceeded. Please try again later." },
-      429,
-    );
-  }
-  return validateProjectPromptHandler(c);
-});
+publicValidateProjectPromptRouter.post(
+  "/validate-prompt",
+  promptBodyLimit,
+  async (c) => {
+    if (!checkPublicRateLimit(c)) {
+      return c.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        429,
+      );
+    }
+    return validateProjectPromptHandler(c);
+  },
+);
 
 export { validateProjectPromptRouter, publicValidateProjectPromptRouter };

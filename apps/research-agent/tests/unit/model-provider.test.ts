@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getFastModelClientOptions,
   getFastModelId,
+  getLetterheadModelSettings,
   getModelProviderEnv,
   getModelProviderName,
   OPENROUTER_ANTHROPIC_BASE_URL,
@@ -150,5 +151,56 @@ describe("getModelProviderName", () => {
         OPENROUTER_API_KEY: "",
       }),
     ).toBe("anthropic");
+  });
+});
+
+describe("getLetterheadModelSettings", () => {
+  const env = {
+    ANTHROPIC_API_KEY: "sk-ant-direct",
+    OPENROUTER_API_KEY: "sk-or-key",
+    CLAUDE_FAST_MODEL: "claude-haiku-4-5-20251001",
+    CLAUDE_LETTERHEAD_MODEL: null,
+  };
+
+  it("falls back to the fast model, routed through OpenRouter", () => {
+    expect(getLetterheadModelSettings(env)).toEqual({
+      baseURL: OPENROUTER_ANTHROPIC_BASE_URL,
+      authToken: "sk-or-key",
+      model: "anthropic/claude-haiku-4.5",
+    });
+  });
+
+  it("is off without an OpenRouter key, never using the Anthropic key", () => {
+    expect(
+      getLetterheadModelSettings({
+        ...env,
+        OPENROUTER_API_KEY: "",
+        CLAUDE_LETTERHEAD_MODEL: "claude-haiku-4-5-20251001",
+      }),
+    ).toBeNull();
+  });
+
+  it("is off when CLAUDE_LETTERHEAD_MODEL is off, in any case", () => {
+    expect(
+      getLetterheadModelSettings({ ...env, CLAUDE_LETTERHEAD_MODEL: "off" }),
+    ).toBeNull();
+    expect(
+      getLetterheadModelSettings({ ...env, CLAUDE_LETTERHEAD_MODEL: "Off" }),
+    ).toBeNull();
+  });
+
+  it("is off when neither a letterhead nor a fast model is set", () => {
+    expect(
+      getLetterheadModelSettings({ ...env, CLAUDE_FAST_MODEL: null }),
+    ).toBeNull();
+  });
+
+  it("uses CLAUDE_LETTERHEAD_MODEL over the fast model", () => {
+    expect(
+      getLetterheadModelSettings({
+        ...env,
+        CLAUDE_LETTERHEAD_MODEL: "claude-sonnet-4-6",
+      })?.model,
+    ).toBe("anthropic/claude-sonnet-4.6");
   });
 });

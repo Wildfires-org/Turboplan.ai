@@ -11,7 +11,7 @@ import {
   isProjectContextPackageEnabled,
 } from "@wildfires-org/turboplan-feature-flags";
 import type {
-  Organization,
+  ClientOrganization,
   Project,
 } from "@wildfires-org/turboplan-workspace/types";
 
@@ -61,7 +61,7 @@ type ProjectRoute =
 interface SubviewBodyProps {
   route: ProjectRoute;
   project: Project | null;
-  organization: Organization | null;
+  organization: ClientOrganization | null;
   projectUrl: string;
   user: User | null;
 }

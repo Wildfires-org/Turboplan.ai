@@ -11,17 +11,22 @@ import {
 import { generatePdfFromMarkdown } from "@wildfires-org/turboplan-signing/pdf";
 import {
   appendOfficeDocumentProfileFact,
+  editDocumentOwnLetterhead,
   getDocumentLetterheadOverview,
   getProjectById,
   getProjectDocumentBranding,
   getProjectDocumentProfile,
   getProjectFooter,
-  resolveDocumentLetterhead,
+  resolveDocumentLetterheadLogo,
   setDocumentLetterheadSelection,
 } from "@wildfires-org/turboplan-workspace/server";
 import {
   buildLetterheadMarkdown,
   documentProfileToFacts,
+  gridLetterheadEditSchema,
+  LETTERHEAD_EDIT_CONFLICT_ERROR,
+  parseLetterheadLogoIndex,
+  toPublicDocumentLetterhead,
 } from "@wildfires-org/turboplan-workspace/types";
 
 // Bound the input so the synchronous markdown parser + PDFKit can't be driven
@@ -42,14 +47,30 @@ const exportPdfSchema = z.object({
   documentId: z.string().uuid().optional(),
 });
 
-const letterheadSelectionSchema = z.object({
+// "own" is the document's copy of its reference's letterhead; selecting it
+// without a copy is refused like an unknown letterhead (404).
+export const letterheadSelectionSchema = z.object({
   projectId: z.string().uuid(),
   selection: z.union([
     z.literal("default"),
     z.literal("none"),
+    z.literal("own"),
     z.string().uuid(),
   ]),
 });
+
+// PUT /:documentId/letterhead/own: the edited grid is parsed with the
+// workspace's `gridLetterheadEditSchema` on its own (see the handler).
+// `version`: the copy's `own.version` from GET /letterhead when the editor
+// opened (its `updated_at`, an ISO timestamp).
+const ownLetterheadEditBodySchema = z.object({
+  projectId: z.string().uuid(),
+  version: z.string().datetime(),
+  grid: z.unknown(),
+});
+
+// The same 409 body as an office/organization default grid's edit.
+export const OWN_LETTERHEAD_CONFLICT_ERROR = LETTERHEAD_EDIT_CONFLICT_ERROR;
 
 const rememberFactSchema = z.object({
   projectId: z.string().uuid(),
@@ -120,6 +141,7 @@ const exportPdfHandler = async (c: Context<RBACContext>) => {
         footer: branding.footer,
         logoPlacement: branding.logoPlacement,
         accentColor: branding.color ?? undefined,
+        gridLetterhead: branding.gridLetterhead ?? undefined,
       };
     }
 
@@ -147,6 +169,13 @@ const letterheadLogoHandler = async (c: Context<RBACContext>) => {
       return c.json({ error: "Invalid documentId" }, 400);
     }
 
+    // Optional `index`: a grid's logo cell (its `index` in GET /letterhead);
+    // a malformed one is a 400 before the permission check.
+    const index = parseLetterheadLogoIndex(c.req.query("index"));
+    if (index === null) {
+      return c.json({ error: "Invalid index" }, 400);
+    }
+
     // Require READ on the project — same RBAC contract as export-pdf — so the
     // endpoint can't leak an entity's branding to callers without project access.
     const permCheck = requirePermission(
@@ -159,14 +188,18 @@ const letterheadLogoHandler = async (c: Context<RBACContext>) => {
       return denied;
     }
 
-    const { logo } = await resolveDocumentLetterhead(
+    // `index` picks a grid's logo cell; every other letterhead (and a grid
+    // without logo cells) has its one logo at index 0. Only that logo is
+    // fetched.
+    const logo = await resolveDocumentLetterheadLogo(
       projectId,
       query.documentId,
+      index,
     );
 
     if (!logo) {
-      // No logo configured, letterhead "none", or unsupported/unreachable
-      // source.
+      // No logo configured, letterhead "none", no such logo cell, or
+      // unsupported/unreachable source.
       return c.body(null, 204);
     }
 
@@ -250,15 +283,26 @@ const letterheadHandler = async (c: Context<RBACContext>) => {
     );
 
     return c.json({
-      letterhead: overview.letterhead,
-      // null when there is no letterhead or it is a banner (a banner is the
-      // logo graphic, not a markdown table).
-      markdown: overview.letterhead
-        ? buildLetterheadMarkdown(overview.letterhead) || null
-        : null,
+      // A grid's logo cells go out as their `index` (served by
+      // /letterhead-logo?index=), never as the raw storage key.
+      letterhead:
+        overview.letterhead && toPublicDocumentLetterhead(overview.letterhead),
+      // null when there is no letterhead, it is a banner (a banner is the
+      // logo graphic, not a markdown table) or a grid (every renderer draws a
+      // grid from its structure).
+      markdown:
+        overview.letterhead && overview.letterhead.layout !== "grid"
+          ? buildLetterheadMarkdown(overview.letterhead) || null
+          : null,
       selection: overview.selection,
-      defaultLetterhead: overview.defaultLetterhead,
+      defaultLetterhead:
+        overview.defaultLetterhead &&
+        toPublicDocumentLetterhead(overview.defaultLetterhead),
       options: overview.options,
+      // The document's copy of its reference's letterhead, offered in the
+      // picker whatever is selected, with the version the letterhead editor
+      // sends back; null without one.
+      own: overview.own,
     });
   } catch (error) {
     console.error("[document-export] letterhead error:", error);
@@ -303,6 +347,68 @@ const setLetterheadHandler = async (c: Context<RBACContext>) => {
     return c.json({ selection });
   } catch (error) {
     console.error("[document-export] set letterhead error:", error);
+    return c.json({ error: "Failed to update letterhead" }, 500);
+  }
+};
+
+// PUT /:documentId/letterhead/own — replace the document's own copy of its
+// reference's letterhead with the letterhead editor's version (only that
+// document; the selection is left as it is). Body `{ projectId, version,
+// grid }`, the grid in the editor's shape: logo cells keep a stored logo by
+// `index` or bring a new upload of the caller by `url`. A document outside
+// the project and one without a copy answer the same 404 as PUT
+// /:documentId/letterhead; a copy that is no longer `version` a 409 (its
+// logo indexes may mean other logos now); an invalid grid a 400 naming the
+// offending field. 200: the saved letterhead and the copy's new version.
+const editOwnLetterheadHandler = async (c: Context<RBACContext>) => {
+  try {
+    const documentId = z.string().uuid().safeParse(c.req.param("documentId"));
+    const body = ownLetterheadEditBodySchema.safeParse(
+      await c.req.json().catch(() => null),
+    );
+    const grid = body.success
+      ? gridLetterheadEditSchema.safeParse(body.data.grid)
+      : null;
+    if (!documentId.success || !body.success || !grid?.success) {
+      return c.json({ error: "Invalid request body" }, 400);
+    }
+
+    const { projectId, version } = body.data;
+    const permCheck = requirePermission(
+      EntityType.PROJECT,
+      Action.UPDATE,
+      () => projectId,
+    );
+    const denied = await permCheck(c, async () => {});
+    if (denied) {
+      return denied;
+    }
+
+    const result = await editDocumentOwnLetterhead({
+      projectId,
+      documentId: documentId.data,
+      version,
+      edit: grid.data,
+      userId: c.get("user").userId,
+    });
+    if (!result.ok) {
+      switch (result.reason) {
+        case "not_found":
+          return c.json({ error: "Document or letterhead not found" }, 404);
+        case "conflict":
+          return c.json({ error: OWN_LETTERHEAD_CONFLICT_ERROR }, 409);
+        default:
+          return c.json({ error: result.message, field: result.field }, 400);
+      }
+    }
+
+    // As GET /letterhead sends it: logo cells by `index`, never a URL.
+    return c.json({
+      letterhead: toPublicDocumentLetterhead(result.letterhead),
+      version: result.version,
+    });
+  } catch (error) {
+    console.error("[document-export] edit own letterhead error:", error);
     return c.json({ error: "Failed to update letterhead" }, 500);
   }
 };
@@ -385,6 +491,10 @@ documentExportRouter.get("/letterhead-logo", letterheadLogoHandler);
 documentExportRouter.get("/footer", footerHandler);
 documentExportRouter.get("/letterhead", letterheadHandler);
 documentExportRouter.put("/:documentId/letterhead", setLetterheadHandler);
+documentExportRouter.put(
+  "/:documentId/letterhead/own",
+  editOwnLetterheadHandler,
+);
 documentExportRouter.get("/profile", profileHandler);
 documentExportRouter.post("/remember-fact", rememberFactHandler);
 
