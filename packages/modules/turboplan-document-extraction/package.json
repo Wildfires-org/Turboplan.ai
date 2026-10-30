@@ -45,17 +45,17 @@
     }
   },
   "dependencies": {
-    "mammoth": "^1.12.0",
-    "unpdf": "^1.6.2",
+    "mammoth": "^1.13.0",
+    "unpdf": "^1.9.1",
     "word-extractor": "1.0.4",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.4",
     "@types/node": "^20.10.5",
     "@types/word-extractor": "^1.0.6",
     "tsdown": "^0.15.9",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.3.3"
   }
 }

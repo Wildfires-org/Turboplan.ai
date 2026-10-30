@@ -35,10 +35,10 @@
     "@wildfires-org/turboplan-rbac": "workspace:*",
     "@wildfires-org/turboplan-utils": "workspace:*",
     "@wildfires-org/turboplan-workspace": "workspace:*",
-    "@hono/zod-validator": "^0.8.0",
-    "drizzle-orm": "^0.45.2",
+    "@hono/zod-validator": "^0.9.1",
+    "drizzle-orm": "^0.45.4",
     "hono": "^4.6.3",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "framer-motion": "^11.3.19",
@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
-    "@types/react": "^19.1.1",
+    "@types/react": "^19.3.0",
     "rollup-plugin-preserve-use-client": "^3.0.1",
     "tsdown": "^0.15.9",
     "typescript": "^5.3.3"
