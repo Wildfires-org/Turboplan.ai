@@ -24,6 +24,18 @@ const assertRedirectsHome = (result: ReturnType<typeof authorize>) => {
   assert.strictEqual(result.headers.get("location"), `${APP_ORIGIN}/`);
 };
 
+/** Asserts a redirect to login carrying `callbackUrl` (none for `/`). */
+const assertRedirectsToLogin = (
+  result: ReturnType<typeof authorize>,
+  callbackUrl: string | null,
+) => {
+  assert.ok(result instanceof Response, "expected a redirect Response");
+  const location = new URL(result.headers.get("location") ?? "");
+  assert.strictEqual(location.origin, APP_ORIGIN);
+  assert.strictEqual(location.pathname, "/login");
+  assert.strictEqual(location.searchParams.get("callbackUrl"), callbackUrl);
+};
+
 describe("isOnRoute", () => {
   it("matches the route itself", () => {
     assert.strictEqual(isOnRoute("/login", "/login"), true);
@@ -92,23 +104,56 @@ describe("authConfig.callbacks.authorized", () => {
 
     it("matches on the pathname only, ignoring the query string", () => {
       assert.strictEqual(authorize("/verify?token=abc", false), true);
-      assert.strictEqual(authorize("/usfs?next=/login", false), false);
+      assertRedirectsToLogin(
+        authorize("/usfs?next=/login", false),
+        "/usfs?next=/login",
+      );
     });
 
     it("requires a session for org slugs that start with a public route name", () => {
-      assert.strictEqual(authorize("/verifyco", false), false);
-      assert.strictEqual(authorize("/registered-agents", false), false);
-      assert.strictEqual(authorize("/login-team/office", false), false);
+      assertRedirectsToLogin(authorize("/verifyco", false), "/verifyco");
+      assertRedirectsToLogin(
+        authorize("/registered-agents", false),
+        "/registered-agents",
+      );
+      assertRedirectsToLogin(
+        authorize("/login-team/office", false),
+        "/login-team/office",
+      );
     });
 
-    it("requires a session for the dashboard and setup", () => {
-      assert.strictEqual(authorize("/", false), false);
-      assert.strictEqual(authorize("/usfs", false), false);
-      assert.strictEqual(
+    it("sends the dashboard, profile and setup to login, keeping the target", () => {
+      assertRedirectsToLogin(authorize("/", false), null);
+      assertRedirectsToLogin(authorize("/usfs", false), "/usfs");
+      assertRedirectsToLogin(
         authorize("/usfs/my-projects/jackson-creek", false),
-        false,
+        "/usfs/my-projects/jackson-creek",
       );
-      assert.strictEqual(authorize("/setup/personal", false), false);
+      assertRedirectsToLogin(authorize("/profile", false), "/profile");
+      assertRedirectsToLogin(
+        authorize("/setup/personal", false),
+        "/setup/personal",
+      );
+    });
+
+    it("leaves API routes, the Sentry tunnel and invitations alone", () => {
+      assert.strictEqual(authorize("/api/auth/token", false), true);
+      assert.strictEqual(authorize("/api/chat", false), true);
+      assert.strictEqual(authorize("/monitoring?o=1", false), true);
+      assert.strictEqual(authorize("/invite/abc123", false), true);
+    });
+
+    it("serves static files from public/", () => {
+      assert.strictEqual(authorize("/brand/logo.svg", false), true);
+      assert.strictEqual(authorize("/images/hero.webp", false), true);
+    });
+
+    it("guards org slugs that start with an unguarded route name", () => {
+      assertRedirectsToLogin(authorize("/apiary", false), "/apiary");
+      assertRedirectsToLogin(
+        authorize("/invited-guests", false),
+        "/invited-guests",
+      );
     });
   });
 });
