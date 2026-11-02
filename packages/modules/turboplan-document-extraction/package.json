@@ -51,10 +51,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.1.4",
-    "@types/node": "^20.10.5",
+    "@biomejs/biome": "^2.6.4",
+    "@types/node": "^26.6.6",
     "@types/word-extractor": "^1.0.6",
-    "tsdown": "^0.15.9",
+    "tsdown": "^0.23.4",
     "tsx": "^4.21.0",
     "typescript": "^5.3.3"
   }
