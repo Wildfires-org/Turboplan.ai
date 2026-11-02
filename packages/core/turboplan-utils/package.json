@@ -71,11 +71,11 @@
     "access": "restricted"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.1.4",
+    "@biomejs/biome": "^2.6.4",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "rollup-plugin-preserve-use-client": "^3.0.1",
-    "tsdown": "^0.15.9",
+    "tsdown": "^0.23.4",
     "tsx": "^4.19.1",
     "typescript": "^5"
   }

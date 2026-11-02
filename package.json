@@ -39,12 +39,12 @@
     "pnpm": ">=10.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.1.4",
-    "@changesets/cli": "^3.0.2",
-    "@opennextjs/cloudflare": "^1.20.13",
+    "@biomejs/biome": "2.6.4",
+    "@changesets/cli": "^3.0.3",
+    "@opennextjs/cloudflare": "^1.20.14",
     "husky": "^9.1.7",
     "turbo": "^2.9.14",
-    "wrangler": "^4.151.3"
+    "wrangler": "^4.156.0"
   },
   "workspaces": [
     "packages/core/*",
