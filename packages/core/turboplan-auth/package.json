@@ -65,10 +65,10 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
-    "@types/react": "^19.1.1",
+    "@types/react": "^19.3.0",
     "rollup-plugin-preserve-use-client": "^3.0.1",
     "tsdown": "^0.15.9",
-    "tsx": "^4.19.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.3.3"
   }
 }
