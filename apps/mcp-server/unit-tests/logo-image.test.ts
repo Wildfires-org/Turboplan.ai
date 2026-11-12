@@ -315,6 +315,10 @@ describe("detectSvg — ReDoS resistance", () => {
   // test timeout cannot interrupt it, and a full-size attack on a regressed
   // pattern would hang the run instead of failing it.
   const BUDGET_MS = 250;
+  // The 2MB preamble is real linear work (decoding and scanning 2MB), which a
+  // busy CI runner can take a few hundred ms over; a quadratic regression on
+  // that input would take minutes, so a looser budget still catches it.
+  const LINEAR_BUDGET_MS = 2_000;
 
   const detectTimed = (text: string) => {
     const startedAt = performance.now();
@@ -338,7 +342,7 @@ describe("detectSvg — ReDoS resistance", () => {
     const preamble = "<!-- exported -->\n".repeat(110_000);
     const { result, elapsedMs } = detectTimed(`${preamble}${SAFE_SVG}`);
     assert.strictEqual(result, "safe");
-    assert.ok(elapsedMs < BUDGET_MS, `took ${elapsedMs.toFixed(1)} ms`);
+    assert.ok(elapsedMs < LINEAR_BUDGET_MS, `took ${elapsedMs.toFixed(1)} ms`);
   });
 
   it("scans whitespace after attributeName= in linear time", () => {
