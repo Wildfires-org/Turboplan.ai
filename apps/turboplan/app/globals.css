@@ -48,7 +48,7 @@ main[class*="overflow-auto"] {
     --glass-blur: blur(18px) saturate(160%);
     --glass-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.95),
-      0 10px 30px -12px rgba(21, 102, 71, 0.18);
+      0 10px 30px -12px rgba(26, 59, 33, 0.18);
 
     --glass-card-radius: 1rem;
     --glass-card-bg: rgba(255, 255, 255, 0.58);
@@ -131,23 +131,24 @@ main[class*="overflow-auto"] {
     box-shadow: var(--glass-inset-shadow);
   }
 
-  /* Filled primary CTA. Pair with `press` (owns the opacity transition). */
+  /* Filled primary CTA: the Wildfires.org forest gradient. Pair with
+     `press` (owns the opacity transition). */
   .btn-primary {
     background-image: linear-gradient(
       135deg,
-      #1d8a60 0%,
-      #1b845c 25%,
-      #156647 65%,
-      #0f4832 100%
+      #2a5a33 0%,
+      #1a3b21 30%,
+      #152f1a 65%,
+      #0f2314 100%
     );
     color: #fff;
     box-shadow:
-      inset 0 2px 2px 0 rgba(255, 255, 255, 0.25),
-      0 6px 16px -8px rgba(15, 72, 50, 0.45);
+      inset 0 2px 2px 0 rgba(255, 255, 255, 0.18),
+      0 6px 16px -8px rgba(15, 35, 20, 0.5);
   }
 
   .btn-primary:focus-visible {
-    outline: 2px solid #209e6e;
+    outline: 2px solid #ff8000;
     outline-offset: 2px;
   }
 
@@ -179,7 +180,7 @@ main[class*="overflow-auto"] {
   }
 }
 
-/* Range input on glass: pressed-in track with a brand-gradient fill up to
+/* Range input on glass: pressed-in track with an orange fill up to
    `--range-fill` (set by the component, 0%-100%) and a white glass thumb. */
 @layer utilities {
   .glass-range {
@@ -198,7 +199,7 @@ main[class*="overflow-auto"] {
     height: 8px;
     border-radius: 9999px;
     background:
-      linear-gradient(90deg, #1d8a60, #156647) 0 0 / var(--range-fill) 100%
+      linear-gradient(90deg, #ff8000, #c25e00) 0 0 / var(--range-fill) 100%
         no-repeat,
       var(--glass-inset-bg);
     box-shadow: var(--glass-inset-shadow);
@@ -214,7 +215,7 @@ main[class*="overflow-auto"] {
   .glass-range::-moz-range-progress {
     height: 8px;
     border-radius: 9999px;
-    background: linear-gradient(90deg, #1d8a60, #156647);
+    background: linear-gradient(90deg, #ff8000, #c25e00);
   }
 
   .glass-range::-webkit-slider-thumb {
@@ -224,10 +225,10 @@ main[class*="overflow-auto"] {
     margin-top: -6px;
     border: 1.5px solid #fff;
     border-radius: 9999px;
-    background: linear-gradient(180deg, #fff, #f1f7f4);
+    background: linear-gradient(180deg, #fff, #fbfaf8);
     box-shadow:
-      0 0 0 1px rgba(21, 102, 71, 0.18),
-      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+      0 0 0 1px rgba(26, 59, 33, 0.18),
+      0 4px 10px -2px rgba(15, 35, 20, 0.28);
     transition:
       scale 160ms var(--ease-press),
       box-shadow 200ms ease;
@@ -238,10 +239,10 @@ main[class*="overflow-auto"] {
     height: 20px;
     border: 1.5px solid #fff;
     border-radius: 9999px;
-    background: linear-gradient(180deg, #fff, #f1f7f4);
+    background: linear-gradient(180deg, #fff, #fbfaf8);
     box-shadow:
-      0 0 0 1px rgba(21, 102, 71, 0.18),
-      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+      0 0 0 1px rgba(26, 59, 33, 0.18),
+      0 4px 10px -2px rgba(15, 35, 20, 0.28);
     transition:
       scale 160ms var(--ease-press),
       box-shadow 200ms ease;
@@ -257,16 +258,16 @@ main[class*="overflow-auto"] {
 
   .glass-range:focus-visible::-webkit-slider-thumb {
     box-shadow:
-      0 0 0 1px rgba(21, 102, 71, 0.18),
-      0 0 0 4px rgba(32, 158, 110, 0.35),
-      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+      0 0 0 1px rgba(26, 59, 33, 0.18),
+      0 0 0 4px rgba(255, 128, 0, 0.35),
+      0 4px 10px -2px rgba(15, 35, 20, 0.28);
   }
 
   .glass-range:focus-visible::-moz-range-thumb {
     box-shadow:
-      0 0 0 1px rgba(21, 102, 71, 0.18),
-      0 0 0 4px rgba(32, 158, 110, 0.35),
-      0 4px 10px -2px rgba(15, 40, 30, 0.28);
+      0 0 0 1px rgba(26, 59, 33, 0.18),
+      0 0 0 4px rgba(255, 128, 0, 0.35),
+      0 4px 10px -2px rgba(15, 35, 20, 0.28);
   }
 }
 
@@ -789,7 +790,7 @@ main[class*="overflow-auto"] {
   line-height: 34px !important;
   font-size: 18px !important;
   font-weight: 500;
-  color: #1b845c !important;
+  color: #9a4a00 !important;
   background: rgba(255, 255, 255, 0.75) !important;
   border: 1px solid rgba(255, 255, 255, 0.85) !important;
   border-radius: 12px !important;
@@ -812,7 +813,7 @@ main[class*="overflow-auto"] {
 }
 
 .leaflet-control-zoom.leaflet-bar a:focus-visible {
-  outline: 2px solid #209e6e;
+  outline: 2px solid #ff8000;
   outline-offset: 2px;
 }
 
@@ -891,7 +892,7 @@ main[class*="overflow-auto"] {
   /* Table + code block shells: glass card, content on a white inset. */
   .chat-prose [data-streamdown="table-wrapper"],
   .chat-prose [data-streamdown="code-block"] {
-    @apply gap-1.5 rounded-2xl border border-white/90 bg-white/55 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(21,102,71,0.25)] dark:border-white/10 dark:bg-slate-950/60;
+    @apply gap-1.5 rounded-2xl border border-white/90 bg-white/55 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(26,59,33,0.25)] dark:border-white/10 dark:bg-slate-950/60;
   }
 
   .chat-prose [data-streamdown="table-wrapper"] > div:last-child,

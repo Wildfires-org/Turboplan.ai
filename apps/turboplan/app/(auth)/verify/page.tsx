@@ -2,11 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react";
 
-import { CircleCheck, XCircle } from "lucide-react";
-import Image from "next/image";
+import { Check, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { BrandMark } from "@/components/brand-mark";
 import { verifyMagicLink } from "../actions";
 
 type VerifyStatus = "loading" | "success" | "error" | "invalid" | "expired";
@@ -70,29 +70,12 @@ const VerifyContent = () => {
   const isError =
     status === "error" || status === "invalid" || status === "expired";
 
-  const getBeaverSrc = () => {
-    if (status === "loading") {
-      return "/images/auth/beaver-verifying.gif";
-    }
-    if (status === "success") {
-      return "/images/auth/beaver-success.png";
-    }
-    return "/images/auth/beaver-failed.png";
-  };
-
   return (
     <>
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-3 text-center">
         {status === "loading" && (
           <>
-            <Image
-              src={getBeaverSrc()}
-              alt=""
-              width={111}
-              height={120}
-              className="mb-2"
-              unoptimized
-            />
+            <BrandMark pulse className="mb-2" />
             <h1 className="text-2xl font-bold text-gray-950">Verifying...</h1>
             <p className="text-sm text-neutral-400">
               Please wait while we verify your link
@@ -102,9 +85,10 @@ const VerifyContent = () => {
 
         {status === "success" && (
           <>
-            <div className="flex items-center justify-center rounded-full bg-brandAlt-100 p-3">
-              <CircleCheck className="size-8 text-brandAlt-500" />
-            </div>
+            <BrandMark
+              badge={{ icon: Check, tone: "success" }}
+              className="mb-2"
+            />
             <h1 className="text-2xl font-bold text-gray-950">
               {type === "verification" ? "Email verified!" : "Signed in!"}
             </h1>
@@ -114,9 +98,10 @@ const VerifyContent = () => {
 
         {isError && (
           <>
-            <div className="flex items-center justify-center rounded-full bg-error-100 p-3">
-              <XCircle className="size-8 text-red-500" />
-            </div>
+            <BrandMark
+              badge={{ icon: TriangleAlert, tone: "error" }}
+              className="mb-2"
+            />
             <h1 className="text-2xl font-bold text-gray-950">
               Verification failed
             </h1>
@@ -141,17 +126,6 @@ const VerifyContent = () => {
             Create a new account
           </Link>
         </p>
-      )}
-
-      {status !== "loading" && (
-        <Image
-          src={getBeaverSrc()}
-          alt=""
-          width={166}
-          height={168}
-          className="absolute -bottom-4 -right-16 pointer-events-none hidden sm:block"
-          unoptimized
-        />
       )}
     </>
   );

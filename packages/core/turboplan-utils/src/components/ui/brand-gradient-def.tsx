@@ -4,12 +4,14 @@ import { useId } from "react";
 
 import type { LucideIcon, LucideProps } from "lucide-react";
 
+// Wildfires.org orange, light to deep: the `bg-brand-special` accent and the
+// stroke of `BrandGradientIcon`.
 export const BRAND_GRADIENT = {
   angle: "115.33deg",
   stops: [
-    { offset: "0%", color: "#49F3A1" },
-    { offset: "54%", color: "#2CBCFF" },
-    { offset: "100%", color: "#FFDF2C" },
+    { offset: "0%", color: "#FFB366" },
+    { offset: "54%", color: "#FF8000" },
+    { offset: "100%", color: "#C25E00" },
   ],
 } as const;
 

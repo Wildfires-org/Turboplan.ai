@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Tags } from "lucide-react";
 import { toast } from "sonner";
 
-import { Skeleton } from "@wildfires-org/turboplan-utils";
+import {
+  EMPTY_STATE_ICON_CLASS,
+  Skeleton,
+} from "@wildfires-org/turboplan-utils";
 
 import { useProjectFields } from "../hooks";
 import { FieldRow } from "./field-row";
@@ -91,22 +94,17 @@ export function ProjectFields({
   // Empty state
   if (fields.length === 0 && !isLoading) {
     return (
-      <div className="group relative flex min-h-[220px] items-center justify-center overflow-hidden py-8">
+      <div className="flex min-h-[220px] items-center justify-center py-8">
         <div className="flex flex-col items-center gap-1.5 text-center">
+          <span aria-hidden className={`${EMPTY_STATE_ICON_CLASS} mb-1.5`}>
+            <Tags />
+          </span>
           <h3 className="text-[15px] font-medium leading-6 tracking-[-0.01em] text-foreground">
             No fields yet
           </h3>
           <p className="max-w-xs text-[13px] leading-5 text-gray-600">
             Add custom fields to capture project metadata.
           </p>
-        </div>
-        <div className="pointer-events-none absolute bottom-0 right-6 translate-y-full transition-transform duration-300 ease-out group-hover:translate-y-[10%]">
-          <img
-            src="/images/shocked-beaver.png"
-            alt=""
-            width={118}
-            height={129}
-          />
         </div>
       </div>
     );
@@ -116,7 +114,7 @@ export function ProjectFields({
     <button
       type="button"
       onClick={() => setShowAll(!showAll)}
-      className="flex w-full items-center justify-center gap-1 rounded-xl border border-white/85 bg-white/55 px-5 py-2 text-sm font-medium text-brand-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(21,102,71,0.18)] transition-[background-color,transform] hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 active:scale-[0.97] motion-reduce:active:scale-100"
+      className="flex w-full items-center justify-center gap-1 rounded-xl border border-white/85 bg-white/55 px-5 py-2 text-sm font-medium text-brand-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(26,59,33,0.18)] transition-[background-color,transform] hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 active:scale-[0.97] motion-reduce:active:scale-100"
     >
       {showAll ? (
         <>

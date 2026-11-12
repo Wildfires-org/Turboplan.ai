@@ -4,8 +4,8 @@ import { useState } from "react";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, CircleChevronDown, CircleChevronUp } from "lucide-react";
-import Image from "next/image";
 
+import { BrandMark } from "@/components/brand-mark";
 import { cn } from "@/lib/utils";
 
 type StepStatus = "completed" | "active" | "pending";
@@ -106,7 +106,7 @@ export const ProjectSetupBanner = ({
       <div className="absolute inset-x-0 top-0 px-4 pt-3">
         <div
           className={cn(
-            // Glass strip (landing `glass`), mint-tinted like the page ground.
+            // Glass strip (landing `glass`), cream-tinted like the page ground.
             "glass relative overflow-hidden rounded-2xl bg-brandAlt-100/80",
           )}
         >
@@ -163,15 +163,11 @@ export const ProjectSetupBanner = ({
             )}
           </button>
 
-          {/* Mascot image - visible when expanded */}
+          {/* Logo mark in the corner of the expanded checklist */}
           {isExpanded && (
-            <Image
-              src="/images/project-setup.png"
-              alt=""
-              width={380}
-              height={410}
-              className="absolute -right-4 -bottom-4 pointer-events-none select-none"
-              priority
+            <BrandMark
+              size={64}
+              className="pointer-events-none absolute bottom-[18px] right-[18px] max-sm:hidden"
             />
           )}
 

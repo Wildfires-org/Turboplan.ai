@@ -15,6 +15,7 @@ import {
   formatGisResult,
   formatSkippedLayers,
   getDocumentDedupeKey,
+  getDropDestinationHint,
   getDropRowStatus,
   getDropRowTypeLabel,
   getGisResultMessage,
@@ -455,5 +456,33 @@ describe("planDrop", () => {
       ALL_ENABLED,
     );
     assert.strictEqual(plan[0].phase, "queued");
+  });
+});
+
+describe("getDropDestinationHint", () => {
+  it("mentions the project map only when the map module is on", () => {
+    const withMaps = getDropDestinationHint(ALL_ENABLED);
+    assert.match(withMaps, /read by the assistant/);
+    assert.match(withMaps, /GIS layers go straight onto the project map/);
+
+    const withoutMaps = getDropDestinationHint({
+      acceptsDocuments: true,
+      acceptsGisLayers: false,
+    });
+    assert.strictEqual(
+      withoutMaps,
+      "Documents are added to the project and read by the assistant.",
+    );
+    assert.doesNotMatch(withoutMaps, /GIS|map/);
+  });
+
+  it("describes only GIS layers when documents are off", () => {
+    assert.strictEqual(
+      getDropDestinationHint({
+        acceptsDocuments: false,
+        acceptsGisLayers: true,
+      }),
+      "GIS layers go straight onto the project map.",
+    );
   });
 });

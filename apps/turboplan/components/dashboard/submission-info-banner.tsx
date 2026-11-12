@@ -146,7 +146,7 @@ export const SubmissionInfoBanner = ({
               <Button
                 variant="outline"
                 size="sm"
-                className="border-brand-100 bg-brand-50 text-brand-700 hover:bg-green-100 hover:text-brand-700"
+                className="border-brand-100 bg-brand-50 text-brand-700 hover:bg-brand-100 hover:text-brand-700"
                 onClick={() => setShowApproveDialog(true)}
                 disabled={isMutating}
               >

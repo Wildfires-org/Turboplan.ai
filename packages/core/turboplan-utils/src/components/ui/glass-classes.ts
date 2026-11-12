@@ -23,7 +23,11 @@ export const GLASS_CARD_CLASS =
 
 /** Light glass for pills, chips and secondary buttons. */
 export const GLASS_CLASS =
-  "border border-white/85 bg-white/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(21,102,71,0.18)] backdrop-blur-[18px] backdrop-saturate-[1.6] dark:border-white/10 dark:bg-slate-950/60 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]";
+  "border border-white/85 bg-white/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(26,59,33,0.18)] backdrop-blur-[18px] backdrop-saturate-[1.6] dark:border-white/10 dark:bg-slate-950/60 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]";
+
+/** Small glass disc holding a muted icon above an empty state's title. */
+export const EMPTY_STATE_ICON_CLASS =
+  "flex size-10 items-center justify-center rounded-full border border-white/85 bg-white/55 text-brand-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] dark:border-white/10 dark:bg-white/5 dark:text-brand-300 [&_svg]:size-5";
 
 /** Floating menus (dropdown, select, popover): near-opaque so menu text stays
  * legible over any content, with the glass edge + a soft drop. */
@@ -34,14 +38,14 @@ export const GLASS_POPOVER_CLASS =
 export const GLASS_MENU_ITEM_CLASS =
   "rounded-lg focus:bg-brandAlt-100 focus:text-brand-900 data-[highlighted]:bg-brandAlt-100 data-[highlighted]:text-brand-900 dark:focus:bg-white/10 dark:focus:text-white";
 
-/** Modal overlay: light green-tinted blur instead of a heavy black scrim. */
+/** Modal overlay: light forest-tinted blur instead of a heavy black scrim. */
 export const GLASS_OVERLAY_CLASS =
-  "bg-[rgba(15,40,30,0.18)] backdrop-blur-sm dark:bg-black/60";
+  "bg-[rgba(15,35,20,0.18)] backdrop-blur-sm dark:bg-black/60";
 
 /** Modal surface: glass-card edge + shadow at a larger radius, near-opaque
  * (a translucent card reads grey over the overlay). */
 export const GLASS_DIALOG_SURFACE_CLASS =
-  "rounded-[24px] border-[1.5px] border-white bg-white/[0.94] shadow-[0_32px_80px_-32px_rgba(15,40,30,0.38),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.94]";
+  "rounded-[24px] border-[1.5px] border-white bg-white/[0.94] shadow-[0_32px_80px_-32px_rgba(15,35,20,0.38),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.94]";
 
 /** Modal enter/exit: opacity + scale .96 -> 1, 200ms strong ease-out, centered
  * origin. The slide-*-1/2 pair only re-applies the -50% centering translate

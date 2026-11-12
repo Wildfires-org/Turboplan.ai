@@ -17,7 +17,7 @@ export const PAGE_CONTAINER_CLASS = "container mx-auto px-6";
 export const PAGE_TITLE_CLASS =
   "text-[26px] font-medium leading-[1.15] tracking-[-0.03em] text-foreground text-balance sm:text-[30px]";
 
-/** Lead paragraph under a page title (egray-700: >= 4.5:1 on white/mint). */
+/** Lead paragraph under a page title (egray-700: >= 4.5:1 on white/cream). */
 export const PAGE_LEAD_CLASS = "text-[14px] leading-[21px] text-gray-550";
 
 /** Sticky tabs/search/filter band under the entity header. Same ground as the
@@ -76,7 +76,7 @@ export const SEGMENT_CLASS =
   "press inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 [&_svg]:size-4";
 
 export const SEGMENT_ACTIVE_CLASS =
-  "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(21,102,71,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white";
+  "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(26,59,33,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white";
 
 export const SEGMENT_INACTIVE_CLASS =
   "text-gray-550 hover:bg-white/60 hover:text-foreground dark:text-slate-300 dark:hover:bg-white/10";
@@ -105,10 +105,10 @@ export const PANEL_TITLE_CLASS =
 export const FLUSH_PANEL_CLASS = "glass-card overflow-hidden rounded-[20px]";
 
 /** Toast surface: popover-grade glass (near-opaque so it reads over any page)
- * with a soft green-tinted drop. Shared by our custom toasts and the default
+ * with a soft forest-tinted drop. Shared by our custom toasts and the default
  * sonner toasts styled through the Toaster. */
 export const TOAST_SURFACE_CLASS =
-  "flex items-center gap-3 rounded-2xl border-[1.5px] border-white bg-white/[0.92] py-2.5 pl-2.5 pr-4 text-[13px] leading-5 text-foreground shadow-[0_18px_48px_-20px_rgba(15,40,30,0.32),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.92]";
+  "flex items-center gap-3 rounded-2xl border-[1.5px] border-white bg-white/[0.92] py-2.5 pl-2.5 pr-4 text-[13px] leading-5 text-foreground shadow-[0_18px_48px_-20px_rgba(15,35,20,0.32),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.92]";
 
 /** Round icon badge at the start of a toast, tinted by type. */
 export const TOAST_ICON_CLASS =

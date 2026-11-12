@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 
-import Image from "next/image";
+import { ListChecks } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
 
@@ -21,7 +21,11 @@ import {
 import { useProjectTasksUI } from "@wildfires-org/turboplan-tasks/hooks";
 import { TasksProvider } from "@wildfires-org/turboplan-tasks/providers";
 import type { TaskInviteContext } from "@wildfires-org/turboplan-tasks/types";
-import { Button, SuggestionPills } from "@wildfires-org/turboplan-utils";
+import {
+  Button,
+  EMPTY_STATE_ICON_CLASS,
+  SuggestionPills,
+} from "@wildfires-org/turboplan-utils";
 import {
   type MembersDialogMode,
   useEmptyStateSuggestions,
@@ -218,9 +222,12 @@ export function ProjectTasks({
     ];
 
     return (
-      <div className="group relative min-h-[220px] flex items-center justify-center overflow-hidden">
+      <div className="min-h-[220px] flex items-center justify-center overflow-hidden">
         <div className="flex flex-col items-center gap-5 text-center">
           <div className="flex flex-col items-center gap-1.5">
+            <span aria-hidden className={cn(EMPTY_STATE_ICON_CLASS, "mb-1.5")}>
+              <ListChecks />
+            </span>
             <h3 className={EMPTY_STATE_TITLE_CLASS}>No tasks assigned</h3>
             {readOnly ? (
               <p className={cn(EMPTY_STATE_TEXT_CLASS, "max-w-xs")}>
@@ -243,15 +250,6 @@ export function ProjectTasks({
               onSuggestionClick={handleSuggestionClick}
             />
           )}
-        </div>
-        {/* Beaver slides in from bottom on hover */}
-        <div className="pointer-events-none absolute bottom-0 right-6 translate-y-full transition-transform duration-300 ease-out group-hover:translate-y-[10%]">
-          <Image
-            src="/images/shocked-beaver.png"
-            alt=""
-            width={118}
-            height={129}
-          />
         </div>
       </div>
     );

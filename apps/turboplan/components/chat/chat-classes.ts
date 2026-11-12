@@ -24,4 +24,4 @@ export const RESEARCH_PANE_DEFAULT_WIDTH_CLASS = "w-[595px]";
 
 /** User turn: white glass bubble, squared off toward the sender. */
 export const USER_BUBBLE_SHELL_CLASS =
-  "rounded-2xl rounded-br-md border border-white/90 bg-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(21,102,71,0.3)] dark:border-white/10 dark:bg-slate-900/70";
+  "rounded-2xl rounded-br-md border border-white/90 bg-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(26,59,33,0.3)] dark:border-white/10 dark:bg-slate-900/70";

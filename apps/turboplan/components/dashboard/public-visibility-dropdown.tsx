@@ -152,8 +152,7 @@ export function PublicVisibilityDropdown({
             <div
               className={cn(
                 "relative rounded-xl",
-                isPublic &&
-                  "bg-[linear-gradient(115deg,#49F3A1_0.42%,#2CBCFF_53.83%,#FFDF2C_109.33%)] p-[2px]",
+                isPublic && "bg-brand-special p-[2px]",
               )}
             >
               <button

@@ -137,7 +137,7 @@ export function ProfilePhotoUpload({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
       {/* Avatar */}
       <div className="relative shrink-0 self-start sm:self-auto">
-        <Avatar className="size-20 ring-4 ring-white shadow-[0_10px_30px_-12px_rgba(21,102,71,0.35)] dark:ring-slate-900">
+        <Avatar className="size-20 ring-4 ring-white shadow-[0_10px_30px_-12px_rgba(26,59,33,0.35)] dark:ring-slate-900">
           <AvatarImage src={previewUrl || ""} alt="Profile photo" />
           <AvatarFallback className="bg-brand-50 text-2xl font-medium text-brand-900">
             {initials}

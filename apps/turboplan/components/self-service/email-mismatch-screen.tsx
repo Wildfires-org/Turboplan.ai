@@ -2,6 +2,7 @@
 
 import { Button } from "@wildfires-org/turboplan-utils";
 
+import { BrandHeader } from "@/components/brand-mark";
 import type { AuthUser } from "@/lib/types/auth";
 
 interface EmailMismatchScreenProps {
@@ -23,14 +24,15 @@ export function EmailMismatchScreen({
   onLogout,
 }: EmailMismatchScreenProps) {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-brandAlt-100 px-4">
+    <div className="relative flex min-h-screen w-full items-center justify-center bg-brandAlt-100 px-4 pb-10 pt-24 sm:py-10">
+      <BrandHeader />
       <div className="w-full max-w-2xl">
         <div className="glass-card rounded-[24px] p-8 md:p-12">
           {/* Icon */}
           <div className="flex justify-center mb-6">
-            <div className="size-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+            <div className="size-16 bg-brand-50 dark:bg-brand-900/20 rounded-full flex items-center justify-center">
               <svg
-                className="size-8 text-green-600 dark:text-green-500"
+                className="size-8 text-brand-800 dark:text-brand-500"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { brand, brandTheme } from "@/lib/brand";
 import { ENTRY_PAGE_CONTENT } from "@/lib/entry-point/content";
 import { PromptComposer } from "./prompt-composer";
 
@@ -10,8 +9,8 @@ interface EntryPageProps {
   initialPrompt?: string;
 }
 
-// The full Wildfires logo (mark + name); other themes show the square mark
-// next to the app name.
+// The full Wildfires logo (mark + name). A fork replaces this file's contents
+// in place (see lib/brand.ts).
 const WILDFIRES_WORDMARK = "/brand/wildfires/wordmark.svg";
 
 const PAGE_WIDTH_CLASS = "mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-10";
@@ -41,29 +40,15 @@ export function EntryPage({ initialPrompt }: EntryPageProps) {
             href="/"
             className="-m-1 flex items-center gap-2.5 rounded-md p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500"
           >
-            {brandTheme === "wildfires" ? (
-              <Image
-                src={WILDFIRES_WORDMARK}
-                alt="Wildfires"
-                width={157}
-                height={32}
-                priority
-                unoptimized
-                className="h-7 w-auto sm:h-8"
-              />
-            ) : (
-              <>
-                <Image
-                  src={brand.logo}
-                  alt=""
-                  width={32}
-                  height={32}
-                  priority
-                  className="size-8 rounded-lg"
-                />
-                <span className="text-lg font-semibold">{brand.name}</span>
-              </>
-            )}
+            <Image
+              src={WILDFIRES_WORDMARK}
+              alt="Wildfires"
+              width={157}
+              height={32}
+              priority
+              unoptimized
+              className="h-7 w-auto sm:h-8"
+            />
           </Link>
 
           <nav aria-label="Main" className="flex items-center gap-1 sm:gap-2">

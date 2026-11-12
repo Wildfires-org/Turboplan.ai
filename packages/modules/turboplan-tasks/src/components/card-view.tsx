@@ -65,7 +65,7 @@ export const CardView: React.FC<CardViewProps> = ({
           </p>
           <button
             onClick={onAddMilestone}
-            className="rounded-xl bg-[linear-gradient(135deg,#1d8a60_0%,#1b845c_25%,#156647_65%,#0f4832_100%)] px-4 py-2 font-medium text-white shadow-[inset_0_2px_2px_0_rgba(255,255,255,0.25),0_6px_16px_-8px_rgba(15,72,50,0.45)] transition-[opacity,transform] hover:opacity-90 active:scale-[0.97] motion-reduce:active:scale-100"
+            className="rounded-xl bg-[linear-gradient(135deg,#2a5a33_0%,#1a3b21_30%,#152f1a_65%,#0f2314_100%)] px-4 py-2 font-medium text-white shadow-[inset_0_2px_2px_0_rgba(255,255,255,0.18),0_6px_16px_-8px_rgba(15,35,20,0.5)] transition-[opacity,transform] hover:opacity-90 active:scale-[0.97] motion-reduce:active:scale-100"
           >
             Create Milestone
           </button>

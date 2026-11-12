@@ -345,9 +345,9 @@ export function DocumentsSection({
   );
 
   return (
-    <ResearchSectionRoot tone="emerald">
+    <ResearchSectionRoot tone="brand">
       <ResearchSectionHeader
-        tone="emerald"
+        tone="brand"
         icon={<FileText className="size-4" />}
         title="Documents Found"
         count={headerCountLabel}

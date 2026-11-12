@@ -88,7 +88,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({
             opacity: 1;
           }
           .rowLines line {
-            stroke: #e3efea;
+            stroke: #e4e8e2;
           }
           .gridBody > .rows rect[data-ishighlighted="true"] {
             transition: fill 0.2s ease-in-out;
@@ -97,8 +97,8 @@ export const GanttChart: React.FC<GanttChartProps> = ({
           }
           @keyframes fadeInAndOutHighlightedBgColor {
             0% { fill: #fff; }
-            10% { fill: #eefcf6; }
-            90% { fill: #eefcf6; }
+            10% { fill: #fff5eb; }
+            90% { fill: #fff5eb; }
             100% { fill: #fff; }
           }
         `,

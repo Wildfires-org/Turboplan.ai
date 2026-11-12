@@ -15,7 +15,7 @@ import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { UiScaleProvider } from "@/components/providers/ui-scale-provider";
 import { ReleaseInfoLogger } from "@/components/release-info-logger";
 import { ThemeProvider } from "@/components/theme-provider";
-import { brand, brandTheme } from "@/lib/brand";
+import { brand } from "@/lib/brand";
 import { TOAST_ICON_CLASS, TOAST_SURFACE_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
@@ -44,18 +44,18 @@ export const metadata: Metadata = {
   },
   description: APP_DESCRIPTION,
   ...(isNoIndex && { robots: { index: false, follow: false } }),
-  ...(brandTheme === "wildfires" && {
-    icons: {
-      icon: [
-        {
-          url: "/brand/wildfires/favicon-32.png",
-          type: "image/png",
-          sizes: "32x32",
-        },
-      ],
-      apple: "/brand/wildfires/logo.png",
-    },
-  }),
+  // `app/favicon.ico` (16-64px) is picked up by convention; this adds the
+  // sharper PNG for browsers that prefer it and the iOS home-screen icon.
+  icons: {
+    icon: [
+      {
+        url: "/brand/wildfires/favicon-32.png",
+        type: "image/png",
+        sizes: "32x32",
+      },
+    ],
+    apple: brand.logo,
+  },
   openGraph: {
     title: APP_TAGLINE,
     description: APP_DESCRIPTION,
@@ -137,7 +137,8 @@ export default async function RootLayout({
       // prop is necessary to avoid the React hydration mismatch warning.
       // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with-app
       suppressHydrationWarning
-      data-brand={brandTheme}
+      // Scopes app/brand-wildfires.css (Wildfires.org type and accents).
+      data-brand="wildfires"
       className={`${geist.variable} ${geistMono.variable}`}
       style={uiScaleStyle as React.CSSProperties}
     >

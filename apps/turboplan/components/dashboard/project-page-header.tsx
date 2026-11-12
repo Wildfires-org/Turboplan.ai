@@ -197,7 +197,7 @@ export function ProjectPageHeader({
             open={isDrawerOpen}
             onOpenChange={setIsDrawerOpen}
           >
-            <DrawerContent className="left-auto right-0 top-0 mt-0 h-screen w-full max-w-[500px] rounded-none rounded-l-[24px] border-0 border-l-[1.5px] border-white bg-white/[0.94] shadow-[0_32px_80px_-32px_rgba(15,40,30,0.38)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.94] [&>div:first-child]:hidden">
+            <DrawerContent className="left-auto right-0 top-0 mt-0 h-screen w-full max-w-[500px] rounded-none rounded-l-[24px] border-0 border-l-[1.5px] border-white bg-white/[0.94] shadow-[0_32px_80px_-32px_rgba(15,35,20,0.38)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/[0.94] [&>div:first-child]:hidden">
               <DrawerClose
                 aria-label="Close cover gallery"
                 className={cn(
