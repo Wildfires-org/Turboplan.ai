@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { Heading, Hr, Section, Text } from "@react-email/components";
 
+import { ctaGradient, emailColors } from "./email-theme";
+
 interface ChildrenProps {
   children: ReactNode;
 }
@@ -57,8 +59,8 @@ interface CtaButtonProps {
 }
 
 /**
- * Filled brand-green CTA matching the app's `btn-primary`. The gradient is a
- * progressive enhancement over the solid background color (Outlook).
+ * Filled forest-green CTA matching the app's Wildfires `btn-primary`. The
+ * gradient is a progressive enhancement over the solid background (Outlook).
  * Keeps the className="cta-link" + nested span pattern for dark-mode defense.
  */
 export const CtaButton = ({ href, label }: CtaButtonProps) => {
@@ -130,14 +132,14 @@ const bodyText = {
 const mutedText = {
   fontSize: "13px",
   lineHeight: "20px",
-  color: "#9ca3af",
+  color: "#6b7280",
   textAlign: "center" as const,
   margin: "0 0 16px",
 };
 
 const detailsBox = {
-  backgroundColor: "#f7f9f8",
-  border: "1px solid #e8eeea",
+  backgroundColor: emailColors.page,
+  border: `1px solid ${emailColors.sage}`,
   borderRadius: "12px",
   padding: "16px 20px",
   margin: "8px 0 24px",
@@ -169,11 +171,10 @@ const ctaTable = {
 };
 
 const ctaButtonTd = {
-  backgroundColor: "#1b845c",
-  backgroundImage:
-    "linear-gradient(135deg, #1d8a60 0%, #156647 65%, #0f4832 100%)",
+  backgroundColor: emailColors.forest,
+  backgroundImage: ctaGradient,
   borderRadius: "10px",
-  boxShadow: "0 6px 16px -8px rgba(15, 72, 50, 0.45)",
+  boxShadow: "0 6px 16px -8px rgba(15, 35, 20, 0.5)",
 };
 
 const ctaLink = {
@@ -196,7 +197,7 @@ const ctaArrow = {
 };
 
 const divider = {
-  borderColor: "#eef1ef",
+  borderColor: emailColors.sage,
   borderTopWidth: "1px",
   margin: "28px 0 20px",
 };
@@ -218,6 +219,6 @@ const fallbackUrlText = {
 };
 
 const fallbackLink = {
-  color: "#1b845c",
+  color: emailColors.forest,
   textDecoration: "underline",
 };

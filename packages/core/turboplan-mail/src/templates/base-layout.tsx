@@ -14,7 +14,8 @@ import {
 
 import { getAppName } from "@wildfires-org/turboplan-env";
 
-import { getBeaverUrl, getLogoUrl } from "./email-images";
+import { getHeroLogoUrl, getLogoUrl } from "./email-images";
+import { emailColors } from "./email-theme";
 
 /**
  * Insert zero-width non-joiners around dots in domain-like text
@@ -40,15 +41,27 @@ interface BaseLayoutProps {
 }
 
 const TONES = {
-  brand: { hero: "#e6f4ec", eyebrowBg: "#e6f4ec", eyebrowText: "#156647" },
-  warning: { hero: "#fdf0dc", eyebrowBg: "#fdf0dc", eyebrowText: "#a5560f" },
-  danger: { hero: "#f3f5f4", eyebrowBg: "#fdecec", eyebrowText: "#b42318" },
+  brand: {
+    hero: emailColors.cream,
+    eyebrowBg: emailColors.sage,
+    eyebrowText: emailColors.forest,
+  },
+  warning: {
+    hero: emailColors.orange50,
+    eyebrowBg: emailColors.orange100,
+    eyebrowText: emailColors.orange800,
+  },
+  danger: {
+    hero: emailColors.cream,
+    eyebrowBg: emailColors.dangerBg,
+    eyebrowText: emailColors.dangerText,
+  },
 } as const;
 
 /**
- * Base layout for all emails: logo header, a white card opening with a
- * tinted hero band where the beaver mascot sits on the edge, an eyebrow
- * label, the content, and a muted footer below the card.
+ * Base layout for all emails: the Wildfires.org mark and app name above a
+ * white card that opens with a tinted hero band holding the mark, then an
+ * eyebrow label, the content, and a muted footer below the card.
  */
 export function BaseLayout({
   preview,
@@ -64,20 +77,10 @@ export function BaseLayout({
     <Html>
       <Head>
         {/*
-         * Each <Font> emits a global `* { font-family: ... }` rule, so the
-         * Inter fonts must come last to win as the document default.
-         * Geist Mono is only used by elements that set it explicitly.
+         * Each <Font> emits a global `* { font-family: ... }` rule, so every
+         * element, the app name included, uses Inter (Helvetica/Arial where
+         * web fonts are blocked). No monospace: Gmail falls back to Courier.
          */}
-        <Font
-          fontFamily="Geist Mono"
-          fallbackFontFamily="monospace"
-          webFont={{
-            url: "https://fonts.gstatic.com/s/geistmono/v6/or3yQ6H-1_WfwkMZI_qYPLs1a-t7PU0AbeHjL65U5Cl4PuCTfNg.woff2",
-            format: "woff2",
-          }}
-          fontWeight={600}
-          fontStyle="normal"
-        />
         <Font
           fontFamily="Inter"
           fallbackFontFamily="Helvetica"
@@ -154,9 +157,9 @@ export function BaseLayout({
           <Section style={card}>
             <Section style={{ ...hero, backgroundColor: colors.hero }}>
               <Img
-                src={getBeaverUrl()}
-                width="96"
-                height="98"
+                src={getHeroLogoUrl()}
+                width="64"
+                height="64"
                 alt=""
                 style={heroImage}
               />
@@ -188,7 +191,12 @@ export function BaseLayout({
           </Section>
 
           {footer && <Text style={footerNote}>{footer}</Text>}
-          <Text style={footerBrand}>{preventAutoLink(appName)}</Text>
+          <Text style={footerBrand}>
+            {preventAutoLink(appName)} · open source by{" "}
+            <a href="https://wildfires.org" style={footerLink}>
+              Wildfires.org
+            </a>
+          </Text>
         </Container>
       </Body>
     </Html>
@@ -197,7 +205,7 @@ export function BaseLayout({
 
 // Styles
 const main = {
-  backgroundColor: "#f2f5f3",
+  backgroundColor: emailColors.page,
   fontFamily: "Inter, Helvetica, Arial, sans-serif",
   padding: "40px 12px",
   margin: "0",
@@ -220,27 +228,27 @@ const logoImage = {
 };
 
 const appNameText = {
-  fontFamily: "'Geist Mono', monospace",
+  fontFamily: "Inter, Helvetica, Arial, sans-serif",
   fontSize: "20px",
+  lineHeight: "28px",
   fontWeight: "600" as const,
-  color: "#111827",
-  letterSpacing: "-1px",
+  color: emailColors.forest,
+  letterSpacing: "-0.02em",
   verticalAlign: "middle",
 };
 
 const card = {
   backgroundColor: "#ffffff",
   borderRadius: "16px",
-  border: "1px solid #e3e9e5",
+  border: `1px solid ${emailColors.sage}`,
   boxShadow:
-    "0 1px 2px rgba(16, 24, 20, 0.04), 0 8px 24px rgba(16, 24, 20, 0.06)",
+    "0 1px 2px rgba(15, 35, 20, 0.04), 0 8px 24px rgba(15, 35, 20, 0.06)",
   overflow: "hidden" as const,
 };
 
 const hero = {
   textAlign: "center" as const,
-  // No bottom padding so the mascot sits flush on the band's bottom edge
-  padding: "28px 0 0",
+  padding: "32px 0",
   fontSize: "0",
   lineHeight: "0",
   borderRadius: "16px 16px 0 0",
@@ -281,7 +289,12 @@ const footerNote = {
 const footerBrand = {
   fontSize: "12px",
   lineHeight: "18px",
-  color: "#9ca3af",
+  color: "#6b7280",
   textAlign: "center" as const,
   margin: "0 0 8px",
+};
+
+const footerLink = {
+  color: "#6b7280",
+  textDecoration: "underline",
 };
