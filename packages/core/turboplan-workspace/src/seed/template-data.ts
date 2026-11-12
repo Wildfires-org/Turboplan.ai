@@ -2,10 +2,12 @@
  * Seed data for template projects.
  *
  * Each template references an existing USFS office by slug.
- * Cover images are hosted on Cloudflare R2.
+ * Cover images live in the dev R2 bucket with the other seed assets (data.ts);
+ * the seed mirrors them into the current env's bucket.
  */
 
-import { getR2Env } from "@wildfires-org/turboplan-env";
+const SEED_ASSET_BASE_URL =
+  "https://pub-0b0335fb17054a4bb1c52980eb08c3cc.r2.dev";
 
 export type TemplateSeed = {
   name: string;
@@ -23,9 +25,8 @@ const COVER_IMAGE_KEYS = [
 ];
 
 export const getTemplateSeeds = (): TemplateSeed[] => {
-  const { R2_PUBLIC_URL } = getR2Env();
   const getCoverImageUrl = (index: number) =>
-    `${R2_PUBLIC_URL}/${COVER_IMAGE_KEYS[index]}`;
+    `${SEED_ASSET_BASE_URL}/${COVER_IMAGE_KEYS[index]}`;
 
   return [
     {
