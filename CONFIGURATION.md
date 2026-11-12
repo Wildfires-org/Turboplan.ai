@@ -10,6 +10,7 @@ deployment, and how to read the startup errors.
 - [The four secrets](#the-four-secrets)
 - [Minimum viable local setup](#minimum-viable-local-setup)
 - [Feature flags](#feature-flags)
+- [Database providers](#database-providers)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
 
@@ -249,6 +250,135 @@ landing page read `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`, inlined at build
 time, so keep all three in agreement. CI sets every one from the
 `FF_IS_BILLING_ENFORCEMENT_ENABLED` repo variable, falling back to `true`.
 
+## Database providers
+
+TurboPlan runs on **PostgreSQL** (the default) or on **Cloudflare D1**
+(SQLite). `DB_PROVIDER` picks one for every service — the web app, the API
+server, the MCP server and the `db:*` / seed scripts:
+
+| `DB_PROVIDER` | Database | `POSTGRES_URL` |
+| --- | --- | --- |
+| unset, empty or `postgres` | PostgreSQL through `POSTGRES_URL` (Hyperdrive on Workers) | Required |
+| `d1` | Cloudflare D1, or a local SQLite file | Not needed |
+
+Anything else throws ``Invalid `DB_PROVIDER` env variable``.
+
+On D1 the code is the same: one pg-core schema and the same queries. The
+`db` every service uses is still a drizzle Postgres database, whose dialect
+emits SQLite SQL instead (`packages/core/turboplan-db/src/d1/`). It turns
+parameters into `?N`, fills column defaults in on insert, rewrites casts,
+`ilike` and `now()`, and builds relational queries with `json_group_array`.
+It maps values both ways (booleans, timestamps as ISO-8601 text, json and
+arrays as JSON text). The few expressions without a SQLite spelling branch
+on the provider at the call site, and the Postgres branch stays as it was.
+
+The D1 database is reached in one of three ways, picked automatically:
+
+| Where the code runs | Transport | Configured by |
+| --- | --- | --- |
+| A Worker (web, API, MCP) | The D1 binding named **`DB`** | `d1_databases` in the Worker's wrangler config |
+| Node or Bun, local | A SQLite file (`node:sqlite`, or `bun:sqlite` under Bun) | `D1_LOCAL_PATH` |
+| Node, against a remote D1 database (migrations, seeds, one-off scripts) | The D1 HTTP API | `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID`, `CLOUDFLARE_API_TOKEN` (needs D1 edit permission) |
+
+`D1_LOCAL_PATH` wins when it and the HTTP variables are both set. A Node
+process with neither throws ``DB_PROVIDER=d1 needs a database: …``.
+
+### Running locally on SQLite
+
+The repo's Node version (22.23+) has `node:sqlite` built in, so there is
+nothing to install. In **both**
+`apps/turboplan/.env.local` and `apps/server/.env.local`, replace
+`POSTGRES_URL` with:
+
+```dotenv
+DB_PROVIDER=d1
+# Absolute: the web app and the API server run from different directories.
+D1_LOCAL_PATH=/absolute/path/to/turboplan.sqlite
+```
+
+Then:
+
+```bash
+pnpm build:packages
+cd apps/turboplan && pnpm db:migrate && cd ../..   # applies src/migrations-d1
+pnpm seed:prompts                                  # optional, as on Postgres
+pnpm dev
+```
+
+`pnpm db:push` is Postgres-only. On D1 it exits and points at `db:migrate`.
+The [no-email login](#logging-in-without-an-email-provider) works the same
+way: run `mint-magic-link.ts` with the two variables above in its
+environment.
+
+### Deploying on D1
+
+Bind the **same** D1 database as `DB` in the web Worker (`apps/turboplan`) and
+the API Worker (`apps/server`), and in the MCP Worker if it is deployed. Set
+`DB_PROVIDER=d1` as a plain var on each of them:
+
+```jsonc
+"d1_databases": [
+  {
+    "binding": "DB",
+    "database_name": "<name>",
+    "database_id": "<id>",
+    "migrations_dir": "../../packages/core/turboplan-db/src/migrations-d1"
+  }
+]
+```
+
+D1 needs no `POSTGRES_URL` secret and no Hyperdrive config. With
+`DB_PROVIDER=d1` both Workers ignore a `HYPERDRIVE` binding, so the existing
+one can stay.
+
+Apply the migrations with either tool. Both record what they applied in
+wrangler's `d1_migrations` table, so you can switch between them:
+
+```bash
+# From apps/turboplan or apps/server, whose config has the migrations_dir above:
+wrangler d1 migrations apply <name> --remote
+
+# Or through the D1 HTTP API, from apps/turboplan:
+DB_PROVIDER=d1 CLOUDFLARE_ACCOUNT_ID=… D1_DATABASE_ID=… CLOUDFLARE_API_TOKEN=… pnpm db:migrate
+```
+
+The seeds (`pnpm seed:prompts`, `pnpm seed:organizations`) take the same
+four variables. As on Postgres, they also read `apps/turboplan/.env.local`.
+`seed:organizations` additionally needs its usual
+`SYSTEM_USER_EMAIL` and the `R2_*` set, because it copies the seed images into
+the bucket. Over the HTTP API every statement is a round trip, so the seeds
+take minutes, not seconds.
+
+### Changing the schema
+
+The pg-core schema stays the source of truth. After a schema change, add the
+D1 migration next to the Postgres one:
+
+```bash
+pnpm --filter @wildfires-org/turboplan-db d1:generate <name>   # writes src/migrations-d1/NNNN_<name>.sql
+```
+
+The generator applies the existing D1 migrations to an in-memory database and
+compares the result with the schema. It writes what SQLite can do in place:
+new tables, columns and indexes, and recreated indexes. A changed or removed
+column, key or check needs SQLite's table rebuild (create, copy, drop,
+rename). The generator lists those changes and exits non-zero, and you write
+that migration by hand. The `d1-migrations` unit test fails while the D1
+migrations are out of date with the schema, so CI catches a forgotten one.
+
+### What is different on D1
+
+| Area | On D1 |
+| --- | --- |
+| Transactions | **Not atomic.** D1 has no interactive transactions, so `db.transaction()` runs its statements one at a time, and a failure part-way keeps the writes before it. `select … for update` and the advisory locks are dropped. D1 runs one write at a time, but two requests can still interleave between a read and the write that depends on it, for example two claims of the same self-service project |
+| Maps | **Not supported.** PostGIS has no D1 equivalent: keep `IS_MAPS_PACKAGE_ENABLED` off. Geometry columns exist as TEXT so the schema stays the same |
+| Search ranking | No `pg_trgm`. User, organization, office, project and template search matches case-insensitive substrings and ranks exact > prefix > word prefix > anywhere. There is no typo tolerance, and case-insensitivity covers ASCII letters only |
+| Indexes | GIN (trigram) and GiST (spatial) indexes are left out; the generated migration lists them |
+| Enums | `pgEnum` values are stored as TEXT without a database check (the app validates them), so adding a value needs no D1 migration |
+| JSON | `jsonb` is stored as JSON text. An equality on a whole document compares the text, so key order matters: the letterhead grid's compare-and-set always writes and compares `JSON.stringify` output |
+| Statement size | D1 binds at most 100 parameters per statement. Above that the values are inlined as literals, and D1's 100 KB statement limit still applies |
+| Other modules | Verified with maps, the research agent, billing and signing **off**. Those modules have not been run on D1 |
+
 ## Deployment
 
 Cloudflare Workers is the only supported deployment target.
@@ -448,11 +578,14 @@ Its own `pnpm deploy` script still deploys by hand.
 ## Troubleshooting
 
 Every message below is thrown by `packages/core/turboplan-env/src/index.ts` at
-startup, with the exception of the two marked otherwise.
+startup, except the ones marked otherwise.
 
 | Error | Fix |
 | --- | --- |
-| ``Missing database URL: set `POSTGRES_URL` or `TEST_POSTGRES_URL` env variable`` | Set `POSTGRES_URL` in the failing service's env file. Check you copied to the right filename for that service |
+| ``Missing database URL: set `POSTGRES_URL` or `TEST_POSTGRES_URL` env variable`` | Set `POSTGRES_URL` in the failing service's env file (or set `DB_PROVIDER=d1`). Check you copied to the right filename for that service |
+| ``Invalid `DB_PROVIDER` env variable: expected `postgres` or `d1` `` | Leave it unset for Postgres, or set it to `d1`. See [Database providers](#database-providers) |
+| ``DB_PROVIDER=d1 needs a database: …`` | Thrown by `@wildfires-org/turboplan-db` in a Node process on D1. Set `D1_LOCAL_PATH`, or the three D1 HTTP API variables |
+| ``DB_PROVIDER=d1 needs a `DB` D1 binding`` | Thrown by a Worker entry on its first request. Add the `d1_databases` binding named `DB` to that Worker's wrangler config |
 | ``Missing `AUTH_SECRET` env variable`` | Generate one and set it in the web app, API server **and** landing page — byte-identical |
 | ``Missing `AUTH_SECRET` env variable (required for session verification)`` | Same value, missing specifically from `apps/landing-page/.env.local` |
 | ``Missing `INTERNAL_API_SECRET` env variable`` | Set it in `apps/server/.env.local` |
