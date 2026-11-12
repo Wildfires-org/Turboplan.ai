@@ -126,6 +126,12 @@ test.describe("Route smoke - signed-out visitor", () => {
     test(`${path} sends a signed-out visitor to /login`, async ({
       browser,
     }) => {
+      // With the prompt entry point on, `/` greets signed-out visitors
+      // instead (entry/prompt-entry-point.spec.ts).
+      test.skip(
+        path === "/" && process.env.NEXT_PUBLIC_ENTRY_POINT === "prompt",
+        "NEXT_PUBLIC_ENTRY_POINT=prompt shows the entry page at /",
+      );
       const context = await newAnonymousContext(browser);
       const page = await context.newPage();
 
@@ -168,7 +174,7 @@ test.describe("Route smoke - first sign-in", () => {
     await expectHealthyPage(page, mainHeading(page, "Sign In"), problems);
 
     // The session is gone: a protected page now asks to sign in again.
-    await page.goto("/");
+    await page.goto("/profile");
     await expect(page).toHaveURL(/\/login(?:\?|$)/, { timeout: 15_000 });
     await context.close();
   });

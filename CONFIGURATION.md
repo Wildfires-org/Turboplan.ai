@@ -10,6 +10,7 @@ deployment, and how to read the startup errors.
 - [The four secrets](#the-four-secrets)
 - [Minimum viable local setup](#minimum-viable-local-setup)
 - [Feature flags](#feature-flags)
+- [Signed-out entry point](#signed-out-entry-point)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
 
@@ -248,6 +249,27 @@ enabled. The API server reads `IS_BILLING_ENFORCEMENT_ENABLED`; the web app and
 landing page read `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`, inlined at build
 time, so keep all three in agreement. CI sets every one from the
 `FF_IS_BILLING_ENFORCEMENT_ENABLED` repo variable, falling back to `true`.
+
+## Signed-out entry point
+
+By default a signed-out visitor at `/` is sent to `/login`. Building the web
+app with `NEXT_PUBLIC_ENTRY_POINT=prompt` shows a prompt page there instead: a
+headline, a prompt box that takes PDF and Word attachments, and US Forest
+Service example projects that fill the box. Sending opens `/self-service` with
+`projectTitle`, `projectDescription`, any `landingUploads` keys and the visit's
+`utm_*`/`gclid` parameters, the same hand-off the landing-page prompt uses: the
+visitor enters an email, a magic link signs them in, and the new project starts
+from the prompt. Every other page still asks signed-out visitors to sign in.
+
+- The value is inlined at build time (like `NEXT_PUBLIC_BRAND_THEME`), so
+  changing it needs a rebuild. Any value other than `prompt` keeps the default.
+- The copy and examples live in `apps/turboplan/lib/entry-point/content.ts` and
+  `usfs-examples.ts`. The page follows the brand theme and is designed for
+  `NEXT_PUBLIC_BRAND_THEME=wildfires`.
+- Attachments use the anonymous presign route (`/api/public/uploads/presign`),
+  so they need the API's R2 credentials and a bucket CORS rule for the web app
+  origin (see [R2 bucket](#r2-bucket)). Without them a file shows as failed and
+  the prompt still goes through.
 
 ## Deployment
 
