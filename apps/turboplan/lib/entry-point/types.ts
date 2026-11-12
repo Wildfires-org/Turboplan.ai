@@ -6,25 +6,20 @@
 export type EntryExampleIcon =
   | "axe"
   | "bug"
-  | "compass"
   | "construction"
   | "fish"
   | "flame"
   | "footprints"
   | "leaf"
-  | "mountain-snow"
   | "paw-print"
-  | "pickaxe"
   | "route"
   | "shovel"
   | "sprout"
   | "tent"
   | "tree-pine"
   | "trees"
-  | "utility-pole"
   | "warehouse"
-  | "waves"
-  | "wheat";
+  | "waves";
 
 /** One example chip under the entry-page prompt. */
 export type EntryExample = {
