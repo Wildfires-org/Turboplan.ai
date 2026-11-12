@@ -25,6 +25,7 @@ import {
   type SqliteTransport,
 } from "../src/d1/transports";
 import type { SqliteValue } from "../src/d1/values";
+import { getDB, runWithWorkerConnection } from "../src/db-client/connection";
 import {
   jsonArrayContains,
   substringMatchRank,
@@ -351,6 +352,52 @@ describe("transports", () => {
         return normalizeSqliteError(error).code === "23505";
       });
     });
+  });
+
+  it("a nested request scope keeps the outer scope's D1 binding", async () => {
+    const previous = {
+      DB_PROVIDER: process.env.DB_PROVIDER,
+      D1_LOCAL_PATH: process.env.D1_LOCAL_PATH,
+    };
+    process.env.DB_PROVIDER = "d1";
+    delete process.env.D1_LOCAL_PATH;
+    const queries: string[] = [];
+    const binding: D1DatabaseLike = {
+      prepare: (query) => {
+        const statement = {
+          bind: () => statement,
+          raw: async <T>() => {
+            queries.push(query);
+            return [[1]] as T[];
+          },
+          all: async <T>() => {
+            queries.push(query);
+            return { results: [{ x: 1 }] as T[], meta: { changes: 0 } };
+          },
+        };
+        return statement;
+      },
+    };
+    try {
+      await runWithWorkerConnection(
+        async () => {
+          // How the API routes start background work inside a request.
+          await runWithWorkerConnection(async () => {
+            await getDB().execute(sql`select 2 as x`);
+          });
+        },
+        { d1: binding },
+      );
+      assert.deepStrictEqual(queries, ["select 2 as x"]);
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
   });
 
   it("local file transport opens node:sqlite without an import a bundler must resolve", async () => {

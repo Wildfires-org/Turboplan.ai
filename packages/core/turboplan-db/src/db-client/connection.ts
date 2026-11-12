@@ -218,11 +218,12 @@ export const runWithWorkerConnection = async <T>(
 ): Promise<T> => {
   const backgroundTasks: Promise<unknown>[] = [];
   if (usesD1(options)) {
+    // A scope opened inside a request (a background task such as cover image
+    // generation) keeps the request's binding: the API Worker registers none
+    // globally.
+    const d1 = options?.d1 ?? workerConnectionStore.getStore()?.d1;
     try {
-      return await workerConnectionStore.run(
-        { d1: options?.d1, backgroundTasks },
-        fn,
-      );
+      return await workerConnectionStore.run({ d1, backgroundTasks }, fn);
     } finally {
       await settleBackgroundTasks(backgroundTasks);
     }
