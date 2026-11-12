@@ -5,12 +5,17 @@ import {
   hashPAT,
   isPATToken,
 } from "@wildfires-org/turboplan-api-client/server";
-import { runWithWorkerConnection } from "@wildfires-org/turboplan-db/db-client";
+import {
+  type D1DatabaseLike,
+  registerD1Binding,
+  runWithWorkerConnection,
+} from "@wildfires-org/turboplan-db/db-client";
 import {
   findPATByHash,
   updatePATLastUsed,
 } from "@wildfires-org/turboplan-db/queries";
 import { getR2PublicUrls } from "@wildfires-org/turboplan-env";
+import { setStorageBucket } from "@wildfires-org/turboplan-upload/bucket";
 
 import { createServer } from "./server.js";
 import {
@@ -23,7 +28,11 @@ import {
 import type { McpUserContext } from "./utils/types.js";
 
 type Env = {
-  POSTGRES_URL: string;
+  // Postgres deployments. Unused with DB_PROVIDER=d1, which reads `DB`.
+  POSTGRES_URL?: string;
+  DB_PROVIDER?: string;
+  // Cloudflare D1 binding, required when DB_PROVIDER=d1.
+  DB?: D1DatabaseLike;
   AUTH_SECRET: string;
   ADMIN_EMAILS: string;
   WORKER_RUNTIME: string;
@@ -35,6 +44,8 @@ type Env = {
   R2_BUCKET_NAME: string;
   R2_PUBLIC_URL: string;
   OPENROUTER_API_KEY: string;
+  OPENROUTER_BASE_URL?: string;
+  CLOUDFLARE_AI_GATEWAY_TOKEN?: string;
   OPENROUTER_MODEL_IMAGE_PRIMARY: string;
   OPENROUTER_MODEL_IMAGE_LITE: string;
   IS_TASKS_PACKAGE_ENABLED: string;
@@ -51,10 +62,13 @@ type Env = {
   RATE_LIMITER_READ: RateLimit;
   RATE_LIMITER_WRITE: RateLimit;
   RATE_LIMITER_GLOBAL: RateLimit;
+  // R2 bucket binding for storage; without it, storage uses the S3 API.
+  STORAGE_BUCKET?: unknown;
 };
 
 const ENV_BRIDGE_KEYS = [
   "POSTGRES_URL",
+  "DB_PROVIDER",
   "AUTH_SECRET",
   "ADMIN_EMAILS",
   "WORKER_RUNTIME",
@@ -66,6 +80,8 @@ const ENV_BRIDGE_KEYS = [
   "R2_BUCKET_NAME",
   "R2_PUBLIC_URL",
   "OPENROUTER_API_KEY",
+  "OPENROUTER_BASE_URL",
+  "CLOUDFLARE_AI_GATEWAY_TOKEN",
   "OPENROUTER_MODEL_IMAGE_PRIMARY",
   "OPENROUTER_MODEL_IMAGE_LITE",
   "IS_TASKS_PACKAGE_ENABLED",
@@ -142,6 +158,15 @@ const bridgeEnv = (env: Env) => {
     if (typeof value === "string") {
       process.env[key] = value;
     }
+  }
+  setStorageBucket(env.STORAGE_BUCKET);
+  // Tools open their own request scopes, so the D1 binding is registered
+  // once for all of them.
+  if (env.DB_PROVIDER === "d1") {
+    if (!env.DB) {
+      throw new Error("DB_PROVIDER=d1 needs a `DB` D1 binding");
+    }
+    registerD1Binding(env.DB);
   }
 };
 

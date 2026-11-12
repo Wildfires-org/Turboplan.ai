@@ -17,7 +17,11 @@ import {
   PUBLICLY_HIDDEN_OWNERSHIP_STATUSES,
   PUBLICLY_LISTED_ORG_TYPES,
 } from "@wildfires-org/turboplan-db";
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import {
+  db,
+  isSqliteDb,
+  substringMatchRank,
+} from "@wildfires-org/turboplan-db/db-client";
 import {
   office,
   organization,
@@ -131,7 +135,13 @@ const searchOrganizations = async (
 ): Promise<RawSearchResult[]> => {
   // Similarity score: weighted combination of name (highest), shortName, description
   // word_similarity finds the most similar word in the text to the query
-  const similarityScore = sql<number>`greatest(
+  const similarityScore = isSqliteDb()
+    ? substringMatchRank(query, [
+        [organization.name, 1.0],
+        [organization.shortName, 0.9],
+        [organization.description, 0.5],
+      ])
+    : sql<number>`greatest(
     word_similarity(${query}, ${organization.name}) * 1.0,
     word_similarity(${query}, coalesce(${organization.shortName}, '')) * 0.9,
     word_similarity(${query}, coalesce(${organization.description}, '')) * 0.5
@@ -158,7 +168,13 @@ const searchOrganizations = async (
       and(
         inArray(organization.type, PUBLICLY_LISTED_ORG_TYPES),
         eq(organization.status, OrganizationStatus.ACTIVE),
-        sql`(
+        isSqliteDb()
+          ? sql`(
+          ${organization.name} ILIKE ${ilikePattern} OR
+          coalesce(${organization.shortName}, '') ILIKE ${ilikePattern} OR
+          ${organization.description} ILIKE ${ilikePattern}
+        )`
+          : sql`(
           ${organization.name} ILIKE ${ilikePattern} OR
           coalesce(${organization.shortName}, '') ILIKE ${ilikePattern} OR
           ${organization.description} ILIKE ${ilikePattern} OR
@@ -184,7 +200,12 @@ const searchOffices = async (
   limit: number,
 ): Promise<RawSearchResult[]> => {
   // Similarity score: weighted combination of name and description
-  const similarityScore = sql<number>`greatest(
+  const similarityScore = isSqliteDb()
+    ? substringMatchRank(query, [
+        [office.name, 1.0],
+        [office.description, 0.5],
+      ])
+    : sql<number>`greatest(
     word_similarity(${query}, ${office.name}) * 1.0,
     word_similarity(${query}, coalesce(${office.description}, '')) * 0.5
   )`;
@@ -212,7 +233,12 @@ const searchOffices = async (
         inArray(organization.type, PUBLICLY_LISTED_ORG_TYPES),
         eq(organization.status, OrganizationStatus.ACTIVE),
         eq(office.status, OfficeStatus.ACTIVE),
-        sql`(
+        isSqliteDb()
+          ? sql`(
+          ${office.name} ILIKE ${ilikePattern} OR
+          ${office.description} ILIKE ${ilikePattern}
+        )`
+          : sql`(
           ${office.name} ILIKE ${ilikePattern} OR
           ${office.description} ILIKE ${ilikePattern} OR
           ${office.name} % ${query} OR
@@ -236,7 +262,12 @@ const searchProjects = async (
   limit: number,
 ): Promise<RawSearchResult[]> => {
   // Similarity score: weighted combination of name and description
-  const similarityScore = sql<number>`greatest(
+  const similarityScore = isSqliteDb()
+    ? substringMatchRank(query, [
+        [project.name, 1.0],
+        [project.description, 0.5],
+      ])
+    : sql<number>`greatest(
     word_similarity(${query}, ${project.name}) * 1.0,
     word_similarity(${query}, coalesce(${project.description}, '')) * 0.5
   )`;
@@ -266,7 +297,12 @@ const searchProjects = async (
         inArray(organization.type, PUBLICLY_LISTED_ORG_TYPES),
         eq(organization.status, OrganizationStatus.ACTIVE),
         eq(office.status, OfficeStatus.ACTIVE),
-        sql`(
+        isSqliteDb()
+          ? sql`(
+          ${project.name} ILIKE ${ilikePattern} OR
+          ${project.description} ILIKE ${ilikePattern}
+        )`
+          : sql`(
           ${project.name} ILIKE ${ilikePattern} OR
           ${project.description} ILIKE ${ilikePattern} OR
           ${project.name} % ${query} OR
@@ -289,7 +325,12 @@ const searchTemplates = async (
   ilikePattern: string,
   limit: number,
 ): Promise<RawSearchResult[]> => {
-  const similarityScore = sql<number>`greatest(
+  const similarityScore = isSqliteDb()
+    ? substringMatchRank(query, [
+        [project.name, 1.0],
+        [project.description, 0.5],
+      ])
+    : sql<number>`greatest(
     word_similarity(${query}, ${project.name}) * 1.0,
     word_similarity(${query}, coalesce(${project.description}, '')) * 0.5
   )`;
@@ -319,7 +360,12 @@ const searchTemplates = async (
         inArray(organization.type, PUBLICLY_LISTED_ORG_TYPES),
         eq(organization.status, OrganizationStatus.ACTIVE),
         eq(office.status, OfficeStatus.ACTIVE),
-        sql`(
+        isSqliteDb()
+          ? sql`(
+          ${project.name} ILIKE ${ilikePattern} OR
+          ${project.description} ILIKE ${ilikePattern}
+        )`
+          : sql`(
           ${project.name} ILIKE ${ilikePattern} OR
           ${project.description} ILIKE ${ilikePattern} OR
           ${project.name} % ${query} OR

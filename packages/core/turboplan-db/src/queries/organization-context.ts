@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { type DbInstance, db } from "../db-client";
+import { isSqliteDb } from "../db-client/dialect-helpers";
 import {
   type DocumentLetterheadStatus,
   letterheadPendingPredicate,
@@ -571,7 +572,9 @@ export const findOrganizationMemoryByContent = async (
     .where(
       and(
         eq(organizationMemory.organizationId, organizationId),
-        sql`lower(btrim(${organizationMemory.content}, E' \\t\\r\\n')) = lower(${content.trim()})`,
+        isSqliteDb()
+          ? sql`lower(trim(${organizationMemory.content}, ' ' || char(9, 13, 10))) = lower(${content.trim()})`
+          : sql`lower(btrim(${organizationMemory.content}, E' \\t\\r\\n')) = lower(${content.trim()})`,
       ),
     )
     .orderBy(...organizationMemoryOrder)
@@ -611,9 +614,14 @@ export const getOrganizationContextSources = async (
         isPinned: organizationDocument.isPinned,
         extractionStatus: organizationDocument.extractionStatus,
         summary: organizationDocument.summary,
-        excerpt: sql<
-          string | null
-        >`left(${organizationDocument.extractedText}, ${ORGANIZATION_DOCUMENT_EXCERPT_CHARS})`,
+        // SQLite (D1) has no left().
+        excerpt: isSqliteDb()
+          ? sql<
+              string | null
+            >`substr(${organizationDocument.extractedText}, 1, ${ORGANIZATION_DOCUMENT_EXCERPT_CHARS})`
+          : sql<
+              string | null
+            >`left(${organizationDocument.extractedText}, ${ORGANIZATION_DOCUMENT_EXCERPT_CHARS})`,
         createdAt: organizationDocument.createdAt,
       })
       .from(organizationDocument)

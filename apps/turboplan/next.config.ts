@@ -106,6 +106,10 @@ const securityHeaders = [
         },
       ]
     : []),
+  // Demo or staging instances opt out of search indexing at build time.
+  ...(process.env.NEXT_PUBLIC_NOINDEX === "true"
+    ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
+    : []),
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

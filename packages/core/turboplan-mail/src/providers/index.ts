@@ -1,4 +1,9 @@
 export {
+  type CloudflareEmailBinding,
+  type CloudflareEmailConfig,
+  CloudflareEmailProvider,
+} from "./cloudflare-provider";
+export {
   type EtherealConfig,
   EtherealProvider,
 } from "./ethereal-provider";

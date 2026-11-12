@@ -25,7 +25,7 @@ export const AuthForm = ({
           name="email"
           className="bg-neutral-50 border-gray-250 h-10 rounded-md text-sm pl-4"
           type="email"
-          placeholder="user@acme.com"
+          placeholder="name@usda.gov"
           autoComplete="email"
           required
           autoFocus

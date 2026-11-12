@@ -19,7 +19,9 @@ the core platform of the wildfires.org software ecosystem.
 
 - Node.js 22+
 - pnpm 10 (`corepack enable` or `npm i -g pnpm`)
-- A PostgreSQL database (local install, Docker, or a managed provider such as Neon)
+- A PostgreSQL database (local install, Docker, or a managed provider such as Neon),
+  or none at all: TurboPlan can also run on Cloudflare D1 / a local SQLite file
+  (see [Database providers](./CONFIGURATION.md#database-providers))
 - An [OpenRouter](https://openrouter.ai/) API key for AI features (optional — the
   stack boots without one, but every AI route then returns an error)
 
@@ -109,7 +111,7 @@ All internal packages use the `@wildfires-org/*` namespace and `workspace:*` dep
 - **Monorepo**: pnpm workspaces + Turborepo
 - **Frontend**: Next.js 15 (App Router), React 19, Tailwind CSS, shadcn/ui, SWR
 - **Backend**: Hono (Bun runtime in dev, Cloudflare Workers in production)
-- **Database**: PostgreSQL + Drizzle ORM (schemas centralized in `packages/core/turboplan-db`)
+- **Database**: PostgreSQL or Cloudflare D1 (SQLite) + Drizzle ORM (schemas centralized in `packages/core/turboplan-db`; `DB_PROVIDER` picks the database)
 - **AI**: Vercel AI SDK with OpenRouter as the model provider; Claude Agent SDK for the research agent
 - **Auth**: next-auth v5 with magic-link login, JWT sessions, cross-subdomain cookie support
 - **Storage**: Cloudflare R2 (S3-compatible)
@@ -153,6 +155,11 @@ pnpm db:studio      # Open Drizzle Studio
 ```
 
 Schemas live in `packages/core/turboplan-db/src/schemas/`, migrations in `packages/core/turboplan-db/src/migrations/`.
+
+On D1 (`DB_PROVIDER=d1`), `pnpm db:migrate` applies the SQLite migrations in
+`packages/core/turboplan-db/src/migrations-d1/` instead. After a schema change,
+write the next one with `pnpm --filter @wildfires-org/turboplan-db d1:generate <name>`.
+See [Database providers](./CONFIGURATION.md#database-providers).
 
 ### Testing
 

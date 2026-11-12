@@ -9,7 +9,7 @@ import {
   organization,
   PUBLICLY_LISTED_ORG_TYPES,
 } from "@wildfires-org/turboplan-db";
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import { db, jsonArrayContains } from "@wildfires-org/turboplan-db/db-client";
 import { EntityType, MemberRole } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { isValidSlug } from "@wildfires-org/turboplan-utils/server";
@@ -71,7 +71,7 @@ export async function getOrganizationBySlug(
       .where(
         or(
           eq(organization.slug, slug),
-          sql`${organization.slugHistory}::jsonb @> ${JSON.stringify([slug])}::jsonb`,
+          jsonArrayContains(organization.slugHistory, slug),
         ),
       );
 
@@ -381,7 +381,7 @@ export async function updateOrganization({
             .where(
               or(
                 eq(organization.slug, newSlug),
-                sql`${organization.slugHistory}::jsonb @> ${JSON.stringify([newSlug])}::jsonb`,
+                jsonArrayContains(organization.slugHistory, newSlug),
               ),
             );
           if (existingWithSlug && existingWithSlug.id !== id) {

@@ -22,11 +22,28 @@
  */
 import { getAppName } from "@wildfires-org/turboplan-env";
 
+/**
+ * Optional built-in theme, chosen at build time by `NEXT_PUBLIC_BRAND_THEME`.
+ * `wildfires` gives the Wildfires.org look (logo, colors, type) used by
+ * demo.wildfires.org; unset keeps the default TurboPlan look. The colors and
+ * type live in `tailwind.config.ts` and `app/brand-wildfires.css`.
+ */
+export const brandTheme =
+  process.env.NEXT_PUBLIC_BRAND_THEME === "wildfires" ? "wildfires" : undefined;
+
+const assets =
+  brandTheme === "wildfires"
+    ? {
+        logo: "/brand/wildfires/logo.png",
+        ogImage: "/brand/wildfires/og-image.jpg",
+      }
+    : { logo: "/brand/logo.png", ogImage: "/brand/og-image.png" };
+
 export const brand = {
   /** Display name — alt text, page titles, sidebar wordmark. */
   name: getAppName(),
   /** Square mark shown in the sidebar, auth pages and error pages. */
-  logo: "/brand/logo.png",
+  logo: assets.logo,
   /** Social sharing card, 1200x630. */
-  ogImage: "/brand/og-image.png",
+  ogImage: assets.ogImage,
 } as const;

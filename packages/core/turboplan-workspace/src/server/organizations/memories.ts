@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import { db, isSqliteDb } from "@wildfires-org/turboplan-db/db-client";
 import {
   countOrganizationMemories,
   createOrganizationMemory,
@@ -83,9 +83,12 @@ export const saveOrganizationMemory = async ({
 
   return db.transaction(async (tx) => {
     // Released automatically at commit or rollback.
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`organization-memory:${organizationId}`}, 0))`,
-    );
+    // No advisory locks on D1: it runs one write at a time.
+    if (!isSqliteDb()) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`organization-memory:${organizationId}`}, 0))`,
+      );
+    }
 
     const existing = await findOrganizationMemoryByContent(
       organizationId,

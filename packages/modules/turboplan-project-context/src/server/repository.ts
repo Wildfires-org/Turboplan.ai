@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { projectContext } from "@wildfires-org/turboplan-db";
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import { db, isSqliteDb } from "@wildfires-org/turboplan-db/db-client";
 
 export type InsertProjectContextItem = {
   label: string;
@@ -75,9 +75,12 @@ export async function upsertProjectContextEntries(
   }
 
   return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`project-context:${projectId}`}, 0))`,
-    );
+    // No advisory locks on D1: it runs one write at a time.
+    if (!isSqliteDb()) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`project-context:${projectId}`}, 0))`,
+      );
+    }
 
     const existing = await tx
       .select({ id: projectContext.id, label: projectContext.label })

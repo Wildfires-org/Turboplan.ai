@@ -115,8 +115,9 @@ aiModelsRouter.get("/available", async (c) => {
 
     // Metering exemption: this fetches OpenRouter's model LIST (metadata,
     // free) — no inference happens here, so there is nothing to bill.
-    const response = await fetch("https://openrouter.ai/api/v1/models", {
+    const response = await fetch(`${env.OPENROUTER_BASE_URL}/models`, {
       headers: {
+        ...env.OPENROUTER_EXTRA_HEADERS,
         Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
       },
     });

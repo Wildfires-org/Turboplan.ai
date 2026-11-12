@@ -5,6 +5,7 @@ import { z } from "zod";
 import { projectField } from "@wildfires-org/turboplan-db";
 import {
   db,
+  isSqliteDb,
   runWithWorkerConnection,
 } from "@wildfires-org/turboplan-db/db-client";
 import { Action, EntityType } from "@wildfires-org/turboplan-rbac";
@@ -200,9 +201,12 @@ export const registerFieldTools = (server: McpServer, user: McpUserContext) => {
         // cap (and duplicate order values). The per-project advisory lock
         // serializes field mutations; it is released at commit.
         const newField = await db.transaction(async (tx) => {
-          await tx.execute(
-            sql`SELECT pg_advisory_xact_lock(hashtext(${projectId as string}))`,
-          );
+          // No advisory locks on D1: it runs one write at a time.
+          if (!isSqliteDb()) {
+            await tx.execute(
+              sql`SELECT pg_advisory_xact_lock(hashtext(${projectId as string}))`,
+            );
+          }
 
           const countResult = await tx
             .select({ count: sql<number>`count(*)::int` })
@@ -364,9 +368,12 @@ export const registerFieldTools = (server: McpServer, user: McpUserContext) => {
         // so concurrent batches cannot together exceed the cap or duplicate
         // order values. Sequential order mirrors the singular tool.
         const txResult = await db.transaction(async (tx) => {
-          await tx.execute(
-            sql`SELECT pg_advisory_xact_lock(hashtext(${projectId as string}))`,
-          );
+          // No advisory locks on D1: it runs one write at a time.
+          if (!isSqliteDb()) {
+            await tx.execute(
+              sql`SELECT pg_advisory_xact_lock(hashtext(${projectId as string}))`,
+            );
+          }
 
           const countResult = await tx
             .select({ count: sql<number>`count(*)::int` })

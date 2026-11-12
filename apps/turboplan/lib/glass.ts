@@ -8,7 +8,7 @@
 import { cn } from "@/lib/utils";
 
 /** Flat page ground behind every dashboard page (brandAlt-100). */
-export const PAGE_GROUND_CLASS = "bg-[#F4F9F7]";
+export const PAGE_GROUND_CLASS = "bg-brandAlt-100";
 
 /** Content column shared by the entity header and the page body. */
 export const PAGE_CONTAINER_CLASS = "container mx-auto px-6";
@@ -25,7 +25,7 @@ export const PAGE_LEAD_CLASS = "text-[14px] leading-[21px] text-gray-550";
  * cutting off hard. Sticky from sm up only: on phones tabs, search and filters
  * would cover a third of the screen under the header and compact banner. */
 export const STICKY_TOOLBAR_CLASS = cn(
-  "relative z-20 -mx-6 bg-[#F4F9F7]/90 px-6 pb-2 pt-4 backdrop-blur-md sm:sticky sm:top-[120px]",
+  "relative z-20 -mx-6 bg-brandAlt-100/90 px-6 pb-2 pt-4 backdrop-blur-md sm:sticky sm:top-[120px]",
   "dark:bg-slate-950/80",
 );
 

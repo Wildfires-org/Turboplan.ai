@@ -28,7 +28,7 @@ export class TurboplanRegisterPage {
    * @param email - User email address
    */
   async requestRegistrationLink(email: string): Promise<void> {
-    await this.page.getByPlaceholder("user@acme.com").fill(email);
+    await this.page.getByPlaceholder("name@usda.gov").fill(email);
     await this.page
       .getByRole("button", { name: "Send verification link" })
       .click();

@@ -36,8 +36,8 @@ export const LOADING_FACTS: LoadingFact[] = [
     source: "USDA Forest Service",
   },
   {
-    text: "The Bureau of Land Management oversees about 245 million surface acres, roughly one in every ten acres in the United States.",
-    source: "Bureau of Land Management",
+    text: "The National Forest System includes 154 national forests and 20 national grasslands in 43 states and Puerto Rico.",
+    source: "USDA Forest Service",
   },
   {
     text: "About one in three U.S. homes sits in the wildland-urban interface, the fastest-growing land-use type in the country.",
@@ -48,7 +48,7 @@ export const LOADING_FACTS: LoadingFact[] = [
     source: "USDA Forest Service",
   },
   {
-    text: "Yellowstone became the world's first national park in 1872 — almost a century before NEPA required anyone to study environmental impacts.",
-    source: "National Park Service",
+    text: "The Forest Service was founded in 1905, with Gifford Pinchot as its first Chief — 65 years before NEPA required anyone to study environmental impacts.",
+    source: "USDA Forest Service",
   },
 ];

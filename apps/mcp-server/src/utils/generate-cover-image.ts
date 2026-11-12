@@ -173,10 +173,11 @@ const generateAndSaveCoverImage = async (params: {
     const commonEnv = getCommonEnv();
 
     const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
+      `${aiEnv.OPENROUTER_BASE_URL}/chat/completions`,
       {
         method: "POST",
         headers: {
+          ...aiEnv.OPENROUTER_EXTRA_HEADERS,
           Authorization: `Bearer ${aiEnv.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
           "HTTP-Referer": commonEnv.TURBOPLAN_URL,

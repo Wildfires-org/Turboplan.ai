@@ -10,6 +10,8 @@ deployment, and how to read the startup errors.
 - [The four secrets](#the-four-secrets)
 - [Minimum viable local setup](#minimum-viable-local-setup)
 - [Feature flags](#feature-flags)
+- [Database providers](#database-providers)
+- [Signed-out entry point](#signed-out-entry-point)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
 
@@ -194,6 +196,19 @@ To light up AI, add one key: `OPENROUTER_API_KEY` from
 `apps/server/.env.local`. That single addition is what most local development
 actually needs.
 
+To send every OpenRouter call (chat, titles, image generation, the admin
+model list; web, API and MCP) through a
+[Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) for its
+logs, caching and spend limits, set `OPENROUTER_BASE_URL` to the gateway's
+OpenRouter endpoint,
+`https://gateway.ai.cloudflare.com/v1/<account-id>/<gateway>/openrouter/v1`,
+on the web app, the API and the MCP server. New gateways are authenticated
+(Cloudflare cannot turn that off once it is on), so also set
+`CLOUDFLARE_AI_GATEWAY_TOKEN` to a Cloudflare API token with the
+**AI Gateway Run** permission; it is sent as `cf-aig-authorization`, next to the
+OpenRouter key. Unset, requests go straight to `https://openrouter.ai/api/v1`.
+The research agent still calls OpenRouter directly.
+
 ## Feature flags
 
 Optional modules are toggled per deployment. Each has two names — the server
@@ -248,6 +263,161 @@ enabled. The API server reads `IS_BILLING_ENFORCEMENT_ENABLED`; the web app and
 landing page read `NEXT_PUBLIC_IS_BILLING_ENFORCEMENT_ENABLED`, inlined at build
 time, so keep all three in agreement. CI sets every one from the
 `FF_IS_BILLING_ENFORCEMENT_ENABLED` repo variable, falling back to `true`.
+
+## Database providers
+
+TurboPlan runs on **PostgreSQL** (the default) or on **Cloudflare D1**
+(SQLite). `DB_PROVIDER` picks one for every service — the web app, the API
+server, the MCP server and the `db:*` / seed scripts:
+
+| `DB_PROVIDER` | Database | `POSTGRES_URL` |
+| --- | --- | --- |
+| unset, empty or `postgres` | PostgreSQL through `POSTGRES_URL` (Hyperdrive on Workers) | Required |
+| `d1` | Cloudflare D1, or a local SQLite file | Not needed |
+
+Anything else throws ``Invalid `DB_PROVIDER` env variable``.
+
+On D1 the code is the same: one pg-core schema and the same queries. The
+`db` every service uses is still a drizzle Postgres database, whose dialect
+emits SQLite SQL instead (`packages/core/turboplan-db/src/d1/`). It turns
+parameters into `?N`, fills column defaults in on insert, rewrites casts,
+`ilike` and `now()`, and builds relational queries with `json_group_array`.
+It maps values both ways (booleans, timestamps as ISO-8601 text, json and
+arrays as JSON text). The few expressions without a SQLite spelling branch
+on the provider at the call site, and the Postgres branch stays as it was.
+
+The D1 database is reached in one of three ways, picked automatically:
+
+| Where the code runs | Transport | Configured by |
+| --- | --- | --- |
+| A Worker (web, API, MCP) | The D1 binding named **`DB`** | `d1_databases` in the Worker's wrangler config |
+| Node or Bun, local | A SQLite file (`node:sqlite`, or `bun:sqlite` under Bun) | `D1_LOCAL_PATH` |
+| Node, against a remote D1 database (migrations, seeds, one-off scripts) | The D1 HTTP API | `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID`, `CLOUDFLARE_API_TOKEN` (needs D1 edit permission) |
+
+`D1_LOCAL_PATH` wins when it and the HTTP variables are both set. A Node
+process with neither throws ``DB_PROVIDER=d1 needs a database: …``.
+
+### Running locally on SQLite
+
+The repo's Node version (22.23+) has `node:sqlite` built in, so there is
+nothing to install. In **both**
+`apps/turboplan/.env.local` and `apps/server/.env.local`, replace
+`POSTGRES_URL` with:
+
+```dotenv
+DB_PROVIDER=d1
+# Absolute: the web app and the API server run from different directories.
+D1_LOCAL_PATH=/absolute/path/to/turboplan.sqlite
+```
+
+Then:
+
+```bash
+pnpm build:packages
+cd apps/turboplan && pnpm db:migrate && cd ../..   # applies src/migrations-d1
+pnpm seed:prompts                                  # optional, as on Postgres
+pnpm dev
+```
+
+`pnpm db:push` is Postgres-only. On D1 it exits and points at `db:migrate`.
+The [no-email login](#logging-in-without-an-email-provider) works the same
+way: run `mint-magic-link.ts` with the two variables above in its
+environment.
+
+### Deploying on D1
+
+Bind the **same** D1 database as `DB` in the web Worker (`apps/turboplan`) and
+the API Worker (`apps/server`), and in the MCP Worker if it is deployed. Set
+`DB_PROVIDER=d1` as a plain var on each of them:
+
+```jsonc
+"d1_databases": [
+  {
+    "binding": "DB",
+    "database_name": "<name>",
+    "database_id": "<id>",
+    "migrations_dir": "../../packages/core/turboplan-db/src/migrations-d1"
+  }
+]
+```
+
+D1 needs no `POSTGRES_URL` secret and no Hyperdrive config. With
+`DB_PROVIDER=d1` both Workers ignore a `HYPERDRIVE` binding, so the existing
+one can stay. `scripts/deploy-web.sh` and `scripts/deploy-api.sh` are still
+written for Postgres: they require `POSTGRES_URL` (the web script also hands
+it to the Miniflare proxy that `opennextjs-cloudflare deploy` starts, which
+will not boot a `HYPERDRIVE` binding without a connection string) and do not
+pass `DB_PROVIDER` or the `d1_databases` binding. A D1 deployment adds those
+itself, or drops the `hyperdrive` block from its wrangler config.
+
+Apply the migrations with either tool. Both record what they applied in
+wrangler's `d1_migrations` table, so you can switch between them:
+
+```bash
+# From apps/turboplan or apps/server, whose config has the migrations_dir above:
+wrangler d1 migrations apply <name> --remote
+
+# Or through the D1 HTTP API, from apps/turboplan:
+DB_PROVIDER=d1 CLOUDFLARE_ACCOUNT_ID=… D1_DATABASE_ID=… CLOUDFLARE_API_TOKEN=… pnpm db:migrate
+```
+
+The seeds (`pnpm seed:prompts`, `pnpm seed:organizations`) take the same
+four variables. As on Postgres, they also read `apps/turboplan/.env.local`.
+`seed:organizations` additionally needs its usual
+`SYSTEM_USER_EMAIL` and the `R2_*` set, because it copies the seed images into
+the bucket. Over the HTTP API every statement is a round trip, so the seeds
+take minutes, not seconds.
+
+### Changing the schema
+
+The pg-core schema stays the source of truth. After a schema change, add the
+D1 migration next to the Postgres one:
+
+```bash
+pnpm --filter @wildfires-org/turboplan-db d1:generate <name>   # writes src/migrations-d1/NNNN_<name>.sql
+```
+
+The generator applies the existing D1 migrations to an in-memory database and
+compares the result with the schema. It writes what SQLite can do in place:
+new tables, columns and indexes, and recreated indexes. A changed or removed
+column, key or check needs SQLite's table rebuild (create, copy, drop,
+rename). The generator lists those changes and exits non-zero, and you write
+that migration by hand. The `d1-migrations` unit test fails while the D1
+migrations are out of date with the schema, so CI catches a forgotten one.
+
+### What is different on D1
+
+| Area | On D1 |
+| --- | --- |
+| Transactions | **Not atomic.** D1 has no interactive transactions, so `db.transaction()` runs its statements one at a time, and a failure part-way keeps the writes before it. `select … for update` and the advisory locks are dropped. D1 runs one write at a time, but two requests can still interleave between a read and the write that depends on it, for example two claims of the same self-service project |
+| Maps | **Not supported.** PostGIS has no D1 equivalent: keep `IS_MAPS_PACKAGE_ENABLED` off. Geometry columns exist as TEXT so the schema stays the same |
+| Search ranking | No `pg_trgm`. User, organization, office, project and template search matches case-insensitive substrings and ranks exact > prefix > word prefix > anywhere. There is no typo tolerance, and case-insensitivity covers ASCII letters only |
+| Indexes | GIN (trigram) and GiST (spatial) indexes are left out; the generated migration lists them |
+| Enums | `pgEnum` values are stored as TEXT without a database check (the app validates them), so adding a value needs no D1 migration |
+| JSON | `jsonb` is stored as JSON text. An equality on a whole document compares the text, so key order matters: the letterhead grid's compare-and-set always writes and compares `JSON.stringify` output |
+| Statement size | D1 binds at most 100 parameters per statement. Above that the values are inlined as literals, and D1's 100 KB statement limit still applies |
+| Other modules | Verified with maps, the research agent, billing and signing **off**. Those modules have not been run on D1 |
+
+## Signed-out entry point
+
+By default a signed-out visitor at `/` is sent to `/login`. Building the web
+app with `NEXT_PUBLIC_ENTRY_POINT=prompt` shows a prompt page there instead: a
+headline, a prompt box that takes PDF and Word attachments, and US Forest
+Service example projects that fill the box. Sending opens `/self-service` with
+`projectTitle`, `projectDescription`, any `landingUploads` keys and the visit's
+`utm_*`/`gclid` parameters, the same hand-off the landing-page prompt uses: the
+visitor enters an email, a magic link signs them in, and the new project starts
+from the prompt. Every other page still asks signed-out visitors to sign in.
+
+- The value is inlined at build time (like `NEXT_PUBLIC_BRAND_THEME`), so
+  changing it needs a rebuild. Any value other than `prompt` keeps the default.
+- The copy and examples live in `apps/turboplan/lib/entry-point/content.ts` and
+  `usfs-examples.ts`. The page follows the brand theme and is designed for
+  `NEXT_PUBLIC_BRAND_THEME=wildfires`.
+- Attachments use the anonymous presign route (`/api/public/uploads/presign`),
+  so they need the API's R2 credentials and a bucket CORS rule for the web app
+  origin (see [R2 bucket](#r2-bucket)). Without them a file shows as failed and
+  the prompt still goes through.
 
 ## Deployment
 
@@ -354,6 +524,34 @@ are needed for that:
   `wrangler r2 bucket lifecycle add <bucket> expire-landing-uploads landing-uploads/ --expire-days 2 --force`.
   No R2 jurisdiction is supported: the app talks to the default S3 endpoint.
 
+#### Bucket binding instead of access keys
+
+A Worker can reach the bucket through an R2 binding instead of the S3 API, so
+no `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` exist at all. Bind the bucket as
+`STORAGE_BUCKET` (`"r2_buckets": [{ "binding": "STORAGE_BUCKET",
+"bucket_name": "<bucket>" }]`) on the API and the web app (and the MCP server,
+if it runs); each Worker entry registers it with `setStorageBucket` from
+`@wildfires-org/turboplan-upload/bucket`. With the binding present:
+
+- Writes, reads, deletes and landing-upload claims go to the binding. Only
+  `R2_PUBLIC_URL` is still required; `R2_ACCOUNT_ID`, `R2_BUCKET_NAME` and the
+  keys are not read.
+- A binding cannot presign, so the presign endpoints return a URL on the API
+  instead: `PUT ${SERVER_URL}/api/storage/upload?token=…`, which streams the
+  body into the bucket. The token is an HMAC under a key derived from
+  `JWT_SIGNING_SECRET` and pins the key, the exact `Content-Type` and the
+  length for five minutes, like a presigned URL. The API needs `SERVER_URL`
+  (its own public URL). Browser uploads then pass through the API Worker, so
+  the bucket needs no CORS rule, and the Worker's request body limit applies
+  (100 MB on the Free and Pro plans, 200 MB on Business).
+- Reads by the browser still use the bucket's public URL (`R2_PUBLIC_URL`, its
+  custom domain or `r2.dev` URL). Keep it on a host outside the auth cookie
+  domain: uploaded SVGs are served from it as is.
+- Node scripts (the seeds) have no binding and use the S3 API unless they
+  register one themselves, e.g. from wrangler's `getPlatformProxy`.
+
+The landing-uploads lifecycle rule is needed either way.
+
 The anonymous presign endpoint (`/api/public/uploads/*`) is rate limited per IP
 by the `PUBLIC_UPLOAD_RATE_LIMITER` binding in `apps/server/wrangler.jsonc`
 (10 per minute). Off Workers, or if the binding errors, it falls back to a
@@ -380,9 +578,10 @@ missing.
 | `POSTGRES_URL` | web, api, mcp | |
 | `OPENROUTER_API_KEY` | web, api, mcp | |
 | `SERVER_API_KEY` | api | |
-| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | web, api, mcp, research agent | Research agent: optional, with `R2_ACCOUNT_ID` and `R2_BUCKET_NAME` (the API's bucket; no `R2_PUBLIC_URL`) — letterhead logo crops are stored only when all four are set |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | web, api, mcp, research agent | Not needed on a Worker with a `STORAGE_BUCKET` binding (see "Bucket binding instead of access keys"). Research agent: optional, with `R2_ACCOUNT_ID` and `R2_BUCKET_NAME` (the API's bucket; no `R2_PUBLIC_URL`) — letterhead logo crops are stored only when all four are set |
+| `CLOUDFLARE_AI_GATEWAY_TOKEN` | web, api, mcp | Optional — with `OPENROUTER_BASE_URL`, for an authenticated Cloudflare AI Gateway. The deploy scripts pass both when set; the workflow does not set them yet |
 | `MAP_SERVICE_API_KEY` | api, map | Same value on both |
-| `RESEND_API_KEY` | api | Optional — no-op mail without it |
+| `RESEND_API_KEY` | api | Optional — no-op mail without it. A `send_email` Worker binding named `SEND_EMAIL` on the API (Cloudflare Email Sending) takes precedence; `RESEND_FROM_EMAIL` is the sender for both |
 | `EXA_API_KEY` | web | Optional — web search is a chat tool in the Next.js app; the API server never reads it |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | api | Required only when billing is enabled |
 | `DOCUMENSO_API_KEY`, `DOCUMENSO_WEBHOOK_SECRET` | api | Required only when signing is enabled; pair with the `DOCUMENSO_API_URL` variable |
@@ -448,11 +647,14 @@ Its own `pnpm deploy` script still deploys by hand.
 ## Troubleshooting
 
 Every message below is thrown by `packages/core/turboplan-env/src/index.ts` at
-startup, with the exception of the two marked otherwise.
+startup, except the ones marked otherwise.
 
 | Error | Fix |
 | --- | --- |
-| ``Missing database URL: set `POSTGRES_URL` or `TEST_POSTGRES_URL` env variable`` | Set `POSTGRES_URL` in the failing service's env file. Check you copied to the right filename for that service |
+| ``Missing database URL: set `POSTGRES_URL` or `TEST_POSTGRES_URL` env variable`` | Set `POSTGRES_URL` in the failing service's env file (or set `DB_PROVIDER=d1`). Check you copied to the right filename for that service |
+| ``Invalid `DB_PROVIDER` env variable: expected `postgres` or `d1` `` | Leave it unset for Postgres, or set it to `d1`. See [Database providers](#database-providers) |
+| ``DB_PROVIDER=d1 needs a database: …`` | Thrown by `@wildfires-org/turboplan-db` in a Node process on D1. Set `D1_LOCAL_PATH`, or the three D1 HTTP API variables |
+| ``DB_PROVIDER=d1 needs a `DB` D1 binding`` | Thrown by a Worker entry on its first request. Add the `d1_databases` binding named `DB` to that Worker's wrangler config |
 | ``Missing `AUTH_SECRET` env variable`` | Generate one and set it in the web app, API server **and** landing page — byte-identical |
 | ``Missing `AUTH_SECRET` env variable (required for session verification)`` | Same value, missing specifically from `apps/landing-page/.env.local` |
 | ``Missing `INTERNAL_API_SECRET` env variable`` | Set it in `apps/server/.env.local` |
@@ -470,7 +672,9 @@ startup, with the exception of the two marked otherwise.
 | ``Missing `DOCUMENSO_API_URL` / `DOCUMENSO_API_KEY` / `DOCUMENSO_WEBHOOK_SECRET` env variable`` | Signing is enabled. Start `docker/documenso` and fill these in, or set the signing flag to `false` |
 | ``Missing `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` env variable`` | Billing is enabled. Add test-mode Stripe keys or set the billing flag to `false` on both sides |
 | ``Missing `OPENROUTER_API_KEY` env variable`` | Thrown lazily on the first AI call, not at startup — the route returns 500. Add the key to the web app and the API server |
-| ``Missing `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_ACCOUNT_ID` / `R2_PUBLIC_URL` env variable`` | Thrown lazily on the first storage call that needs the variable — the upload or image route returns 500. Uploads, deletes and storage URLs need all five; reading letterhead grid logos by key needs only the four credentials (without them those logos are left out, logged as `[storage] Object read failed`). Configure all five together |
+| ``Missing `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_ACCOUNT_ID` / `R2_PUBLIC_URL` env variable`` | Thrown lazily on the first storage call that needs the variable — the upload or image route returns 500. Uploads, deletes and storage URLs need all five; reading letterhead grid logos by key needs only the four credentials (without them those logos are left out, logged as `[storage] Object read failed`). Configure all five together. With a `STORAGE_BUCKET` binding only `R2_PUBLIC_URL` is read |
+| ``Invalid `OPENROUTER_BASE_URL` env variable`` | Thrown on the first AI call. Use the gateway's https base ending in `/openrouter/v1`, without a query, fragment or credentials |
+| AI calls fail with `401` and code `2009` | The Cloudflare AI Gateway is authenticated and `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset or lacks the AI Gateway Run permission |
 | ``Missing `AGENT_API_KEY` env variable`` | `apps/research-agent` only. Must match `RESEARCH_AGENT_SERVICE_API_KEY` on the API server |
 | ``Missing required Modal env variables: …`` | `apps/research-agent` only. Set `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, or `AGENT_LOCAL=true` for local development |
 | ``Missing model provider key: set ANTHROPIC_API_KEY or OPENROUTER_API_KEY.`` | `apps/research-agent` only. Set one of the two, or `AGENT_LOCAL=true` |

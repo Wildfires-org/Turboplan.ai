@@ -13,7 +13,8 @@
     "dev": "tsdown --watch --no-clean",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --experimental-test-module-mocks --test $(find unit-tests -name '*.test.ts')"
+    "test": "node --import tsx --experimental-test-module-mocks --test $(find unit-tests -name '*.test.ts')",
+    "d1:generate": "tsx scripts/generate-d1-migration.ts"
   },
   "exports": {
     ".": {

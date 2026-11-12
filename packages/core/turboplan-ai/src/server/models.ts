@@ -53,6 +53,8 @@ const getOpenRouterProvider = () => {
     const env = getOpenRouterEnv();
     _openRouterProvider = createOpenRouter({
       apiKey: env.OPENROUTER_API_KEY,
+      baseURL: env.OPENROUTER_BASE_URL,
+      headers: env.OPENROUTER_EXTRA_HEADERS,
     });
   }
   return _openRouterProvider;

@@ -5,9 +5,10 @@
  *
  * This script:
  * 1. Creates a system user if needed (for createdBy field)
- * 2. Seeds government/environmental-planner organizations with their logo and
- *    cover image URLs
- * 3. Seeds their offices with logo and cover image URLs
+ * 2. Seeds the US Forest Service organization with its logo and cover image
+ *    URLs (data.ts)
+ * 3. Seeds its national forests and grasslands as offices, with logo and cover
+ *    image URLs
  * 4. Seeds template projects with cover images
  */
 

@@ -20,6 +20,9 @@ set -euo pipefail
 #   R2_ACCOUNT_ID
 #   R2_BUCKET_NAME
 #   OPENROUTER_API_KEY
+#
+# Optional:
+#   OPENROUTER_BASE_URL, CLOUDFLARE_AI_GATEWAY_TOKEN (Cloudflare AI Gateway)
 
 ENVIRONMENT="${1:?Usage: deploy-mcp.sh <environment> [pr-number]}"
 PR_NUMBER="${2:-}"
@@ -86,6 +89,8 @@ VARS=(
   # AI image models (fall back to env defaults when empty)
   --var "OPENROUTER_MODEL_IMAGE_PRIMARY:${OPENROUTER_MODEL_IMAGE_PRIMARY:-}"
   --var "OPENROUTER_MODEL_IMAGE_LITE:${OPENROUTER_MODEL_IMAGE_LITE:-}"
+  # Optional OpenRouter base, e.g. a Cloudflare AI Gateway (empty = openrouter.ai)
+  --var "OPENROUTER_BASE_URL:${OPENROUTER_BASE_URL:-}"
   # Sentry error monitoring (optional — monitoring disabled when empty)
   --var "SENTRY_DSN:${SENTRY_DSN:-}"
   --var "RELEASE_VERSION:${RELEASE_VERSION:-}"
@@ -118,6 +123,10 @@ fi
 
 if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
   SECRETS_JSON=$(echo "$SECRETS_JSON" | jq --arg k "OPENROUTER_API_KEY" --arg v "$OPENROUTER_API_KEY" '. + {($k): $v}')
+fi
+
+if [[ -n "${CLOUDFLARE_AI_GATEWAY_TOKEN:-}" ]]; then
+  SECRETS_JSON=$(echo "$SECRETS_JSON" | jq --arg k "CLOUDFLARE_AI_GATEWAY_TOKEN" --arg v "$CLOUDFLARE_AI_GATEWAY_TOKEN" '. + {($k): $v}')
 fi
 
 echo "$SECRETS_JSON" | npx wrangler secret bulk --name "$WORKER_NAME"

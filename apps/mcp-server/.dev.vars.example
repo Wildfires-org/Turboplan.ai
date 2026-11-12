@@ -29,7 +29,15 @@
 # DATABASE
 # =============================================================================
 
-# PostgreSQL connection string. REQUIRED.
+# Database provider: `postgres` (default) or `d1`. With `d1` the Worker reads
+# its `DB` D1 binding (add a `d1_databases` entry named DB to wrangler.jsonc,
+# bound to the web app's database) and POSTGRES_URL is not needed. See
+# "Database providers" in ../../CONFIGURATION.md.
+# If `d1` without the binding: every request fails with
+# "DB_PROVIDER=d1 needs a `DB` D1 binding".
+# DB_PROVIDER=d1
+
+# PostgreSQL connection string. REQUIRED unless DB_PROVIDER=d1.
 # Must be the same database the web app uses, or the PAT you mint there will not
 # be found here (tokens are validated by hash lookup against this DB).
 # If unset: every request fails — getCommonEnv() throws
@@ -124,6 +132,10 @@ R2_PUBLIC_URL=
 OPENROUTER_API_KEY=
 OPENROUTER_MODEL_IMAGE_PRIMARY=
 OPENROUTER_MODEL_IMAGE_LITE=
+# Optional: a Cloudflare AI Gateway base URL (…/openrouter/v1) and its token
+# (sent as cf-aig-authorization). Unset = straight to OpenRouter.
+OPENROUTER_BASE_URL=
+CLOUDFLARE_AI_GATEWAY_TOKEN=
 
 # =============================================================================
 # ERROR MONITORING (Sentry) — OPTIONAL

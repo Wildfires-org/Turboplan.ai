@@ -5,6 +5,66 @@ import plugin from "tailwindcss/plugin";
 
 import { BRAND_GRADIENT_CSS } from "@wildfires-org/turboplan-utils";
 
+// `NEXT_PUBLIC_BRAND_THEME=wildfires` (read at build time) swaps the two brand
+// scales and the sans font for the Wildfires.org look: forest greens and cream
+// for `brandAlt`, the logo's orange for `brand`, and Söhne type (declared in
+// app/brand-wildfires.css). See lib/brand.ts.
+const isWildfiresTheme = process.env.NEXT_PUBLIC_BRAND_THEME === "wildfires";
+
+const defaultBrandColors = {
+  brand: {
+    "50": "#EEFCF6",
+    "100": "#CAF4E4",
+    "200": "#A7EDD2",
+    "300": "#83E6C0",
+    "400": "#60DEAE",
+    "500": "#3CD79C",
+    "600": "#27C187",
+    "700": "#209E6E",
+    "800": "#1B845C",
+    "900": "#12563C",
+    "950": "#0A3323",
+  },
+  brandAlt: {
+    "100": "#F4F9F7",
+    "200": "#D1E6DE",
+    "300": "#A4CEBE",
+    "400": "#5FA98D",
+    "500": "#1B845C",
+    "600": "#156647",
+    "700": "#0F4832",
+  },
+};
+
+const wildfiresBrandColors = {
+  brand: {
+    "50": "#FFF5EB",
+    "100": "#FFE6CC",
+    "200": "#FFCC99",
+    "300": "#FFB366",
+    "400": "#FF9933",
+    "500": "#FF8000",
+    "600": "#E67300",
+    "700": "#C25E00",
+    "800": "#9A4A00",
+    "900": "#6E3500",
+    "950": "#3D1D00",
+  },
+  brandAlt: {
+    "100": "#FBFAF8",
+    "200": "#E4E8E2",
+    "300": "#ACB8AF",
+    "400": "#3F6B48",
+    "500": "#1A3B21",
+    "600": "#152F1A",
+    "700": "#0F2314",
+  },
+};
+
+const brandColors = isWildfiresTheme
+  ? wildfiresBrandColors
+  : defaultBrandColors;
+
 const config: Config = {
   darkMode: ["class"],
   content: [
@@ -21,7 +81,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist)"],
+        sans: isWildfiresTheme
+          ? ["Soehne", "var(--font-geist)"]
+          : ["var(--font-geist)"],
         mono: ["var(--font-geist-mono)"],
       },
       screens: {
@@ -164,28 +226,8 @@ const config: Config = {
           "800": "#1F2937",
           "900": "#111827",
         },
-        brand: {
-          "50": "#EEFCF6",
-          "100": "#CAF4E4",
-          "200": "#A7EDD2",
-          "300": "#83E6C0",
-          "400": "#60DEAE",
-          "500": "#3CD79C",
-          "600": "#27C187",
-          "700": "#209E6E",
-          "800": "#1B845C",
-          "900": "#12563C",
-          "950": "#0A3323",
-        },
-        brandAlt: {
-          "100": "#F4F9F7",
-          "200": "#D1E6DE",
-          "300": "#A4CEBE",
-          "400": "#5FA98D",
-          "500": "#1B845C",
-          "600": "#156647",
-          "700": "#0F4832",
-        },
+        brand: brandColors.brand,
+        brandAlt: brandColors.brandAlt,
         error: {
           "50": "#FEF2F2",
           "100": "#FEE2E2",

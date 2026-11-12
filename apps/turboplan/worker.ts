@@ -15,6 +15,10 @@
  * `POSTGRES_URL` with the raw database secret and bypass Hyperdrive. Hyperdrive
  * is preferred when its binding is present because it pools and multiplexes
  * connections at the edge.
+ *
+ * With `DB_PROVIDER=d1` there is no connection: the request scope carries the
+ * `DB` D1 binding instead, and still holds the Worker open (`waitUntil`) until
+ * background work such as the chat route's `onFinish` has settled.
  */
 
 // `open-next-worker` is a wrangler `alias` (see wrangler.jsonc) for the
@@ -24,11 +28,19 @@
 // @ts-ignore -- resolved by the wrangler alias at bundle time
 import openNextHandler from "open-next-worker";
 
-import { runWithWorkerConnectionForResponse } from "@wildfires-org/turboplan-db/db-client";
+import {
+  type D1DatabaseLike,
+  runWithWorkerConnectionForResponse,
+} from "@wildfires-org/turboplan-db/db-client";
+import { setStorageBucket } from "@wildfires-org/turboplan-upload/bucket";
 
 type WorkerEnv = {
   HYPERDRIVE?: { connectionString: string };
   POSTGRES_URL?: string;
+  DB_PROVIDER?: string;
+  DB?: D1DatabaseLike;
+  // R2 bucket binding for storage; without it, storage uses the S3 API.
+  STORAGE_BUCKET?: unknown;
 } & Record<string, unknown>;
 
 type WorkerExecutionContext = {
@@ -42,6 +54,22 @@ export default {
     env: WorkerEnv,
     ctx: WorkerExecutionContext,
   ): Promise<Response> => {
+    // Shared with the Next.js bundle through `globalThis` (see the package).
+    setStorageBucket(env.STORAGE_BUCKET);
+
+    if (env.DB_PROVIDER === "d1") {
+      if (!env.DB) {
+        throw new Error("DB_PROVIDER=d1 needs a `DB` D1 binding");
+      }
+      return runWithWorkerConnectionForResponse(
+        () => openNextHandler.fetch(request, env, ctx),
+        {
+          waitUntil: (promise) => ctx.waitUntil(promise),
+          d1: env.DB,
+        },
+      );
+    }
+
     const connectionString =
       env.HYPERDRIVE?.connectionString ?? env.POSTGRES_URL;
 
