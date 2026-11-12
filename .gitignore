@@ -22,3 +22,5 @@ apps/turboplan/perf-artifacts/**/*
 performance-tickets/**/*
 
 .playwright-mcp/
+# Söhne is licensed to wildfires.org only: deploys copy it in at build time.
+/apps/turboplan/public/brand/wildfires/fonts/
