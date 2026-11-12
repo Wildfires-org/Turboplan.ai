@@ -6,9 +6,9 @@
 const getBaseUrl = () =>
   process.env.TURBOPLAN_URL || process.env.NEXT_PUBLIC_TURBOPLAN_URL || "";
 
-/** 32x32 beaver logo for the email header */
-export const getLogoUrl = () => `${getBaseUrl()}/images/email/logo-beaver.png`;
+/** Wildfires.org mark for the email header: 56x56 PNG, shown at 28px */
+export const getLogoUrl = () => `${getBaseUrl()}/images/email/logo.png`;
 
-/** Beaver mascot for the card's hero band */
-export const getBeaverUrl = () =>
-  `${getBaseUrl()}/images/email/beaver-mascot.png`;
+/** Wildfires.org mark for the card's hero band: 128x128 PNG, shown at 64px */
+export const getHeroLogoUrl = () =>
+  `${getBaseUrl()}/images/email/logo-hero.png`;
