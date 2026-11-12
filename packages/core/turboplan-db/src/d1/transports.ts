@@ -147,11 +147,26 @@ type LocalDatabase = {
   close: () => void;
 };
 
-// The specifiers are variables so bundlers (Next.js, wrangler) leave them
-// alone: neither module exists in the Workers runtime, and this transport is
-// never used there.
-const NODE_SQLITE = "node:sqlite";
-const BUN_SQLITE = "bun:sqlite";
+/**
+ * Loads `node:sqlite` or `bun:sqlite` through `process.getBuiltinModule`
+ * rather than a dynamic import, so bundlers have no module to resolve.
+ * Next.js's minifier folds a variable specifier back into a literal, and
+ * OpenNext's esbuild pass then fails on "bun:sqlite". Neither module exists
+ * in the Workers runtime, and this transport is never used there.
+ */
+const loadSqliteModule = <T>(specifier: "node:sqlite" | "bun:sqlite"): T => {
+  const loaded =
+    typeof process !== "undefined" &&
+    typeof process.getBuiltinModule === "function"
+      ? process.getBuiltinModule(specifier)
+      : undefined;
+  if (!loaded) {
+    throw new Error(
+      `A local SQLite database (D1_LOCAL_PATH) needs ${specifier}: run it on Node 22.16+ or Bun`,
+    );
+  }
+  return loaded as T;
+};
 
 type NodeStatementSync = {
   setReturnArrays: (enabled: boolean) => void;
@@ -168,9 +183,7 @@ type BunStatement = {
 };
 
 const openNodeSqlite = async (path: string): Promise<LocalDatabase> => {
-  const { DatabaseSync } = (await import(
-    /* webpackIgnore: true */ /* turbopackIgnore: true */ NODE_SQLITE
-  )) as {
+  const { DatabaseSync } = loadSqliteModule<{
     DatabaseSync: new (
       path: string,
     ) => {
@@ -178,7 +191,7 @@ const openNodeSqlite = async (path: string): Promise<LocalDatabase> => {
       exec: (sql: string) => void;
       close: () => void;
     };
-  };
+  }>("node:sqlite");
   const database = new DatabaseSync(path);
   return {
     prepare: (sql) => {
@@ -205,9 +218,7 @@ const openNodeSqlite = async (path: string): Promise<LocalDatabase> => {
 };
 
 const openBunSqlite = async (path: string): Promise<LocalDatabase> => {
-  const { Database } = (await import(
-    /* webpackIgnore: true */ /* turbopackIgnore: true */ BUN_SQLITE
-  )) as {
+  const { Database } = loadSqliteModule<{
     Database: new (
       path: string,
       options?: { create?: boolean },
@@ -216,7 +227,7 @@ const openBunSqlite = async (path: string): Promise<LocalDatabase> => {
       exec: (sql: string) => void;
       close: () => void;
     };
-  };
+  }>("bun:sqlite");
   const database = new Database(path, { create: true });
   return {
     prepare: (sql) => {
@@ -237,7 +248,7 @@ const openBunSqlite = async (path: string): Promise<LocalDatabase> => {
 };
 
 /**
- * A SQLite file through `node:sqlite` (Node ≥ 22.5) or `bun:sqlite` (the API
+ * A SQLite file through `node:sqlite` (Node ≥ 22.16) or `bun:sqlite` (the API
  * server's `pnpm dev`). Foreign keys are enforced, as on D1, and WAL lets the
  * web app and the API server share one file.
  */

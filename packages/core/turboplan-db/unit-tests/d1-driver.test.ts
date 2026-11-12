@@ -1,5 +1,7 @@
 import assert from "node:assert";
+import { readFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
@@ -18,6 +20,7 @@ import { normalizeSqliteError } from "../src/d1/errors";
 import {
   createD1BindingTransport,
   createD1HttpTransport,
+  createLocalSqliteTransport,
   type D1DatabaseLike,
   type SqliteTransport,
 } from "../src/d1/transports";
@@ -348,5 +351,24 @@ describe("transports", () => {
         return normalizeSqliteError(error).code === "23505";
       });
     });
+  });
+
+  it("local file transport opens node:sqlite without an import a bundler must resolve", async () => {
+    const transport = createLocalSqliteTransport(":memory:");
+    try {
+      assert.deepStrictEqual(await transport.values("select ?1 + 1", [1]), [
+        [2],
+      ]);
+    } finally {
+      await transport.close?.();
+    }
+    // The web Worker's build (Next.js, then OpenNext's esbuild) bundles this
+    // module. Its minifier folds an import() of a constant specifier into
+    // import("bun:sqlite"), which esbuild cannot resolve.
+    const source = await readFile(
+      fileURLToPath(new URL("../src/d1/transports.ts", import.meta.url)),
+      "utf8",
+    );
+    assert.doesNotMatch(source, /\bimport\s*\(/);
   });
 });
