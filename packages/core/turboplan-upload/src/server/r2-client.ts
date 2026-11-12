@@ -15,7 +15,13 @@ import {
 } from "@wildfires-org/turboplan-env";
 
 import { isSafeObjectKey } from "../types/object-key";
+import { createBucketUploadUrl } from "./bucket-upload";
 import { readCapped } from "./read-capped";
+import { getStorageBucket, type StorageBucketObject } from "./storage-bucket";
+
+// Every operation below goes to the registered R2 bucket binding when there
+// is one (`setStorageBucket`, from a Worker entry) and to the S3 API with the
+// R2_* credentials otherwise.
 
 let _s3Client: S3Client | null = null;
 
@@ -54,9 +60,17 @@ const getBucketName = (): string => {
 // The write base: the first entry of R2_PUBLIC_URL, without a trailing slash
 // (so the `/` boundary below is present exactly once). Every URL we hand out,
 // and every ownership decision, is on this base; the other entries are
-// read-only aliases (`isStorageUrl`, `isStorageHost`).
+// read-only aliases (`isStorageUrl`, `isStorageHost`). A bucket binding needs
+// no credentials, so then only R2_PUBLIC_URL is required.
 const getBaseUrl = (): string => {
-  return getR2Env().R2_PUBLIC_URL;
+  if (!getStorageBucket()) {
+    return getR2Env().R2_PUBLIC_URL;
+  }
+  const [publicUrl] = getR2PublicUrls();
+  if (!publicUrl) {
+    throw new Error("Missing `R2_PUBLIC_URL` env variable");
+  }
+  return publicUrl;
 };
 
 export const getPublicUrl = (key: string): string => {
@@ -182,6 +196,12 @@ export const uploadFile = async (
   // name.
   const url = getPublicUrl(key);
 
+  const bucket = getStorageBucket();
+  if (bucket) {
+    await bucket.put(key, payload, { httpMetadata: { contentType } });
+    return { url, key };
+  }
+
   await getS3Client().send(
     new PutObjectCommand({
       Bucket: getBucketName(),
@@ -200,6 +220,12 @@ export const uploadFile = async (
  * `deleteOwnedStorageFile` instead.
  */
 export const deleteStorageObject = async (key: string): Promise<void> => {
+  const bucket = getStorageBucket();
+  if (bucket) {
+    await bucket.delete(key);
+    return;
+  }
+
   await getS3Client().send(
     new DeleteObjectCommand({
       Bucket: getBucketName(),
@@ -236,10 +262,23 @@ const isNotFoundError = (error: unknown): boolean => {
   );
 };
 
+const bucketObjectInfo = (object: StorageBucketObject): StorageObjectInfo => ({
+  contentType: object.httpMetadata?.contentType ?? "",
+  size: object.size,
+  // Quoted, as the S3 API reports it.
+  etag: object.httpEtag,
+});
+
 /** The stored type, size and ETag of the object at `key`, or null if absent. */
 export const headStorageObject = async (
   key: string,
 ): Promise<StorageObjectInfo | null> => {
+  const bucket = getStorageBucket();
+  if (bucket) {
+    const object = await bucket.head(key);
+    return object ? bucketObjectInfo(object) : null;
+  }
+
   try {
     const result = await getS3Client().send(
       new HeadObjectCommand({
@@ -281,6 +320,38 @@ const webStreamOf = (body: unknown): ReadableStream<Uint8Array> | null => {
   return null;
 };
 
+type StoredObject = {
+  Body?: unknown;
+  ContentLength?: number;
+  ContentType?: string;
+};
+
+// GetObject's response fields from either source; null when absent from the
+// bucket binding (the S3 API throws NoSuchKey instead).
+const getObject = async (
+  key: string,
+  abortSignal: AbortSignal,
+): Promise<StoredObject | null> => {
+  const bucket = getStorageBucket();
+  if (bucket) {
+    const object = await bucket.get(key);
+    if (!object || !("body" in object)) {
+      return null;
+    }
+    return {
+      Body: object.body,
+      ContentLength: object.size,
+      ContentType: object.httpMetadata?.contentType,
+    };
+  }
+
+  return getS3Client().send(
+    new GetObjectCommand({ Bucket: getBucketName(), Key: key }),
+    // The SDK has no request timeout of its own.
+    { abortSignal },
+  );
+};
+
 // Why a read gave nothing, for the log line (never the key or a message,
 // which may carry one).
 type ObjectReadFailure =
@@ -295,9 +366,9 @@ const reportReadFailure = (reason: ObjectReadFailure | string): void => {
 };
 
 /**
- * Read the object at `key` with the bucket's credentials (S3 GetObject) —
- * how the server reads objects it serves or embeds itself, whether or not
- * the bucket is public. Only a key that names one object of the bucket is
+ * Read the object at `key` with the bucket's credentials (S3 GetObject) or
+ * binding — how the server reads objects it serves or embeds itself, whether
+ * or not the bucket is public. Only a key that names one object of the bucket is
  * sent (`isSafeObjectKey`). Bounded: at most `maxBytes` (the declared
  * `ContentLength` first, then the bytes actually streamed) within
  * `timeoutMs` (request and body). `contentType` is the type storage holds
@@ -326,11 +397,10 @@ export const getObjectBytes = async (
   });
 
   const read = async (): Promise<StorageObjectBytes | ObjectReadFailure> => {
-    const response = await getS3Client().send(
-      new GetObjectCommand({ Bucket: getBucketName(), Key: key }),
-      // The SDK has no request timeout of its own.
-      { abortSignal: controller.signal },
-    );
+    const response = await getObject(key, controller.signal);
+    if (!response) {
+      return "not_found";
+    }
     const stream = webStreamOf(response.Body);
     // A response may still arrive after the timeout (the caller has moved
     // on): cancel its body rather than read it in the background.
@@ -402,6 +472,33 @@ export const copyStorageObject = async (
   destinationKey: string,
   { ifMatch, contentType }: { ifMatch?: string; contentType?: string } = {},
 ): Promise<void> => {
+  const storageBucket = getStorageBucket();
+  if (storageBucket) {
+    // A binding has no server-side copy: read, then write. `etagMatches`
+    // takes the ETag unquoted; a failed match gives the object without a body.
+    const source = await storageBucket.get(sourceKey, {
+      onlyIf: ifMatch
+        ? { etagMatches: ifMatch.replace(/^"|"$/g, "") }
+        : undefined,
+    });
+    if (!source) {
+      throw Object.assign(new Error("Copy source not found"), {
+        name: "NoSuchKey",
+      });
+    }
+    if (!("body" in source)) {
+      throw Object.assign(new Error("Copy source ETag does not match"), {
+        name: "PreconditionFailed",
+      });
+    }
+    await storageBucket.put(destinationKey, source.body, {
+      httpMetadata: {
+        contentType: contentType ?? source.httpMetadata?.contentType,
+      },
+    });
+    return;
+  }
+
   const bucket = getBucketName();
 
   await getS3Client().send(
@@ -426,13 +523,23 @@ export const copyStorageObject = async (
  * URL presigned for a PDF) fails with `SignatureDoesNotMatch` instead of
  * storing a publicly served object of the caller's choosing. The presigner
  * leaves `content-type` unsigned unless it is listed in `signableHeaders`.
- * Callers must PUT with the very same `Content-Type` string.
+ * Callers must PUT with the very same `Content-Type` string. With a bucket
+ * binding the URL is this API's upload route instead (`bucket-upload.ts`),
+ * which enforces the same type and length.
  */
 export const generatePresignedUploadUrl = async (
   key: string,
   contentType: string,
   contentLength: number,
 ): Promise<{ uploadUrl: string; publicUrl: string; key: string }> => {
+  if (getStorageBucket()) {
+    return {
+      uploadUrl: await createBucketUploadUrl(key, contentType, contentLength),
+      publicUrl: getPublicUrl(key),
+      key,
+    };
+  }
+
   const command = new PutObjectCommand({
     Bucket: getBucketName(),
     Key: key,

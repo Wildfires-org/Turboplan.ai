@@ -85,3 +85,19 @@ Required environment variables (via `@wildfires-org/turboplan-env`):
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET_NAME`
 - `R2_PUBLIC_URL` – Public base URL of the bucket
+
+### On an R2 bucket binding
+
+On Cloudflare Workers the bucket can be a binding instead (no access keys):
+register it from the Worker entry and every storage call uses it, with only
+`R2_PUBLIC_URL` required.
+
+```typescript
+import { setStorageBucket } from "@wildfires-org/turboplan-upload/bucket";
+
+setStorageBucket(env.STORAGE_BUCKET);
+```
+
+Presign then returns a URL on the API (`BUCKET_UPLOAD_PATH`, served by
+`bucketUploadRouter`, which needs `SERVER_URL` and `JWT_SIGNING_SECRET`) that
+the browser `PUT`s to exactly as it would to R2. See `CONFIGURATION.md`.

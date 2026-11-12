@@ -105,7 +105,7 @@ test.describe("Magic Link Email", () => {
     // Now test login flow - request login link
     const turboplanUrl = process.env.TURBOPLAN_URL || "http://localhost:3000";
     await page.goto(`${turboplanUrl}/login`);
-    await page.getByPlaceholder("user@acme.com").fill(testEmail);
+    await page.getByPlaceholder("name@usda.gov").fill(testEmail);
     await page.getByRole("button", { name: "Send sign-in link" }).click();
     await page.waitForURL(/\/check-email/);
 

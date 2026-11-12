@@ -25,6 +25,8 @@ set -euo pipefail
 # Optional:
 #   R2_BUCKET_NAME        also ensures the bucket's landing-uploads lifecycle
 #                         rule (needs R2 read/edit permission on the API token)
+#   OPENROUTER_BASE_URL, CLOUDFLARE_AI_GATEWAY_TOKEN
+#                         route OpenRouter calls through a Cloudflare AI Gateway
 
 ENVIRONMENT="${1:?Usage: deploy-api.sh <environment> [pr-number]}"
 PR_NUMBER="${2:-}"
@@ -90,6 +92,8 @@ VARS=(
   --var "OPENROUTER_MODEL_LITE:${OPENROUTER_MODEL_LITE:-}"
   --var "OPENROUTER_MODEL_IMAGE_PRIMARY:${OPENROUTER_MODEL_IMAGE_PRIMARY:-}"
   --var "OPENROUTER_MODEL_IMAGE_LITE:${OPENROUTER_MODEL_IMAGE_LITE:-}"
+  # Optional OpenRouter base, e.g. a Cloudflare AI Gateway (empty = openrouter.ai)
+  --var "OPENROUTER_BASE_URL:${OPENROUTER_BASE_URL:-}"
   --var "DISABLE_AUTO_PROJECT_IMAGE_GENERATION:${DISABLE_AUTO_PROJECT_IMAGE_GENERATION:-false}"
   # Service URLs (non-sensitive)
   --var "MAP_SERVICE_URL:${MAP_SERVICE_URL:-}"
@@ -230,7 +234,7 @@ if [[ -n "${ADMIN_EMAILS_SECRET:-}" ]]; then
   SECRETS_JSON=$(echo "$SECRETS_JSON" | jq --arg k "ADMIN_EMAILS" --arg v "$ADMIN_EMAILS_SECRET" '. + {($k): $v}')
 fi
 
-for VAR_NAME in AUTH_COOKIE_DOMAIN R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY MAP_SERVICE_API_KEY RESEARCH_AGENT_SERVICE_API_KEY RESEND_API_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET RECONCILE_SECRET DOCUMENSO_API_KEY DOCUMENSO_WEBHOOK_SECRET; do
+for VAR_NAME in AUTH_COOKIE_DOMAIN CLOUDFLARE_AI_GATEWAY_TOKEN R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY MAP_SERVICE_API_KEY RESEARCH_AGENT_SERVICE_API_KEY RESEND_API_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET RECONCILE_SECRET DOCUMENSO_API_KEY DOCUMENSO_WEBHOOK_SECRET; do
   VAR_VALUE="${!VAR_NAME:-}"
   if [[ -n "$VAR_VALUE" ]]; then
     SECRETS_JSON=$(echo "$SECRETS_JSON" | jq --arg k "$VAR_NAME" --arg v "$VAR_VALUE" '. + {($k): $v}')

@@ -19,7 +19,7 @@ export class TurboplanLoginPage {
    * Get the email input field
    */
   private getEmailInput() {
-    return this.page.getByPlaceholder("user@acme.com");
+    return this.page.getByPlaceholder("name@usda.gov");
   }
 
   /**

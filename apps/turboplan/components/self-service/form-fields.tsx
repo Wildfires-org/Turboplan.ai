@@ -39,7 +39,7 @@ export function FormFields({
             type="email"
             value={email}
             onChange={setEmail}
-            placeholder="john@company.com"
+            placeholder="name@usda.gov"
             disabled={isSubmitting}
             error={errors.email}
             helperText={

@@ -5,6 +5,7 @@
  */
 
 export { isSafeObjectKey, LANDING_UPLOAD_PREFIX } from "../types";
+export { BUCKET_UPLOAD_PATH, bucketUploadRouter } from "./bucket-upload";
 export {
   type ClaimedLandingUpload,
   claimLandingUpload,
@@ -37,6 +38,11 @@ export {
 } from "./r2-client";
 export { type CappedReadFailure, readCapped } from "./read-capped";
 export { uploadRouter } from "./router";
+export {
+  getStorageBucket,
+  type StorageBucket,
+  setStorageBucket,
+} from "./storage-bucket";
 export { uniqueStorageName } from "./storage-key";
 export {
   UploadService,
