@@ -11,6 +11,7 @@ import {
   updatePATLastUsed,
 } from "@wildfires-org/turboplan-db/queries";
 import { getR2PublicUrls } from "@wildfires-org/turboplan-env";
+import { setStorageBucket } from "@wildfires-org/turboplan-upload/bucket";
 
 import { createServer } from "./server.js";
 import {
@@ -35,6 +36,8 @@ type Env = {
   R2_BUCKET_NAME: string;
   R2_PUBLIC_URL: string;
   OPENROUTER_API_KEY: string;
+  OPENROUTER_BASE_URL?: string;
+  CLOUDFLARE_AI_GATEWAY_TOKEN?: string;
   OPENROUTER_MODEL_IMAGE_PRIMARY: string;
   OPENROUTER_MODEL_IMAGE_LITE: string;
   IS_TASKS_PACKAGE_ENABLED: string;
@@ -51,6 +54,8 @@ type Env = {
   RATE_LIMITER_READ: RateLimit;
   RATE_LIMITER_WRITE: RateLimit;
   RATE_LIMITER_GLOBAL: RateLimit;
+  // R2 bucket binding for storage; without it, storage uses the S3 API.
+  STORAGE_BUCKET?: unknown;
 };
 
 const ENV_BRIDGE_KEYS = [
@@ -66,6 +71,8 @@ const ENV_BRIDGE_KEYS = [
   "R2_BUCKET_NAME",
   "R2_PUBLIC_URL",
   "OPENROUTER_API_KEY",
+  "OPENROUTER_BASE_URL",
+  "CLOUDFLARE_AI_GATEWAY_TOKEN",
   "OPENROUTER_MODEL_IMAGE_PRIMARY",
   "OPENROUTER_MODEL_IMAGE_LITE",
   "IS_TASKS_PACKAGE_ENABLED",
@@ -143,6 +150,7 @@ const bridgeEnv = (env: Env) => {
       process.env[key] = value;
     }
   }
+  setStorageBucket(env.STORAGE_BUCKET);
 };
 
 /**

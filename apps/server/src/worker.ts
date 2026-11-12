@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/cloudflare";
 import { Hono } from "hono";
 
 import type { CloudflareEmailBinding } from "@wildfires-org/turboplan-mail/providers";
+import { setStorageBucket } from "@wildfires-org/turboplan-upload/bucket";
 
 import { scrubSentryEvent } from "./utils/sentry.js";
 
@@ -10,6 +11,9 @@ type CloudflareEnv = Record<string, unknown> & {
   // Cloudflare Email Sending (`send_email` binding). Optional: without it,
   // mail falls back to Resend, Ethereal or the no-op provider.
   SEND_EMAIL?: CloudflareEmailBinding;
+  // R2 bucket binding for storage. Optional: without it, storage uses the S3
+  // API with the R2_* credentials.
+  STORAGE_BUCKET?: unknown;
 };
 
 const asString = (value: unknown): string | undefined => {
@@ -29,6 +33,8 @@ const BRIDGE_KEYS = [
   "POSTGRES_URL",
   "SERVER_API_KEY",
   "OPENROUTER_API_KEY",
+  "OPENROUTER_BASE_URL",
+  "CLOUDFLARE_AI_GATEWAY_TOKEN",
   "NODE_ENV",
   "ENVIRONMENT",
   "WORKER_RUNTIME",
@@ -114,6 +120,7 @@ const bridgeEnv = (env: CloudflareEnv): void => {
 
 const initApp = async (env: CloudflareEnv): Promise<Hono> => {
   bridgeEnv(env);
+  setStorageBucket(env.STORAGE_BUCKET);
 
   if (env.SEND_EMAIL) {
     const { setCloudflareEmailBinding } = await import(

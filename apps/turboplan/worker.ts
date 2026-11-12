@@ -25,10 +25,13 @@
 import openNextHandler from "open-next-worker";
 
 import { runWithWorkerConnectionForResponse } from "@wildfires-org/turboplan-db/db-client";
+import { setStorageBucket } from "@wildfires-org/turboplan-upload/bucket";
 
 type WorkerEnv = {
   HYPERDRIVE?: { connectionString: string };
   POSTGRES_URL?: string;
+  // R2 bucket binding for storage; without it, storage uses the S3 API.
+  STORAGE_BUCKET?: unknown;
 } & Record<string, unknown>;
 
 type WorkerExecutionContext = {
@@ -42,6 +45,9 @@ export default {
     env: WorkerEnv,
     ctx: WorkerExecutionContext,
   ): Promise<Response> => {
+    // Shared with the Next.js bundle through `globalThis` (see the package).
+    setStorageBucket(env.STORAGE_BUCKET);
+
     const connectionString =
       env.HYPERDRIVE?.connectionString ?? env.POSTGRES_URL;
 

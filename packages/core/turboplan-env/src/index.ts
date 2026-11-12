@@ -916,6 +916,18 @@ export const getServerUrl = (): string => {
   return process.env.NEXT_PUBLIC_SERVER_URL || "";
 };
 
+/**
+ * JWT_SIGNING_SECRET on its own, throwing when unset: for server code that
+ * signs with it outside the full API env (storage upload URLs derive their
+ * own key from it).
+ */
+export const getJwtSigningSecret = (): string => {
+  if (!process.env.JWT_SIGNING_SECRET) {
+    throw new Error("Missing `JWT_SIGNING_SECRET` env variable");
+  }
+  return process.env.JWT_SIGNING_SECRET;
+};
+
 export const getLocalTunnelUrl = (): string => {
   if (isServerSide()) {
     return process.env.LOCAL_TUNNEL_URL || "";
@@ -986,8 +998,59 @@ export const getAuthCookieName = (): string => {
   return `${releaseBranch.replace("/", "-").toLowerCase()}.turboplan.session-token`;
 };
 
+export const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * OPENROUTER_BASE_URL without trailing slashes, or the public OpenRouter API
+ * when unset. It stands in for `https://openrouter.ai/api/v1`, e.g. a
+ * Cloudflare AI Gateway's
+ * `https://gateway.ai.cloudflare.com/v1/<account>/<gateway>/openrouter/v1`.
+ * Must be https (http only on a loopback host) with no credentials, query or
+ * fragment, since paths like `/chat/completions` are appended to it.
+ */
+const loadOpenRouterBaseUrl = (): string => {
+  const raw = process.env.OPENROUTER_BASE_URL?.trim();
+  if (!raw) {
+    return DEFAULT_OPENROUTER_BASE_URL;
+  }
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("Invalid `OPENROUTER_BASE_URL` env variable: not a URL");
+  }
+
+  const isAllowedProtocol =
+    url.protocol === "https:" ||
+    (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname));
+  if (
+    !isAllowedProtocol ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      "Invalid `OPENROUTER_BASE_URL` env variable: use an https URL without credentials, query or fragment",
+    );
+  }
+
+  return raw.replace(/\/+$/, "");
+};
+
 export const getOpenRouterEnv = (): {
   OPENROUTER_API_KEY: string;
+  /** Base for every OpenRouter request; paths such as `/models` follow it */
+  OPENROUTER_BASE_URL: string;
+  /**
+   * Extra headers for every OpenRouter request: `cf-aig-authorization` when
+   * CLOUDFLARE_AI_GATEWAY_TOKEN is set (an authenticated AI Gateway refuses
+   * requests without it), otherwise none.
+   */
+  OPENROUTER_EXTRA_HEADERS: Record<string, string>;
   OPENROUTER_MODEL_PRIMARY: string;
   OPENROUTER_MODEL_LITE: string;
   OPENROUTER_MODEL_IMAGE_PRIMARY: string;
@@ -996,6 +1059,8 @@ export const getOpenRouterEnv = (): {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error("Missing `OPENROUTER_API_KEY` env variable");
   }
+
+  const gatewayToken = process.env.CLOUDFLARE_AI_GATEWAY_TOKEN?.trim();
 
   let defaults = {
     PRIMARY: "anthropic/claude-sonnet-4.6",
@@ -1015,6 +1080,10 @@ export const getOpenRouterEnv = (): {
 
   return {
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    OPENROUTER_BASE_URL: loadOpenRouterBaseUrl(),
+    OPENROUTER_EXTRA_HEADERS: gatewayToken
+      ? { "cf-aig-authorization": `Bearer ${gatewayToken}` }
+      : {},
     OPENROUTER_MODEL_PRIMARY:
       process.env.OPENROUTER_MODEL_PRIMARY || defaults.PRIMARY,
     OPENROUTER_MODEL_LITE: process.env.OPENROUTER_MODEL_LITE || defaults.LITE,

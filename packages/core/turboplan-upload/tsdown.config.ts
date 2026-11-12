@@ -7,6 +7,7 @@ export default defineConfig({
     client: "./src/client/index.ts",
     server: "./src/server/index.ts",
     types: "./src/types/index.ts",
+    bucket: "./src/server/storage-bucket.ts",
   },
   format: ["esm"],
   dts: true,
