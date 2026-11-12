@@ -23,6 +23,7 @@ import { useEntityPermission } from "@wildfires-org/turboplan-rbac/hooks";
 
 import { CHAT_COMPOSER_SHELL_CLASS } from "@/components/chat/chat-classes";
 import { ProjectMultimodalInput } from "@/components/chat/project-multimodal-input";
+import { useUiScale } from "@/components/providers/ui-scale-provider";
 import { useUser } from "@/components/providers/user-provider";
 import { useResearchPanel } from "@/contexts/research-panel-context";
 import { initialArtifactData, useArtifact } from "@/hooks/use-artifact";
@@ -74,8 +75,13 @@ function useArtifactViewportLayout({
   isSidebarPinned: boolean;
 }) {
   const { width: windowWidth, height: windowHeight } = useWindowSize();
-  const viewportWidth = windowWidth ?? 0;
-  const viewportHeight = windowHeight ?? 0;
+  // The panel sits inside <body>'s UI zoom, which scales its pixel sizes too:
+  // measure the window in zoomed pixels so the panel reaches the right and
+  // bottom edges instead of stopping short by (1 - scale).
+  const { scale } = useUiScale();
+  const zoom = scale > 0 ? scale / 100 : 1;
+  const viewportWidth = (windowWidth ?? 0) / zoom;
+  const viewportHeight = (windowHeight ?? 0) / zoom;
   const isMobile = windowWidth ? windowWidth < 768 : false;
   const desktopSidebarOffset = isMobile
     ? 0
