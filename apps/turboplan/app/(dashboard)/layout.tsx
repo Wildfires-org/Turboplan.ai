@@ -28,8 +28,8 @@ export default async function DashboardLayout({
           <SidebarProvider defaultOpen={isPinned}>
             <AppSidebar defaultPinned={isPinned} />
             {/* Dashboard-wide page background — single source of truth for the
-                #F4F9F7 (brandAlt-100) canvas behind project covers and section cards. */}
-            <SidebarInset className="bg-[#F4F9F7] dark:bg-slate-950">
+                brandAlt-100 canvas behind project covers and section cards. */}
+            <SidebarInset className="bg-brandAlt-100 dark:bg-slate-950">
               {children}
             </SidebarInset>
           </SidebarProvider>

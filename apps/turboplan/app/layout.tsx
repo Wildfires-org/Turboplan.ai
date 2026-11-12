@@ -15,16 +15,22 @@ import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { UiScaleProvider } from "@/components/providers/ui-scale-provider";
 import { ReleaseInfoLogger } from "@/components/release-info-logger";
 import { ThemeProvider } from "@/components/theme-provider";
-import { brand } from "@/lib/brand";
+import { brand, brandTheme } from "@/lib/brand";
 import { TOAST_ICON_CLASS, TOAST_SURFACE_CLASS } from "@/lib/glass";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
+import "./brand-wildfires.css";
 
 const APP_TITLE = brand.name;
 const APP_TAGLINE = "AI Environmental Planning Platform";
 const APP_DESCRIPTION =
   "An open source AI environmental planning platform — plan projects in minutes instead of months.";
+
+// Build-time switch for deployments that must stay out of search results (a
+// demo instance, for example). next.config.ts sends the matching
+// `X-Robots-Tag` header.
+const isNoIndex = process.env.NEXT_PUBLIC_NOINDEX === "true";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -37,6 +43,19 @@ export const metadata: Metadata = {
     template: `%s | ${APP_TITLE}`,
   },
   description: APP_DESCRIPTION,
+  ...(isNoIndex && { robots: { index: false, follow: false } }),
+  ...(brandTheme === "wildfires" && {
+    icons: {
+      icon: [
+        {
+          url: "/brand/wildfires/favicon-32.png",
+          type: "image/png",
+          sizes: "32x32",
+        },
+      ],
+      apple: "/brand/wildfires/logo.png",
+    },
+  }),
   openGraph: {
     title: APP_TAGLINE,
     description: APP_DESCRIPTION,
@@ -118,6 +137,7 @@ export default async function RootLayout({
       // prop is necessary to avoid the React hydration mismatch warning.
       // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with-app
       suppressHydrationWarning
+      data-brand={brandTheme}
       className={`${geist.variable} ${geistMono.variable}`}
       style={uiScaleStyle as React.CSSProperties}
     >
