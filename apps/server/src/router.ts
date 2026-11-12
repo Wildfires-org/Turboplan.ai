@@ -26,6 +26,10 @@ import {
   registerWebhookRoutes,
 } from "./routes/webhookRoutes.js";
 import { globalErrorHandler } from "./utils/error-handler.js";
+import {
+  requestLogBindings,
+  responseLogBindings,
+} from "./utils/log-redaction.js";
 
 export async function createApiRouter() {
   const ENV = getApiEnv();
@@ -56,24 +60,19 @@ export async function createApiRouter() {
     }),
   );
 
-  const redactPaths = [
-    'req.headers["x-internal-secret"]',
-    'req.headers["authorization"]',
-    'req.headers["cookie"]',
-    'req.headers["x-api-key"]',
-    'req.headers["x-auth-token"]',
-  ];
-
+  // Headers are redacted in the bindings, not with pino's `redact` option,
+  // which a Worker's (browser) build of pino ignores.
   apiRouter.use(
     pinoLogger({
       pino: pino(
         ENV.NODE_ENV === "development"
-          ? {
-              transport: { target: "hono-pino/debug-log" },
-              redact: { paths: redactPaths, censor: "[REDACTED]" },
-            }
-          : { redact: { paths: redactPaths, censor: "[REDACTED]" } },
+          ? { transport: { target: "hono-pino/debug-log" } }
+          : {},
       ),
+      http: {
+        onReqBindings: requestLogBindings,
+        onResBindings: responseLogBindings,
+      },
     }),
   );
   apiRouter.use("/*", posthogMiddleware);
