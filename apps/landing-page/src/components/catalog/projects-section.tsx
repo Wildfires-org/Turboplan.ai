@@ -8,7 +8,6 @@ import useSWR from "swr";
 
 import { getLandingPageEnv } from "@wildfires-org/turboplan-env";
 
-import BeaverLeft from "@/../public/images/beaver_left.png";
 import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
 import { fetcher } from "@/lib/utils";
 import type { PublicProject } from "@/types/public-project";
@@ -95,8 +94,7 @@ export function ProjectsSection({
     return (
       <ProjectsSectionShell>
         <CatalogEmptyState
-          beaverImage={BeaverLeft}
-          beaverAlt="Beaver mascot pointing"
+          icon={FolderKanban}
           title="Your project list is empty"
           description="Start a new project to track environmental assessments, manage documents, and collaborate with your team."
           actionButton={

@@ -79,10 +79,11 @@ const main = async () => {
   // synced Stripe objects (they'd be skipped as untagged instead of reported).
   const metadataKey = "catalog_key";
   // Products synced before the key became brand-independent carry the old
-  // `<product>_catalog_key` tag. They are recognised here and, under APPLY,
-  // re-tagged so the next run finds them by the fixed key. Drop this list once
-  // every Stripe account this repo syncs against has been re-tagged.
-  const legacyMetadataKeys = ["eplan_catalog_key"];
+  // product-prefixed `<product>_catalog_key` tag. They are recognised here
+  // and, under APPLY, re-tagged so the next run finds them by the fixed key.
+  // Drop this list once every Stripe account this repo syncs against has been
+  // re-tagged.
+  const legacyMetadataKeys = [`${catalog.product}_catalog_key`];
 
   console.log(
     `Catalog sync for "${catalog.product}" (${APPLY ? "APPLY" : "dry run"})\n`,

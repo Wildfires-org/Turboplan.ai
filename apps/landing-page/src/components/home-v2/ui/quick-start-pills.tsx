@@ -117,7 +117,7 @@ export function QuickStartPills({ onSelect }: QuickStartPillsProps) {
               key={tag.label}
               type="button"
               onClick={() => handleSelect(tag)}
-              className="glass press mr-3 !shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_8px_-2px_rgba(21,102,71,0.14)] inline-flex min-h-[44px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-2 font-inter text-[14px] font-normal leading-[20px] text-[#262626] hover:-translate-y-px hover:bg-white/75 motion-reduce:hover:translate-y-0 sm:min-h-0 sm:py-1.5"
+              className="glass press mr-3 !shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_8px_-2px_rgba(21,47,26,0.14)] inline-flex min-h-[44px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-2 font-inter text-[14px] font-normal leading-[20px] text-[#262626] hover:-translate-y-px hover:bg-white/75 motion-reduce:hover:translate-y-0 sm:min-h-0 sm:py-1.5"
             >
               <span>{tag.emoji}</span>
               {tag.label}

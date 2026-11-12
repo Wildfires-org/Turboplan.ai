@@ -111,7 +111,6 @@
   /* ---- Box shadows (was boxShadow) ---- */
   --shadow-dropdown: 0px 4px 18px 0px #1616160d;
   --shadow-video: 0px 0px 7px 0px #0000000f;
-  --shadow-projectTracking: 0px 0px 30px 3px rgba(27, 132, 92, 1);
   --shadow-ecard:
     0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.04),
     0 16px 32px rgba(0, 0, 0, 0.06);
@@ -182,29 +181,34 @@
   --color-blue-550: #3049bd;
   --color-blue-750: #097079;
 
-  --color-brand-50: rgba(238, 252, 246, 1);
-  --color-brand-100: rgba(202, 244, 228, 1);
-  --color-brand-200: rgba(167, 237, 210, 1);
-  --color-brand-300: rgba(131, 230, 192, 1);
-  --color-brand-400: rgba(96, 222, 174, 1);
-  --color-brand-500: rgba(60, 215, 156, 1);
-  --color-brand-600: rgba(39, 193, 135, 1);
-  --color-brand-700: rgba(32, 158, 110, 1);
-  /* brand-800 and egray-600 are body-text colors: each clears 4.5:1 on every
-     light surface we set text on (white, egray-50/75, brandAlt-100). */
-  --color-brand-800: rgba(25, 122, 82, 1);
-  --color-brand-900: rgba(18, 86, 60, 1);
-  --color-brand-950: rgba(10, 51, 35, 1);
+  /* Wildfires.org orange: the accent scale (heading accents, icons, focus
+     rings). Same values as the web app's `wildfiresBrandColors`. */
+  --color-brand-50: #fff5eb;
+  --color-brand-100: #ffe6cc;
+  --color-brand-200: #ffcc99;
+  --color-brand-300: #ffb366;
+  --color-brand-400: #ff9933;
+  --color-brand-500: #ff8000;
+  --color-brand-600: #e67300;
+  /* brand-700 clears 4.5:1 on white only at large sizes: use it for icons,
+     rings and headline accents. brand-800 and egray-600 are the body-text
+     colors: each clears 4.5:1 on every light surface we set text on (white,
+     egray-50/75, brandAlt-100). */
+  --color-brand-700: #c25e00;
+  --color-brand-800: #9a4a00;
+  --color-brand-900: #6e3500;
+  --color-brand-950: #3d1d00;
   /* Decorative accent: the showcase hint icon. */
-  --color-brand-deco: #05b871;
+  --color-brand-deco: #ff8000;
 
-  --color-brandAlt-100: rgba(244, 249, 247, 1);
-  --color-brandAlt-200: rgba(209, 230, 222, 1);
-  --color-brandAlt-300: rgba(164, 206, 190, 1);
-  --color-brandAlt-400: rgba(95, 169, 141, 1);
-  --color-brandAlt-500: rgba(27, 132, 92, 1);
-  --color-brandAlt-600: rgba(21, 102, 71, 1);
-  --color-brandAlt-700: rgba(15, 72, 50, 1);
+  /* Wildfires.org cream (100-300) and forest (400-700). */
+  --color-brandAlt-100: #fbfaf8;
+  --color-brandAlt-200: #e4e8e2;
+  --color-brandAlt-300: #acb8af;
+  --color-brandAlt-400: #3f6b48;
+  --color-brandAlt-500: #1a3b21;
+  --color-brandAlt-600: #152f1a;
+  --color-brandAlt-700: #0f2314;
 
   --color-error-50: rgba(254, 242, 242, 1);
   --color-error-100: rgba(254, 226, 226, 1);
@@ -219,13 +223,11 @@
 
   --color-brown-550: #6a4332;
 
-  --color-green-5: #1b845c0d;
-  --color-green-10: #1b845c14;
-  --color-green-30: #3ddba0;
-  --color-green-60: #1b845c;
-  --color-green-70: #136e4b;
-  --color-green-80: #0b5237;
-  --color-green-550: #e0ece2;
+  /* Forest greens for the legacy `green-*` button variant. */
+  --color-green-10: #1a3b2114;
+  --color-green-60: #1a3b21;
+  --color-green-70: #152f1a;
+  --color-green-80: #0f2314;
 
   --color-neutral-white: #ffffff;
   --color-neutral-black: #161616;
@@ -456,23 +458,22 @@
   box-shadow: var(--glass-inset-shadow);
 }
 
-/* Filled primary CTA ("build" style): diagonal brand gradient with a top
-   inner highlight and a soft drop. The first stop is only a touch lighter
-   than brand-800 so white labels keep >= 4.5:1 wherever the glyphs sit.
-   Hover dims via opacity only; pair with `press`, which owns the opacity
-   transition and the active scale. */
+/* Filled primary CTA: the Wildfires.org forest gradient with a top inner
+   highlight and a soft drop. Every stop is dark enough for white labels to
+   keep >= 4.5:1 wherever the glyphs sit. Hover dims via opacity only; pair
+   with `press`, which owns the opacity transition and the active scale. */
 @utility btn-primary {
   background-image: linear-gradient(
     135deg,
-    #1d8a60 0%,
-    #1b845c 25%,
-    #156647 65%,
-    #0f4832 100%
+    #2a5a33 0%,
+    #1a3b21 30%,
+    #152f1a 65%,
+    #0f2314 100%
   );
   color: #fff;
   box-shadow:
-    inset 0 2px 2px 0 rgba(255, 255, 255, 0.25),
-    0 6px 16px -8px rgba(15, 72, 50, 0.45);
+    inset 0 2px 2px 0 rgba(255, 255, 255, 0.18),
+    0 6px 16px -8px rgba(15, 35, 20, 0.5);
 
   @media (hover: hover) {
     &:hover {
@@ -542,7 +543,7 @@
     --glass-blur: blur(18px) saturate(160%);
     --glass-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.95),
-      0 10px 30px -12px rgba(21, 102, 71, 0.18);
+      0 10px 30px -12px rgba(21, 47, 26, 0.16);
 
     --glass-card-radius: 1rem;
     --glass-card-bg: rgba(255, 255, 255, 0.58);

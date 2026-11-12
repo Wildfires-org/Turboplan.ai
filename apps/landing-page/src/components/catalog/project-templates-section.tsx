@@ -5,7 +5,6 @@ import { type ReactNode, useMemo, useState } from "react";
 import { ArrowUpRight, LayoutTemplate, PlusIcon } from "lucide-react";
 import Link from "next/link";
 
-import BeaverRight from "@/../public/images/beaver_right.png";
 import CatalogRequestDialog from "@/components/dialogs/catalog-request-dialog/catalog-request-dialog";
 import { PAGE_CONTAINER } from "@/components/home-v2/ui/layout";
 import {
@@ -111,8 +110,7 @@ export function ProjectTemplatesSection({
     return (
       <TemplatesSectionShell>
         <CatalogEmptyState
-          beaverImage={BeaverRight}
-          beaverAlt="Beaver mascot waving"
+          icon={LayoutTemplate}
           title="No templates found"
           description="There are no templates matching your current filters. Try adjusting your search or create a new template from scratch."
           actionButton={

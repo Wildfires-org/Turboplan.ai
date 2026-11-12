@@ -25,9 +25,6 @@ interface FeatureSectionProps {
   visualSrc: string;
   visualAlt: string;
   videoSrc?: string;
-  beaverSrc: string;
-  beaverAlt: string;
-  beaverFlip?: boolean;
   direction?: "left" | "right";
 }
 
@@ -40,9 +37,6 @@ export function FeatureSection({
   visualSrc,
   visualAlt,
   videoSrc,
-  beaverSrc,
-  beaverAlt,
-  beaverFlip = false,
   direction = "left",
 }: FeatureSectionProps) {
   const isTextLeft = direction === "left";
@@ -134,20 +128,6 @@ export function FeatureSection({
                 />
               )}
             </div>
-          </div>
-
-          {/* Beaver mascot */}
-          <div className="absolute -bottom-3 -right-1 sm:-bottom-4 sm:-right-2 lg:-bottom-6 lg:-right-4">
-            <Image
-              src={beaverSrc}
-              alt={beaverAlt}
-              width={153}
-              height={156}
-              className={cn(
-                "h-[100px] w-[98px] sm:h-[120px] sm:w-[118px] lg:h-[156px] lg:w-[153px]",
-                beaverFlip && "-scale-x-100",
-              )}
-            />
           </div>
         </ScrollReveal>
       </div>

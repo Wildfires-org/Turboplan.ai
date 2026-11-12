@@ -16,9 +16,6 @@ const FEATURES = [
       "Automatically surface relevant project context. Our AI instantly finds the right Categorical Exclusions and references past online documents.",
     visualSrc: "/images/features/research.webp",
     visualAlt: "Smart content research interface",
-    beaverSrc: "/images/beavers/beaver_smartcontext.png",
-    beaverAlt: "Beaver mascot for research",
-    beaverFlip: true,
     direction: "left" as const,
   },
   {
@@ -30,8 +27,6 @@ const FEATURES = [
       "Turn a blank page into a structured NEPA document in seconds. We auto-generate Scoping Letters with correct locations, intents, and citations.",
     visualSrc: "/images/features/aidrafting.webp",
     visualAlt: "AI drafting interface",
-    beaverSrc: "/images/beavers/beaver_aidrafting.png",
-    beaverAlt: "Beaver mascot for documents",
     direction: "right" as const,
   },
   {
@@ -43,8 +38,6 @@ const FEATURES = [
       "Track every detail — from Botany Surveys to GIS boundaries. On an interactive, keyboard-friendly Gantt chart.",
     visualSrc: "/images/features/planning.webp",
     visualAlt: "Project planning interface",
-    beaverSrc: "/images/beavers/beaver_precisiontracking.png",
-    beaverAlt: "Beaver mascot for planning",
     direction: "left" as const,
   },
   {
@@ -56,8 +49,6 @@ const FEATURES = [
       "Provide a secure platform for public comments. External partners can easily submit project applications directly to your agency.",
     visualSrc: "/images/features/community.webp",
     visualAlt: "Collaboration interface",
-    beaverSrc: "/images/beavers/beaver_seamless_handoffs.png",
-    beaverAlt: "Beaver mascot for collaboration",
     direction: "right" as const,
   },
 ];

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 
+import { brand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import type { ModuleKey } from "./types";
 
@@ -36,13 +37,13 @@ const RAIL_MODULES: { key: ModuleKey; Icon: typeof MapIcon }[] = [
 function AppRail({ active }: { active: ModuleKey }) {
   return (
     <div className="flex w-[52px] shrink-0 flex-col items-center gap-1.5 border-r border-white/70 bg-white/40 pb-2.5 pt-1.5">
-      <span className="mb-1 flex size-8 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-egray-100">
+      <span className="mb-1 flex size-8 items-center justify-center rounded-lg bg-white ring-1 ring-egray-100">
         <Image
-          src="/images/beaver_right.png"
+          src={brand.mark}
           alt=""
-          width={32}
-          height={32}
-          className="size-7 object-cover object-top"
+          width={20}
+          height={20}
+          className="size-5"
         />
       </span>
       <span className="flex size-8 items-center justify-center rounded-lg bg-brandAlt-400 font-heading text-[10px] font-bold text-white">

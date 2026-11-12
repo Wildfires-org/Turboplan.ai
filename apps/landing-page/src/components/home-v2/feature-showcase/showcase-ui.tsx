@@ -37,7 +37,7 @@ export function Reveal({
   );
 }
 
-// Project progress bar: green fill (bg-brandAlt-400 ≈ #5fa98d) on a light track,
+// Project progress bar: forest fill (bg-brandAlt-400, #3f6b48) on a light track,
 // mirroring ui/project-progress.tsx. Re-animates on activation.
 export function ProgressBar({ pct, reduce }: { pct: number; reduce: boolean }) {
   return (

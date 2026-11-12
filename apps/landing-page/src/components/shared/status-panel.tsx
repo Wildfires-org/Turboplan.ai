@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { LucideIcon } from "lucide-react";
-import Image, { type StaticImageData } from "next/image";
+import Image from "next/image";
 
 import { CATALOG_H1_CLASS } from "@/components/catalog/catalog-layout";
 import { PAGE_GUTTER } from "@/components/home-v2/ui/layout";
@@ -9,6 +9,7 @@ import {
   Eyebrow,
   SECTION_LEAD_CLASS,
 } from "@/components/home-v2/ui/section-header";
+import { brand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 interface StatusPanelProps {
@@ -16,8 +17,8 @@ interface StatusPanelProps {
   eyebrow: string;
   title: string;
   lead: ReactNode;
-  image?: StaticImageData;
-  imageAlt?: string;
+  /** Show the brand mark above the eyebrow (the not-found pages). */
+  showMark?: boolean;
   actions: ReactNode;
   children?: ReactNode;
 }
@@ -28,8 +29,7 @@ export function StatusPanel({
   eyebrow,
   title,
   lead,
-  image,
-  imageAlt = "",
+  showMark = false,
   actions,
   children,
 }: StatusPanelProps) {
@@ -42,13 +42,13 @@ export function StatusPanel({
     >
       <div className="glass-card w-full max-w-[640px] rounded-[28px] p-6 text-center sm:p-8 lg:p-10">
         <div className="flex flex-col items-center gap-[18px]">
-          {image && (
+          {showMark && (
             <Image
-              src={image}
-              alt={imageAlt}
-              width={120}
-              height={120}
-              className="size-[96px] object-contain sm:size-[120px]"
+              src={brand.mark}
+              alt=""
+              width={56}
+              height={56}
+              className="size-12 sm:size-14"
             />
           )}
           <Eyebrow icon={icon} label={eyebrow} />

@@ -197,12 +197,13 @@ function TierCard({
   ctaHref,
   onCtaClick,
 }: TierCardProps) {
-  // All three pass 4.5:1 on the glass card; they stay distinct shades.
+  // All three pass 4.5:1 on the glass card; they stay distinct shades. Only
+  // the highlighted tier takes the orange accent, the others are forest.
   const nameColor = highlighted
     ? "text-brand-800"
     : index === 0
       ? "text-brandAlt-600"
-      : "text-brand-900";
+      : "text-brandAlt-400";
 
   return (
     <div
@@ -210,13 +211,13 @@ function TierCard({
         // Hover is color only — no lift on cards this large.
         "glass-card relative flex w-full flex-col rounded-2xl p-5 transition-[background-color,box-shadow] duration-200 ease-[ease] sm:p-6",
         highlighted
-          ? "!border-brand-600/60 !shadow-[0_0_0_6px_rgba(39,193,135,0.08),0_24px_40px_-18px_rgba(39,193,135,0.4),inset_0_1px_0_rgba(255,255,255,0.9)]"
+          ? "!border-brand-600/60 !shadow-[0_0_0_6px_rgba(255,128,0,0.08),0_24px_40px_-18px_rgba(255,128,0,0.32),inset_0_1px_0_rgba(255,255,255,0.9)]"
           : "hover:bg-white/70",
       )}
     >
       {highlighted && (
         <div className="absolute right-5 top-5 sm:right-6 sm:top-6">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-800 px-3 py-1 font-heading text-[11px] font-medium uppercase leading-[14px] tracking-[0.88px] text-white shadow-[0_4px_12px_rgba(39,193,135,0.4)]">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-800 px-3 py-1 font-heading text-[11px] font-medium uppercase leading-[14px] tracking-[0.88px] text-white shadow-[0_4px_12px_rgba(255,128,0,0.32)]">
             <Sparkles className="size-3" />
             Most popular
           </span>

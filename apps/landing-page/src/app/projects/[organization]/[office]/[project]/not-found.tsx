@@ -1,7 +1,6 @@
 import { Lock } from "lucide-react";
 import Link from "next/link";
 
-import BeaverRight from "@/../public/images/beaver_right.png";
 import {
   GLASS_BUTTON_CLASS,
   PRIMARY_BUTTON_CLASS,
@@ -17,7 +16,7 @@ export default function ProjectNotFound() {
       eyebrow="Not available"
       title="Project not found"
       lead="This project doesn't exist or is not publicly available. The project owner may have made it private."
-      image={BeaverRight}
+      showMark
       actions={
         <>
           <Link
