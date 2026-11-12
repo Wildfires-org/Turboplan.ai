@@ -1,4 +1,8 @@
 import type { MailConfig, MailProvider } from "../types";
+import {
+  type CloudflareEmailConfig,
+  CloudflareEmailProvider,
+} from "./cloudflare-provider";
 import { type EtherealConfig, EtherealProvider } from "./ethereal-provider";
 import { NoopProvider } from "./noop-provider";
 import { ResendProvider } from "./resend-provider";
@@ -6,10 +10,11 @@ import { ResendProvider } from "./resend-provider";
 /**
  * Supported mail provider types
  * - "resend": Production email sending via Resend API
+ * - "cloudflare": Cloudflare Email Sending through a Worker `send_email` binding
  * - "ethereal": Development/testing - sends to Ethereal's fake SMTP (viewable inbox)
  * - "noop": Silent no-op provider (skips sending, no logs)
  */
-export type ProviderType = "resend" | "ethereal" | "noop";
+export type ProviderType = "resend" | "cloudflare" | "ethereal" | "noop";
 
 /**
  * Factory function to create a mail provider
@@ -44,11 +49,13 @@ export type ProviderType = "resend" | "ethereal" | "noop";
  */
 export function createMailProvider(
   type: ProviderType,
-  config: MailConfig | EtherealConfig,
+  config: MailConfig | EtherealConfig | CloudflareEmailConfig,
 ): MailProvider {
   switch (type) {
     case "resend":
       return new ResendProvider(config);
+    case "cloudflare":
+      return new CloudflareEmailProvider(config as CloudflareEmailConfig);
     case "ethereal":
       return new EtherealProvider(config as EtherealConfig);
     case "noop":

@@ -1,10 +1,15 @@
 import * as Sentry from "@sentry/cloudflare";
 import { Hono } from "hono";
 
+import type { CloudflareEmailBinding } from "@wildfires-org/turboplan-mail/providers";
+
 import { scrubSentryEvent } from "./utils/sentry.js";
 
 type CloudflareEnv = Record<string, unknown> & {
   HYPERDRIVE?: { connectionString: string };
+  // Cloudflare Email Sending (`send_email` binding). Optional: without it,
+  // mail falls back to Resend, Ethereal or the no-op provider.
+  SEND_EMAIL?: CloudflareEmailBinding;
 };
 
 const asString = (value: unknown): string | undefined => {
@@ -109,6 +114,13 @@ const bridgeEnv = (env: CloudflareEnv): void => {
 
 const initApp = async (env: CloudflareEnv): Promise<Hono> => {
   bridgeEnv(env);
+
+  if (env.SEND_EMAIL) {
+    const { setCloudflareEmailBinding } = await import(
+      "@wildfires-org/turboplan-mail/server"
+    );
+    setCloudflareEmailBinding(env.SEND_EMAIL);
+  }
 
   const { createApiRouter } = await import("./router.js");
 

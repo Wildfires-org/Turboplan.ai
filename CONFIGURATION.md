@@ -382,7 +382,7 @@ missing.
 | `SERVER_API_KEY` | api | |
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | web, api, mcp, research agent | Research agent: optional, with `R2_ACCOUNT_ID` and `R2_BUCKET_NAME` (the API's bucket; no `R2_PUBLIC_URL`) — letterhead logo crops are stored only when all four are set |
 | `MAP_SERVICE_API_KEY` | api, map | Same value on both |
-| `RESEND_API_KEY` | api | Optional — no-op mail without it |
+| `RESEND_API_KEY` | api | Optional — no-op mail without it. A `send_email` Worker binding named `SEND_EMAIL` on the API (Cloudflare Email Sending) takes precedence; `RESEND_FROM_EMAIL` is the sender for both |
 | `EXA_API_KEY` | web | Optional — web search is a chat tool in the Next.js app; the API server never reads it |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | api | Required only when billing is enabled |
 | `DOCUMENSO_API_KEY`, `DOCUMENSO_WEBHOOK_SECRET` | api | Required only when signing is enabled; pair with the `DOCUMENSO_API_URL` variable |

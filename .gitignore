@@ -22,3 +22,6 @@ apps/turboplan/perf-artifacts/**/*
 performance-tickets/**/*
 
 .playwright-mcp/
+# The Wildfires theme's Söhne faces are licensed for wildfires.org and are not
+# in the repo; a deployment copies them in at build time (app/brand-wildfires.css).
+apps/turboplan/public/brand/wildfires/fonts/
