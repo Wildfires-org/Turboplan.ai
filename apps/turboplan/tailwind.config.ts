@@ -1,42 +1,16 @@
 // Theme tokens are now provided via @wildfires-org/theme-tokens and should be imported in the app's root CSS/TSX.
 
+import { existsSync } from "node:fs";
+import path from "node:path";
 import type { Config } from "tailwindcss";
 import plugin from "tailwindcss/plugin";
 
 import { BRAND_GRADIENT_CSS } from "@wildfires-org/turboplan-utils";
 
-// `NEXT_PUBLIC_BRAND_THEME=wildfires` (read at build time) swaps the two brand
-// scales and the sans font for the Wildfires.org look: forest greens and cream
-// for `brandAlt`, the logo's orange for `brand`, and Söhne type (declared in
-// app/brand-wildfires.css). See lib/brand.ts.
-const isWildfiresTheme = process.env.NEXT_PUBLIC_BRAND_THEME === "wildfires";
-
-const defaultBrandColors = {
-  brand: {
-    "50": "#EEFCF6",
-    "100": "#CAF4E4",
-    "200": "#A7EDD2",
-    "300": "#83E6C0",
-    "400": "#60DEAE",
-    "500": "#3CD79C",
-    "600": "#27C187",
-    "700": "#209E6E",
-    "800": "#1B845C",
-    "900": "#12563C",
-    "950": "#0A3323",
-  },
-  brandAlt: {
-    "100": "#F4F9F7",
-    "200": "#D1E6DE",
-    "300": "#A4CEBE",
-    "400": "#5FA98D",
-    "500": "#1B845C",
-    "600": "#156647",
-    "700": "#0F4832",
-  },
-};
-
-const wildfiresBrandColors = {
+// Wildfires.org colors: `brand` is the logo's orange (accents, focus, links)
+// and `brandAlt` the forest greens and cream (surfaces, primary actions). See
+// lib/brand.ts.
+const brandColors = {
   brand: {
     "50": "#FFF5EB",
     "100": "#FFE6CC",
@@ -61,9 +35,14 @@ const wildfiresBrandColors = {
   },
 };
 
-const brandColors = isWildfiresTheme
-  ? wildfiresBrandColors
-  : defaultBrandColors;
+// The sans font is Söhne (declared in app/brand-wildfires.css) over Geist.
+// Söhne is licensed to wildfires.org only, so its files are never committed: a
+// build that has them copies them into public/brand/wildfires/fonts/ first.
+// Without them the stack is Geist alone, so browsers don't request font files
+// that aren't there.
+const hasSoehne = existsSync(
+  path.join(__dirname, "public/brand/wildfires/fonts/soehne-buch.woff2"),
+);
 
 const config: Config = {
   darkMode: ["class"],
@@ -81,7 +60,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: isWildfiresTheme
+        sans: hasSoehne
           ? ["Soehne", "var(--font-geist)"]
           : ["var(--font-geist)"],
         mono: ["var(--font-geist-mono)"],

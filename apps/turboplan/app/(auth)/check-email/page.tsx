@@ -2,9 +2,11 @@
 
 import { Suspense } from "react";
 
-import Image from "next/image";
+import { Mail } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+
+import { BrandMark } from "@/components/brand-mark";
 
 const CheckEmailContent = () => {
   const searchParams = useSearchParams();
@@ -17,6 +19,7 @@ const CheckEmailContent = () => {
     <>
       <div className="flex flex-col items-center gap-9">
         <div className="flex flex-col items-center gap-1.5 text-center">
+          <BrandMark badge={{ icon: Mail, tone: "brand" }} className="mb-4" />
           <h1 className="text-2xl font-semibold text-gray-950">
             Check your inbox
           </h1>
@@ -41,13 +44,6 @@ const CheckEmailContent = () => {
           Try again
         </Link>
       </p>
-      <Image
-        src="/images/auth/beaver-inbox.png"
-        alt=""
-        width={159}
-        height={162}
-        className="absolute -bottom-4 -right-16 pointer-events-none hidden sm:block"
-      />
     </>
   );
 };

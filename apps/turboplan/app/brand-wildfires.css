@@ -1,12 +1,13 @@
-/* Wildfires.org look, active only when the build sets
-   NEXT_PUBLIC_BRAND_THEME=wildfires (app/layout.tsx then renders
-   <html data-brand="wildfires">). The brand color scales and the sans font
-   are swapped in tailwind.config.ts; this file covers what Tailwind's tokens
-   don't reach: the Söhne faces and the hard-coded green CTA gradients.
+/* Wildfires.org type and accents. app/layout.tsx always renders
+   <html data-brand="wildfires">, which scopes the rules below. The brand
+   color scales and the sans font stack live in tailwind.config.ts; the
+   forest CTA gradient and other hard-coded brand colors in app/globals.css.
 
-   The Söhne files are not in the repo. The demo.wildfires.org deployment
-   copies them from the wildfires.org site into public/brand/wildfires/fonts/
-   at build time; without them the stack falls back to Geist. */
+   The Söhne files are licensed to wildfires.org only and are not in the repo
+   (public/brand/wildfires/fonts/ is gitignored). The demo.wildfires.org
+   deployment copies them from the wildfires.org site before it builds;
+   tailwind.config.ts puts Söhne in the sans stack only when they are there,
+   so other builds use Geist and never request the missing files. */
 
 @font-face {
   font-family: "Soehne";
@@ -30,44 +31,6 @@
   font-weight: 600 800;
   font-style: normal;
   font-display: swap;
-}
-
-html[data-brand="wildfires"] {
-  --wildfires-cta-gradient: linear-gradient(
-    135deg,
-    #2a5a33 0%,
-    #1a3b21 30%,
-    #152f1a 65%,
-    #0f2314 100%
-  );
-}
-
-html[data-brand="wildfires"] .btn-primary {
-  background-image: var(--wildfires-cta-gradient);
-  box-shadow:
-    inset 0 2px 2px 0 rgba(255, 255, 255, 0.18),
-    0 6px 16px -8px rgba(15, 35, 20, 0.5);
-}
-
-html[data-brand="wildfires"] .btn-primary:focus-visible {
-  outline-color: #ff8000;
-}
-
-/* Button `brand` variant (turboplan-utils), whose gradient is an arbitrary
-   Tailwind value rather than a token. */
-html[data-brand="wildfires"] [class*="#1d8a60_0%"]:not(:disabled) {
-  background-image: var(--wildfires-cta-gradient);
-}
-
-html[data-brand="wildfires"] .glass-range::-webkit-slider-runnable-track {
-  background:
-    linear-gradient(90deg, #ff8000, #c25e00) 0 0 / var(--range-fill) 100%
-      no-repeat,
-    var(--glass-inset-bg);
-}
-
-html[data-brand="wildfires"] .glass-range::-moz-range-progress {
-  background: linear-gradient(90deg, #ff8000, #c25e00);
 }
 
 html[data-brand="wildfires"] :focus-visible {

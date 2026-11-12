@@ -71,7 +71,7 @@ const ModeTab = ({ selected, disabled, onSelect, children }: ModeTabProps) => (
     className={cn(
       "press h-9 flex-1 whitespace-nowrap rounded-full px-2 text-[13px] font-medium sm:px-4 sm:text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed",
       selected
-        ? "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(21,102,71,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white"
+        ? "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(26,59,33,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white"
         : "text-gray-550 hover:bg-white/60 hover:text-foreground",
     )}
   >

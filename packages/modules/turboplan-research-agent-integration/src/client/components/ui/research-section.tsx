@@ -6,12 +6,12 @@ import { cva } from "class-variance-authority";
 
 import { Checkbox, cn } from "@wildfires-org/turboplan-utils";
 
-export type SectionTone = "purple" | "blue" | "emerald" | "indigo" | "amber";
+export type SectionTone = "purple" | "blue" | "brand" | "indigo" | "amber";
 
 // Every section is the same white glass card; the tone only colors the
 // section's icon and title so the panel reads as one surface.
 const SECTION_ROOT_CLASS =
-  "rounded-2xl border border-white/90 bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(21,102,71,0.25)] dark:border-white/10 dark:bg-slate-950/60";
+  "rounded-2xl border border-white/90 bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(26,59,33,0.25)] dark:border-white/10 dark:bg-slate-950/60";
 
 const sectionTitleVariants = cva(
   "text-sm font-medium tracking-[-0.01em] truncate",
@@ -20,7 +20,7 @@ const sectionTitleVariants = cva(
       tone: {
         purple: "text-brand-800 dark:text-brand-300",
         blue: "text-brand-800 dark:text-brand-300",
-        emerald: "text-brand-800 dark:text-brand-300",
+        brand: "text-brand-800 dark:text-brand-300",
         indigo: "text-brand-800 dark:text-brand-300",
         amber: "text-brand-800 dark:text-brand-300",
       },
@@ -33,7 +33,7 @@ const sectionIconVariants = cva("size-4 shrink-0", {
     tone: {
       purple: "text-brand-800 dark:text-brand-300",
       blue: "text-brand-800 dark:text-brand-300",
-      emerald: "text-brand-800 dark:text-brand-300",
+      brand: "text-brand-800 dark:text-brand-300",
       indigo: "text-brand-800 dark:text-brand-300",
       amber: "text-brand-800 dark:text-brand-300",
     },

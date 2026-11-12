@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   AlertCircle,
   Download,
+  FileText,
   FolderOpen,
   Loader2,
   MoreHorizontal,
@@ -30,6 +31,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  EMPTY_STATE_ICON_CLASS,
   isSafeHttpUrl,
   SuggestionPills,
 } from "@wildfires-org/turboplan-utils";
@@ -485,7 +487,7 @@ export function DocumentsSectionUI({
         <div
           {...(dropzoneEnabled && documents.length > 0 ? getRootProps() : {})}
           className={cn(
-            "group relative z-[2] overflow-hidden rounded-xl border border-white/90 bg-white/60 p-4 dark:border-white/10 dark:bg-slate-900/40",
+            "relative z-[2] overflow-hidden rounded-xl border border-white/90 bg-white/60 p-4 dark:border-white/10 dark:bg-slate-900/40",
             isDragActive && "border-brand-700 bg-brand-50",
             isUploading && "pointer-events-none opacity-60",
           )}
@@ -524,6 +526,12 @@ export function DocumentsSectionUI({
                   {onSuggestionClick && !readOnly && !isDragActive ? (
                     <div className="flex flex-col items-center gap-5 py-8 text-center">
                       <div className="flex flex-col items-center gap-1.5">
+                        <span
+                          aria-hidden
+                          className={cn(EMPTY_STATE_ICON_CLASS, "mb-1.5")}
+                        >
+                          <FileText />
+                        </span>
                         <h3 className="text-lg font-medium text-foreground">
                           No documents yet
                         </h3>
@@ -571,19 +579,6 @@ export function DocumentsSectionUI({
               onRename={setRenameDoc}
               listClassName={singleColumn ? "md:grid-cols-1" : undefined}
             />
-          )}
-
-          {/* Beaver slides in from bottom on hover (empty state only) */}
-          {!isLoading && documents.length === 0 && !isUploading && (
-            <div className="pointer-events-none absolute bottom-0 right-6 translate-y-full transition-transform duration-300 ease-out group-hover:translate-y-[10%]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/shocked-beaver.png"
-                alt=""
-                width={118}
-                height={129}
-              />
-            </div>
           )}
 
           {/* Error message */}

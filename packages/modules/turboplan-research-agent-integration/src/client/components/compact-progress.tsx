@@ -42,7 +42,7 @@ export const CompactProgress = ({
       initial={{ opacity: 0, y: 40, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      className="mb-1.5 rounded-2xl border border-white/90 bg-white/80 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(21,102,71,0.25)] dark:border-white/10 dark:bg-slate-950/70"
+      className="mb-1.5 rounded-2xl border border-white/90 bg-white/80 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-18px_rgba(26,59,33,0.25)] dark:border-white/10 dark:bg-slate-950/70"
     >
       <button
         type="button"

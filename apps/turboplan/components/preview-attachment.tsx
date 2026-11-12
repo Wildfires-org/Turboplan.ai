@@ -28,7 +28,7 @@ export const PreviewAttachment = ({
 
   const content = (
     <>
-      <div className="relative flex aspect-video h-16 w-20 flex-col items-center justify-center overflow-hidden rounded-xl border border-white/90 bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_20px_-14px_rgba(21,102,71,0.35)] dark:border-white/10 dark:bg-slate-900/60">
+      <div className="relative flex aspect-video h-16 w-20 flex-col items-center justify-center overflow-hidden rounded-xl border border-white/90 bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_20px_-14px_rgba(26,59,33,0.35)] dark:border-white/10 dark:bg-slate-900/60">
         {contentType ? (
           contentType.startsWith("image") ? (
             // NOTE: it is recommended to use next/image for images

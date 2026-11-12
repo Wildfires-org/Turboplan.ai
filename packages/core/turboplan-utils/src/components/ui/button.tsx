@@ -33,9 +33,10 @@ const buttonVariants = cva(
           "border border-transparent hover:border-purple-100 hover:bg-gradient-to-tr hover:text-accent-foreground from-purple-50/80 to-violet-50/60",
         link: "text-primary underline-offset-4 hover:underline",
         brandAlt: "bg-brandAlt-400 text-white hover:bg-brandAlt-500",
-        // Filled primary CTA (landing `btn-primary`): diagonal brand gradient,
-        // top inner highlight, soft drop; hover dims via opacity only.
-        brand: `${GLASS_PRESS_CLASS} rounded-xl bg-[linear-gradient(135deg,#1d8a60_0%,#1b845c_25%,#156647_65%,#0f4832_100%)] text-white shadow-[inset_0_2px_2px_0_rgba(255,255,255,0.25),0_6px_16px_-8px_rgba(15,72,50,0.45)] [@media(hover:hover)]:hover:opacity-90 disabled:bg-none disabled:bg-slate-200 disabled:text-slate-500 disabled:opacity-100 disabled:shadow-none ${OUTLINE_FOCUS_CLASS}`,
+        // Filled primary CTA (`btn-primary`): diagonal Wildfires.org forest
+        // gradient, top inner highlight, soft drop; hover dims via opacity
+        // only.
+        brand: `${GLASS_PRESS_CLASS} rounded-xl bg-[linear-gradient(135deg,#2a5a33_0%,#1a3b21_30%,#152f1a_65%,#0f2314_100%)] text-white shadow-[inset_0_2px_2px_0_rgba(255,255,255,0.18),0_6px_16px_-8px_rgba(15,35,20,0.5)] [@media(hover:hover)]:hover:opacity-90 disabled:bg-none disabled:bg-slate-200 disabled:text-slate-500 disabled:opacity-100 disabled:shadow-none ${OUTLINE_FOCUS_CLASS}`,
         // Secondary glass button (landing `GLASS_BUTTON_CLASS`).
         glass: `${GLASS_PRESS_CLASS} ${GLASS_CLASS} rounded-xl text-brand-800 hover:bg-white/90 dark:text-brand-300 dark:hover:bg-white/10 ${OUTLINE_FOCUS_CLASS}`,
       },

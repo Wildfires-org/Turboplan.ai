@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Lightbulb } from "lucide-react";
-import Image from "next/image";
 import { useInterval } from "usehooks-ts";
 
-import { brand } from "@/lib/brand";
+import { BrandHeader, BrandMark } from "@/components/brand-mark";
 import { LOADING_FACTS } from "./loading-facts";
 
 const FACT_ROTATION_MS = 6000;
@@ -16,11 +15,10 @@ interface LoadingStateProps {
   isAuthenticated: boolean;
 }
 
-// Mirrors the (auth) layout look (brand background, logo, white card, beaver)
-// so the hand-off from the landing page doesn't land on a blank white screen.
+// Mirrors the (auth) layout look (brand background, logo header, glass card,
+// pulsing logo mark) so the hand-off from the landing page doesn't land on a
+// blank white screen.
 export function LoadingState({ isAuthenticated }: LoadingStateProps) {
-  const appName = brand.name;
-
   // Deterministic first render (this component is server-rendered), then jump
   // to a random fact after mount so repeat visitors don't always see the same
   // one. Randomizing in the useState initializer would run on the server too
@@ -39,30 +37,12 @@ export function LoadingState({ isAuthenticated }: LoadingStateProps) {
 
   return (
     <div className="flex min-h-dvh w-full bg-brandAlt-100">
-      <div className="absolute top-6 left-6 sm:top-[63px] sm:left-[116px] flex items-center gap-1.5">
-        <Image
-          src={brand.logo}
-          alt={appName}
-          width={32}
-          height={32}
-          className="size-8"
-        />
-        <span className="font-mono font-semibold text-[22px] bg-gradient-to-b from-neutral-800 to-[#033923] bg-clip-text text-transparent tracking-tight">
-          {appName}
-        </span>
-      </div>
+      <BrandHeader />
 
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="glass-card relative w-full max-w-[456px] rounded-[24px] p-7 sm:p-9">
           <div className="flex flex-col items-center gap-3 text-center">
-            <Image
-              src="/images/auth/beaver-verifying.gif"
-              alt=""
-              width={111}
-              height={120}
-              className="mb-2"
-              unoptimized
-            />
+            <BrandMark pulse className="mb-2" />
             <h1 className="text-2xl font-bold text-gray-950">
               {isAuthenticated
                 ? "Creating your project..."

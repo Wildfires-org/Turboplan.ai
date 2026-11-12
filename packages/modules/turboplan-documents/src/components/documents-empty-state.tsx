@@ -45,7 +45,7 @@ export function DocumentsUploadEmptyState({
     <div className="flex flex-col items-center justify-center py-8 text-center">
       <div
         className={cn(
-          "mb-4 flex size-16 items-center justify-center rounded-full border border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(21,102,71,0.18)]",
+          "mb-4 flex size-16 items-center justify-center rounded-full border border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(26,59,33,0.18)]",
           isDragActive ? "bg-brand-50" : "bg-white/55",
         )}
       >

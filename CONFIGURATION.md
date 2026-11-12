@@ -12,6 +12,7 @@ deployment, and how to read the startup errors.
 - [Feature flags](#feature-flags)
 - [Database providers](#database-providers)
 - [Signed-out entry point](#signed-out-entry-point)
+- [Branding](#branding)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
 
@@ -409,15 +410,38 @@ Service example projects that fill the box. Sending opens `/self-service` with
 visitor enters an email, a magic link signs them in, and the new project starts
 from the prompt. Every other page still asks signed-out visitors to sign in.
 
-- The value is inlined at build time (like `NEXT_PUBLIC_BRAND_THEME`), so
-  changing it needs a rebuild. Any value other than `prompt` keeps the default.
+- The value is inlined at build time, so changing it needs a rebuild. Any
+  value other than `prompt` keeps the default.
 - The copy and examples live in `apps/turboplan/lib/entry-point/content.ts` and
-  `usfs-examples.ts`. The page follows the brand theme and is designed for
-  `NEXT_PUBLIC_BRAND_THEME=wildfires`.
+  `usfs-examples.ts`. The header shows the Wildfires wordmark
+  (`public/brand/wildfires/wordmark.svg`).
 - Attachments use the anonymous presign route (`/api/public/uploads/presign`),
   so they need the API's R2 credentials and a bucket CORS rule for the web app
   origin (see [R2 bucket](#r2-bucket)). Without them a file shows as failed and
   the prompt still goes through.
+
+## Branding
+
+The web app carries the Wildfires.org brand on every build; there is no theme
+switch (`NEXT_PUBLIC_BRAND_THEME` is no longer read).
+
+| What | Where |
+| --- | --- |
+| Display name | `NEXT_PUBLIC_APP_NAME` (page titles, sidebar and auth headers) |
+| Logo mark, wordmark, OG card | `apps/turboplan/public/brand/wildfires/` (`logo.png`, `wordmark.svg`, `og-image.jpg`), wired up in `apps/turboplan/lib/brand.ts` |
+| Favicon | `apps/turboplan/app/favicon.ico` (16-64px) and `public/brand/wildfires/favicon-32.png` |
+| Colors | `apps/turboplan/tailwind.config.ts`: `brand` is the orange scale (accents, focus, links), `brandAlt` the forest greens and cream (surfaces, primary actions); the forest CTA gradient is in `app/globals.css` |
+| Type | Söhne over Geist when the font files are present (declared in `apps/turboplan/app/brand-wildfires.css`), Geist otherwise |
+
+The Söhne files are licensed to wildfires.org only and are not in the repo
+(`public/brand/wildfires/fonts/` is gitignored). The demo.wildfires.org build
+copies them in before building; `tailwind.config.ts` adds Söhne to the font
+stack only when they are there, so any other build uses Geist. Never commit
+them.
+
+A fork rebrands by replacing the contents of those files at the same paths;
+`lib/brand.ts` explains the `merge=ours` setup that keeps its copies on upstream
+merges.
 
 ## Deployment
 

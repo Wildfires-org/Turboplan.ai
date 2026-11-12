@@ -31,6 +31,7 @@ import {
   type DropRowStatus,
   type DropRowTone,
   formatMegabytes,
+  getDropDestinationHint,
   getDropRowStatus,
   getDropRowTypeLabel,
 } from "@/lib/project-context-drop";
@@ -84,9 +85,9 @@ const getLimitsHint = (
 
 /**
  * One drop target for everything that gives a project context: documents go
- * to the project documents (and get their text extracted for the AI), zipped
- * GIS layers go straight onto the project map. Takes many files at once and
- * shows a status row per file.
+ * to the project documents (and get their text extracted for the AI) and, when
+ * the map module is on, GIS layers go straight onto the project map. Takes
+ * many files at once and shows a status row per file.
  */
 export function ProjectContextDropzone({
   projectId,
@@ -155,7 +156,7 @@ export function ProjectContextDropzone({
         <div
           aria-hidden
           className={cn(
-            "flex size-14 shrink-0 items-center justify-center rounded-full border border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(21,102,71,0.18)]",
+            "flex size-14 shrink-0 items-center justify-center rounded-full border border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(26,59,33,0.18)]",
             isDragActive ? "bg-brand-50" : "bg-white/55",
           )}
         >
@@ -168,8 +169,7 @@ export function ProjectContextDropzone({
               : getDropHint(acceptsDocuments, acceptsGisLayers)}
           </p>
           <p className="text-[13px] leading-5 text-gray-550">
-            Documents are added to the project and read by the assistant; GIS
-            layers go straight onto the project map.
+            {getDropDestinationHint({ acceptsDocuments, acceptsGisLayers })}
           </p>
           <p className="text-xs leading-5 text-gray-550">
             {getLimitsHint(acceptsDocuments, acceptsGisLayers)}

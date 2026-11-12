@@ -126,7 +126,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
                   onClick={() => {
                     handleSaveEdit();
                   }}
-                  className="rounded p-0.5 text-brand-800 hover:bg-brand-50 dark:hover:bg-green-900/20"
+                  className="rounded p-0.5 text-brand-800 hover:bg-brand-50 dark:hover:bg-brand-900/20"
                   title="Save (Enter)"
                 >
                   <Check className="h-3 w-3" />

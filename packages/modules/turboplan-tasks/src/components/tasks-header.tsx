@@ -20,7 +20,7 @@ const SEGMENT_CLASS =
 
 // Active = white pill with a top highlight (landing segmented control).
 const SEGMENT_ACTIVE_CLASS =
-  "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(21,102,71,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white";
+  "bg-white text-brand-800 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_-6px_rgba(26,59,33,0.25),inset_0_1px_0_#fff] dark:bg-white/15 dark:text-white";
 
 const SEGMENT_INACTIVE_CLASS =
   "text-gray-600 hover:bg-white/60 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-white/10";

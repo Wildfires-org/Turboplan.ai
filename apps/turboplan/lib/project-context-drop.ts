@@ -146,6 +146,23 @@ export const joinSentences = (parts: Array<string | null | undefined>) =>
     })
     .join(" ");
 
+/** What happens to dropped files, naming only the modules that take them. */
+export const getDropDestinationHint = ({
+  acceptsDocuments,
+  acceptsGisLayers,
+}: DropFlags): string => {
+  if (acceptsDocuments && acceptsGisLayers) {
+    return "Documents are added to the project and read by the assistant; GIS layers go straight onto the project map.";
+  }
+  if (acceptsGisLayers) {
+    return "GIS layers go straight onto the project map.";
+  }
+  if (acceptsDocuments) {
+    return "Documents are added to the project and read by the assistant.";
+  }
+  return "";
+};
+
 /** Short type label shown under the file name. */
 export const getDropRowTypeLabel = (
   row: Pick<DropRow, "name" | "kind" | "mimeType">,

@@ -125,7 +125,7 @@ export function ProjectImageHeader({
                   className="object-contain rounded-lg"
                 />
               )}
-              <AvatarFallback className="bg-[#72DA9E] text-primary-foreground text-2xl font-semibold rounded-lg">
+              <AvatarFallback className="bg-brand-700 text-white text-2xl font-semibold rounded-lg">
                 {generateInitialsFromName(projectName)}
               </AvatarFallback>
             </Avatar>

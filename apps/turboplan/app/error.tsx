@@ -24,7 +24,7 @@ const ErrorBoundary = ({ error, reset }: ErrorBoundaryProps) => {
   return (
     <ErrorPage
       title="Something went wrong!"
-      description="An unexpected error occurred. Our beaver is working hard to fix things — try refreshing or head back to your projects."
+      description="An unexpected error occurred. Try refreshing, or head back to your projects."
       primaryAction={{ label: "Try again", onClick: reset }}
     />
   );

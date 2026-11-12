@@ -4,6 +4,7 @@ import { MessageSquare } from "lucide-react";
 
 import { cn } from "../../../tailwind";
 import { AccordionSection } from "../accordion-section";
+import { EMPTY_STATE_ICON_CLASS } from "../glass-classes";
 import { Skeleton } from "../skeleton";
 import { CommentCard } from "./comment-card";
 import { CommentInput } from "./comment-input";
@@ -83,8 +84,8 @@ export function CommentsSection({
       {/* Empty state */}
       {!isLoading && comments.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 text-center text-slate-600">
-          <span className="mb-2 flex size-10 items-center justify-center rounded-full border border-white/85 bg-white/55 text-brand-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
-            <MessageSquare aria-hidden className="size-5" />
+          <span className={cn(EMPTY_STATE_ICON_CLASS, "mb-2")}>
+            <MessageSquare aria-hidden />
           </span>
           <p className="text-sm font-medium text-foreground">No comments yet</p>
           {!readOnly && permissions.currentUserId && (

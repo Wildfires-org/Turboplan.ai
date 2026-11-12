@@ -110,7 +110,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
     <React.Fragment>
       {/* Milestone Row */}
       <div
-        className={`group relative flex items-center border-t border-brandAlt-200/70 bg-brandAlt-100 hover:bg-[#EDF5F1] dark:border-white/10 dark:bg-slate-900 dark:hover:bg-gray-800 ${
+        className={`group relative flex items-center border-t border-brandAlt-200/70 bg-brandAlt-100 hover:bg-brandAlt-200/60 dark:border-white/10 dark:bg-slate-900 dark:hover:bg-gray-800 ${
           isDragging ? "opacity-50" : ""
         } ${isEditing ? "overflow-visible" : "overflow-hidden"}`}
         style={{ height: `${TABLE_CONFIG.ROW_HEIGHT}px` }}
@@ -156,7 +156,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
                     onClick={() => {
                       handleSaveEdit();
                     }}
-                    className="rounded p-0.5 text-brand-800 hover:bg-brand-50 dark:hover:bg-green-900/20"
+                    className="rounded p-0.5 text-brand-800 hover:bg-brand-50 dark:hover:bg-brand-900/20"
                     title="Save (Enter)"
                   >
                     <Check className="h-3 w-3" />
@@ -244,7 +244,7 @@ export const MilestoneRow: React.FC<MilestoneRowProps> = ({
         {/* Actions Column - Sticky Right (hidden in read-only mode) */}
         {!isReadOnly && (
           <div
-            className="flex-shrink-0 bg-brandAlt-100 py-2 group-hover:bg-[#EDF5F1] dark:bg-slate-900 dark:group-hover:bg-gray-800"
+            className="flex-shrink-0 bg-brandAlt-100 py-2 group-hover:bg-brandAlt-200/60 dark:bg-slate-900 dark:group-hover:bg-gray-800"
             style={{
               width: `${COLUMN_WIDTHS.ACTIONS}px`,
               position: "sticky",

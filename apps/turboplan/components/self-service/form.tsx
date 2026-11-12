@@ -8,6 +8,7 @@ import {
   useFormValidation,
   useUrlParams,
 } from "@/app/self-service/hooks";
+import { BrandHeader } from "@/components/brand-mark";
 import { useLogout } from "@/hooks/use-logout";
 import { appendLandingUploadParams } from "@/lib/landing-uploads";
 import { appendAttributionParams } from "@/lib/signup-attribution";
@@ -136,7 +137,8 @@ export function SelfServiceForm({
 
   // Main form
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-brandAlt-100 px-4">
+    <div className="relative flex min-h-screen w-full items-center justify-center bg-brandAlt-100 px-4 pb-10 pt-24 sm:py-10">
+      <BrandHeader />
       <div className="w-full max-w-md">
         <FormHeader isAuthenticated={isAuthenticated} />
 

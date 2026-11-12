@@ -1,14 +1,19 @@
 /**
  * Branding override surface for the main app.
  *
- * This module and `public/brand/` hold the app's name, logo, and OG image.
- * (Mascot/illustration assets under `public/images/` are content, not brand —
- * forks that want them changed edit those separately.) A downstream fork
- * rebrands by replacing the *contents* of these files at the same paths,
- * keeping the export shape intact — so upstream merges never conflict. The
- * repo-root `.gitattributes` already marks these paths `merge=ours`; the
- * attribute is inert until the fork enables the driver (once per clone, and
- * --local only — a global driver would silently keep "ours" in every repo):
+ * The app carries the Wildfires.org brand: this module and
+ * `public/brand/wildfires/` hold the logo, the wordmark (the signed-out entry
+ * page header) and the OG image; `app/favicon.ico` is the favicon,
+ * `tailwind.config.ts` holds the color scales (`brand` orange, `brandAlt`
+ * forest and cream) and `app/brand-wildfires.css` the type. The display name
+ * comes from `NEXT_PUBLIC_APP_NAME`.
+ *
+ * A downstream fork rebrands by replacing the *contents* of these files at
+ * the same paths, keeping the export shape intact — so upstream merges never
+ * conflict. The repo-root `.gitattributes` already marks `public/brand/**` and
+ * this file `merge=ours`; the attribute is inert until the fork enables the
+ * driver (once per clone, and --local only — a global driver would silently
+ * keep "ours" in every repo):
  *
  *   git config --local merge.ours.driver true
  *
@@ -22,28 +27,12 @@
  */
 import { getAppName } from "@wildfires-org/turboplan-env";
 
-/**
- * Optional built-in theme, chosen at build time by `NEXT_PUBLIC_BRAND_THEME`.
- * `wildfires` gives the Wildfires.org look (logo, colors, type) used by
- * demo.wildfires.org; unset keeps the default TurboPlan look. The colors and
- * type live in `tailwind.config.ts` and `app/brand-wildfires.css`.
- */
-export const brandTheme =
-  process.env.NEXT_PUBLIC_BRAND_THEME === "wildfires" ? "wildfires" : undefined;
-
-const assets =
-  brandTheme === "wildfires"
-    ? {
-        logo: "/brand/wildfires/logo.png",
-        ogImage: "/brand/wildfires/og-image.jpg",
-      }
-    : { logo: "/brand/logo.png", ogImage: "/brand/og-image.png" };
-
 export const brand = {
   /** Display name — alt text, page titles, sidebar wordmark. */
   name: getAppName(),
-  /** Square mark shown in the sidebar, auth pages and error pages. */
-  logo: assets.logo,
+  /** Square mark shown in the sidebar, the auth, signup and error screens
+   * and the project setup banner. */
+  logo: "/brand/wildfires/logo.png",
   /** Social sharing card, 1200x630. */
-  ogImage: assets.ogImage,
+  ogImage: "/brand/wildfires/og-image.jpg",
 } as const;

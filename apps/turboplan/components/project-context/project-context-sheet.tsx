@@ -43,15 +43,15 @@ interface ProjectTabProps {
   userId: string;
 }
 
-/** Same light green-tinted blur as the shared Dialog overlay. */
+/** Same light forest-tinted blur as the shared Dialog overlay. */
 const OVERLAY_CLASS =
-  "bg-[rgba(15,40,30,0.18)] backdrop-blur-sm dark:bg-black/60";
+  "bg-[rgba(15,35,20,0.18)] backdrop-blur-sm dark:bg-black/60";
 
 /** Full-height glass sheet on the page ground (so the glass cards inside
  * read), sliding in with a strong ease-out; reduced motion only fades. */
 const SURFACE_CLASS = cn(
   "flex w-full flex-col gap-0 p-0 sm:max-w-md",
-  "border-l-[1.5px] border-white bg-[#F4F9F7]/95 shadow-[-24px_0_64px_-32px_rgba(15,40,30,0.38),inset_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-2xl backdrop-saturate-150",
+  "border-l-[1.5px] border-white bg-brandAlt-100/95 shadow-[-24px_0_64px_-32px_rgba(15,35,20,0.38),inset_1px_0_0_rgba(255,255,255,0.9)] backdrop-blur-2xl backdrop-saturate-150",
   "dark:border-white/10 dark:bg-slate-950/95",
   "ease-[cubic-bezier(0.23,1,0.32,1)] data-[state=closed]:duration-200 data-[state=open]:duration-300",
   "motion-reduce:data-[state=closed]:fade-out-0 motion-reduce:data-[state=open]:fade-in-0 motion-reduce:data-[state=closed]:slide-out-to-right-0 motion-reduce:data-[state=open]:slide-in-from-right-0",

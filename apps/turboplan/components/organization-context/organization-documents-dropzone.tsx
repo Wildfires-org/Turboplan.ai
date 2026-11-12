@@ -114,7 +114,7 @@ export const OrganizationDocumentsDropzone = ({
         <div
           aria-hidden
           className={cn(
-            "flex size-12 shrink-0 items-center justify-center rounded-full border border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(21,102,71,0.18)] dark:border-white/10",
+            "flex size-12 shrink-0 items-center justify-center rounded-full border border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_30px_-12px_rgba(26,59,33,0.18)] dark:border-white/10",
             isDragActive ? "bg-brand-50" : "bg-white/55 dark:bg-white/10",
           )}
         >
