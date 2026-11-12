@@ -76,7 +76,7 @@ const foreignRow: ProjectDocumentExtraction = {
 
 let projectRows: ProjectDocumentExtraction[] = [];
 const handlerCalls: CreateDocumentCallbackProps[] = [];
-const exaCalls: string[][] = [];
+const firecrawlCalls: string[][] = [];
 const queryCalls: string[] = [];
 const timingEvents: Array<Record<string, unknown>> = [];
 
@@ -163,10 +163,10 @@ mock.module("../lib/artifacts/server", {
 mock.module("../lib/server-analytics", {
   namedExports: { trackAnalyticsEvent: () => {} },
 });
-mock.module("../lib/ai/exa-client", {
+mock.module("../lib/ai/firecrawl-client", {
   namedExports: {
-    exaGetContents: async (urls: string[]) => {
-      exaCalls.push(urls);
+    firecrawlGetContents: async (urls: string[]) => {
+      firecrawlCalls.push(urls);
       return {
         results: urls.map((url) => ({ url, title: "Web", text: "Web text" })),
       };
@@ -187,7 +187,7 @@ before(async () => {
 beforeEach(() => {
   projectRows = [savedRow];
   handlerCalls.length = 0;
-  exaCalls.length = 0;
+  firecrawlCalls.length = 0;
   queryCalls.length = 0;
   timingEvents.length = 0;
   chosenLetterhead = { selection: "default", letterhead: undefined };
@@ -248,7 +248,7 @@ describe("createDocument references", () => {
         saved: "project",
       },
     ]);
-    assert.deepStrictEqual(exaCalls, []);
+    assert.deepStrictEqual(firecrawlCalls, []);
     assert.deepStrictEqual(referencesOf(result), {
       used: ["agency-letter.pdf"],
       skipped: [],
@@ -263,10 +263,10 @@ describe("createDocument references", () => {
       (await loadedReferences()).map(({ title }) => title),
       ["agency-letter.pdf"],
     );
-    assert.deepStrictEqual(exaCalls, []);
+    assert.deepStrictEqual(firecrawlCalls, []);
   });
 
-  it("never sends a storage URL to Exa, even when it matches no saved document", async () => {
+  it("never sends a storage URL to Firecrawl, even when it matches no saved document", async () => {
     projectRows = [];
 
     const result = await runCreateDocument({
@@ -274,7 +274,7 @@ describe("createDocument references", () => {
     });
 
     await loadedReferences();
-    assert.deepStrictEqual(exaCalls, [[WEB_URL]]);
+    assert.deepStrictEqual(firecrawlCalls, [[WEB_URL]]);
     assert.deepStrictEqual(referencesOf(result), {
       used: [],
       skipped: [],
@@ -282,7 +282,7 @@ describe("createDocument references", () => {
     });
   });
 
-  it("caps storage URLs at two and sends none to Exa", async () => {
+  it("caps storage URLs at two and sends none to Firecrawl", async () => {
     const thirdRow: ProjectDocumentExtraction = {
       ...savedRow,
       id: THIRD_ID,
@@ -296,7 +296,7 @@ describe("createDocument references", () => {
     });
 
     await loadedReferences();
-    assert.deepStrictEqual(exaCalls, []);
+    assert.deepStrictEqual(firecrawlCalls, []);
     assert.deepStrictEqual(referencesOf(result), {
       used: ["agency-letter.pdf"],
       skipped: [{ filename: "draft.pdf", reason: "extraction-pending" }],
@@ -315,7 +315,7 @@ describe("createDocument references", () => {
     assert.strictEqual(referencesOf(result), undefined);
     assert.deepStrictEqual(queryCalls, []);
     assert.deepStrictEqual(timingEvents, []);
-    assert.deepStrictEqual(exaCalls, []);
+    assert.deepStrictEqual(firecrawlCalls, []);
   });
 
   it("reports which saved references were used and which are still being read", async () => {
@@ -358,7 +358,7 @@ describe("createDocument references", () => {
       (await loadedReferences()).map(({ url }) => url),
       [linkRow.url],
     );
-    assert.deepStrictEqual(exaCalls, [[linkRow.url]]);
+    assert.deepStrictEqual(firecrawlCalls, [[linkRow.url]]);
     assert.deepStrictEqual(referencesOf(result), {
       used: ["Agency project page"],
       skipped: [],
@@ -379,7 +379,7 @@ describe("createDocument references", () => {
       (await loadedReferences()).map(({ url }) => url),
       [WEB_URL],
     );
-    assert.deepStrictEqual(exaCalls, [[WEB_URL]]);
+    assert.deepStrictEqual(firecrawlCalls, [[WEB_URL]]);
     assert.deepStrictEqual(referencesOf(result), {
       used: [],
       skipped: [],

@@ -3,7 +3,10 @@ import { z } from "zod";
 
 import { getPrompt } from "@wildfires-org/turboplan-ai";
 
-import { exaSearch } from "@/lib/ai/exa-client";
+import {
+  firecrawlSearch,
+  WEB_SEARCH_CATEGORIES,
+} from "@/lib/ai/firecrawl-client";
 
 export const webSearch = async () => {
   const description = await getPrompt("tool-desc-web-search");
@@ -12,17 +15,11 @@ export const webSearch = async () => {
     description,
     inputSchema: z.object({
       query: z.string().describe("The search query"),
-      searchType: z
-        .enum(["auto", "neural", "keyword"])
-        .optional()
-        .describe(
-          "Search type: 'neural' for semantic/conceptual matching (best for finding similar projects), 'keyword' for exact term matching, 'auto' to let the engine decide. Default 'auto'.",
-        ),
       category: z
-        .string()
+        .enum(WEB_SEARCH_CATEGORIES)
         .optional()
         .describe(
-          "Category filter — use 'government' when searching for NEPA projects, agency documents, or federal/state sources",
+          "Narrow the search: 'government' for US government (.gov) sites — agency documents, NEPA projects, federal/state sources; 'pdf' for PDF documents such as decision memos and environmental assessments; 'research' for academic and scientific papers",
         ),
       startPublishedDate: z
         .string()
@@ -35,13 +32,11 @@ export const webSearch = async () => {
     }),
     execute: async ({
       query,
-      searchType,
       category,
       startPublishedDate,
       endPublishedDate,
     }) => {
-      const response = await exaSearch(query, {
-        searchType,
+      const response = await firecrawlSearch(query, {
         category,
         startPublishedDate,
         endPublishedDate,
@@ -55,7 +50,6 @@ export const webSearch = async () => {
         title: result.title,
         url: result.url,
         highlights: result.highlights ?? [],
-        publishedDate: result.publishedDate,
       }));
 
       return { results };

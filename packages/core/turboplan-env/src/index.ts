@@ -178,8 +178,8 @@ type WebEnvType = CommonEnvType & {
   // Research Agent polling interval in ms (optional, default 5000)
   RESEARCH_AGENT_POLLING_INTERVAL: number;
 
-  // Exa.ai web search (optional — degrades gracefully without it)
-  EXA_API_KEY?: string;
+  // Firecrawl web search and page reading (optional — degrades gracefully)
+  FIRECRAWL_API_KEY?: string;
   // Analytics (PostHog, server-side) - optional, analytics disabled when unset
   POSTHOG_API_KEY?: string;
 };
@@ -586,8 +586,8 @@ const loadWebEnv = (): WebEnvType => {
     RESEARCH_AGENT_POLLING_INTERVAL:
       Number(process.env.NEXT_PUBLIC_RESEARCH_AGENT_POLLING_INTERVAL) || 5000,
 
-    // Exa.ai web search (optional)
-    EXA_API_KEY: process.env.EXA_API_KEY,
+    // Firecrawl web search and page reading (optional)
+    FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY,
   };
 };
 

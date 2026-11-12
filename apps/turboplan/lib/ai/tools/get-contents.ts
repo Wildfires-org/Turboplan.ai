@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getPrompt } from "@wildfires-org/turboplan-ai";
 import { isStorageHost } from "@wildfires-org/turboplan-upload/server";
 
-import { exaGetContents } from "@/lib/ai/exa-client";
+import { firecrawlGetContents } from "@/lib/ai/firecrawl-client";
 import type { ReferenceCache } from "@/lib/ai/reference-documents";
 
 const STORAGE_URL_NOTE =
@@ -33,11 +33,11 @@ export const getContents = async ({
         .max(10000)
         .optional()
         .describe(
-          "Request full sequential text content per URL (up to 10000 chars). Only pass this when you need to deep-read a document. By default, only highlights and summaries are returned.",
+          "Request the full sequential text per URL (up to 10000 chars) instead of the summary. Only pass this when you need to deep-read a document. By default, each page's summary and opening are returned.",
         ),
     }),
     execute: async ({ urls, maxCharacters }) => {
-      // Our own storage URLs never go to a third party (Exa): saved files are
+      // Our own storage URLs never go to a third party (Firecrawl): saved files are
       // read from the database by the document tools.
       const storageUrls = urls.filter(isStorageHost);
       const webUrls = urls.filter((url) => !isStorageHost(url));
@@ -49,7 +49,7 @@ export const getContents = async ({
         return { results: [], ...skipped };
       }
 
-      const response = await exaGetContents(webUrls, maxCharacters);
+      const response = await firecrawlGetContents(webUrls, maxCharacters);
 
       if (response.warning) {
         return { results: [], warning: response.warning, ...skipped };

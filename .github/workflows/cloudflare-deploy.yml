@@ -842,7 +842,7 @@ jobs:
           R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
           R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
-          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
           OPENROUTER_MODEL_PRIMARY: ${{ vars.OPENROUTER_MODEL_PRIMARY }}
           OPENROUTER_MODEL_LITE: ${{ vars.OPENROUTER_MODEL_LITE }}
           OPENROUTER_MODEL_IMAGE_PRIMARY: ${{ vars.OPENROUTER_MODEL_IMAGE_PRIMARY }}
@@ -894,7 +894,7 @@ jobs:
           R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
           R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
-          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
           # Runtime vars (used by deploy script for --var flags)
           POSTHOG_API_KEY: ${{ vars.POSTHOG_API_KEY }}
           NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
