@@ -56,6 +56,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { getSidebarChatsKey } from "@/hooks/use-sidebar-chats";
 import { EMPTY_STATE_TEXT_CLASS, EMPTY_STATE_TITLE_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
+import { isResearchPhasePending } from "@/lib/research-phase";
 import { RESEARCH_SAVED_TYPE } from "@/lib/research-saved-annotation";
 import { cn, fetcher, generateUUID } from "@/lib/utils";
 import {
@@ -366,19 +367,18 @@ const ProjectChatViewInner = ({
 
   // Auto-open the research panel while the research phase is in progress
   // Phones open it from the header avatar instead: there it covers the chat.
+  // With the research agent off there is no panel to open: marking it open
+  // anyway would make an opened document leave room for it.
+  const researchPhasePending = isResearchPhasePending(project);
   useEffect(() => {
     if (
       effectiveIsInitialChat &&
-      !project.isResearchPhaseCompleted &&
+      researchPhasePending &&
       !window.matchMedia("(max-width: 767px)").matches
     ) {
       setResearchPanelOpen(true);
     }
-  }, [
-    effectiveIsInitialChat,
-    project.isResearchPhaseCompleted,
-    setResearchPanelOpen,
-  ]);
+  }, [effectiveIsInitialChat, researchPhasePending, setResearchPanelOpen]);
 
   const handleFirstMessageSubmitted = useCallback(() => {
     if (

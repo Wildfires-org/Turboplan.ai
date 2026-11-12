@@ -25,6 +25,7 @@ import {
 } from "@/lib/cache/dashboard";
 import { INITIAL_ATTACHMENTS_PARAM } from "@/lib/initial-attachments";
 import { AppUrls } from "@/lib/nav/urls";
+import { isResearchPhasePending } from "@/lib/research-phase";
 import type { ProjectParams } from "@/types/dashboard";
 
 interface NewChatPageProps {
@@ -216,7 +217,7 @@ async function NewChatPageContent({
     ? `?${queryString.toString()}`
     : "";
 
-  if (initialChat && !project.isResearchPhaseCompleted) {
+  if (initialChat && isResearchPhasePending(project)) {
     redirect(
       `${AppUrls.projectChatById(orgSlug, officeSlug, projectSlug, initialChat.id)}${redirectSuffix}`,
     );

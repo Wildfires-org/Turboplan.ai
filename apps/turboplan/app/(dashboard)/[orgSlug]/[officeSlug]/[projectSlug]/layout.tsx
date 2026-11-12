@@ -10,6 +10,7 @@ import {
 } from "@/lib/cache/dashboard";
 import { isRoutableSlugPath } from "@/lib/nav/route-slugs";
 import { AppUrls } from "@/lib/nav/urls";
+import { isResearchPhasePending } from "@/lib/research-phase";
 import { handleSlugRedirect } from "@/lib/slug-redirect";
 
 interface ProjectLayoutProps {
@@ -77,7 +78,7 @@ export default async function ProjectLayout({
         <SidebarProjectRegistrar
           projectName={project.name}
           projectId={project.id}
-          isResearchPhaseCompleted={project.isResearchPhaseCompleted}
+          isResearchPhaseCompleted={!isResearchPhasePending(project)}
         />
         {children}
       </DashboardProvider>

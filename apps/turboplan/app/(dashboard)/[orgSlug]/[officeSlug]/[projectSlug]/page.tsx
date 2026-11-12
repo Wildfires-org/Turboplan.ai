@@ -12,6 +12,7 @@ import {
 } from "@/lib/cache/dashboard";
 import { AppUrls } from "@/lib/nav/urls";
 import { getProjectPageActionsFallback } from "@/lib/permissions/entity-actions-fallback";
+import { isResearchPhasePending } from "@/lib/research-phase";
 import type { ProjectPageProps } from "@/types/dashboard";
 
 export async function generateMetadata({
@@ -115,7 +116,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           userId={session.user.id}
           user={session.user}
           projectName={project.name}
-          isResearchPhaseCompleted={project.isResearchPhaseCompleted}
+          isResearchPhaseCompleted={!isResearchPhasePending(project)}
           isMember={isMember}
           initialProject={project}
         />
