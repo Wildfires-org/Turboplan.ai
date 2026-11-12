@@ -207,10 +207,10 @@ export function Navbar() {
           >
             <Image
               src={brand.logo}
-              alt={brand.name}
-              width={275}
-              height={45}
-              className="h-auto w-full"
+              alt={brand.logoAlt}
+              width={157}
+              height={32}
+              className="h-7 w-auto"
               priority
             />
           </Link>

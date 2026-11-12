@@ -93,7 +93,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
-      <meta name="theme-color" content="#f4f9f7" />
+      <meta name="theme-color" content="#fbfaf8" />
       <link rel="preconnect" href={appOrigin} />
       <body
         className={cn(

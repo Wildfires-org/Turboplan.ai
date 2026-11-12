@@ -2,7 +2,6 @@ import { Compass } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import BeaverLeft from "@/../public/images/beaver_left.png";
 import {
   GLASS_BUTTON_CLASS,
   PRIMARY_BUTTON_CLASS,
@@ -26,7 +25,7 @@ export default function NotFound() {
       eyebrow="404"
       title="Page not found"
       lead="The page you're looking for doesn't exist or has been moved."
-      image={BeaverLeft}
+      showMark
       actions={
         <>
           <Link

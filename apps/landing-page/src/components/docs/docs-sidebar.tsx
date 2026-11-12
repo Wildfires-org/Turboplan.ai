@@ -36,7 +36,7 @@ const ROW_CLASS =
 // Fumadocs from the current pathname. Denser than the `glass` utility so the
 // pill still reads on top of the glass sidebar card.
 const ACTIVE_ROW_CLASS =
-  "data-[active=true]:border-white data-[active=true]:bg-white/90 data-[active=true]:font-medium data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_6px_16px_-8px_rgba(21,102,71,0.3)] data-[active=true]:[&_svg]:text-brand-800";
+  "data-[active=true]:border-white data-[active=true]:bg-white/90 data-[active=true]:font-medium data-[active=true]:text-brand-800 data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_6px_16px_-8px_rgba(21,47,26,0.3)] data-[active=true]:[&_svg]:text-brand-800";
 
 // Folder rows are <button>s when the folder has no index page, and a button
 // shrinks to its content, so give them the row width explicitly (minus the

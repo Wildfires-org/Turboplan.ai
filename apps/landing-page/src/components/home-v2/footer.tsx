@@ -57,10 +57,10 @@ export function Footer() {
         <div className="order-1 flex w-full items-center justify-center sm:order-none sm:w-auto sm:flex-1">
           <Image
             src={brand.logo}
-            alt={brand.name}
-            width={275}
-            height={45}
-            className="h-9 w-auto sm:h-8 lg:h-10"
+            alt={brand.logoAlt}
+            width={157}
+            height={32}
+            className="h-7 w-auto"
           />
         </div>
 

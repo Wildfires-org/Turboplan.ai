@@ -73,7 +73,7 @@ Contract:
 - Prices are found by lookup key. Immutable drift creates a replacement price and transfers the lookup key; a subscribed price is never mutated, and existing subscriptions keep their old price (grandfathering).
 - Coupons are immutable, so terms changes create `<program>-vN+1` and re-point the promotion codes. Nothing in Stripe is ever deleted.
 - `REPORT` lines flag catalog-tagged objects Stripe has but the catalog doesn't — they are surfaced, never touched.
-- Products are found by `metadata.catalog_key`. Products synced before that key became brand-independent (tagged `eplan_catalog_key`) are still recognised and re-tagged under `--apply`; the legacy list in the script can be dropped once every synced account has been re-tagged.
+- Products are found by `metadata.catalog_key`. Products synced before that key became brand-independent (tagged with the old product-prefixed key, `<product>_catalog_key`) are still recognised and re-tagged under `--apply`; the legacy list in the script can be dropped once every synced account has been re-tagged.
 
 ### Renaming product or meter
 

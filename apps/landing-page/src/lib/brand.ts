@@ -1,9 +1,9 @@
 /**
  * Branding override surface for the landing page.
  *
- * This module and `public/brand/` hold the landing page's name, logo, and OG
- * image. (Mascot/illustration assets under `public/images/` are content, not
- * brand — forks that want them changed edit those separately.) A downstream
+ * This module and `public/brand/` hold the landing page's name, logo, mark and
+ * OG image. (Illustrations and screenshots under `public/images/` are content,
+ * not brand — forks that want them changed edit those separately.) A downstream
  * fork rebrands by replacing the *contents* of these files at the same paths,
  * keeping the export shape intact — so upstream merges never conflict. The
  * repo-root `.gitattributes` already marks these paths `merge=ours`; the
@@ -23,10 +23,14 @@
 import { getAppName } from "@wildfires-org/turboplan-env";
 
 export const brand = {
-  /** Display name — alt text, page titles, copyright lines. */
+  /** Display name — page titles, copyright lines. */
   name: getAppName(),
-  /** Wordmark shown in the navbar and footer. */
+  /** Wordmark shown in the navbar and footer (157x32 viewBox). */
   logo: "/brand/logo.svg",
+  /** Alt text for the wordmark: the words it shows. */
+  logoAlt: "Wildfires",
+  /** Square mark: 404 pages and the product preview's workspace avatar. */
+  mark: "/brand/mark.svg",
   /** Social sharing card, 1200x630. */
   ogImage: "/brand/og-image.png",
 } as const;

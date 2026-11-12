@@ -260,7 +260,7 @@ documented in [`CONFIGURATION.md`](./CONFIGURATION.md#deployment).
 
 ### Branding
 
-Each app keeps its name, logo, and OG image behind one config module and one asset directory: `apps/turboplan/lib/brand.ts` + `apps/turboplan/public/brand/`, and `apps/landing-page/src/lib/brand.ts` + `apps/landing-page/public/brand/`. The display name comes from `NEXT_PUBLIC_APP_NAME` (web, landing) / `APP_NAME` (server). Mascot/illustration images under `public/images/` are page content rather than brand config — forks replace those separately if desired.
+Each app keeps its name, logo, and OG image behind one config module and one asset directory: `apps/turboplan/lib/brand.ts` + `apps/turboplan/public/brand/`, and `apps/landing-page/src/lib/brand.ts` + `apps/landing-page/public/brand/`. The display name comes from `NEXT_PUBLIC_APP_NAME` (web, landing) / `APP_NAME` (server). Illustrations and screenshots under `public/images/` are page content rather than brand config — forks replace those separately if desired.
 
 To rebrand, replace the *contents* of those files at the same paths — do not move or rename them. Favicons stay at their Next.js conventional locations (`apps/turboplan/app/favicon.ico`, `apps/landing-page/public/favicon.ico`) and are replaced in place.
 
