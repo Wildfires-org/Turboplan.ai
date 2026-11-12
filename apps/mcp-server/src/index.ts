@@ -5,7 +5,11 @@ import {
   hashPAT,
   isPATToken,
 } from "@wildfires-org/turboplan-api-client/server";
-import { runWithWorkerConnection } from "@wildfires-org/turboplan-db/db-client";
+import {
+  type D1DatabaseLike,
+  registerD1Binding,
+  runWithWorkerConnection,
+} from "@wildfires-org/turboplan-db/db-client";
 import {
   findPATByHash,
   updatePATLastUsed,
@@ -24,7 +28,11 @@ import {
 import type { McpUserContext } from "./utils/types.js";
 
 type Env = {
-  POSTGRES_URL: string;
+  // Postgres deployments. Unused with DB_PROVIDER=d1, which reads `DB`.
+  POSTGRES_URL?: string;
+  DB_PROVIDER?: string;
+  // Cloudflare D1 binding, required when DB_PROVIDER=d1.
+  DB?: D1DatabaseLike;
   AUTH_SECRET: string;
   ADMIN_EMAILS: string;
   WORKER_RUNTIME: string;
@@ -60,6 +68,7 @@ type Env = {
 
 const ENV_BRIDGE_KEYS = [
   "POSTGRES_URL",
+  "DB_PROVIDER",
   "AUTH_SECRET",
   "ADMIN_EMAILS",
   "WORKER_RUNTIME",
@@ -151,6 +160,14 @@ const bridgeEnv = (env: Env) => {
     }
   }
   setStorageBucket(env.STORAGE_BUCKET);
+  // Tools open their own request scopes, so the D1 binding is registered
+  // once for all of them.
+  if (env.DB_PROVIDER === "d1") {
+    if (!env.DB) {
+      throw new Error("DB_PROVIDER=d1 needs a `DB` D1 binding");
+    }
+    registerD1Binding(env.DB);
+  }
 };
 
 /**

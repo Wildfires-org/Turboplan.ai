@@ -35,9 +35,31 @@ export type ReleaseInfo = {
   RELEASE_BRANCH: string;
 };
 
+/**
+ * Which database a deployment runs on. `postgres` (the default) talks to
+ * PostgreSQL through `POSTGRES_URL` / Hyperdrive; `d1` runs on Cloudflare D1
+ * (SQLite) and needs no Postgres at all. See "Database providers" in
+ * CONFIGURATION.md.
+ */
+export type DbProvider = "postgres" | "d1";
+
 export type DbEnvType = {
+  DB_PROVIDER: DbProvider;
+  // Empty string when DB_PROVIDER is `d1`.
   POSTGRES_URL: string;
   TEST_POSTGRES_URL?: string;
+};
+
+/**
+ * Where a `d1` deployment finds its database, outside a Worker's `DB` binding:
+ * the D1 HTTP API (all three Cloudflare values) for Node scripts against a
+ * remote database, or a local SQLite file for development and tests.
+ */
+export type D1EnvType = {
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  D1_DATABASE_ID?: string;
+  CLOUDFLARE_API_TOKEN?: string;
+  D1_LOCAL_PATH?: string;
 };
 
 type CommonEnvType = {
@@ -223,9 +245,27 @@ let _researchAgentEnv: ResearchAgentEnvType | null = null;
 let _r2Env: R2EnvType | null = null;
 let _r2CredentialsEnv: R2CredentialsEnvType | null = null;
 
-const loadDbEnv = (): DbEnvType => {
+/**
+ * The configured database provider. Read on every call (not cached) so the
+ * Worker env bridge, which fills `process.env` per request, is always seen.
+ */
+export const getDbProvider = (): DbProvider => {
+  const value = process.env.DB_PROVIDER?.trim().toLowerCase();
+  if (!value || value === "postgres") {
+    return "postgres";
+  }
+  if (value === "d1") {
+    return "d1";
+  }
+  throw new Error(
+    "Invalid `DB_PROVIDER` env variable: expected `postgres` or `d1`",
+  );
+};
+
+const requirePostgresUrl = (): void => {
   if (
     isServerSide() &&
+    getDbProvider() === "postgres" &&
     !process.env.TEST_POSTGRES_URL &&
     !process.env.POSTGRES_URL
   ) {
@@ -233,10 +273,15 @@ const loadDbEnv = (): DbEnvType => {
       "Missing database URL: set `POSTGRES_URL` or `TEST_POSTGRES_URL` env variable",
     );
   }
+};
+
+const loadDbEnv = (): DbEnvType => {
+  requirePostgresUrl();
 
   return {
+    DB_PROVIDER: getDbProvider(),
     POSTGRES_URL: isServerSide()
-      ? process.env.TEST_POSTGRES_URL || process.env.POSTGRES_URL!
+      ? process.env.TEST_POSTGRES_URL || process.env.POSTGRES_URL || ""
       : "",
     TEST_POSTGRES_URL: process.env.TEST_POSTGRES_URL,
   };
@@ -248,16 +293,9 @@ const loadCommonEnv = (): CommonEnvType => {
   }
 
   // Database URL validation
-  // TEST_POSTGRES_URL takes priority when set (for e2e tests), otherwise POSTGRES_URL is required
-  if (
-    isServerSide() &&
-    !process.env.TEST_POSTGRES_URL &&
-    !process.env.POSTGRES_URL
-  ) {
-    throw new Error(
-      "Missing database URL: set `POSTGRES_URL` or `TEST_POSTGRES_URL` env variable",
-    );
-  }
+  // TEST_POSTGRES_URL takes priority when set (for e2e tests), otherwise
+  // POSTGRES_URL is required — unless the deployment runs on D1.
+  requirePostgresUrl();
 
   if (!process.env.TURBOPLAN_URL && !process.env.NEXT_PUBLIC_TURBOPLAN_URL) {
     throw new Error(
@@ -303,7 +341,7 @@ const loadCommonEnv = (): CommonEnvType => {
 
   // Resolve effective POSTGRES_URL: TEST_POSTGRES_URL takes priority when set
   const effectivePostgresUrl = isServerSide()
-    ? process.env.TEST_POSTGRES_URL || process.env.POSTGRES_URL!
+    ? process.env.TEST_POSTGRES_URL || process.env.POSTGRES_URL || ""
     : "";
 
   // Log a noticeable warning when TEST_POSTGRES_URL is being used
@@ -725,6 +763,17 @@ const loadR2Env = (): R2EnvType => {
 };
 
 // Public getters with caching
+/**
+ * D1 settings for Node processes (scripts, local dev). A Worker uses its `DB`
+ * binding instead and needs none of these.
+ */
+export const getD1Env = (): D1EnvType => ({
+  CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || undefined,
+  D1_DATABASE_ID: process.env.D1_DATABASE_ID || undefined,
+  CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || undefined,
+  D1_LOCAL_PATH: process.env.D1_LOCAL_PATH || undefined,
+});
+
 export const getDbEnv = (): DbEnvType => {
   if (!_dbEnv) {
     _dbEnv = loadDbEnv();
@@ -833,6 +882,7 @@ export const getOptionalR2Env = (): R2CredentialsEnvType | null => {
  * Useful for testing scenarios where environment variables might change.
  */
 export const resetEnvCache = (): void => {
+  _dbEnv = null;
   _commonEnv = null;
   _apiEnv = null;
   _webEnv = null;

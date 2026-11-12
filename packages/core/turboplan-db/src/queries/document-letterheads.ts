@@ -1,6 +1,7 @@
 import { and, asc, count, eq, sql } from "drizzle-orm";
 
 import { db } from "../db-client";
+import { isSqliteDb } from "../db-client/dialect-helpers";
 import {
   type DocumentLetterheadRow,
   type DocumentLetterheadSelectionRow,
@@ -230,8 +231,11 @@ export const updateDocumentOwnLetterhead = async ({
       and(
         eq(documentOwnLetterhead.documentId, documentId),
         // The column has no time zone; an ISO string's "Z" is ignored by the
-        // cast, as when drizzle writes a Date.
-        sql`date_trunc('milliseconds', ${documentOwnLetterhead.updatedAt}) = ${expectedUpdatedAt.toISOString()}::timestamp`,
+        // cast, as when drizzle writes a Date. D1 stores timestamps at
+        // millisecond precision already.
+        isSqliteDb()
+          ? eq(documentOwnLetterhead.updatedAt, expectedUpdatedAt)
+          : sql`date_trunc('milliseconds', ${documentOwnLetterhead.updatedAt}) = ${expectedUpdatedAt.toISOString()}::timestamp`,
       ),
     )
     .returning({ updatedAt: documentOwnLetterhead.updatedAt });

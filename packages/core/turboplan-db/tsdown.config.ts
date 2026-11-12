@@ -19,9 +19,11 @@ export default defineConfig({
   sourcemap: true,
   ignoreWatch: ["./.turbo", "./dist"],
   onSuccess: async () => {
-    const src = resolve(process.cwd(), "src/migrations");
-    const dest = resolve(process.cwd(), "dist/migrations");
-    await cp(src, dest, { recursive: true });
-    console.log("✅ Migrations copied to dist/migrations");
+    for (const folder of ["migrations", "migrations-d1"]) {
+      const src = resolve(process.cwd(), `src/${folder}`);
+      const dest = resolve(process.cwd(), `dist/${folder}`);
+      await cp(src, dest, { recursive: true });
+      console.log(`✅ Migrations copied to dist/${folder}`);
+    }
   },
 });

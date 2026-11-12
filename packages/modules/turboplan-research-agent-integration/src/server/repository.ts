@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import { db, isSqliteDb } from "@wildfires-org/turboplan-db/db-client";
 import {
   chat,
   document,
@@ -488,9 +488,12 @@ export function appendOrCreateRunArrayMessage<T>(params: {
   return withRepoError("appendOrCreateRunArrayMessage", async () => {
     await db.transaction(async (tx) => {
       // Serialize concurrent batches for this run+type; released at txn end.
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${`${researchAgentChatId}:${type}`}))`,
-      );
+      // No advisory locks on D1: it runs one write at a time.
+      if (!isSqliteDb()) {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${`${researchAgentChatId}:${type}`}))`,
+        );
+      }
 
       const [existing] = await tx
         .select()
@@ -564,9 +567,12 @@ export function patchRunArrayMessageItems<T>(params: {
       return;
     }
     await db.transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${`${researchAgentChatId}:${type}`}))`,
-      );
+      // No advisory locks on D1: it runs one write at a time.
+      if (!isSqliteDb()) {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${`${researchAgentChatId}:${type}`}))`,
+        );
+      }
 
       const [existing] = await tx
         .select()

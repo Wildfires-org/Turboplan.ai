@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { Hono } from "hono";
 
+import type { D1DatabaseLike } from "@wildfires-org/turboplan-db/db-client";
 import type { CloudflareEmailBinding } from "@wildfires-org/turboplan-mail/providers";
 import { setStorageBucket } from "@wildfires-org/turboplan-upload/bucket";
 
@@ -8,6 +9,8 @@ import { scrubSentryEvent } from "./utils/sentry.js";
 
 type CloudflareEnv = Record<string, unknown> & {
   HYPERDRIVE?: { connectionString: string };
+  // Cloudflare D1 binding, used instead of Postgres when DB_PROVIDER=d1.
+  DB?: D1DatabaseLike;
   // Cloudflare Email Sending (`send_email` binding). Optional: without it,
   // mail falls back to Resend, Ethereal or the no-op provider.
   SEND_EMAIL?: CloudflareEmailBinding;
@@ -30,6 +33,8 @@ const BRIDGE_KEYS = [
   "INTERNAL_API_SECRET",
   "ENCRYPTION_KEY",
   "JWT_SIGNING_SECRET",
+  // `postgres` (default) or `d1`; see "Database providers" in CONFIGURATION.md.
+  "DB_PROVIDER",
   "POSTGRES_URL",
   "SERVER_API_KEY",
   "OPENROUTER_API_KEY",
@@ -118,6 +123,19 @@ const bridgeEnv = (env: CloudflareEnv): void => {
   }
 };
 
+/** The D1 binding for the request scope when the deployment runs on D1. */
+const d1ConnectionOptions = (
+  env: CloudflareEnv,
+): { d1: D1DatabaseLike } | undefined => {
+  if (asString(env.DB_PROVIDER) !== "d1") {
+    return undefined;
+  }
+  if (!env.DB) {
+    throw new Error("DB_PROVIDER=d1 needs a `DB` D1 binding");
+  }
+  return { d1: env.DB };
+};
+
 const initApp = async (env: CloudflareEnv): Promise<Hono> => {
   bridgeEnv(env);
   setStorageBucket(env.STORAGE_BUCKET);
@@ -159,8 +177,9 @@ export default Sentry.withSentry(
       const { runWithWorkerConnection } = await import(
         "@wildfires-org/turboplan-db/db-client"
       );
-      return runWithWorkerConnection(async () =>
-        handler.fetch(request, env, ctx as never),
+      return runWithWorkerConnection(
+        async () => handler.fetch(request, env, ctx as never),
+        d1ConnectionOptions(env),
       );
     },
   },
