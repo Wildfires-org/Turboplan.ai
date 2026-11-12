@@ -124,6 +124,10 @@ R2_PUBLIC_URL=
 OPENROUTER_API_KEY=
 OPENROUTER_MODEL_IMAGE_PRIMARY=
 OPENROUTER_MODEL_IMAGE_LITE=
+# Optional: a Cloudflare AI Gateway base URL (…/openrouter/v1) and its token
+# (sent as cf-aig-authorization). Unset = straight to OpenRouter.
+OPENROUTER_BASE_URL=
+CLOUDFLARE_AI_GATEWAY_TOKEN=
 
 # =============================================================================
 # ERROR MONITORING (Sentry) — OPTIONAL

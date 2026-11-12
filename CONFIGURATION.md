@@ -194,6 +194,19 @@ To light up AI, add one key: `OPENROUTER_API_KEY` from
 `apps/server/.env.local`. That single addition is what most local development
 actually needs.
 
+To send every OpenRouter call (chat, titles, image generation, the admin
+model list; web, API and MCP) through a
+[Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) for its
+logs, caching and spend limits, set `OPENROUTER_BASE_URL` to the gateway's
+OpenRouter endpoint,
+`https://gateway.ai.cloudflare.com/v1/<account-id>/<gateway>/openrouter/v1`,
+on the web app, the API and the MCP server. New gateways are authenticated
+(Cloudflare cannot turn that off once it is on), so also set
+`CLOUDFLARE_AI_GATEWAY_TOKEN` to a Cloudflare API token with the
+**AI Gateway Run** permission; it is sent as `cf-aig-authorization`, next to the
+OpenRouter key. Unset, requests go straight to `https://openrouter.ai/api/v1`.
+The research agent still calls OpenRouter directly.
+
 ## Feature flags
 
 Optional modules are toggled per deployment. Each has two names — the server
@@ -354,6 +367,34 @@ are needed for that:
   `wrangler r2 bucket lifecycle add <bucket> expire-landing-uploads landing-uploads/ --expire-days 2 --force`.
   No R2 jurisdiction is supported: the app talks to the default S3 endpoint.
 
+#### Bucket binding instead of access keys
+
+A Worker can reach the bucket through an R2 binding instead of the S3 API, so
+no `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` exist at all. Bind the bucket as
+`STORAGE_BUCKET` (`"r2_buckets": [{ "binding": "STORAGE_BUCKET",
+"bucket_name": "<bucket>" }]`) on the API and the web app (and the MCP server,
+if it runs); each Worker entry registers it with `setStorageBucket` from
+`@wildfires-org/turboplan-upload/bucket`. With the binding present:
+
+- Writes, reads, deletes and landing-upload claims go to the binding. Only
+  `R2_PUBLIC_URL` is still required; `R2_ACCOUNT_ID`, `R2_BUCKET_NAME` and the
+  keys are not read.
+- A binding cannot presign, so the presign endpoints return a URL on the API
+  instead: `PUT ${SERVER_URL}/api/storage/upload?token=…`, which streams the
+  body into the bucket. The token is an HMAC under a key derived from
+  `JWT_SIGNING_SECRET` and pins the key, the exact `Content-Type` and the
+  length for five minutes, like a presigned URL. The API needs `SERVER_URL`
+  (its own public URL). Browser uploads then pass through the API Worker, so
+  the bucket needs no CORS rule, and the Worker's request body limit applies
+  (100 MB on the Free and Pro plans, 200 MB on Business).
+- Reads by the browser still use the bucket's public URL (`R2_PUBLIC_URL`, its
+  custom domain or `r2.dev` URL). Keep it on a host outside the auth cookie
+  domain: uploaded SVGs are served from it as is.
+- Node scripts (the seeds) have no binding and use the S3 API unless they
+  register one themselves, e.g. from wrangler's `getPlatformProxy`.
+
+The landing-uploads lifecycle rule is needed either way.
+
 The anonymous presign endpoint (`/api/public/uploads/*`) is rate limited per IP
 by the `PUBLIC_UPLOAD_RATE_LIMITER` binding in `apps/server/wrangler.jsonc`
 (10 per minute). Off Workers, or if the binding errors, it falls back to a
@@ -380,7 +421,8 @@ missing.
 | `POSTGRES_URL` | web, api, mcp | |
 | `OPENROUTER_API_KEY` | web, api, mcp | |
 | `SERVER_API_KEY` | api | |
-| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | web, api, mcp, research agent | Research agent: optional, with `R2_ACCOUNT_ID` and `R2_BUCKET_NAME` (the API's bucket; no `R2_PUBLIC_URL`) — letterhead logo crops are stored only when all four are set |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | web, api, mcp, research agent | Not needed on a Worker with a `STORAGE_BUCKET` binding (see "Bucket binding instead of access keys"). Research agent: optional, with `R2_ACCOUNT_ID` and `R2_BUCKET_NAME` (the API's bucket; no `R2_PUBLIC_URL`) — letterhead logo crops are stored only when all four are set |
+| `CLOUDFLARE_AI_GATEWAY_TOKEN` | web, api, mcp | Optional — with `OPENROUTER_BASE_URL`, for an authenticated Cloudflare AI Gateway. The deploy scripts pass both when set; the workflow does not set them yet |
 | `MAP_SERVICE_API_KEY` | api, map | Same value on both |
 | `RESEND_API_KEY` | api | Optional — no-op mail without it. A `send_email` Worker binding named `SEND_EMAIL` on the API (Cloudflare Email Sending) takes precedence; `RESEND_FROM_EMAIL` is the sender for both |
 | `EXA_API_KEY` | web | Optional — web search is a chat tool in the Next.js app; the API server never reads it |
@@ -470,7 +512,9 @@ startup, with the exception of the two marked otherwise.
 | ``Missing `DOCUMENSO_API_URL` / `DOCUMENSO_API_KEY` / `DOCUMENSO_WEBHOOK_SECRET` env variable`` | Signing is enabled. Start `docker/documenso` and fill these in, or set the signing flag to `false` |
 | ``Missing `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` env variable`` | Billing is enabled. Add test-mode Stripe keys or set the billing flag to `false` on both sides |
 | ``Missing `OPENROUTER_API_KEY` env variable`` | Thrown lazily on the first AI call, not at startup — the route returns 500. Add the key to the web app and the API server |
-| ``Missing `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_ACCOUNT_ID` / `R2_PUBLIC_URL` env variable`` | Thrown lazily on the first storage call that needs the variable — the upload or image route returns 500. Uploads, deletes and storage URLs need all five; reading letterhead grid logos by key needs only the four credentials (without them those logos are left out, logged as `[storage] Object read failed`). Configure all five together |
+| ``Missing `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_ACCOUNT_ID` / `R2_PUBLIC_URL` env variable`` | Thrown lazily on the first storage call that needs the variable — the upload or image route returns 500. Uploads, deletes and storage URLs need all five; reading letterhead grid logos by key needs only the four credentials (without them those logos are left out, logged as `[storage] Object read failed`). Configure all five together. With a `STORAGE_BUCKET` binding only `R2_PUBLIC_URL` is read |
+| ``Invalid `OPENROUTER_BASE_URL` env variable`` | Thrown on the first AI call. Use the gateway's https base ending in `/openrouter/v1`, without a query, fragment or credentials |
+| AI calls fail with `401` and code `2009` | The Cloudflare AI Gateway is authenticated and `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset or lacks the AI Gateway Run permission |
 | ``Missing `AGENT_API_KEY` env variable`` | `apps/research-agent` only. Must match `RESEARCH_AGENT_SERVICE_API_KEY` on the API server |
 | ``Missing required Modal env variables: …`` | `apps/research-agent` only. Set `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, or `AGENT_LOCAL=true` for local development |
 | ``Missing model provider key: set ANTHROPIC_API_KEY or OPENROUTER_API_KEY.`` | `apps/research-agent` only. Set one of the two, or `AGENT_LOCAL=true` |

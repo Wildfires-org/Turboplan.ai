@@ -17,7 +17,11 @@ import {
   publicTimelineRouter,
 } from "@wildfires-org/turboplan-public/server";
 import { searchRouter } from "@wildfires-org/turboplan-search/server";
-import { publicUploadRouter } from "@wildfires-org/turboplan-upload/server";
+import {
+  BUCKET_UPLOAD_PATH,
+  bucketUploadRouter,
+  publicUploadRouter,
+} from "@wildfires-org/turboplan-upload/server";
 import { publicInvitationsRouter } from "@wildfires-org/turboplan-workspace/server";
 
 import { magicLinkAnalyticsMiddleware } from "../middleware/magic-link-analytics.js";
@@ -79,6 +83,10 @@ export async function registerPublicRoutes(router: Hono) {
   // Landing-page document attachments (no auth, per-IP rate limited)
   router.use("/api/public/uploads/*", publicUploadRateLimit);
   router.route("/api/public/uploads", publicUploadRouter);
+
+  // Browser PUTs of presigned uploads when storage is an R2 bucket binding
+  // (the signed token in the URL is the authorization; 404 otherwise)
+  router.route(BUCKET_UPLOAD_PATH, bucketUploadRouter);
 
   // Public invitation details (for acceptance page before login)
   router.route("/api/public/invitations", publicInvitationsRouter);
