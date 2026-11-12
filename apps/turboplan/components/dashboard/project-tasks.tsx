@@ -36,6 +36,7 @@ import { useCoverImage } from "@/hooks/use-cover-image";
 import { useTimeline } from "@/hooks/use-timeline";
 import { EMPTY_STATE_TEXT_CLASS, EMPTY_STATE_TITLE_CLASS } from "@/lib/glass";
 import { AppUrls } from "@/lib/nav/urls";
+import { isResearchPhasePending } from "@/lib/research-phase";
 import { cn } from "@/lib/utils";
 import { ManageMembersDialog } from "./manage-members-dialog";
 import { TimelineContent } from "./timeline/timeline-content";
@@ -61,7 +62,9 @@ export function ProjectTasks({
 }: ProjectTasksProps) {
   const router = useRouter();
   const { organization, office, project } = useDashboard();
-  const isResearchPhaseCompleted = project?.isResearchPhaseCompleted ?? false;
+  const isResearchPhaseCompleted = project
+    ? !isResearchPhasePending(project)
+    : false;
 
   // Cover image for the task edit modal header
   const { coverImageUrl } = useCoverImage({
