@@ -6,7 +6,8 @@ export const MAX_REFERENCE_CHARS = 10_000;
 
 /**
  * How long a cache-miss fetch may hold up a document. The artifact panel is
- * already open by then, and Exa's own timeout (30s) would leave it blank.
+ * already open by then, and the web reader's own timeout (30s) would leave it
+ * blank.
  */
 export const REFERENCE_FETCH_TIMEOUT_MS = 10_000;
 

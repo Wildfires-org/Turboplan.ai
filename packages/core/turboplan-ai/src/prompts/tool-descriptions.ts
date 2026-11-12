@@ -87,24 +87,24 @@ Suggestions MUST be direct answers to your clarifying question. NEVER suggest do
 Example: If you ask "Which body is the lead/responsible authority?", call:
 generateQuickResponses({ conversationContext: "Asked which body leads this project. Based on the project location and type, most likely answers: the local environmental office, the regional authority, or a parent agency." })`;
 
-export const toolDescWebSearch = `Search the web for relevant environmental & regulatory documents, environmental data, authority guidance, similar projects, or any information needed. Returns titles, URLs, and query-relevant highlights (key excerpts matched to your query). Use getContents to read more from the most relevant results.
+export const toolDescWebSearch = `Search the web for relevant environmental & regulatory documents, environmental data, authority guidance, similar projects, or any information needed. Returns titles, URLs, and highlights (a short search snippet per result). Use getContents to read more from the most relevant results.
 
 Rules:
-- For comparable project searches: use searchType: "neural" (and the category param where it helps) to find semantically similar projects
+- For comparable project searches: use the category param where it helps ("government" for US agency sources, "pdf" for decision documents and assessments) to find similar projects
 - For comparable project searches: compare every result before picking an analog — the best match is often not the top result
 - Every factual claim from web research MUST cite its source in italics: *[Source Name]*
 - Prefer official/authoritative sources (the responsible authority's own publications, environmental registries) over general web results
-- Use the returned highlights to evaluate which results are most relevant before calling getContents
+- Use the returned snippets to evaluate which results are most relevant before calling getContents
 - When searching for comparable projects, include treatment methods and the project's likely level of environmental review in your query — not just location`;
 
 export const toolDescGetContents = `Read content from URLs. ALWAYS use after webSearch to read the top results before responding. Use when the user shares a link or to read the most relevant pages found via webSearch.
 
-By default returns highlights (query-relevant excerpts) and a summary per URL — no full text. This is sufficient for most research tasks.
+By default returns a summary and the opening of the page (as highlights) per URL — no full text. This is sufficient for most research tasks.
 
 - When you have web page URLs from research agent results, you can use getContents on those directly. Not for documents saved to the project or organization (our file-storage URLs, which it does not read): use readProjectDocuments / readOrganizationDocuments, or pass the ID in createDocument's referenceDocumentIds
-- Default mode (no maxCharacters): returns highlights + summary only — lean and effective for extracting key facts
-- Deep-read mode (pass maxCharacters): also returns full sequential text — use only when you need document structure, full context, or to quote specific passages
-- For most queries, the default highlights + summary from multiple URLs is enough to synthesize a well-cited answer`;
+- Default mode (no maxCharacters): returns a summary plus the opening of the page only — lean and effective for extracting key facts
+- Deep-read mode (pass maxCharacters): returns the full sequential text (up to maxCharacters) instead of the summary — use only when you need document structure, full context, or to quote specific passages
+- For most queries, the default summary + page opening from multiple URLs is enough to synthesize a well-cited answer`;
 
 export const toolDescReadProjectDocuments = `Read the full text of documents saved to this project (PDF, .docx and legacy .doc files): the user's uploads and any documents saved by the research agent.
 

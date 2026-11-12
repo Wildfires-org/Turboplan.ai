@@ -606,7 +606,7 @@ missing.
 | `CLOUDFLARE_AI_GATEWAY_TOKEN` | web, api, mcp | Optional — with `OPENROUTER_BASE_URL`, for an authenticated Cloudflare AI Gateway. The deploy scripts pass both when set; the workflow does not set them yet |
 | `MAP_SERVICE_API_KEY` | api, map | Same value on both |
 | `RESEND_API_KEY` | api | Optional — no-op mail without it. A `send_email` Worker binding named `SEND_EMAIL` on the API (Cloudflare Email Sending) takes precedence; `RESEND_FROM_EMAIL` is the sender for both |
-| `EXA_API_KEY` | web | Optional — web search is a chat tool in the Next.js app; the API server never reads it |
+| `FIRECRAWL_API_KEY` | web | Optional — web search and page reading are chat tools in the Next.js app; the API server never reads it |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | api | Required only when billing is enabled |
 | `DOCUMENSO_API_KEY`, `DOCUMENSO_WEBHOOK_SECRET` | api | Required only when signing is enabled; pair with the `DOCUMENSO_API_URL` variable |
 | `RESEARCH_AGENT_SERVICE_API_KEY` | api | Required only when the research agent is enabled |

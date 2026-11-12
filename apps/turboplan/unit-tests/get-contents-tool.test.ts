@@ -8,16 +8,16 @@ import type * as GetContentsModule from "../lib/ai/tools/get-contents";
 const STORAGE_URL = "https://files.example.test/uploads/u/letter.pdf";
 const WEB_URL = "https://example.gov/letter.pdf";
 
-const exaCalls: string[][] = [];
+const firecrawlCalls: string[][] = [];
 const remembered: unknown[] = [];
 
 mock.module("@wildfires-org/turboplan-ai", {
   namedExports: { getPrompt: async () => "Read content from URLs." },
 });
-mock.module("../lib/ai/exa-client", {
+mock.module("../lib/ai/firecrawl-client", {
   namedExports: {
-    exaGetContents: async (urls: string[]) => {
-      exaCalls.push(urls);
+    firecrawlGetContents: async (urls: string[]) => {
+      firecrawlCalls.push(urls);
       return {
         results: urls.map((url) => ({ url, title: "Web", text: "Web text" })),
       };
@@ -36,7 +36,7 @@ before(async () => {
 });
 
 beforeEach(() => {
-  exaCalls.length = 0;
+  firecrawlCalls.length = 0;
   remembered.length = 0;
 });
 
@@ -56,14 +56,14 @@ const runGetContents = async (urls: string[]) => {
 };
 
 describe("getContents", () => {
-  it("never sends our storage URLs to Exa and says how to read them", async () => {
+  it("never sends our storage URLs to Firecrawl and says how to read them", async () => {
     const result = await runGetContents([
       STORAGE_URL,
       "http://FILES.example.test./uploads/u/other.pdf",
       WEB_URL,
     ]);
 
-    assert.deepStrictEqual(exaCalls, [[WEB_URL]]);
+    assert.deepStrictEqual(firecrawlCalls, [[WEB_URL]]);
     assert.deepStrictEqual(result.skippedUrls, [
       STORAGE_URL,
       "http://FILES.example.test./uploads/u/other.pdf",
@@ -75,10 +75,10 @@ describe("getContents", () => {
     );
   });
 
-  it("does not call Exa when every URL is a storage URL", async () => {
+  it("does not call Firecrawl when every URL is a storage URL", async () => {
     const result = await runGetContents([STORAGE_URL]);
 
-    assert.deepStrictEqual(exaCalls, []);
+    assert.deepStrictEqual(firecrawlCalls, []);
     assert.deepStrictEqual(result.results, []);
     assert.deepStrictEqual(result.skippedUrls, [STORAGE_URL]);
     assert.deepStrictEqual(remembered, []);
@@ -87,7 +87,7 @@ describe("getContents", () => {
   it("reads web URLs as before, without a note", async () => {
     const result = await runGetContents([WEB_URL]);
 
-    assert.deepStrictEqual(exaCalls, [[WEB_URL]]);
+    assert.deepStrictEqual(firecrawlCalls, [[WEB_URL]]);
     assert.ok(!("note" in result));
     assert.strictEqual(remembered.length, 1);
   });

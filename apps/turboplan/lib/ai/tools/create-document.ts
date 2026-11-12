@@ -16,7 +16,7 @@ import {
 import type { DocumentLetterhead } from "@wildfires-org/turboplan-workspace/types";
 
 import { createChatTimer } from "@/lib/ai/chat-timing";
-import { exaGetContents } from "@/lib/ai/exa-client";
+import { firecrawlGetContents } from "@/lib/ai/firecrawl-client";
 import {
   MAX_REFERENCE_URLS,
   type ReferenceCache,
@@ -258,8 +258,8 @@ export const createDocument = async ({
 
       // Only the text handler reads references, so no other kind looks them
       // up or gets a loader — which also keeps every kind's storage URLs away
-      // from Exa. Saved project/organization documents named as references
-      // (by id or storage URL) are read from the database instead of Exa.
+      // from Firecrawl. Saved project/organization documents named as
+      // references (by id or storage URL) are read from the database instead.
       const loadReferences = async (): Promise<SavedReferences | undefined> => {
         if (
           kind !== "text" ||
@@ -384,7 +384,7 @@ export const createDocument = async ({
           ? createReferenceLoader({
               saved,
               cache: referenceCache,
-              fetchContents: exaGetContents,
+              fetchContents: firecrawlGetContents,
             })
           : undefined,
         letterhead,

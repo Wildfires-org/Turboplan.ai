@@ -26,7 +26,7 @@ On your VERY FIRST response in this conversation:
 Run both searches simultaneously:
 
 **Search 1 — Treatment & review-level match** (most important):
-\`webSearch({ query: "[treatment methods] [likely environmental review level] [responsible authority] [region]", searchType: "neural" })\`
+\`webSearch({ query: "[treatment methods] [likely environmental review level] [responsible authority] [region]" })\`
 - Focus on treatment types (mechanical thinning, mastication, prescribed burning, habitat restoration, etc.) and the likely level of environmental review the project will require
 - If the project uses routine, low-impact treatments at a standard scale, it likely needs only a lightweight exclusion (a routine/low-impact determination) — search for comparable exclusion-level projects, not standard-assessment or full-impact-statement ones
 - Prefer official/authoritative sources (the responsible authority's own publications, environmental registries)

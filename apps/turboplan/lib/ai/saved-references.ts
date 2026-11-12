@@ -52,9 +52,10 @@ export type SavedReferences = {
   /** In request order: ids first, then storage URLs; each document once */
   references: SavedReference[];
   /**
-   * `referenceUrls` still to read through getContents' cache or Exa: every URL
-   * not on our storage host. A storage URL never goes to a third party — it
-   * is read from the database or dropped (R2 is meant to become private).
+   * `referenceUrls` still to read through getContents' cache or Firecrawl:
+   * every URL not on our storage host. A storage URL never goes to a third
+   * party — it is read from the database or dropped (R2 is meant to become
+   * private).
    */
   webUrls: string[];
   /** Requested ids and storage URLs that matched no readable saved document */
@@ -81,8 +82,8 @@ const storedText = ({
   extractionStatus === "done" && extractedText ? extractedText : null;
 
 /**
- * Resolve createDocument's references to saved documents (no Exa, no storage
- * download): `documentIds` and `urls` on our storage host, at most
+ * Resolve createDocument's references to saved documents (no Firecrawl, no
+ * storage download): `documentIds` and `urls` on our storage host, at most
  * MAX_REFERENCE_URLS of each. Storage URLs are matched on their canonical
  * object URL, so the model's copy may differ in encoding or carry a fragment.
  *
@@ -92,7 +93,8 @@ const storedText = ({
  * re-checked here. Organization documents are referenced from project chats
  * only: without a project nothing is read. Unknown, foreign or unreadable ids
  * and storage URLs only add to `unresolved`: our storage URLs are never handed
- * to Exa. Never throws: on failure only the other URLs stay on the web path.
+ * to Firecrawl. Never throws: on failure only the other URLs stay on the web
+ * path.
  */
 export const loadSavedReferences = async ({
   projectId,
@@ -111,7 +113,7 @@ export const loadSavedReferences = async ({
     documentIds.map((id) => id.trim().toLowerCase()).filter(Boolean),
   );
   const trimmedUrls = urls.map((url) => url.trim()).filter(Boolean);
-  // Our own storage URLs never leave for a third party (Exa).
+  // Our own storage URLs never leave for a third party (Firecrawl).
   const webUrls = trimmedUrls.filter((url) => !isStorageHost(url));
   const storageUrls = unique(trimmedUrls.filter(isStorageHost));
   const nothingResolved: SavedReferences = {
@@ -330,7 +332,7 @@ export const reportSavedReferences = (
 /**
  * The document generator's reference texts, at most MAX_REFERENCE_URLS:
  * saved documents' stored text first, then the web URLs (getContents' cache,
- * else one Exa fetch) for the slots left — saved public pages before
+ * else one Firecrawl read) for the slots left — saved public pages before
  * `referenceUrls`. Undefined when there is nothing to load, so the generator
  * gets no reference section.
  */
