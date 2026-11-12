@@ -62,9 +62,9 @@ export const PROMPT_SUGGESTIONS = [
       "I'm a silviculturist at Rogue River-Siskiyou NF, preparing an EA for the 1,200-acre Jackson Creek vegetation restoration project to reduce fuels and restore late-successional habitat.",
   },
   {
-    label: "🌲 BLM Road Repair",
-    name: "BLM Road Repair",
+    label: "🚧 USFS Road Repair",
+    name: "USFS Road Repair",
     prompt:
-      "I'm a project lead in Utah, managing the reconstruction of a 5-mile segment of the popular Moab Slickrock Trail damaged by erosion.",
+      "I'm a NEPA planner at Tahoe NF, and I'm managing the repair of a washed-out section of Forest Road 43 to restore safe access to campgrounds and trailheads.",
   },
 ];

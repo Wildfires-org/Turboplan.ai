@@ -199,9 +199,10 @@ export type UsfsProjectTypeId = (typeof USFS_PROJECT_TYPES)[number]["id"];
 type UsfsExample = EntryExample & { projectType: UsfsProjectTypeId };
 
 /**
- * Example chips for a Forest Service audience, most common work first. The
- * places are made up; the work, acreages and permits are typical of each
- * project type.
+ * Example chips for a Forest Service audience, most common work first: the
+ * agency's own forestry, restoration and facilities work, not projects a
+ * business applies for. The places are made up; the work and acreages are
+ * typical of each project type.
  */
 export const USFS_EXAMPLES: UsfsExample[] = [
   {
@@ -220,7 +221,7 @@ export const USFS_EXAMPLES: UsfsExample[] = [
     projectType: "ce.wildfire",
     projectTitle: "Bear Creek Wildfire Resilience Project",
     prompt:
-      "I'm leading the interdisciplinary team for the Bear Creek wildfire resilience project: about 2,800 acres of dry mixed-conifer forest next to the town of Millbrook. We plan commercial and non-commercial thinning, ladder-fuel removal and follow-up prescribed burning. I want to use the HFRA wildfire resilience categorical exclusion, so help me check its acreage and collaboration requirements and outline the decision memo.",
+      "I'm leading the interdisciplinary team for the Bear Creek wildfire resilience project: about 2,800 acres of dry mixed-conifer forest next to the town of Millbrook. We plan variable-density thinning, ladder-fuel removal and follow-up prescribed burning. I want to use the HFRA wildfire resilience categorical exclusion, so help me check its acreage and collaboration requirements and outline the decision memo.",
   },
   {
     id: "insect-disease",
@@ -257,7 +258,7 @@ export const USFS_EXAMPLES: UsfsExample[] = [
       "ce.repair_and_maintenance_of_roads_trails_and_landline_boundaries",
     projectTitle: "Forest Road 45 Storm Repairs",
     prompt:
-      "Spring storms washed out two sections of Forest Road 45, the main access to Bluebell campground and two grazing allotments. I'm planning to rebuild the road prism, replace a failed culvert, add drainage dips and resurface three miles of road, all within the existing footprint. Help me document the work under the road maintenance categorical exclusion and put together the project file.",
+      "Spring storms washed out two sections of Forest Road 45, the main access to Bluebell campground and the Bluebell trailhead. I'm planning to rebuild the road prism, replace a failed culvert, add drainage dips and resurface three miles of road, all within the existing footprint. Help me document the work under the road maintenance categorical exclusion and put together the project file.",
   },
   {
     id: "trail-reroute",
@@ -267,15 +268,6 @@ export const USFS_EXAMPLES: UsfsExample[] = [
     projectTitle: "Raven Lake Trail Reroute",
     prompt:
       "A steep stretch of the Raven Lake trail is eroding and draining straight into the lake. I'm planning to reroute 1.8 miles onto a sustainable grade, close and revegetate the old tread, and build two drainage crossings. It's a popular day hike, so we'll need a temporary closure during construction. Help me write this up under the trail construction categorical exclusion with a decision memo.",
-  },
-  {
-    id: "grazing-permit",
-    label: "Grazing permit",
-    icon: "wheat",
-    projectType: "ce.grazing_permit_or_lease",
-    projectTitle: "Sagebrush Flat Allotment Permit Renewal",
-    prompt:
-      "I'm a rangeland management specialist renewing a 10-year term grazing permit on the Sagebrush Flat allotment: about 18,000 acres and 300 cow-calf pairs from June through September. Monitoring shows upland and riparian conditions are meeting objectives under current management. Help me document the renewal under the grazing permit categorical exclusion and draft the decision.",
   },
   {
     id: "stream-habitat",
@@ -320,7 +312,7 @@ export const USFS_EXAMPLES: UsfsExample[] = [
     projectType: "ce.small_sale",
     projectTitle: "Hollow Spring Small Sale",
     prompt:
-      "We'd like to offer a small commercial thinning sale on about 65 acres of overstocked second-growth near Hollow Spring, using existing system roads and no new road construction. The goals are healthier stands and local sawlogs and firewood. Help me check it against the small-sale categorical exclusion and draft the project record.",
+      "We'd like to offer a small thinning sale on about 65 acres of overstocked second-growth near Hollow Spring, using existing system roads and no new road construction. The goals are healthier stands and local sawlogs and firewood. Help me check it against the small-sale categorical exclusion and draft the project record.",
   },
   {
     id: "stand-improvement",
@@ -350,34 +342,6 @@ export const USFS_EXAMPLES: UsfsExample[] = [
       "Aspen Grove campground needs work: replacing two vault toilets, resurfacing the loop road and spurs, swapping out 30 picnic tables and fire rings, and making six sites accessible. Everything stays inside the existing footprint. Help me document it under the recreation site maintenance categorical exclusion and schedule the work around the summer season.",
   },
   {
-    id: "outfitter-permit",
-    label: "Outfitter permit",
-    icon: "compass",
-    projectType:
-      "ce.new_or_amended_existing_recreation_special_use_authorization",
-    projectTitle: "Silver River Outfitter-Guide Permit",
-    prompt:
-      "A local outfitter has applied for a five-year special use permit to run guided fishing and rafting trips on the Silver River, up to 120 service days a season, from existing launch sites and campsites. I need to review the application, check use levels against our river management direction, and document the decision under the recreation special use categorical exclusion.",
-  },
-  {
-    id: "ski-area-permit",
-    label: "Ski area permit",
-    icon: "mountain-snow",
-    projectType: "ce.ski_area_permit_issuance",
-    projectTitle: "Snow Peak Ski Area Permit",
-    prompt:
-      "The Snow Peak ski area's term permit expires next year, and the operator wants a new permit for the same 900-acre area with no changes to lifts, runs or buildings. Help me confirm this fits the ski area permit issuance categorical exclusion and assemble the permit file.",
-  },
-  {
-    id: "power-line",
-    label: "Power line rebuild",
-    icon: "utility-pole",
-    projectType: "ce.construction_and_reconstruction_of_existing_utilities",
-    projectTitle: "Pine Hollow Power Line Rebuild",
-    prompt:
-      "The local electric cooperative wants to rebuild six miles of an existing distribution line across the forest: replacing wooden poles, widening the cleared corridor to cut wildfire ignition risk, and working from existing access roads. Help me evaluate the request under the existing utilities categorical exclusion and draft the permit amendment and decision memo.",
-  },
-  {
     id: "guard-station",
     label: "Guard station repairs",
     icon: "warehouse",
@@ -385,14 +349,5 @@ export const USFS_EXAMPLES: UsfsExample[] = [
     projectTitle: "Fox Creek Guard Station Repairs",
     prompt:
       "The Fox Creek guard station needs a new roof, a replacement septic system and an accessible ramp. The building is more than 50 years old, so our heritage staff will need to weigh in. Help me document the work under the administrative site maintenance categorical exclusion and put together the project file.",
-  },
-  {
-    id: "mineral-exploration",
-    label: "Mineral exploration",
-    icon: "pickaxe",
-    projectType: "ce.minerals_energy_geophysical_investigations",
-    projectTitle: "Copper Gulch Exploration Drilling",
-    prompt:
-      "A company has submitted a plan of operations for one season of exploratory drilling at Copper Gulch: 12 drill pads reached from existing roads and one temporary spur, with full reclamation afterward. Help me review it under the short-term mineral investigations categorical exclusion and list the conditions we should attach.",
   },
 ];

@@ -22,8 +22,8 @@ class AuthPage {
 
   async requestRegistrationLink(email: string) {
     await this.gotoRegister();
-    await this.page.getByPlaceholder("user@acme.com").click();
-    await this.page.getByPlaceholder("user@acme.com").fill(email);
+    await this.page.getByPlaceholder("name@usda.gov").click();
+    await this.page.getByPlaceholder("name@usda.gov").fill(email);
     await this.page
       .getByRole("button", { name: "Send verification link" })
       .click();
@@ -31,8 +31,8 @@ class AuthPage {
 
   async requestLoginLink(email: string) {
     await this.gotoLogin();
-    await this.page.getByPlaceholder("user@acme.com").click();
-    await this.page.getByPlaceholder("user@acme.com").fill(email);
+    await this.page.getByPlaceholder("name@usda.gov").click();
+    await this.page.getByPlaceholder("name@usda.gov").fill(email);
     await this.page.getByRole("button", { name: "Send sign-in link" }).click();
   }
 
@@ -62,7 +62,7 @@ test.describe
     test("register page shows email-only form", async ({ page }) => {
       await authPage.gotoRegister();
       // Email field should be visible
-      await expect(page.getByPlaceholder("user@acme.com")).toBeVisible();
+      await expect(page.getByPlaceholder("name@usda.gov")).toBeVisible();
       // Password field should NOT be visible
       await expect(page.getByLabel("Password")).not.toBeVisible();
       // Descriptive text should mention magic link
@@ -72,7 +72,7 @@ test.describe
     test("login page shows email-only form", async ({ page }) => {
       await authPage.gotoLogin();
       // Email field should be visible
-      await expect(page.getByPlaceholder("user@acme.com")).toBeVisible();
+      await expect(page.getByPlaceholder("name@usda.gov")).toBeVisible();
       // Password field should NOT be visible
       await expect(page.getByLabel("Password")).not.toBeVisible();
       // Descriptive text should mention magic link

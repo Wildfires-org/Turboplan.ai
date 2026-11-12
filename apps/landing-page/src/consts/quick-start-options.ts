@@ -3,8 +3,8 @@ export const QUICK_START_OPTIONS: Record<string, string> = {
     "I'm a NEPA planner at Umatilla NF, and I'm working on the P52 fuel break which will put a 2500-acre fuel break into WUI at Heppner Ranger District.",
   "USFS Veg EA":
     "I'm a silviculturist at Rogue River-Siskiyou NF, preparing an EA for the 1,200-acre Jackson Creek vegetation restoration project to reduce fuels and restore late-successional habitat.",
-  "BLM Road Repair":
-    "I'm a project lead in Utah, managing the reconstruction of a 5-mile segment of the popular Moab Slickrock Trail damaged by erosion.",
+  "USFS Road Repair":
+    "I'm a NEPA planner at Tahoe NF, and I'm managing the repair of a washed-out section of Forest Road 43 to restore safe access to campgrounds and trailheads.",
 };
 
 export interface QuickStartExample {
@@ -13,9 +13,9 @@ export interface QuickStartExample {
   prompt: string;
 }
 
-// Hero pill carousel — one example per federal agency, covering the range of
-// project types TurboPlan is used for. Prompts are representative NEPA/CE
-// scenarios, not real project data.
+// Hero pill carousel: US Forest Service projects on national forests and
+// grasslands, the work TurboPlan is built for. Prompts are representative
+// NEPA/CE scenarios, not real project data.
 export const QUICK_START_EXAMPLES: QuickStartExample[] = [
   {
     emoji: "🚧",
@@ -36,105 +36,69 @@ export const QUICK_START_EXAMPLES: QuickStartExample[] = [
       "I'm a forester at Shasta-Trinity NF, and I'm coordinating a 3000-acre thinning project to reduce wildfire risk in the Wildland Urban Interface.",
   },
   {
-    emoji: "🐄",
-    label: "Rangeland Grazing CE",
+    emoji: "🪲",
+    label: "Bark Beetle Response",
     prompt:
-      "I'm a land manager in Colorado and am renewing a 10-year grazing permit for a 1500-acre allotment in the San Luis Valley.",
+      "I'm a silviculturist at Black Hills NF, planning a 2,000-acre thinning project to slow mountain pine beetle spread in overstocked ponderosa pine stands.",
   },
   {
-    emoji: "🥾",
-    label: "Trail Reconstruction",
+    emoji: "🌱",
+    label: "Post-fire Reforestation",
     prompt:
-      "I'm a project lead in Utah, managing the reconstruction of a 5-mile segment of the popular Moab Slickrock Trail damaged by erosion.",
-  },
-  {
-    emoji: "⛽",
-    label: "Pipeline Maintenance",
-    prompt:
-      "I'm overseeing routine maintenance of oil and gas pipelines crossing public lands in the Powder River Basin.",
-  },
-  {
-    emoji: "🏞️",
-    label: "Park Trail Repair",
-    prompt:
-      "I'm an NPS planner at Rocky Mountain NP, coordinating the repair of a damaged section of Bear Lake Trail after a winter storm.",
-  },
-  {
-    emoji: "🏛️",
-    label: "Historic Preservation",
-    prompt:
-      "I'm managing restoration work on the historic Yosemite Valley Chapel to ensure it remains structurally sound and accessible.",
-  },
-  {
-    emoji: "💡",
-    label: "Campground Lighting",
-    prompt:
-      "I'm responsible for replacing outdated lighting in campgrounds with energy-efficient alternatives in Great Smoky Mountains NP.",
-  },
-  {
-    emoji: "☀️",
-    label: "Solar Installation",
-    prompt:
-      "I'm a project lead installing rooftop solar panels on a DOE research facility in New Mexico to reduce energy consumption.",
-  },
-  {
-    emoji: "🌿",
-    label: "Habitat Restoration",
-    prompt:
-      "I'm managing a project to remove invasive plants and replant native vegetation in the Wetland Reserve Program area in Florida.",
-  },
-  {
-    emoji: "🌉",
-    label: "Guardrail Repair",
-    prompt:
-      "I'm overseeing the replacement of a damaged guardrail on a rural highway in Virginia after flood damage.",
-  },
-  {
-    emoji: "🚦",
-    label: "Highway Safety CE",
-    prompt:
-      "I'm implementing safety upgrades, including new signage and rumble strips, along a stretch of Highway 22 in Oregon.",
-  },
-  {
-    emoji: "🚢",
-    label: "Channel Dredging",
-    prompt:
-      "I'm leading dredging operations in the Mississippi River to ensure safe passage for commercial shipping.",
-  },
-  {
-    emoji: "✈️",
-    label: "Airfield Repaving",
-    prompt:
-      "I'm overseeing the resurfacing of a taxiway at Denver International Airport to address wear and tear.",
-  },
-  {
-    emoji: "💧",
-    label: "Water Quality Testing",
-    prompt:
-      "I'm conducting water quality testing in Chesapeake Bay to track pollution levels and restoration progress.",
-  },
-  {
-    emoji: "🏘️",
-    label: "Housing Rehab CE",
-    prompt:
-      "I'm managing a project to upgrade plumbing and electrical systems in a 50-unit affordable housing complex in Chicago.",
+      "I'm a forester at Eldorado NF, planning to plant mixed-conifer seedlings on 1,500 acres that burned at high severity in a recent wildfire.",
   },
   {
     emoji: "🪵",
     label: "Prescribed Burns",
     prompt:
-      "I'm coordinating prescribed burns in Idaho to reduce fuel loads and improve habitat for sage grouse.",
+      "I'm a fuels specialist at Boise NF, coordinating prescribed burns on 4,000 acres to reduce fuel loads and restore open ponderosa pine forest.",
   },
   {
-    emoji: "🌾",
-    label: "Soil Conservation",
+    emoji: "🥾",
+    label: "Trail Reroute",
     prompt:
-      "I'm working with local farmers in Iowa to install contour buffer strips to reduce soil erosion.",
+      "I'm a recreation planner at Mt. Hood NF, rerouting two miles of an eroding trail onto a sustainable grade and restoring the old tread.",
+  },
+  {
+    emoji: "🐟",
+    label: "Fish Passage",
+    prompt:
+      "I'm a fisheries biologist at Siuslaw NF, replacing three undersized culverts that block coho salmon passage under a forest road.",
   },
   {
     emoji: "🌊",
-    label: "Seagrass Restoration",
+    label: "Stream Restoration",
     prompt:
-      "I'm restoring seagrass beds along the Florida Keys to support marine life and improve water quality.",
+      "I'm a hydrologist at Okanogan-Wenatchee NF, adding large wood and reconnecting side channels along four miles of a native trout stream.",
+  },
+  {
+    emoji: "🛣️",
+    label: "Road Decommissioning",
+    prompt:
+      "I'm a hydrologist at Nez Perce-Clearwater NF, decommissioning 12 miles of unneeded forest roads that are delivering sediment to streams.",
+  },
+  {
+    emoji: "🦌",
+    label: "Mule Deer Habitat",
+    prompt:
+      "I'm a wildlife biologist at Fremont-Winema NF, cutting encroaching juniper on 3,000 acres to restore mule deer winter range.",
+  },
+  {
+    emoji: "🌿",
+    label: "Invasive Weed Treatment",
+    prompt:
+      "I'm a botanist at Coconino NF, treating invasive weeds along 40 miles of forest roads and in recently burned areas.",
+  },
+  {
+    emoji: "🏕️",
+    label: "Campground Upgrade",
+    prompt:
+      "I'm a recreation manager at Sawtooth NF, replacing vault toilets and making six campsites accessible at a lakeside campground.",
+  },
+  {
+    emoji: "🏚️",
+    label: "Guard Station Repairs",
+    prompt:
+      "I'm a facilities engineer at Bitterroot NF, replacing the roof and septic system of a historic guard station.",
   },
 ];
