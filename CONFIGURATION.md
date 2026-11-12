@@ -329,7 +329,12 @@ the API Worker (`apps/server`), and in the MCP Worker if it is deployed. Set
 
 D1 needs no `POSTGRES_URL` secret and no Hyperdrive config. With
 `DB_PROVIDER=d1` both Workers ignore a `HYPERDRIVE` binding, so the existing
-one can stay.
+one can stay. `scripts/deploy-web.sh` and `scripts/deploy-api.sh` are still
+written for Postgres: they require `POSTGRES_URL` (the web script also hands
+it to the Miniflare proxy that `opennextjs-cloudflare deploy` starts, which
+will not boot a `HYPERDRIVE` binding without a connection string) and do not
+pass `DB_PROVIDER` or the `d1_databases` binding. A D1 deployment adds those
+itself, or drops the `hyperdrive` block from its wrangler config.
 
 Apply the migrations with either tool. Both record what they applied in
 wrangler's `d1_migrations` table, so you can switch between them:
