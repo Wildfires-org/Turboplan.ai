@@ -17,3 +17,5 @@ dialog's BLM road repair suggestion becomes a Tahoe NF one. The signup loading
 screen swaps its BLM and Yellowstone facts for Forest Service ones. The landing
 page's hero examples (pipelines, solar, highways, dredging, airports, housing)
 are replaced with 14 national forest projects.
+The sign-in and signup email placeholders read `name@usda.gov` instead of
+`user@acme.com` and `john@company.com`.
