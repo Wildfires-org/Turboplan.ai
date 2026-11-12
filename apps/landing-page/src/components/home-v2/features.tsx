@@ -15,7 +15,8 @@ const FEATURES = [
     description:
       "Automatically surface relevant project context. Our AI instantly finds the right Categorical Exclusions and references past online documents.",
     visualSrc: "/images/features/research.webp",
-    visualAlt: "Smart content research interface",
+    visualAlt:
+      "TurboPlan chat matching a forest road repair to the road maintenance categorical exclusion",
     direction: "left" as const,
   },
   {
@@ -26,7 +27,8 @@ const FEATURES = [
     description:
       "Turn a blank page into a structured NEPA document in seconds. We auto-generate Scoping Letters with correct locations, intents, and citations.",
     visualSrc: "/images/features/aidrafting.webp",
-    visualAlt: "AI drafting interface",
+    visualAlt:
+      "A scoping letter drafted in TurboPlan chat on Forest Service letterhead",
     direction: "right" as const,
   },
   {
@@ -37,7 +39,7 @@ const FEATURES = [
     description:
       "Track every detail — from Botany Surveys to GIS boundaries. On an interactive, keyboard-friendly Gantt chart.",
     visualSrc: "/images/features/planning.webp",
-    visualAlt: "Project planning interface",
+    visualAlt: "Gantt chart of a project's scoping and resource survey tasks",
     direction: "left" as const,
   },
   {
@@ -48,7 +50,8 @@ const FEATURES = [
     description:
       "Provide a secure platform for public comments. External partners can easily submit project applications directly to your agency.",
     visualSrc: "/images/features/community.webp",
-    visualAlt: "Collaboration interface",
+    visualAlt:
+      "Public comments from residents with replies from the project planner",
     direction: "right" as const,
   },
 ];
