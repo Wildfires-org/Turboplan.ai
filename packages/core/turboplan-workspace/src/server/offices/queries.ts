@@ -9,7 +9,7 @@ import {
   PUBLICLY_LISTED_ORG_TYPES,
   user,
 } from "@wildfires-org/turboplan-db";
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import { db, jsonArrayContains } from "@wildfires-org/turboplan-db/db-client";
 import { EntityType } from "@wildfires-org/turboplan-rbac";
 import { getRBACService } from "@wildfires-org/turboplan-rbac/server";
 import { isValidSlug } from "@wildfires-org/turboplan-utils/server";
@@ -57,7 +57,7 @@ export async function getOfficeBySlug(
           eq(organization.slug, organizationSlug),
           or(
             eq(office.slug, officeSlug),
-            sql`${office.slugHistory}::jsonb @> ${JSON.stringify([officeSlug])}::jsonb`,
+            jsonArrayContains(office.slugHistory, officeSlug),
           ),
         ),
       );
@@ -112,10 +112,7 @@ async function isOfficeSlugTaken(
     .where(
       and(
         eq(office.organizationId, organizationId),
-        or(
-          eq(office.slug, slug),
-          sql`${office.slugHistory}::jsonb @> ${JSON.stringify([slug])}::jsonb`,
-        ),
+        or(eq(office.slug, slug), jsonArrayContains(office.slugHistory, slug)),
       ),
     );
 

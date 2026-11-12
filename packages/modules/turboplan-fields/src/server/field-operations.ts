@@ -1,7 +1,7 @@
 import { and, eq, max, sql } from "drizzle-orm";
 
 import { projectField } from "@wildfires-org/turboplan-db";
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import { db, isSqliteDb } from "@wildfires-org/turboplan-db/db-client";
 import {
   computeChanges,
   createTimelineRecord,
@@ -37,9 +37,12 @@ export const createProjectFieldEntry = async ({
   // committed) would let two calls read the same count/order and both insert.
   // The per-project advisory lock is released automatically at commit.
   const newField = await db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`project-fields:${projectId}`}, 0))`,
-    );
+    // No advisory locks on D1: it runs one write at a time.
+    if (!isSqliteDb()) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`project-fields:${projectId}`}, 0))`,
+      );
+    }
 
     const countResult = await tx
       .select({ count: sql<number>`count(*)::int` })

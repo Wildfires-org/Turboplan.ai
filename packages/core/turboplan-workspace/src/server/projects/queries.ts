@@ -39,7 +39,7 @@ import {
   tasks,
   user,
 } from "@wildfires-org/turboplan-db";
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import { db, jsonArrayContains } from "@wildfires-org/turboplan-db/db-client";
 import {
   deleteDocumentLetterheadSelection,
   getDocumentLetterheadById,
@@ -957,7 +957,7 @@ export async function getProjectBySlug(
           isNull(project.deletedAt),
           or(
             eq(project.slug, projectSlug),
-            sql`${project.slugHistory}::jsonb @> ${JSON.stringify([projectSlug])}::jsonb`,
+            jsonArrayContains(project.slugHistory, projectSlug),
           ),
         ),
       );
@@ -993,7 +993,7 @@ async function isProjectSlugTaken(
         eq(project.officeId, officeId),
         or(
           eq(project.slug, slug),
-          sql`${project.slugHistory}::jsonb @> ${JSON.stringify([slug])}::jsonb`,
+          jsonArrayContains(project.slugHistory, slug),
         ),
       ),
     );

@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import {
   type NewSigningRequest,
@@ -14,7 +14,7 @@ import {
   signingRequest,
   user,
 } from "@wildfires-org/turboplan-db";
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import { db, jsonArrayContains } from "@wildfires-org/turboplan-db/db-client";
 
 // A recipient's `signingUrl` is a Documenso bearer token — whoever holds it can
 // sign as that recipient directly on Documenso, bypassing app RBAC and the turn
@@ -258,14 +258,12 @@ export const getMyPendingSigningRequests = async (
     // (and joining it would wrongly exclude office/org-inherited recipients).
     const conditions = [
       eq(signingRequest.status, "pending"),
-      sql`${signingRequest.recipients}::jsonb @> ${JSON.stringify([
-        {
-          userId,
-          role: "signer",
-          sendStatus: "sent",
-          signingStatus: "not_signed",
-        },
-      ])}::jsonb`,
+      jsonArrayContains(signingRequest.recipients, {
+        userId,
+        role: "signer",
+        sendStatus: "sent",
+        signingStatus: "not_signed",
+      }),
     ];
 
     if (organizationId) {

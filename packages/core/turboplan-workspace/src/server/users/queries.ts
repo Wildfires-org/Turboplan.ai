@@ -8,7 +8,11 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { office, profile, project, user } from "@wildfires-org/turboplan-db";
-import { db } from "@wildfires-org/turboplan-db/db-client";
+import {
+  db,
+  isSqliteDb,
+  substringMatchRank,
+} from "@wildfires-org/turboplan-db/db-client";
 import { EntityType } from "@wildfires-org/turboplan-rbac";
 
 import {
@@ -117,8 +121,17 @@ export const searchUsers = async (
   const ilikePattern = `%${sanitizedQuery}%`;
 
   // Similarity score: weighted combination of email (highest), firstName, lastName
-  // word_similarity finds the most similar word in the text to the query
-  const similarityScore = sql<number>`greatest(
+  // word_similarity finds the most similar word in the text to the query.
+  // D1 has no pg_trgm: substring matches only, ranked the same way.
+  const fullName = sql`coalesce(${profile.firstName}, '') || ' ' || coalesce(${profile.lastName}, '')`;
+  const similarityScore = isSqliteDb()
+    ? substringMatchRank(trimmedQuery, [
+        [user.email, 1.0],
+        [profile.firstName, 0.9],
+        [profile.lastName, 0.9],
+        [fullName, 0.95],
+      ])
+    : sql<number>`greatest(
     word_similarity(${trimmedQuery}, ${user.email}) * 1.0,
     word_similarity(${trimmedQuery}, coalesce(${profile.firstName}, '')) * 0.9,
     word_similarity(${trimmedQuery}, coalesce(${profile.lastName}, '')) * 0.9,
@@ -126,8 +139,15 @@ export const searchUsers = async (
   )`;
 
   // Match using ILIKE for exact substring matching
-  // OR the % operator for fuzzy/typo tolerance
-  const fuzzyMatch = sql`(
+  // OR the % operator for fuzzy/typo tolerance (Postgres only)
+  const fuzzyMatch = isSqliteDb()
+    ? sql`(
+    ${user.email} ILIKE ${ilikePattern} OR
+    coalesce(${profile.firstName}, '') ILIKE ${ilikePattern} OR
+    coalesce(${profile.lastName}, '') ILIKE ${ilikePattern} OR
+    (${fullName}) ILIKE ${ilikePattern}
+  )`
+    : sql`(
     ${user.email} ILIKE ${ilikePattern} OR
     coalesce(${profile.firstName}, '') ILIKE ${ilikePattern} OR
     coalesce(${profile.lastName}, '') ILIKE ${ilikePattern} OR
