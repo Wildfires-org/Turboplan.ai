@@ -1,5 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
+import { isPromptEntryPoint } from "@/lib/entry-point/config";
+
 /**
  * Segment-aware route match: `/login` and `/login/x`, never `/login-team`.
  * Org slugs live at the URL root (`/:org`), so a bare `startsWith` would treat
@@ -74,6 +76,12 @@ export const authConfig = {
         isOnAnyRoute(UNGUARDED_ROUTES) ||
         isStaticFile(pathname)
       ) {
+        return true;
+      }
+
+      // The prompt entry page (lib/entry-point/config.ts) greets signed-out
+      // visitors at the root; app/page.tsx still sends signed-in users home.
+      if (isPromptEntryPoint && pathname === "/") {
         return true;
       }
 
