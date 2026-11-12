@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+
 import { assertProjectCreationAllowed } from "@wildfires-org/turboplan-billing/server";
 import { project, projectUsers } from "@wildfires-org/turboplan-db";
 import { db } from "@wildfires-org/turboplan-db/db-client";
@@ -134,16 +136,21 @@ export async function createProjectForAuthenticatedUser(
       logPrefix: "[Self-Service Authenticated]",
     });
 
-    // Auto-generate cover image if feature is enabled (fire-and-forget for faster redirect)
-    autoGenerateProjectImage(
-      userId,
-      newProject.id,
-      newProject.name,
-      "[Self-Service Authenticated]",
-    ).catch((error) =>
-      console.error(
-        `[Self-Service Authenticated] Background image generation failed for project ${newProject.id}:`,
-        error,
+    // Auto-generate the cover image after the response, so the redirect isn't
+    // held up. `after` keeps the work alive: on Cloudflare Workers a promise
+    // nobody awaits is cancelled once the response is sent, so a bare
+    // fire-and-forget call never reached the API there.
+    after(() =>
+      autoGenerateProjectImage(
+        userId,
+        newProject.id,
+        newProject.name,
+        "[Self-Service Authenticated]",
+      ).catch((error) =>
+        console.error(
+          `[Self-Service Authenticated] Background image generation failed for project ${newProject.id}:`,
+          error,
+        ),
       ),
     );
 
